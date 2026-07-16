@@ -11,6 +11,10 @@ struct NotchView: View {
     // NÃO observado aqui: os níveis publicam a 30Hz e re-renderizariam o notch
     // inteiro em cada monitor — só o AudioBarsView (folha) observa
     let levels: SystemAudioLevels
+    @ObservedObject var shelf: ShelfStore
+    /// false no harness de snapshot: onDrop cria uma NSView que o ImageRenderer
+    /// não renderiza (vira placeholder amarelo). No app fica sempre true.
+    var dropTargetsEnabled = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Abrir tem leve overshoot (assinatura do Dynamic Island); fechar é seco.
@@ -31,7 +35,7 @@ struct NotchView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            notch
+            interactiveNotch
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -107,6 +111,19 @@ struct NotchView: View {
         .padding(.horizontal, vm.mode == .music ? 16 : 0)
         .padding(.bottom, vm.mode == .music ? 16 : 0)
         .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private var interactiveNotch: some View {
+        Group {
+            if dropTargetsEnabled {
+                notch.onDrop(
+                    of: [.fileURL],
+                    delegate: ShelfDropDelegate(shelf: shelf, vm: vm))
+            } else {
+                notch
+            }
+        }
         .onHover { inside in
             if vm.mode == .notification {
                 vm.holdNotification(inside)
@@ -142,12 +159,13 @@ struct NotchView: View {
                 height: vm.notchSize.height
             )
         case .music:
-            let musicHeight: CGFloat = hasMusic || vm.activity == nil ? 140 : 0
-            let activityHeight: CGFloat = vm.activity != nil ? (hasMusic ? 46 : 72) : 0
-            return CGSize(
-                width: expandedSize.width,
-                height: topInset + musicHeight + activityHeight
-            )
+            let hasShelf = !shelf.items.isEmpty
+            let placeholder = !hasMusic && vm.activity == nil && !hasShelf
+            var height = topInset
+            if hasMusic || placeholder { height += 140 }
+            if vm.activity != nil { height += hasMusic || hasShelf ? 46 : 60 }
+            if hasShelf { height += hasMusic || vm.activity != nil ? 62 : 76 }
+            return CGSize(width: expandedSize.width, height: height)
         case .notification:
             return CGSize(width: notificationWidth, height: topInset + 56)
         }
@@ -272,6 +290,10 @@ struct NotchView: View {
     @ViewBuilder
     private var expandedContent: some View {
         VStack(spacing: 10) {
+            if !shelf.items.isEmpty {
+                ShelfRowView(shelf: shelf)
+                    .transition(.blurReplace)
+            }
             if let activity = vm.activity {
                 activityRow(activity)
                     .transition(.blurReplace)
@@ -279,6 +301,7 @@ struct NotchView: View {
             musicSection
         }
         .animation(.easeOut(duration: 0.3), value: vm.activity == nil)
+        .animation(.easeOut(duration: 0.3), value: shelf.items)
     }
 
     private func activityRow(_ activity: NotchActivity) -> some View {
@@ -339,7 +362,7 @@ struct NotchView: View {
             .frame(maxWidth: .infinity)
             // troca de faixa: capa e textos fazem crossfade em vez de pop
             .animation(.easeOut(duration: 0.3), value: state.title)
-        } else if vm.activity == nil {
+        } else if vm.activity == nil, shelf.items.isEmpty {
             VStack(spacing: 6) {
                 Image(systemName: "music.note")
                     .font(.title2)

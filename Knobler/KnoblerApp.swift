@@ -33,6 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let battery = BatteryMonitor()
     private let apiServer = NotchAPIServer()
     private let calendar = CalendarCountdown()
+    private let shelf = ShelfStore()
     private var apiCancellable: AnyCancellable?
 
     // duas fontes de atividade: API (explícita) vence o calendário (ambiente)
@@ -231,7 +232,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     defer: false
                 )
                 panel.contentView = NSHostingView(
-                    rootView: NotchView(vm: viewModel, media: media, levels: audioLevels))
+                    rootView: NotchView(
+                        vm: viewModel, media: media, levels: audioLevels, shelf: shelf))
                 notch = ScreenNotch(window: panel, viewModel: viewModel)
                 notches[id] = notch
             }

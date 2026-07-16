@@ -11,5 +11,6 @@ swiftc -O -o build/snapshot \
   Knobler/AudioLevelTap.swift \
   Knobler/NotificationInterceptor.swift \
   Knobler/AppSettings.swift \
+  Knobler/Shelf.swift \
   tools/main.swift
 ./build/snapshot Snapshots

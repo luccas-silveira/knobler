@@ -47,6 +47,18 @@ struct Scenario {
     let configure: (NotchViewModel, MediaController) -> Void
 }
 
+// prateleira do cenário corrente (recriada por cenário no loop)
+var currentShelf = ShelfStore()
+
+func fakeShelfFiles() -> [URL] {
+    let dir = FileManager.default.temporaryDirectory
+    return ["Relatório.pdf", "foto.png", "notas.txt"].map { name in
+        let url = dir.appendingPathComponent(name)
+        try? "x".data(using: .utf8)?.write(to: url)
+        return url
+    }
+}
+
 let scenarios: [Scenario] = [
     Scenario(name: "closed-idle", realNotch: true) { _, _ in },
     Scenario(name: "closed-music", realNotch: true) { _, media in
@@ -92,6 +104,16 @@ let scenarios: [Scenario] = [
         media.injectPreview(state: fakeState(playing: false), artwork: fakeArtwork())
         vm.expanded = true
     },
+    // prateleira de arquivos no card expandido (com música junto)
+    Scenario(name: "expanded-shelf", realNotch: true) { vm, media in
+        media.injectPreview(state: fakeState(), artwork: fakeArtwork())
+        fakeShelfFiles().forEach { currentShelf.add($0) }
+        vm.expanded = true
+    },
+    Scenario(name: "expanded-shelf-only", realNotch: true) { vm, _ in
+        fakeShelfFiles().forEach { currentShelf.add($0) }
+        vm.expanded = true
+    },
     // atividade da API: anel na asinha (fechado) e linha no card (aberto)
     Scenario(name: "closed-activity", realNotch: false) { vm, _ in
         vm.activity = NotchActivity(
@@ -128,6 +150,7 @@ let scenarios: [Scenario] = [
 
 MainActor.assumeIsolated {
 for scenario in scenarios {
+    currentShelf = ShelfStore()
     let vm = NotchViewModel()
     let media = MediaController()
     media.injectPreview(state: nil, artwork: nil)
@@ -144,7 +167,9 @@ for scenario in scenarios {
                      Color(red: 0.90, green: 0.86, blue: 0.80)],
             startPoint: .topLeading, endPoint: .bottomTrailing
         )
-        NotchView(vm: vm, media: media, levels: SystemAudioLevels())
+        NotchView(
+            vm: vm, media: media, levels: SystemAudioLevels(),
+            shelf: currentShelf, dropTargetsEnabled: false)
     }
     .frame(width: 560, height: 240)
 
