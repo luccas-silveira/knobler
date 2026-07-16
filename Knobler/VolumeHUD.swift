@@ -46,6 +46,9 @@ final class VolumeHUDController {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var listenedDevice = AudioObjectID(kAudioObjectUnknown)
+    /// Troca de saída (fone conectou etc.): o macOS mostra o card dele e não
+    /// dá pra engolir (não é tecla) — nossa pílula se recolhe pra não duplicar.
+    private var lastDeviceSwitch = Date.distantPast
 
     private lazy var volumeAddress = AudioObjectPropertyAddress(
         mSelector: kAudioHardwareServiceDeviceProperty_VirtualMainVolume,
@@ -190,6 +193,7 @@ final class VolumeHUDController {
         AudioObjectAddPropertyListenerBlock(
             AudioObjectID(kAudioObjectSystemObject), &address, .main
         ) { [weak self] _, _ in
+            self?.lastDeviceSwitch = Date()
             self?.setupDeviceListeners()
         }
     }
@@ -210,7 +214,10 @@ final class VolumeHUDController {
     }
 
     private lazy var volumeListener: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
-        self?.publishCurrentState()
+        guard let self else { return }
+        // mudanças logo após troca de dispositivo: o OSD do sistema já cobre
+        guard Date().timeIntervalSince(self.lastDeviceSwitch) > 2.5 else { return }
+        self.publishCurrentState()
     }
 
     // MARK: - CoreAudio
