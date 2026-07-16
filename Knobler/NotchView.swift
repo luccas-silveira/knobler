@@ -397,9 +397,12 @@ struct NotchView: View {
     // star · backward · play/pause (maior) · forward · macbook
     private func controls(_ state: MediaController.PlaybackState) -> some View {
         HStack(spacing: 0) {
-            Image(systemName: "star")
-                .font(.body)
-                .foregroundStyle(.white.opacity(0.45))
+            Button { media.toggleShuffle() } label: {
+                Image(systemName: "shuffle")
+                    .font(.body)
+                    .foregroundStyle(state.shuffling ? .white : .white.opacity(0.45))
+                    .contentTransition(.symbolEffect(.replace))
+            }
             Spacer()
             Button { media.previousTrack() } label: {
                 Image(systemName: "backward.fill")

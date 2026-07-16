@@ -21,6 +21,7 @@ final class MediaController: ObservableObject {
         var position: TimeInterval
         var fetchedAt: Date
         var artworkURL: String?
+        var shuffling = false
     }
 
     private struct Player {
@@ -29,17 +30,21 @@ final class MediaController: ObservableObject {
         let notificationName: String
         let durationInMilliseconds: Bool
         let hasArtworkURL: Bool
+        /// Nome da propriedade de shuffle no dicionário AppleScript do player.
+        let shuffleProperty: String
     }
 
     private static let players = [
         Player(
             bundleID: "com.spotify.client", scriptName: "Spotify",
             notificationName: "com.spotify.client.PlaybackStateChanged",
-            durationInMilliseconds: true, hasArtworkURL: true),
+            durationInMilliseconds: true, hasArtworkURL: true,
+            shuffleProperty: "shuffling"),
         Player(
             bundleID: "com.apple.Music", scriptName: "Music",
             notificationName: "com.apple.Music.playerInfo",
-            durationInMilliseconds: false, hasArtworkURL: false),
+            durationInMilliseconds: false, hasArtworkURL: false,
+            shuffleProperty: "shuffle enabled"),
     ]
 
     @Published private(set) var state: PlaybackState?
@@ -83,6 +88,11 @@ final class MediaController: ObservableObject {
     func nextTrack() { command("next track") }
     func previousTrack() { command("previous track") }
 
+    func toggleShuffle() {
+        guard let player = activePlayer else { return }
+        command("set \(player.shuffleProperty) to not \(player.shuffleProperty)")
+    }
+
     /// Posição estimada agora, sem refetch: posição do último fetch + tempo decorrido.
     func currentPosition(at date: Date = Date()) -> TimeInterval {
         guard let s = state else { return 0 }
@@ -117,8 +127,6 @@ final class MediaController: ObservableObject {
         }
         activePlayer = player
         activeBundleID = player.bundleID
-        NSLog("knobler media: player=%@ state=%@ track=%@",
-              player.scriptName, newState.isPlaying ? "playing" : "paused", newState.title)
         state = newState
         fetchArtworkIfNeeded(player: player, state: newState)
     }
@@ -132,13 +140,13 @@ final class MediaController: ObservableObject {
             \(player.hasArtworkURL ? "set artURL to artwork url of t" : "")
             return (player state as string) & "\\n" & name of t & "\\n" & artist of t \
                 & "\\n" & album of t & "\\n" & player position & "\\n" & duration of t \
-                & "\\n" & artURL
+                & "\\n" & artURL & "\\n" & \(player.shuffleProperty)
         end tell
         """
 
         guard let output = run(source), output != "stopped" else { return nil }
         let parts = output.components(separatedBy: "\n")
-        guard parts.count >= 7 else { return nil }
+        guard parts.count >= 8 else { return nil }
 
         let rawDuration = Self.number(parts[5]) ?? 0
         return PlaybackState(
@@ -149,7 +157,8 @@ final class MediaController: ObservableObject {
             duration: player.durationInMilliseconds ? rawDuration / 1000 : rawDuration,
             position: Self.number(parts[4]) ?? 0,
             fetchedAt: Date(),
-            artworkURL: parts[6].isEmpty ? nil : parts[6]
+            artworkURL: parts[6].isEmpty ? nil : parts[6],
+            shuffling: parts[7] == "true"
         )
     }
 
