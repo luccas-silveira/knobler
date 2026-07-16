@@ -6,6 +6,16 @@
 import Foundation
 import SwiftUI
 
+/// Atividade persistente publicada via API local (deploy, download, métrica…).
+struct NotchActivity: Equatable {
+    var id: String
+    var title: String
+    var detail: String
+    /// 0…1; nil = indeterminada (arco girando)
+    var progress: Double?
+    var updatedAt: Date
+}
+
 final class NotchViewModel: ObservableObject {
     @Published var expanded = false
     /// Música pausada some do notch; hover "espia" (peeking) antes de expandir.
@@ -16,6 +26,7 @@ final class NotchViewModel: ObservableObject {
     @Published var hasRealNotch = false
     @Published var activeNotification: NotchNotification?
     @Published var hud: HUDState?
+    @Published var activity: NotchActivity?
 
     struct HUDState: Equatable {
         enum Kind: Equatable { case volume, brightness, battery }

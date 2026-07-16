@@ -66,7 +66,7 @@ struct NotchView: View {
 
             switch vm.mode {
             case .closed:
-                if wingsVisible {
+                if wingsVisible || vm.activity != nil {
                     closedWings
                         .transition(.blurReplace)
                 }
@@ -125,21 +125,27 @@ struct NotchView: View {
         // notch real: asas ao redor da câmera; externo: o conteúdo dita o tamanho
         switch vm.mode {
         case .closed:
+            let hasContent = wingsVisible || vm.activity != nil
             if vm.hasRealNotch {
                 return CGSize(
-                    width: vm.notchSize.width + (wingsVisible ? wingWidth * 2 : 0),
+                    width: vm.notchSize.width + (hasContent ? wingWidth * 2 : 0),
                     height: vm.notchSize.height
                 )
             }
             // externo vazio não pode sumir: 160 mantém presença sem as asas
-            return CGSize(width: wingsVisible ? 200 : 160, height: vm.notchSize.height)
+            return CGSize(width: hasContent ? 200 : 160, height: vm.notchSize.height)
         case .hud:
             return CGSize(
                 width: vm.hasRealNotch ? vm.notchSize.width + hudWingWidth * 2 : 232,
                 height: vm.notchSize.height
             )
         case .music:
-            return CGSize(width: expandedSize.width, height: topInset + 140)
+            let musicHeight: CGFloat = hasMusic || vm.activity == nil ? 140 : 0
+            let activityHeight: CGFloat = vm.activity != nil ? (hasMusic ? 46 : 72) : 0
+            return CGSize(
+                width: expandedSize.width,
+                height: topInset + musicHeight + activityHeight
+            )
         case .notification:
             return CGSize(width: notificationWidth, height: topInset + 56)
         }
@@ -213,17 +219,28 @@ struct NotchView: View {
     private var closedWings: some View {
         // paddings ≥ raio de canto inferior pra ficar fora da zona de curvatura
         HStack(spacing: 0) {
-            miniArtwork
-                .id(media.state?.title)
-                .transition(.blurReplace)
-                .padding(.leading, vm.hasRealNotch ? 12 : 14)
+            if wingsVisible {
+                miniArtwork
+                    .id(media.state?.title)
+                    .transition(.blurReplace)
+                    .padding(.leading, vm.hasRealNotch ? 12 : 14)
+            }
             Spacer(minLength: 0)
-            audioBars
-                .frame(width: 27, height: 21)
-                .padding(.trailing, vm.hasRealNotch ? 12 : 14)
+            // atividade ganha a asa direita; as barras voltam quando ela termina
+            if let activity = vm.activity {
+                ActivityRingView(progress: activity.progress)
+                    .frame(width: 17, height: 17)
+                    .padding(.trailing, vm.hasRealNotch ? 13 : 15)
+                    .transition(.blurReplace)
+            } else if wingsVisible {
+                audioBars
+                    .frame(width: 27, height: 21)
+                    .padding(.trailing, vm.hasRealNotch ? 12 : 14)
+            }
         }
         .frame(height: vm.notchSize.height)
         .animation(.easeOut(duration: 0.3), value: media.state?.title)
+        .animation(.easeOut(duration: 0.3), value: vm.activity == nil)
     }
 
     private var audioBars: some View {
@@ -252,6 +269,46 @@ struct NotchView: View {
 
     @ViewBuilder
     private var expandedContent: some View {
+        VStack(spacing: 10) {
+            if let activity = vm.activity {
+                activityRow(activity)
+                    .transition(.blurReplace)
+            }
+            musicSection
+        }
+        .animation(.easeOut(duration: 0.3), value: vm.activity == nil)
+    }
+
+    private func activityRow(_ activity: NotchActivity) -> some View {
+        HStack(spacing: 10) {
+            ActivityRingView(progress: activity.progress)
+                .frame(width: 22, height: 22)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(activity.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                if !activity.detail.isEmpty {
+                    Text(activity.detail)
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.6))
+                        .lineLimit(1)
+                        .contentTransition(.opacity)
+                }
+            }
+            Spacer(minLength: 0)
+            if let progress = activity.progress {
+                Text("\(Int((progress * 100).rounded()))%")
+                    .font(.callout.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.85))
+                    .contentTransition(.numericText())
+            }
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.9), value: activity.progress)
+    }
+
+    @ViewBuilder
+    private var musicSection: some View {
         if let state = media.state {
             VStack(spacing: 12) {
                 HStack(spacing: 12) {
@@ -280,7 +337,7 @@ struct NotchView: View {
             .frame(maxWidth: .infinity)
             // troca de faixa: capa e textos fazem crossfade em vez de pop
             .animation(.easeOut(duration: 0.3), value: state.title)
-        } else {
+        } else if vm.activity == nil {
             VStack(spacing: 6) {
                 Image(systemName: "music.note")
                     .font(.title2)
@@ -438,6 +495,36 @@ struct NotchView: View {
     private static func timeString(_ seconds: TimeInterval) -> String {
         let total = Int(seconds.rounded())
         return String(format: "%d:%02d", total / 60, total % 60)
+    }
+}
+
+// MARK: - Anel de progresso de atividade
+
+/// Anel estilo timer do Dynamic Island: determinado preenche; sem progresso,
+/// arco girando (indeterminado).
+struct ActivityRingView: View {
+    var progress: Double?
+
+    var body: some View {
+        if let progress {
+            ZStack {
+                Circle().stroke(.white.opacity(0.25), lineWidth: 2.5)
+                Circle()
+                    .trim(from: 0, to: max(0.03, progress))
+                    .stroke(Color.orange, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+            }
+            .animation(.spring(response: 0.3, dampingFraction: 0.9), value: progress)
+        } else {
+            TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
+                let phase = context.date.timeIntervalSinceReferenceDate
+                    .truncatingRemainder(dividingBy: 1.2) / 1.2
+                Circle()
+                    .trim(from: 0, to: 0.7)
+                    .stroke(Color.orange, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                    .rotationEffect(.degrees(phase * 360))
+            }
+        }
     }
 }
 

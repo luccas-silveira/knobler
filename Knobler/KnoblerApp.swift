@@ -33,6 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let battery = BatteryMonitor()
     private let apiServer = NotchAPIServer()
     private var apiCancellable: AnyCancellable?
+    private var currentActivity: NotchActivity?
     private var levelsCancellable: AnyCancellable?
     private var pausedCancellable: AnyCancellable?
 
@@ -98,6 +99,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // API local: scripts publicam cards no notch (diferencial do Knobler)
         apiServer.onNotification = { [weak self] notification in
             self?.viewModelUnderMouse()?.enqueue(notification)
+        }
+        // atividade é global: aparece em todos os monitores
+        apiServer.onActivity = { [weak self] activity in
+            guard let self else { return }
+            self.currentActivity = activity
+            self.notches.values.forEach { $0.viewModel.activity = activity }
         }
         apiCancellable = AppSettings.shared.objectWillChange
             .prepend(())
@@ -219,6 +226,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             notch.viewModel.hasRealNotch = screen.safeAreaInsets.top > 0
             notch.viewModel.musicPaused =
                 media.state != nil && media.state?.isPlaying != true
+            notch.viewModel.activity = currentActivity
 
             let size = NSSize(width: 700, height: 300)
             let frame = NSRect(

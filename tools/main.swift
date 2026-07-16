@@ -92,6 +92,31 @@ let scenarios: [Scenario] = [
         media.injectPreview(state: fakeState(playing: false), artwork: fakeArtwork())
         vm.expanded = true
     },
+    // atividade da API: anel na asinha (fechado) e linha no card (aberto)
+    Scenario(name: "closed-activity", realNotch: false) { vm, _ in
+        vm.activity = NotchActivity(
+            id: "deploy", title: "Deploy zoi-studio", detail: "rsync…",
+            progress: 0.42, updatedAt: Date())
+    },
+    Scenario(name: "closed-activity-music", realNotch: true) { vm, media in
+        media.injectPreview(state: fakeState(), artwork: fakeArtwork())
+        vm.activity = NotchActivity(
+            id: "deploy", title: "Deploy zoi-studio", detail: "rsync…",
+            progress: 0.42, updatedAt: Date())
+    },
+    Scenario(name: "expanded-activity-music", realNotch: true) { vm, media in
+        media.injectPreview(state: fakeState(), artwork: fakeArtwork())
+        vm.activity = NotchActivity(
+            id: "deploy", title: "Deploy zoi-studio", detail: "rsync pra produção",
+            progress: 0.42, updatedAt: Date())
+        vm.expanded = true
+    },
+    Scenario(name: "expanded-activity-only", realNotch: true) { vm, _ in
+        vm.activity = NotchActivity(
+            id: "build", title: "Compilando Knobler", detail: "xcodebuild",
+            progress: nil, updatedAt: Date())
+        vm.expanded = true
+    },
     Scenario(name: "notification", realNotch: true) { vm, _ in
         vm.activeNotification = NotchNotification(
             appName: "Finder",
