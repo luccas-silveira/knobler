@@ -73,6 +73,16 @@ final class VolumeHUDController {
         }
     }
 
+    /// Estado do tap pro GET /status da API local (diagnóstico).
+    var diagnostics: [String: Any] {
+        [
+            "axTrusted": AXIsProcessTrusted(),
+            "tapExists": eventTap != nil,
+            "tapEnabled": eventTap.map { CGEvent.tapIsEnabled(tap: $0) } ?? false,
+            "brightnessAvailable": canControlBrightness,
+        ]
+    }
+
     private func checkTapHealth() {
         let trusted = AXIsProcessTrusted()
         guard let eventTap else {

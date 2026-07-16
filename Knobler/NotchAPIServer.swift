@@ -20,6 +20,8 @@ final class NotchAPIServer {
     var onNotification: ((NotchNotification) -> Void)?
     /// Atividade a exibir (a de update mais recente) — nil quando não há nenhuma.
     var onActivity: ((NotchActivity?) -> Void)?
+    /// Diagnóstico pro GET /status (montado pelo AppDelegate).
+    var statusProvider: (() -> [String: Any])?
 
     private var listener: NWListener?
     private var activities: [String: NotchActivity] = [:]
@@ -132,9 +134,16 @@ final class NotchAPIServer {
             return Self.ok
         }
 
+        if request.hasPrefix("GET /status") {
+            let status = statusProvider?() ?? [:]
+            let body = (try? JSONSerialization.data(withJSONObject: status))
+                .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+            return Self.http(status: "200 OK", body: body)
+        }
+
         return Self.http(
             status: "404 Not Found",
-            body: #"{"ok":false,"usage":["POST /notify {title, body?, app?}","POST /activity {id?, title, detail?, progress?, done?}"]}"#
+            body: #"{"ok":false,"usage":["POST /notify {title, body?, app?}","POST /activity {id?, title, detail?, progress?, done?}","GET /status"]}"#
         )
     }
 

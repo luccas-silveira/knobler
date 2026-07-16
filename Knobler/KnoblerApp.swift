@@ -125,6 +125,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.pushActivity()
         }
         calendar.start()
+
+        apiServer.statusProvider = { [weak self] in
+            var status = self?.volumeHUD.diagnostics ?? [:]
+            status["visualizerTapped"] = self?.tappedBundleID ?? "none"
+            status["player"] = self?.media.activeBundleID ?? "none"
+            return status
+        }
         apiCancellable = AppSettings.shared.objectWillChange
             .prepend(())
             .sink { [weak self] in
