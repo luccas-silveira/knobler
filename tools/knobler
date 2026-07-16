@@ -1,0 +1,41 @@
+#!/bin/bash
+# knobler — publica notificações e live activities no notch (Knobler API local)
+#
+#   knobler notify "Título" ["corpo"] ["app"]
+#   knobler activity <id> <progress 0-100 | -> "Título" ["detalhe"]   (- = indeterminado)
+#   knobler done <id>
+#
+# Sai com erro silencioso-legível se o app não estiver rodando — seguro pra
+# usar em scripts de deploy sem quebrá-los (use `|| true` se preferir).
+set -euo pipefail
+PORT="${KNOBLER_PORT:-4477}"
+cmd="${1:-}"
+shift 2>/dev/null || true
+
+post() { # $1=path $2=json
+    curl -sf -m 2 -X POST "localhost:$PORT$1" -d "$2" >/dev/null \
+        || { echo "knobler: API indisponível (Knobler aberto? Ajustes → API local)" >&2; exit 1; }
+}
+esc() { python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$1"; }
+
+case "$cmd" in
+notify)
+    title="${1:?uso: knobler notify \"Título\" [\"corpo\"] [\"app\"]}"
+    post /notify "{\"title\":$(esc "$title"),\"body\":$(esc "${2:-}"),\"app\":$(esc "${3:-}")}"
+    ;;
+activity)
+    id="${1:?uso: knobler activity <id> <progress|-> \"Título\" [\"detalhe\"]}"
+    progress="${2:?falta progress (0-100 ou - para indeterminado)}"
+    title="${3:?falta título}"
+    [ "$progress" = "-" ] && progress=null
+    post /activity "{\"id\":$(esc "$id"),\"progress\":$progress,\"title\":$(esc "$title"),\"detail\":$(esc "${4:-}")}"
+    ;;
+done)
+    id="${1:?uso: knobler done <id>}"
+    post /activity "{\"id\":$(esc "$id"),\"done\":true}"
+    ;;
+*)
+    sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'
+    exit 2
+    ;;
+esac
