@@ -67,17 +67,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         interceptor.start()
         self.interceptor = interceptor
 
+        // HUDs são estado global do sistema: aparecem em TODAS as telas
+        // (notificações continuam indo só pra tela do mouse)
         volumeHUD.onHUD = { [weak self] state in
-            self?.viewModelUnderMouse()?.showHUD(state)
+            self?.notches.values.forEach { $0.viewModel.showHUD(state) }
         }
         volumeHUD.start()
 
         battery.onEvent = { [weak self] level, charging in
             guard AppSettings.shared.batteryAlerts else { return }
-            self?.viewModelUnderMouse()?.showHUD(
-                .init(kind: .battery, level: level, charging: charging),
-                duration: 2.5
-            )
+            self?.notches.values.forEach {
+                $0.viewModel.showHUD(
+                    .init(kind: .battery, level: level, charging: charging),
+                    duration: 2.5
+                )
+            }
         }
         battery.start()
 
