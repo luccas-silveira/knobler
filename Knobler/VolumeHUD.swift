@@ -45,10 +45,6 @@ final class VolumeHUDController {
 
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
-    private var listenedDevice = AudioObjectID(kAudioObjectUnknown)
-    /// Troca de saída (fone conectou etc.): o macOS mostra o card dele e não
-    /// dá pra engolir (não é tecla) — nossa pílula se recolhe pra não duplicar.
-    private var lastDeviceSwitch = Date.distantPast
 
     private lazy var volumeAddress = AudioObjectPropertyAddress(
         mSelector: kAudioHardwareServiceDeviceProperty_VirtualMainVolume,
@@ -61,10 +57,12 @@ final class VolumeHUDController {
         mElement: kAudioObjectPropertyElementMain
     )
 
+    // A pílula aparece SÓ para mudanças iniciadas pelas nossas teclas.
+    // Mudança externa (gesto no AirPods, slider da barra, outro app) já tem UI
+    // do sistema — mostrar a nossa junto duplicava, e o card de dispositivo do
+    // macOS não é interceptável (não é tecla).
     func start() {
         setupEventTap()
-        setupDeviceListeners()
-        observeDefaultDeviceChanges()
     }
 
     // MARK: - Event tap (teclas de volume)
@@ -182,43 +180,6 @@ final class VolumeHUDController {
         onHUD?(.init(kind: .volume, level: muted ? 0 : level, muted: muted))
     }
 
-    // MARK: - Listeners (mudanças externas: slider da menu bar, AirPods…)
-
-    private func observeDefaultDeviceChanges() {
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioHardwarePropertyDefaultOutputDevice,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
-        AudioObjectAddPropertyListenerBlock(
-            AudioObjectID(kAudioObjectSystemObject), &address, .main
-        ) { [weak self] _, _ in
-            self?.lastDeviceSwitch = Date()
-            self?.setupDeviceListeners()
-        }
-    }
-
-    private func setupDeviceListeners() {
-        let device = Self.defaultOutputDevice()
-        guard device != kAudioObjectUnknown, device != listenedDevice else { return }
-
-        if listenedDevice != kAudioObjectUnknown {
-            AudioObjectRemovePropertyListenerBlock(
-                listenedDevice, &volumeAddress, .main, volumeListener)
-            AudioObjectRemovePropertyListenerBlock(
-                listenedDevice, &muteAddress, .main, volumeListener)
-        }
-        listenedDevice = device
-        AudioObjectAddPropertyListenerBlock(device, &volumeAddress, .main, volumeListener)
-        AudioObjectAddPropertyListenerBlock(device, &muteAddress, .main, volumeListener)
-    }
-
-    private lazy var volumeListener: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
-        guard let self else { return }
-        // mudanças logo após troca de dispositivo: o OSD do sistema já cobre
-        guard Date().timeIntervalSince(self.lastDeviceSwitch) > 2.5 else { return }
-        self.publishCurrentState()
-    }
 
     // MARK: - CoreAudio
 
