@@ -45,6 +45,8 @@ final class VolumeHUDController {
 
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
+    private var healthTimer: Timer?
+    private var trustedAtCreation = false
 
     private lazy var volumeAddress = AudioObjectPropertyAddress(
         mSelector: kAudioHardwareServiceDeviceProperty_VirtualMainVolume,
@@ -63,11 +65,45 @@ final class VolumeHUDController {
     // macOS não é interceptável (não é tecla).
     func start() {
         setupEventTap()
+        // TCC pós-re-assinatura pode deixar o tap silenciosamente inerte, e a
+        // permissão pode chegar DEPOIS do launch — health-check recria o tap
+        // quando o estado de confiança muda (mitigação padrão pro problema)
+        healthTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) {
+            [weak self] _ in self?.checkTapHealth()
+        }
+    }
+
+    private func checkTapHealth() {
+        let trusted = AXIsProcessTrusted()
+        guard let eventTap else {
+            if trusted { setupEventTap() }
+            return
+        }
+        if trusted != trustedAtCreation {
+            // identidade/permissão mudou desde a criação: tap pode estar inerte
+            teardownTap()
+            setupEventTap()
+        } else if !CGEvent.tapIsEnabled(tap: eventTap) {
+            CGEvent.tapEnable(tap: eventTap, enable: true)
+        }
+    }
+
+    private func teardownTap() {
+        if let runLoopSource {
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+        }
+        runLoopSource = nil
+        if let eventTap {
+            CGEvent.tapEnable(tap: eventTap, enable: false)
+            CFMachPortInvalidate(eventTap)
+        }
+        eventTap = nil
     }
 
     // MARK: - Event tap (teclas de volume)
 
     private func setupEventTap() {
+        trustedAtCreation = AXIsProcessTrusted()
         let mask = CGEventMask(1 << Self.systemDefinedEventType.rawValue)
         let refcon = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
 
