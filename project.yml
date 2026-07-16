@@ -18,6 +18,7 @@ targets:
         NSAppleEventsUsageDescription: Knobler exibe e controla a reprodução do Spotify no notch.
         NSAudioCaptureUsageDescription: Knobler lê o áudio do Spotify para animar o visualizador no notch, como no iPhone.
         NSCalendarsFullAccessUsageDescription: Knobler mostra a contagem regressiva do próximo evento no notch.
+        CFBundleIconFile: AppIcon
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.zoi.knobler

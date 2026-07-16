@@ -8,7 +8,9 @@ import SwiftUI
 struct NotchView: View {
     @ObservedObject var vm: NotchViewModel
     @ObservedObject var media: MediaController
-    @ObservedObject var levels: SystemAudioLevels
+    // NÃO observado aqui: os níveis publicam a 30Hz e re-renderizariam o notch
+    // inteiro em cada monitor — só o AudioBarsView (folha) observa
+    let levels: SystemAudioLevels
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Abrir tem leve overshoot (assinatura do Dynamic Island); fechar é seco.
@@ -246,7 +248,7 @@ struct NotchView: View {
     private var audioBars: some View {
         AudioBarsView(
             playing: media.state?.isPlaying == true,
-            bands: levels.bands,
+            levels: levels,
             tint: media.artworkTint ?? .white
         )
     }
@@ -539,8 +541,10 @@ struct ActivityRingView: View {
 /// cai numa animação sintética de senoides sobrepostas.
 struct AudioBarsView: View {
     var playing: Bool
-    var bands: [Float]?
+    @ObservedObject var levels: SystemAudioLevels
     var tint: Color = .white
+
+    private var bands: [Float]? { levels.bands }
 
     private static let phases: [Double] = [0.0, 1.9, 0.7, 2.6, 1.3]
     private static let speeds: [Double] = [7.2, 8.8, 6.1, 9.5, 7.9]
@@ -552,9 +556,10 @@ struct AudioBarsView: View {
             // áudio de verdade: as alturas seguem as bandas publicadas a ~30Hz;
             // a animação interpola entre publicações
             bars(levels: bands.map { CGFloat($0) })
-                .animation(.linear(duration: 1.0 / 30.0), value: bands)
+                .animation(.linear(duration: 1.0 / 20.0), value: bands)
         } else if playing {
-            TimelineView(.animation) { context in
+            // 30fps bastam pro fallback — 60 dobra o custo sem ganho visível
+            TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
                 bars(levels: Self.syntheticLevels(
                     at: context.date.timeIntervalSinceReferenceDate))
             }
@@ -570,11 +575,16 @@ struct AudioBarsView: View {
             let barWidth = geo.size.width / (CGFloat(count) * 2.1)
             HStack(alignment: .center, spacing: barWidth * 1.1) {
                 ForEach(0..<count, id: \.self) { index in
+                    // altura FIXA + scaleEffect: anima por transform (GPU),
+                    // sem relayout da janela a cada frame — era o maior custo
+                    // de CPU do app com música tocando
                     Capsule()
                         .fill(tint)
-                        .frame(
-                            width: barWidth,
-                            height: max(barWidth, geo.size.height * min(1, levels[index]))
+                        .frame(width: barWidth, height: geo.size.height)
+                        .scaleEffect(
+                            x: 1,
+                            y: max(barWidth / geo.size.height, min(1, levels[index])),
+                            anchor: .center
                         )
                 }
             }

@@ -225,9 +225,10 @@ final class SystemAudioLevels: ObservableObject {
                 : previous + (shaped - previous) * 0.18
         }
 
-        // publica a ~30Hz na main
+        // publica a ~20Hz na main — cada publish custa um layout de janela POR
+        // MONITOR; 20Hz com interpolação linear fica visualmente igual a 30
         let now = Date()
-        guard now.timeIntervalSince(lastPublish) > 1.0 / 30.0 else { return }
+        guard now.timeIntervalSince(lastPublish) > 1.0 / 20.0 else { return }
         lastPublish = now
         let snapshot = smoothed
         DispatchQueue.main.async { [weak self] in
