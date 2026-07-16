@@ -28,6 +28,9 @@ final class AppSettings: ObservableObject {
     @Published var liveAudioVisualizer: Bool {
         didSet { UserDefaults.standard.set(liveAudioVisualizer, forKey: "liveAudioVisualizer") }
     }
+    @Published var localAPI: Bool {
+        didSet { UserDefaults.standard.set(localAPI, forKey: "localAPI") }
+    }
 
     /// Estado real no launchd — não é persistido por nós.
     var launchAtLogin: Bool {
@@ -51,6 +54,7 @@ final class AppSettings: ObservableObject {
         brightnessHUD = flag("brightnessHUD")
         batteryAlerts = flag("batteryAlerts")
         liveAudioVisualizer = flag("liveAudioVisualizer")
+        localAPI = flag("localAPI")
     }
 }
 
@@ -65,6 +69,14 @@ struct SettingsView: View {
                 Toggle("HUD de brilho", isOn: $settings.brightnessHUD)
                 Toggle("Avisos de bateria", isOn: $settings.batteryAlerts)
                 Toggle("Visualizador com áudio real", isOn: $settings.liveAudioVisualizer)
+            }
+            Section {
+                Toggle("API local", isOn: $settings.localAPI)
+            } footer: {
+                Text("POST http://localhost:4477/notify · {\"title\", \"body\", \"app\"}")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
             }
             Section("Geral") {
                 Toggle("Abrir no login", isOn: Binding(

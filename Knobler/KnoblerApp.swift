@@ -31,6 +31,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let volumeHUD = VolumeHUDController()
     private let audioLevels = SystemAudioLevels()
     private let battery = BatteryMonitor()
+    private let apiServer = NotchAPIServer()
+    private var apiCancellable: AnyCancellable?
     private var levelsCancellable: AnyCancellable?
     private var pausedCancellable: AnyCancellable?
 
@@ -92,6 +94,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
 
         setupSwipeGestures()
+
+        // API local: scripts publicam cards no notch (diferencial do Knobler)
+        apiServer.onNotification = { [weak self] notification in
+            self?.viewModelUnderMouse()?.enqueue(notification)
+        }
+        apiCancellable = AppSettings.shared.objectWillChange
+            .prepend(())
+            .sink { [weak self] in
+                DispatchQueue.main.async {
+                    if AppSettings.shared.localAPI {
+                        self?.apiServer.start()
+                    } else {
+                        self?.apiServer.stop()
+                    }
+                }
+            }
     }
 
     /// Liga/desliga o tap conforme o estado atual — idempotente, barato.
