@@ -31,6 +31,9 @@ final class AppSettings: ObservableObject {
     @Published var localAPI: Bool {
         didSet { UserDefaults.standard.set(localAPI, forKey: "localAPI") }
     }
+    @Published var calendarCountdown: Bool {
+        didSet { UserDefaults.standard.set(calendarCountdown, forKey: "calendarCountdown") }
+    }
 
     /// Estado real no launchd — não é persistido por nós.
     var launchAtLogin: Bool {
@@ -55,6 +58,7 @@ final class AppSettings: ObservableObject {
         batteryAlerts = flag("batteryAlerts")
         liveAudioVisualizer = flag("liveAudioVisualizer")
         localAPI = flag("localAPI")
+        calendarCountdown = flag("calendarCountdown")
     }
 }
 
@@ -69,6 +73,7 @@ struct SettingsView: View {
                 Toggle("HUD de brilho", isOn: $settings.brightnessHUD)
                 Toggle("Avisos de bateria", isOn: $settings.batteryAlerts)
                 Toggle("Visualizador com áudio real", isOn: $settings.liveAudioVisualizer)
+                Toggle("Contagem do calendário", isOn: $settings.calendarCountdown)
             }
             Section {
                 Toggle("API local", isOn: $settings.localAPI)

@@ -26,5 +26,7 @@
 	<string>Knobler exibe e controla a reprodução do Spotify no notch.</string>
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>Knobler lê o áudio do Spotify para animar o visualizador no notch, como no iPhone.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Knobler mostra a contagem regressiva do próximo evento no notch.</string>
 </dict>
 </plist>

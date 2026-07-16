@@ -32,8 +32,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let audioLevels = SystemAudioLevels()
     private let battery = BatteryMonitor()
     private let apiServer = NotchAPIServer()
+    private let calendar = CalendarCountdown()
     private var apiCancellable: AnyCancellable?
-    private var currentActivity: NotchActivity?
+
+    // duas fontes de atividade: API (explícita) vence o calendário (ambiente)
+    private var apiActivity: NotchActivity?
+    private var calendarActivity: NotchActivity?
+    private var currentActivity: NotchActivity? { apiActivity ?? calendarActivity }
+
+    private func pushActivity() {
+        let display = currentActivity
+        notches.values.forEach { $0.viewModel.activity = display }
+    }
     private var levelsCancellable: AnyCancellable?
     private var pausedCancellable: AnyCancellable?
 
@@ -102,10 +112,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         // atividade é global: aparece em todos os monitores
         apiServer.onActivity = { [weak self] activity in
-            guard let self else { return }
-            self.currentActivity = activity
-            self.notches.values.forEach { $0.viewModel.activity = activity }
+            self?.apiActivity = activity
+            self?.pushActivity()
         }
+        calendar.onActivity = { [weak self] activity in
+            self?.calendarActivity = activity
+            self?.pushActivity()
+        }
+        calendar.start()
         apiCancellable = AppSettings.shared.objectWillChange
             .prepend(())
             .sink { [weak self] in
