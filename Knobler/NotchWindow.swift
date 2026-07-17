@@ -35,6 +35,12 @@ final class NotchWindow: NSPanel {
         ]
     }
 
-    override var canBecomeKey: Bool { false }
+    /// true SÓ enquanto um card de pergunta está na tela (setado por Combine
+    /// no AppDelegate). Fora disso o notch nunca rouba o foco do teclado —
+    /// clicar no campo de texto do card torna a janela key sem ativar o app
+    /// (nonactivatingPanel), então o terminal continua frontmost.
+    var allowsKeyboard = false
+
+    override var canBecomeKey: Bool { allowsKeyboard }
     override var canBecomeMain: Bool { false }
 }

@@ -37,6 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let calendar = CalendarCountdown()
     private let shelf = ShelfStore()
     private var apiCancellable: AnyCancellable?
+    private var askKeyCancellables = Set<AnyCancellable>()
     /// Evita reabrir o espelho a cada tick se o usuário fechou antes da call.
     private var mirrorAutoOpened = false
 
@@ -178,6 +179,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        // perguntas do Claude Code: card em TODAS as telas; primeira resposta vence
+        apiServer.onAsk = { [weak self] request in
+            NSSound(named: "Pop")?.play()  // uma vez, na chegada — sem lembretes
+            self?.notches.values.forEach { $0.viewModel.enqueueAsk(request) }
+        }
+        apiServer.onAskDismiss = { [weak self] id in
+            self?.notches.values.forEach { $0.viewModel.clearAsk(id: id) }
+        }
+
         apiServer.statusProvider = { [weak self] in
             var status = self?.volumeHUD.diagnostics ?? [:]
             status["visualizerTapped"] = self?.tappedBundleID ?? "none"
@@ -194,6 +204,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 ] as [String: Any]
             }
             status["dictation"] = self?.dictation.diagnostics ?? [:]
+            status["ask"] = self?.apiServer.askDiagnostics ?? [:]
             return status
         }
         apiCancellable = AppSettings.shared.objectWillChange
@@ -318,6 +329,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         vm: viewModel, media: media, levels: audioLevels, shelf: shelf))
                 notch = ScreenNotch(window: panel, viewModel: viewModel)
                 notches[id] = notch
+
+                // resposta/cancelamento de QUALQUER monitor volta pro servidor
+                // e limpa os demais (primeira resposta vence)
+                viewModel.onAskAnswered = { [weak self] id, answers in
+                    self?.apiServer.resolveAsk(id: id, answers: answers)
+                    self?.notches.values.forEach { $0.viewModel.clearAsk(id: id) }
+                }
+                viewModel.onAskCancelled = { [weak self] id in
+                    self?.apiServer.cancelAsk(id: id)
+                    self?.notches.values.forEach { $0.viewModel.clearAsk(id: id) }
+                }
+                // janela só aceita teclado enquanto o card existe — CRÍTICO
+                // reverter, senão o notch rouba foco pra sempre
+                viewModel.$ask
+                    .map { $0 != nil }
+                    .removeDuplicates()
+                    .sink { [weak panel] active in
+                        panel?.allowsKeyboard = active
+                        if !active, panel?.isKeyWindow == true { panel?.resignKey() }
+                    }
+                    .store(in: &askKeyCancellables)
             }
 
             notch.viewModel.notchSize = Self.notchSize(of: screen)
