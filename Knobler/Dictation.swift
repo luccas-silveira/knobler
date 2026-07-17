@@ -180,6 +180,17 @@ final class DictationController {
         guard AppSettings.shared.dictation else { return }
         AVCaptureDevice.requestAccess(for: .audio) { _ in }
         prepareLocalEngine()
+        #if DEBUG
+        TranscriptFormatter._selfCheck()
+        #endif
+        if AppSettings.shared.formatTranscript {
+            Task { await formatter().prewarm() }
+        }
+    }
+
+    private func formatter() -> TranscriptFormatter {
+        TranscriptFormatter(endpoint: AppSettings.shared.formatEndpoint,
+                            model: AppSettings.shared.formatModel)
     }
 
     /// Baixa/carrega o Parakeet. Reentrante: o start() no launch pode nem rodar
@@ -265,7 +276,12 @@ final class DictationController {
         Task { [weak self] in
             guard let self else { return }
             do {
-                let text = try await self.activeEngine().transcribe(samples)
+                var text = try await self.activeEngine().transcribe(samples)
+                // Formatação por IA local: falha/timeout → mantém o cru (nunca perde o ditado).
+                let raw = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !raw.isEmpty, AppSettings.shared.formatTranscript {
+                    text = (try? await self.formatter().format(raw)) ?? raw
+                }
                 DispatchQueue.main.async {
                     self.transcribing = false
                     self.onState?(nil)

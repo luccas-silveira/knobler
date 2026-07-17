@@ -51,6 +51,17 @@ final class AppSettings: ObservableObject {
     @Published var dictationCloud: Bool {
         didSet { UserDefaults.standard.set(dictationCloud, forKey: "dictationCloud") }
     }
+    /// Passa o transcript por um LLM local (Ollama/LM Studio) pra limpar fillers,
+    /// falsos começos e pontuação antes de colar. Opt-in: adiciona ~1s de latência.
+    @Published var formatTranscript: Bool {
+        didSet { UserDefaults.standard.set(formatTranscript, forKey: "formatTranscript") }
+    }
+    @Published var formatEndpoint: String {
+        didSet { UserDefaults.standard.set(formatEndpoint, forKey: "formatEndpoint") }
+    }
+    @Published var formatModel: String {
+        didSet { UserDefaults.standard.set(formatModel, forKey: "formatModel") }
+    }
     /// Toda captura de tela do macOS entra na prateleira automaticamente.
     @Published var screenshotsToShelf: Bool {
         didSet { UserDefaults.standard.set(screenshotsToShelf, forKey: "screenshotsToShelf") }
@@ -88,6 +99,9 @@ final class AppSettings: ObservableObject {
         micIndicator = flag("micIndicator")
         dictation = flag("dictation")
         dictationCloud = defaults.bool(forKey: "dictationCloud") // default false: local-first
+        formatTranscript = defaults.bool(forKey: "formatTranscript") // default false: opt-in
+        formatEndpoint = defaults.string(forKey: "formatEndpoint") ?? "http://localhost:11434/v1/chat/completions"
+        formatModel = defaults.string(forKey: "formatModel") ?? "gemma3:4b"
         screenshotsToShelf = flag("screenshotsToShelf")
         hideScreenshotPreview = flag("hideScreenshotPreview")
     }
@@ -129,6 +143,11 @@ struct SettingsView: View {
                         .onChange(of: deepgramKey) { _, new in
                             DeepgramKeyStore.save(new)
                         }
+                }
+                Toggle("Formatar com IA (local)", isOn: $settings.formatTranscript)
+                if settings.formatTranscript {
+                    TextField("Endpoint", text: $settings.formatEndpoint)
+                    TextField("Modelo", text: $settings.formatModel)
                 }
             }
             Section("Geral") {

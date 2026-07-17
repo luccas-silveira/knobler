@@ -1,3 +1,37 @@
+# 🏁 SESSÃO 2026-07-17 (noite 3) — v0.13: formatação de transcript com IA local
+
+## O que foi feito
+
+- **Ditado agora limpa o texto com IA local** (`TranscriptFormatter.swift`), no estilo
+  "Fluid Intelligence" do FluidVoice: depois de transcrever (Parakeet), passa o transcript
+  por um LLM local OpenAI-compatible (Ollama/LM Studio) que remove fillers ("é", "ééé",
+  "tipo", "sabe"), falsos começos e arruma pontuação/acento/capitalização — **sem inventar
+  conteúdo**. POST `{model,messages,temperature:0,stream:false}` → `choices[0].message.content`.
+  Schema OpenAI puro (serve Ollama /v1 + LM Studio). Timeout 15s.
+- **Modelo default `gemma3:4b`**, escolhido por benchmark na máquina (M3 Pro): ~0,9s quente,
+  melhor PT-BR. **Abaixo de 4B a qualidade colapsa** (1B inverte sentido/apaga texto); **Qwen
+  é armadilha** (thinking pode dar 120s, `think:false` inconsistente). Gemma 3 não pensa → imune.
+- **Config** (seção Ditado): `formatTranscript` (default OFF, opt-in), `formatEndpoint`,
+  `formatModel`. Prewarm no launch mantém o modelo quente. **Fallback pro cru em qualquer
+  falha — nunca perde o ditado.** Formata uma vez → card de Ask e paste recebem texto limpo.
+
+## Validação
+
+- `xcodegen generate` + build Debug: **BUILD SUCCEEDED**. Self-check do parse roda no launch (DEBUG).
+- Requisição real de produção validada contra o Ollama (curl idêntico ao que o Swift monta).
+- **E2E: usuário confirmou** — transcrição + organização "quase instantânea", "funcionou
+  maravilhosamente bem".
+
+## Pendências e followups
+
+- Modelos-cobaia do benchmark ainda no Ollama (~11 GB): gemma3:1b, gemma3n:e2b, llama3.2:1b,
+  qwen3:1.7b, qwen3:4b. `gemma3:4b` é o que fica. Apagar quando quiser (`ollama rm <modelo>`).
+- Nit menor: gemma às vezes não capitaliza/pontua o começo — ajustável no prompt se incomodar.
+- `graphify-out/` NÃO regenerado (mudança modesta: 1 módulo novo). Regerar se quiser o grafo fresco.
+- Requer `ollama serve` rodando + `ollama pull gemma3:4b` (uma vez) pra a feature funcionar.
+
+---
+
 # 🏁 SESSÃO 2026-07-17 (noite 2) — v0.12: suprimir preview nativo do print
 
 ## O que foi feito
