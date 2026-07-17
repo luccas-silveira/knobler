@@ -134,7 +134,11 @@ struct NotchView: View {
         .onHover { inside in
             if vm.mode == .notification {
                 vm.holdNotification(inside)
-            } else {
+            } else if !inside || vm.mode != .question {
+                // hover no card de pergunta é pra clicar em opção, não pra
+                // expandir: setHover(true) aqui armava expanded invisível e o
+                // card de música abria sozinho depois da resposta. A saída
+                // (inside=false) continua passando pra desarmar estado antigo.
                 vm.setHover(inside)
             }
         }
