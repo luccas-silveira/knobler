@@ -17,6 +17,10 @@ import CoreAudio
 final class VolumeHUDController {
     var onHUD: ((NotchViewModel.HUDState) -> Void)?
 
+    /// ⌥ direita (keycode 61) pressionada/solta — hold-to-talk do ditado.
+    /// O evento sempre passa adiante: modificador sozinho não digita nada.
+    var onRightOption: ((Bool) -> Void)?
+
     private static let systemDefinedEventType = CGEventType(rawValue: 14)!
     // keycodes NX: soundUp=0, soundDown=1, mute=7, brightnessUp=2, brightnessDown=3
     private static let volumeKeyCodes: Set<Int> = [0, 1, 7]
@@ -141,6 +145,7 @@ final class VolumeHUDController {
     private func setupEventTap() {
         trustedAtCreation = AXIsProcessTrusted()
         let mask = CGEventMask(1 << Self.systemDefinedEventType.rawValue)
+            | CGEventMask(1 << CGEventType.flagsChanged.rawValue)
         let refcon = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
 
         eventTap = CGEvent.tapCreate(
@@ -169,6 +174,15 @@ final class VolumeHUDController {
     private func handle(_ cgEvent: CGEvent) -> Unmanaged<CGEvent>? {
         if cgEvent.type == .tapDisabledByTimeout || cgEvent.type == .tapDisabledByUserInput {
             if let eventTap { CGEvent.tapEnable(tap: eventTap, enable: true) }
+            return Unmanaged.passRetained(cgEvent)
+        }
+        if cgEvent.type == .flagsChanged {
+            if cgEvent.getIntegerValueField(.keyboardEventKeycode) == 61 {
+                let pressed = cgEvent.flags.contains(.maskAlternate)
+                DispatchQueue.main.async { [weak self] in
+                    self?.onRightOption?(pressed)
+                }
+            }
             return Unmanaged.passRetained(cgEvent)
         }
         guard cgEvent.type != .null,
