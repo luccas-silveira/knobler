@@ -88,6 +88,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         dictation.start()
 
+        // ditado durante uma pergunta alimenta o campo do card, não o app ativo
+        dictation.transcriptSink = { [weak self] text in
+            guard let self else { return false }
+            let asking = self.notches.values.filter { $0.viewModel.ask != nil }
+            guard !asking.isEmpty else { return false }
+            asking.forEach {
+                let vm = $0.viewModel
+                vm.askText = vm.askText.isEmpty ? text : vm.askText + " " + text
+            }
+            return true
+        }
+
         battery.onEvent = { [weak self] level, charging in
             guard AppSettings.shared.batteryAlerts else { return }
             self?.notches.values.forEach {

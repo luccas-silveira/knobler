@@ -162,6 +162,10 @@ final class DictationController {
     /// nil = pílula some. Chamado sempre na main queue.
     var onState: ((DictationPhase?) -> Void)?
 
+    /// Desvio da transcrição: retorna true se alguém consumiu o texto
+    /// (card de pergunta na tela) — aí NÃO cola no app ativo.
+    var transcriptSink: ((String) -> Bool)?
+
     private let recorder = MicRecorder()
     private let parakeet = ParakeetEngine()
     private var keyMonitor: Any?
@@ -266,7 +270,9 @@ final class DictationController {
                     self.transcribing = false
                     self.onState?(nil)
                     let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !trimmed.isEmpty { Self.insert(trimmed) }
+                    if !trimmed.isEmpty, self.transcriptSink?(trimmed) != true {
+                        Self.insert(trimmed)
+                    }
                 }
             } catch {
                 NSLog("knobler ditado: %@", error.localizedDescription)
