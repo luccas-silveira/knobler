@@ -76,6 +76,8 @@ struct AskCardView: View {
             footer
         }
         .foregroundStyle(.white)
+        // Esc (com o campo focado) = mesmo intent do ✕: pergunta vai pro terminal
+        .onExitCommand { vm.cancelActiveAsk() }
     }
 
     private var header: some View {
