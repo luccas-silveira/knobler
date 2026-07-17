@@ -38,9 +38,13 @@
 
 - [x] **Validação de 1º uso** ✅ (2026-07-17): grill real com 3 perguntas
       respondidas pelo notch — o modelo usou cada resposta e seguiu sem
-      re-perguntar. O deny aparece como "Error:" no transcript (cosmético).
+      re-perguntar. O "Error:" vermelho do deny foi eliminado em seguida
+      (46432a5): hook migrado pro fluxo oficial allow + updatedInput.answers —
+      a tool completa como resultado normal, validado em sessão real.
       Nota: o modelo às vezes pergunta em texto puro em vez de AskUserQuestion;
       se incomodar, instruir via CLAUDE.md/skill a preferir a tool.
+- [ ] Próximo (escolhido pelo usuário via card 🙂): re-enfileirar notificação
+      que chega durante pergunta longa (hoje expira mascarada).
 - [ ] Notificação que chega durante pergunta longa roda o auto-dismiss de 5s
       mascarada e some do notch (banner nativo ainda aparece — mesmo caso do
       ditado v0.8). Spec prometia re-enfileirar.
