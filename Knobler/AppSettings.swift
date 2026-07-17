@@ -7,6 +7,7 @@
 //  na hora, sem reiniciar.
 //
 
+import Security
 import ServiceManagement
 import SwiftUI
 
@@ -42,6 +43,14 @@ final class AppSettings: ObservableObject {
     @Published var micIndicator: Bool {
         didSet { UserDefaults.standard.set(micIndicator, forKey: "micIndicator") }
     }
+    /// Segurar ⌥ direita grava, soltar transcreve e insere no cursor.
+    @Published var dictation: Bool {
+        didSet { UserDefaults.standard.set(dictation, forKey: "dictation") }
+    }
+    /// Engine cloud (Deepgram) no lugar do modelo local.
+    @Published var dictationCloud: Bool {
+        didSet { UserDefaults.standard.set(dictationCloud, forKey: "dictationCloud") }
+    }
 
     /// Estado real no launchd — não é persistido por nós.
     var launchAtLogin: Bool {
@@ -69,11 +78,14 @@ final class AppSettings: ObservableObject {
         calendarCountdown = flag("calendarCountdown")
         mirrorBeforeMeetings = flag("mirrorBeforeMeetings")
         micIndicator = flag("micIndicator")
+        dictation = flag("dictation")
+        dictationCloud = defaults.bool(forKey: "dictationCloud") // default false: local-first
     }
 }
 
 struct SettingsView: View {
     @ObservedObject var settings = AppSettings.shared
+    @State private var deepgramKey = DeepgramKeyStore.load()
 
     var body: some View {
         Form {
@@ -95,6 +107,16 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
             }
+            Section("Ditado") {
+                Toggle("Ditado (segurar ⌥ direita)", isOn: $settings.dictation)
+                Toggle("Usar Deepgram (cloud)", isOn: $settings.dictationCloud)
+                if settings.dictationCloud {
+                    SecureField("API key do Deepgram", text: $deepgramKey)
+                        .onChange(of: deepgramKey) { _, new in
+                            DeepgramKeyStore.save(new)
+                        }
+                }
+            }
             Section("Geral") {
                 Toggle("Abrir no login", isOn: Binding(
                     get: { settings.launchAtLogin },
@@ -105,5 +127,34 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 340)
         .fixedSize()
+    }
+}
+
+/// API key do Deepgram no Keychain — segredo não vai pro UserDefaults.
+enum DeepgramKeyStore {
+    private static let service = "com.zoi.knobler.deepgram"
+
+    static func load() -> String {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecReturnData as String: true,
+        ]
+        var out: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &out) == errSecSuccess,
+              let data = out as? Data else { return "" }
+        return String(data: data, encoding: .utf8) ?? ""
+    }
+
+    static func save(_ key: String) {
+        let base: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+        ]
+        SecItemDelete(base as CFDictionary)
+        guard !key.isEmpty else { return }
+        var add = base
+        add[kSecValueData as String] = Data(key.utf8)
+        SecItemAdd(add as CFDictionary, nil)
     }
 }
