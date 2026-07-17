@@ -33,6 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let battery = BatteryMonitor()
     private let micMonitor = MicMonitor()
     private let apiServer = NotchAPIServer()
+    private let dictation = DictationController()
     private let calendar = CalendarCountdown()
     private let shelf = ShelfStore()
     private var apiCancellable: AnyCancellable?
@@ -76,6 +77,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.notches.values.forEach { $0.viewModel.showHUD(state) }
         }
         volumeHUD.start()
+
+        // ditado: pílula em TODAS as telas, como os HUDs
+        dictation.onState = { [weak self] phase in
+            self?.notches.values.forEach { $0.viewModel.dictation = phase }
+        }
+        volumeHUD.onRightOption = { [weak self] pressed in
+            self?.dictation.rightOptionChanged(pressed)
+        }
+        dictation.start()
 
         battery.onEvent = { [weak self] level, charging in
             guard AppSettings.shared.batteryAlerts else { return }
@@ -183,6 +193,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     "frame": "\(notch.window.frame)",
                 ] as [String: Any]
             }
+            status["dictation"] = self?.dictation.diagnostics ?? [:]
             return status
         }
         apiCancellable = AppSettings.shared.objectWillChange
