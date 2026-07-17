@@ -4,6 +4,7 @@
 #   knobler notify "Título" ["corpo"] ["app"]
 #   knobler activity <id> <progress 0-100 | -> "Título" ["detalhe"]   (- = indeterminado)
 #   knobler done <id>
+#   knobler ask "Pergunta?" "Opção A" "Opção B" [...]   (espera e imprime a resposta)
 #
 # Sai com erro silencioso-legível se o app não estiver rodando — seguro pra
 # usar em scripts de deploy sem quebrá-los (use `|| true` se preferir).
@@ -33,6 +34,27 @@ activity)
 done)
     id="${1:?uso: knobler done <id>}"
     post /activity "{\"id\":$(esc "$id"),\"done\":true}"
+    ;;
+ask)
+    q="${1:?uso: knobler ask \"Pergunta?\" \"Opção A\" \"Opção B\" [...]}"
+    shift
+    [ $# -ge 2 ] || { echo "knobler: ask precisa de 2+ opções" >&2; exit 2; }
+    id="cli-$$"
+    opts="$(python3 -c '
+import json, sys
+print(json.dumps([{"label": a, "description": ""} for a in sys.argv[1:]]))' "$@")"
+    post /ask "{\"id\":\"$id\",\"questions\":[{\"question\":$(esc "$q"),\"header\":\"CLI\",\"multiSelect\":false,\"options\":$opts}]}"
+    while :; do
+        state="$(curl -sf -m 2 "localhost:$PORT/ask/$id")" \
+            || { echo "knobler: API caiu no meio" >&2; exit 1; }
+        case "$state" in
+        *'"answered":true'* | *'"cancelled":true'*)
+            echo "$state"
+            exit 0
+            ;;
+        esac
+        sleep 0.3
+    done
     ;;
 *)
     sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'
