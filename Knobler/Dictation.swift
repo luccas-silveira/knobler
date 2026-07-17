@@ -167,6 +167,7 @@ final class DictationController {
     private var keyMonitor: Any?
     private var recording = false
     private var transcribing = false
+    private var preparing = false
     private(set) var modelReady = false
 
     /// Pré-aquece o modelo local e dispara o prompt de microfone no launch —
@@ -174,10 +175,22 @@ final class DictationController {
     func start() {
         guard AppSettings.shared.dictation else { return }
         AVCaptureDevice.requestAccess(for: .audio) { _ in }
+        prepareLocalEngine()
+    }
+
+    /// Baixa/carrega o Parakeet. Reentrante: o start() no launch pode nem rodar
+    /// (toggle desligado) ou falhar (rede caiu), então o begin() também chama
+    /// isto pra que o hold do usuário vire o gatilho de download/retry.
+    private func prepareLocalEngine() {
+        guard !preparing, !modelReady else { return }
+        preparing = true
         Task { [weak self] in
             try? await self?.parakeet.prepare()
             let ready = await self?.parakeet.ready ?? false
-            DispatchQueue.main.async { self?.modelReady = ready }
+            DispatchQueue.main.async {
+                self?.modelReady = ready
+                self?.preparing = false
+            }
         }
     }
 
@@ -199,6 +212,7 @@ final class DictationController {
     private func begin() {
         guard !recording, !transcribing else { return }
         if !AppSettings.shared.dictationCloud, !modelReady {
+            prepareLocalEngine()
             flash(.preparing)
             return
         }
