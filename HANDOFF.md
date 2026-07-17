@@ -1,3 +1,42 @@
+# 🏁 SESSÃO 2026-07-17 — v0.8: ditado por voz (estilo Superwhisper)
+
+## O que foi feito
+
+- **Ditado local-first** (`Dictation.swift`): segurar ⌥ direita → pílula "Ouvindo"
+  com barra de nível → soltar → "Transcrevendo…" → texto inserido no app ativo
+  (pasteboard + ⌘V sintético, clipboard restaurado em 0,5s). Esc/outra tecla
+  cancela; toque <0,5s descartado.
+- **Engine local default**: Parakeet TDT v3 via FluidAudio (1ª dependência SPM;
+  pediu 0.12.4, resolveu 0.15.5 — `transcribe` exige `TdtDecoderState` inout).
+  Modelo ~600MB baixado no 1º launch (~80s), ~66MB RAM. **Deepgram opcional**
+  (nova-3, PCM linear16, key no Keychain) via toggle nos Ajustes.
+- **⌥ direita** no tap existente do VolumeHUD (flagsChanged, keycode 61, bit
+  device-específico 0x40 — `.maskAlternate` agregado prendia com as duas ⌥).
+- Spec + plano com 7 tasks executados por subagentes (implementer + reviewer por
+  task, review final de branch): pegou data race no buffer de mic (NSLock),
+  preparo do modelo não re-disparável e o bug das duas ⌥ — os 3 corrigidos.
+- Docs: `docs/superpowers/specs/2026-07-17-ditado-design.md` e
+  `docs/superpowers/plans/2026-07-17-ditado.md`.
+
+## Validação
+
+- Build Release verde em toda task; harness com 23 cenários (3 novos de ditado,
+  PNGs conferidos); `GET /status` → `dictation: {enabled:true, modelReady:true,
+  cloud:false}`, axTrusted/tapEnabled true; E2E manual aprovado pelo usuário.
+
+## Pendências e followups
+
+- [ ] Timeout no DeepgramEngine (default 60s de URLSession — rede pendurada
+      prende a pílula em "Transcrevendo…").
+- [ ] Progresso real do download do modelo (hoje: flash `.preparing` de 2s).
+- [ ] Erro de mic apontar Ajustes do Sistema (hoje: "Sem acesso ao microfone").
+- [ ] Notificação que chega durante ditado fica atrás da pílula e pode expirar.
+- [ ] GOTCHA de build: arquivo .swift novo → rodar `xcodegen generate` (o
+      .xcodeproj é gitignored e fica stale → "cannot find X in scope").
+- [ ] graphify-out/ desatualizado (novo módulo Dictation) — regenerar quando valer.
+
+---
+
 # 🏁 SESSÃO 2026-07-16 (tarde) — v0.7: espelho, mic e a saga do OSD do Tahoe
 
 ## O que foi feito

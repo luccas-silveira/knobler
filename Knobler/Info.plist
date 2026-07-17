@@ -32,5 +32,7 @@
 	<string>Knobler mostra a contagem regressiva do próximo evento no notch.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Knobler mostra sua câmera no notch como espelho antes de reuniões.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Knobler grava sua voz enquanto você segura a tecla de ditado, para transcrever onde o cursor estiver.</string>
 </dict>
 </plist>
