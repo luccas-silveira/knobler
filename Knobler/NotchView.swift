@@ -49,7 +49,7 @@ struct NotchView: View {
     }
 
     private var notch: some View {
-        let compact = vm.mode == .closed || vm.mode == .hud
+        let compact = vm.mode == .closed || vm.mode == .hud || vm.mode == .dictation
         // raios menores no compacto: as curvas de canto decepavam a capa/barras
         let shape = NotchShape(
             topCornerRadius: compact ? 6 : 14,
@@ -78,6 +78,9 @@ struct NotchView: View {
                 }
             case .hud:
                 hudPill
+                    .transition(.blurReplace)
+            case .dictation:
+                dictationPill
                     .transition(.blurReplace)
             case .music:
                 expandedContent
@@ -154,7 +157,7 @@ struct NotchView: View {
             }
             // externo vazio não pode sumir: 160 mantém presença sem as asas
             return CGSize(width: hasContent ? 200 : 160, height: vm.notchSize.height)
-        case .hud:
+        case .hud, .dictation:
             return CGSize(
                 width: vm.hasRealNotch ? vm.notchSize.width + hudWingWidth * 2 : 232,
                 height: vm.notchSize.height
@@ -202,6 +205,48 @@ struct NotchView: View {
                 .padding(.trailing, 16)
                 .animation(.spring(response: 0.25, dampingFraction: 0.9), value: hud.level)
             }
+            .frame(height: vm.notchSize.height)
+        }
+    }
+
+    // MARK: - Pílula de ditado
+
+    @ViewBuilder
+    private var dictationPill: some View {
+        if let phase = vm.dictation {
+            HStack(spacing: 8) {
+                switch phase {
+                case .preparing:
+                    ProgressView().controlSize(.small).tint(.white)
+                    Text("Baixando modelo…")
+                        .font(.subheadline.weight(.semibold))
+                case .recording(let level):
+                    Circle().fill(.red).frame(width: 8, height: 8)
+                    Text("Ouvindo")
+                        .font(.subheadline.weight(.semibold))
+                    Spacer(minLength: 0)
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(.white.opacity(0.25))
+                        Capsule().fill(.white)
+                            .frame(width: max(4, 64 * CGFloat(level)))
+                    }
+                    .frame(width: 64, height: 6)
+                    .animation(.spring(response: 0.2, dampingFraction: 0.9), value: level)
+                case .transcribing:
+                    ProgressView().controlSize(.small).tint(.white)
+                    Text("Transcrevendo…")
+                        .font(.subheadline.weight(.semibold))
+                case .error(let message):
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.footnote)
+                        .foregroundStyle(.yellow)
+                    Text(message)
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(1)
+                }
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 16)
             .frame(height: vm.notchSize.height)
         }
     }

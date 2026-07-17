@@ -146,6 +146,15 @@ let scenarios: [Scenario] = [
             body: "O Time Machine terminou o backup de hoje às 14:32."
         )
     },
+    Scenario(name: "dictation-recording", realNotch: true) { vm, _ in
+        vm.dictation = .recording(level: 0.6)
+    },
+    Scenario(name: "dictation-transcribing", realNotch: true) { vm, _ in
+        vm.dictation = .transcribing
+    },
+    Scenario(name: "dictation-error", realNotch: false) { vm, _ in
+        vm.dictation = .error("Sem acesso ao microfone")
+    },
 ]
 
 MainActor.assumeIsolated {

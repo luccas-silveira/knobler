@@ -16,6 +16,14 @@ struct NotchActivity: Equatable {
     var updatedAt: Date
 }
 
+/// Fases do ditado por voz mostradas na pílula do notch.
+enum DictationPhase: Equatable {
+    case preparing              // modelo local ainda baixando/carregando
+    case recording(level: Float)
+    case transcribing
+    case error(String)
+}
+
 final class NotchViewModel: ObservableObject {
     @Published var expanded = false {
         // recolher o notch desliga o espelho — a câmera nunca fica ligada escondida
@@ -32,6 +40,7 @@ final class NotchViewModel: ObservableObject {
     @Published var hasRealNotch = false
     @Published var activeNotification: NotchNotification?
     @Published var hud: HUDState?
+    @Published var dictation: DictationPhase?
     @Published var activity: NotchActivity?
 
     struct HUDState: Equatable {
@@ -43,11 +52,12 @@ final class NotchViewModel: ObservableObject {
     }
 
     enum Mode: Equatable {
-        case closed, music, notification, hud
+        case closed, music, notification, hud, dictation
     }
 
-    /// Prioridade: notificação > HUD > música (hover).
+    /// Prioridade: ditado > notificação > HUD > música (hover).
     var mode: Mode {
+        if dictation != nil { return .dictation }
         if activeNotification != nil { return .notification }
         if hud != nil { return .hud }
         return expanded ? .music : .closed
