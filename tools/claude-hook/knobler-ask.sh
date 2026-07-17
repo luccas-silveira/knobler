@@ -1,7 +1,8 @@
 #!/bin/bash
 # Hook PreToolUse do Claude Code: intercepta AskUserQuestion e manda a
 # pergunta pro card do Knobler. Respondida lá → devolve ao Claude via
-# permissionDecision deny + reason (o modelo continua com a resposta).
+# allow + updatedInput.answers (fluxo oficial: a tool completa sem prompt
+# e sem renderizar "Error:" — deny+reason voltava como erro da tool).
 # Knobler fechado, ✕ no card ou timeout → sai sem output e a pergunta
 # aparece no terminal como sempre. Nunca falha a sessão: exit 0 em tudo.
 set -uo pipefail
@@ -22,22 +23,21 @@ while [ "$(date +%s)" -lt "$DEADLINE" ]; do
         exit 0  # ✕ no card → pergunta vai pro terminal
     fi
     if [ "$(printf '%s' "$STATE" | jq -r '.answered // false')" = "true" ]; then
-        printf '%s' "$STATE" | jq -c '{
+        # updatedInput substitui o input INTEIRO: ecoa questions original e
+        # preenche answers {"<pergunta>": "<label(s)|texto>"} — texto vence
+        QUESTIONS="$(printf '%s' "$INPUT" | jq -c '.tool_input.questions')" || exit 0
+        printf '%s' "$STATE" | jq -c --argjson questions "$QUESTIONS" '{
             hookSpecificOutput: {
                 hookEventName: "PreToolUse",
-                permissionDecision: "deny",
-                permissionDecisionReason: (
-                    "O usuário respondeu via Knobler (card no notch): "
-                    + (.answers | to_entries | map(
-                        "\"" + .key + "\" = " + (
-                            if (.value.text // "") != ""
-                            then "\"" + .value.text + "\""
-                            else (.value.labels | map("\"" + . + "\"") | join(", "))
-                            end
-                        )) | join("; "))
-                    + ". Prossiga considerando essas respostas como a resposta "
-                    + "do usuário; NÃO repita a pergunta."
-                )
+                permissionDecision: "allow",
+                updatedInput: {
+                    questions: $questions,
+                    answers: (.answers | with_entries(.value = (
+                        if (.value.text // "") != "" then .value.text
+                        else ((.value.labels // []) | join(", "))
+                        end
+                    )))
+                }
             }
         }'
         exit 0
