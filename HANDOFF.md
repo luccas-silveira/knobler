@@ -1,3 +1,31 @@
+# 🏁 SESSÃO 2026-07-17 (noite 2) — v0.12: suprimir preview nativo do print
+
+## O que foi feito
+
+- **Preview flutuante nativo do print suprimido** (`ScreenshotPreviewSuppressor.swift`,
+  espelha `OSDSuppressor`): escreve `com.apple.screencapture show-thumbnail=false`
+  enquanto o app roda; restaura no quit e ao desligar o toggle. **Só reverte se a
+  supressão foi nossa** (flag `screenshotPreviewSuppressedByUs` em UserDefaults) —
+  respeita quem já tinha o preview off. Toggle "Esconder preview nativo do print"
+  nos Ajustes, visível quando "Capturas → shelf" está ligado; gate exige os dois.
+  Wire no mesmo sink de `objectWillChange` + `applicationWillTerminate` do OSD.
+
+## Validação
+
+- Build Release verde. Ciclo verificado por `defaults read`: abre → show-thumbnail=0
+  + flag=1; quit → chave deletada (preview volta) + flag=0; relança → 0 de novo.
+  E2E: usuário confirmou que o thumbnail nativo NÃO aparece mais no ⌘⇧4.
+- **Não precisou de `killall SystemUIServer`** (o macOS lê a pref a cada print) —
+  sem piscar a barra de menus. Bônus: thumbnail off → print grava na hora → shelf
+  captura mais rápido.
+
+## Pendências e followups
+
+- [ ] (herdados) E2E formal do v0.10 (toggle off/on, captura durante pergunta);
+      trade-off do drag pro Finder; re-enfileirar notificação durante pergunta longa.
+
+---
+
 # 🏁 SESSÃO 2026-07-17 (noite) — v0.10 capturas no shelf + v0.11 arrastar imagem
 
 ## O que foi feito
