@@ -323,7 +323,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Expande o card mostrando a prateleira por 1,5s e fecha. Pergunta ou
     /// ditado na tela têm prioridade → só adiciona, sem peek. Nova captura
-    /// renova o timer; mouse em cima segura (o hover reprograma o fechamento).
+    /// renova o timer; mouse em cima segura: o fechamento pula quem está sob o cursor.
     private func peekShelf() {
         let busy = notches.values.contains {
             $0.viewModel.ask != nil || $0.viewModel.dictation != nil
@@ -333,7 +333,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         notches.values.forEach { $0.viewModel.setExpandedDirect(true) }
         screenshotPeekWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
-            self?.notches.values.forEach { $0.viewModel.setExpandedDirect(false) }
+            // não fecha o que o usuário está usando: mouse sobre o notch mantém
+            // aberto; o hover-exit fecha depois, pela via normal do setHover
+            self?.notches.values.forEach {
+                guard !$0.viewModel.isHovering else { return }
+                $0.viewModel.setExpandedDirect(false)
+            }
         }
         screenshotPeekWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: work)

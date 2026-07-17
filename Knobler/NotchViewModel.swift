@@ -71,6 +71,10 @@ final class NotchViewModel: ObservableObject {
         return expanded ? .music : .closed
     }
 
+    /// Mouse sobre o notch agora — o peek de captura usa isto pra não fechar
+    /// o card enquanto o usuário está com o cursor em cima.
+    var isHovering: Bool { hovering }
+
     // ponytail: delays fixos anti-flicker; virar preferência se incomodar
     private let openDelay: TimeInterval = 0.18
     private let closeDelay: TimeInterval = 0.30
