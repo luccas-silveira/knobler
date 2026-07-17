@@ -1,3 +1,34 @@
+# 🏁 SESSÃO 2026-07-17 (tarde 2) — v0.9 polido: transcript limpo, origem no card, fix do hover
+
+## O que foi feito
+
+- **"Error:" eliminado do transcript** (46432a5): hook migrado de deny+reason
+  pro fluxo oficial `allow + updatedInput` — ecoa `questions` e preenche
+  `answers {"<pergunta>": "<label(s)/texto>"}`; a tool completa como resultado
+  normal. GOTCHA: `updatedInput` SUBSTITUI o input inteiro (sempre ecoar
+  questions). Doc: hooks.md#askuserquestion.
+- **Fix hover→música** (cfc93ac): hover no card de pergunta armava
+  `expanded=true` invisível via `setHover`; ao responder, o mode caía em
+  `.music` e o card de música abria sozinho. Modo `.question` agora não dirige
+  expansão no hover de entrada (saída continua passando pra desarmar).
+- **Origem da sessão no card** (3eb823f): hook manda `source` = basename do
+  cwd; cabeçalho mostra "◐ knobler" — com várias sessões/FIFO você sabe quem
+  pergunta. `knobler ask` manda "◐ CLI".
+
+## Validação
+
+- Tudo validado em sessão real com o hook ativo: pergunta com previews ASCII
+  (split + hover trocando preview) OK; resposta virou tool result normal (sem
+  vermelho); "◐ knobler" confirmado no card; bug da música reproduzido antes
+  e ausente depois do fix. Build verde, app redeployado em /Applications.
+
+## Pendências e followups
+
+- [ ] (herdadas da sessão v0.9 abaixo — próximo escolhido: re-enfileirar
+      notificações que chegam durante pergunta longa)
+
+---
+
 # 🏁 SESSÃO 2026-07-17 (tarde) — v0.9: perguntas do Claude Code no notch
 
 ## O que foi feito
