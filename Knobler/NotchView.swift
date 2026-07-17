@@ -98,8 +98,9 @@ struct NotchView: View {
                     // notificação desce do notch, como no iPhone
                     .transition(.blurReplace.combined(with: .move(edge: .top)))
             case .question:
-                // UI real vem na Task 3; por ora só satisfaz o switch
-                EmptyView()
+                questionCard
+                    // pergunta desce do notch, como as notificações
+                    .transition(.blurReplace.combined(with: .move(edge: .top)))
             }
         }
         // recorta o conteúdo com a própria forma do notch — fechando, a informação
@@ -140,6 +141,8 @@ struct NotchView: View {
         .animation(morphAnimation, value: vm.mode)
         .animation(morphAnimation, value: wingsVisible)
         .animation(morphAnimation, value: vm.micInUse)
+        .animation(morphAnimation, value: vm.ask)
+        .animation(morphAnimation, value: vm.askPage)
     }
 
     /// Faixa morta no topo dos cards: só existe onde tem câmera de verdade.
@@ -179,8 +182,16 @@ struct NotchView: View {
         case .notification:
             return CGSize(width: notificationWidth, height: topInset + 56)
         case .question:
-            // tamanho provisório; a Task 3 traz o layout real do card
-            return CGSize(width: 460, height: topInset + 120)
+            guard let ask = vm.ask else {
+                return CGSize(width: 460, height: topInset + 120)
+            }
+            let question = ask.questions[min(vm.askPage, ask.questions.count - 1)]
+            let hasPreview = question.options.contains { $0.preview != nil }
+            // título+chip (46) + opções (48 cada) + rodapé com campo de texto (44)
+            var height = topInset + 46 + CGFloat(question.options.count) * 48 + 44
+            if question.multiSelect { height += 34 }  // botão Confirmar
+            if hasPreview { height = max(height, topInset + 200) }
+            return CGSize(width: hasPreview ? 540 : 460, height: min(height, 500))
         }
     }
 
@@ -254,6 +265,18 @@ struct NotchView: View {
             .foregroundStyle(.white)
             .padding(.horizontal, 16)
             .frame(height: vm.notchSize.height)
+        }
+    }
+
+    // MARK: - Card de pergunta (Claude Code)
+
+    @ViewBuilder
+    private var questionCard: some View {
+        if let ask = vm.ask {
+            AskCardView(vm: vm, ask: ask)
+                .frame(width: currentSize.width - 40)
+                .padding(.top, topInset + 6)
+                .padding(.bottom, 12)
         }
     }
 

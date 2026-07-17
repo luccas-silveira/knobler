@@ -155,6 +155,62 @@ let scenarios: [Scenario] = [
     Scenario(name: "dictation-error", realNotch: false) { vm, _ in
         vm.dictation = .error("Sem acesso ao microfone")
     },
+    Scenario(name: "ask-simple", realNotch: true) { vm, _ in
+        vm.ask = AskRequest(id: "s1", questions: [
+            AskQuestion(
+                question: "Qual abordagem seguir?", header: "Abordagem",
+                multiSelect: false,
+                options: [
+                    AskOption(label: "Hook PreToolUse",
+                              description: "Intercepta toda pergunta e envia pro notch",
+                              preview: nil),
+                    AskOption(label: "Servidor MCP",
+                              description: "Tool dedicada configurada por projeto",
+                              preview: nil),
+                ])
+        ], receivedAt: Date())
+    },
+    Scenario(name: "ask-multiselect", realNotch: true) { vm, _ in
+        vm.ask = AskRequest(id: "s2", questions: [
+            AskQuestion(
+                question: "Quais checagens rodar?", header: "Validação",
+                multiSelect: true,
+                options: [
+                    AskOption(label: "Build Release", description: "xcodebuild", preview: nil),
+                    AskOption(label: "Snapshots", description: "harness visual", preview: nil),
+                    AskOption(label: "E2E manual", description: "roteiro no app real", preview: nil),
+                ])
+        ], receivedAt: Date())
+    },
+    Scenario(name: "ask-preview", realNotch: true) { vm, _ in
+        vm.ask = AskRequest(id: "s3", questions: [
+            AskQuestion(
+                question: "Qual layout do card?", header: "Layout",
+                multiSelect: false,
+                options: [
+                    AskOption(label: "Split",
+                              description: "opções + preview",
+                              preview: "+----------+-----------+\n| opções   | preview   |\n|          |  ascii    |\n+----------+-----------+"),
+                    AskOption(label: "Empilhado",
+                              description: "preview embaixo",
+                              preview: "+----------------------+\n|        opções        |\n+----------------------+\n|       preview        |\n+----------------------+"),
+                ])
+        ], receivedAt: Date())
+    },
+    Scenario(name: "ask-paged", realNotch: true) { vm, _ in
+        vm.ask = AskRequest(id: "s4", questions: [
+            AskQuestion(question: "Pergunta um?", header: "Um", multiSelect: false,
+                        options: [AskOption(label: "A", description: "", preview: nil)]),
+            AskQuestion(question: "Pergunta dois de três?", header: "Dois", multiSelect: false,
+                        options: [
+                            AskOption(label: "Sim", description: "segue", preview: nil),
+                            AskOption(label: "Não", description: "para", preview: nil),
+                        ]),
+            AskQuestion(question: "Pergunta três?", header: "Três", multiSelect: false,
+                        options: [AskOption(label: "B", description: "", preview: nil)]),
+        ], receivedAt: Date())
+        vm.askPage = 1
+    },
 ]
 
 MainActor.assumeIsolated {
