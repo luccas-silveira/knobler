@@ -30,6 +30,9 @@ struct AskRequest: Equatable {
     /// Uma chamada da tool traz 1–4 perguntas; o card pagina entre elas.
     var questions: [AskQuestion]
     var receivedAt: Date
+    /// Quem pergunta (pasta do projeto da sessão) — várias sessões abertas
+    /// precisam ser distinguíveis no card.
+    var source: String? = nil
 }
 
 /// Resposta de UMA pergunta: labels clicados e/ou texto livre digitado/ditado.
@@ -93,6 +96,13 @@ struct AskCardView: View {
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(2)
             Spacer(minLength: 0)
+            if let source = ask.source, !source.isEmpty {
+                // quem pergunta: pasta do projeto da sessão do Claude Code
+                Text("◐ \(source)")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.45))
+                    .lineLimit(1)
+            }
             if ask.questions.count > 1 {
                 Text("\(page + 1)/\(ask.questions.count)")
                     .font(.caption2)

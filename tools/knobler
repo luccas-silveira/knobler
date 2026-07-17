@@ -43,7 +43,7 @@ ask)
     opts="$(python3 -c '
 import json, sys
 print(json.dumps([{"label": a, "description": ""} for a in sys.argv[1:]]))' "$@")"
-    post /ask "{\"id\":\"$id\",\"questions\":[{\"question\":$(esc "$q"),\"header\":\"CLI\",\"multiSelect\":false,\"options\":$opts}]}"
+    post /ask "{\"id\":\"$id\",\"source\":\"CLI\",\"questions\":[{\"question\":$(esc "$q"),\"header\":\"CLI\",\"multiSelect\":false,\"options\":$opts}]}"
     while :; do
         state="$(curl -sf -m 2 "localhost:$PORT/ask/$id")" \
             || { echo "knobler: API caiu no meio" >&2; exit 1; }

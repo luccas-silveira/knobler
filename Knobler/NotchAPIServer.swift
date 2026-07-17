@@ -212,7 +212,9 @@ final class NotchAPIServer {
             }
 
             pendingAsks[id] = PendingAsk(state: .pending, updatedAt: Date())
-            let ask = AskRequest(id: id, questions: questions, receivedAt: Date())
+            let source = (json["source"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            let ask = AskRequest(
+                id: id, questions: questions, receivedAt: Date(), source: source)
             DispatchQueue.main.async { [weak self] in self?.onAsk?(ask) }
             return Self.ok
         }

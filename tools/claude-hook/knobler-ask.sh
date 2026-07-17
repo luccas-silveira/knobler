@@ -10,8 +10,10 @@ PORT="${KNOBLER_PORT:-4477}"
 INPUT="$(cat)"
 ID="ask-$$-$(date +%s)"
 
+# source = pasta do projeto da sessão (basename do cwd) — identifica no card
+# QUEM está perguntando quando há várias sessões abertas
 PAYLOAD="$(printf '%s' "$INPUT" | jq -c --arg id "$ID" \
-    '{id: $id, questions: .tool_input.questions}')" || exit 0
+    '{id: $id, source: ((.cwd // "") | split("/") | last), questions: .tool_input.questions}')" || exit 0
 
 # Knobler fora do ar → curl falha em ms → fluxo normal do terminal
 curl -sf -m 1 -X POST "localhost:$PORT/ask" -d "$PAYLOAD" >/dev/null 2>&1 || exit 0
