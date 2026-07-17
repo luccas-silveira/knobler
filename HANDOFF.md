@@ -36,9 +36,11 @@
 
 ## Pendências e followups
 
-- [ ] **Validação de 1º uso**: sessão Claude real com `/grill-me` — confirmar
-      que o modelo trata deny+reason como resposta e não re-pergunta (só o
-      formato do reason precisaria de ajuste no knobler-ask.sh se não).
+- [x] **Validação de 1º uso** ✅ (2026-07-17): grill real com 3 perguntas
+      respondidas pelo notch — o modelo usou cada resposta e seguiu sem
+      re-perguntar. O deny aparece como "Error:" no transcript (cosmético).
+      Nota: o modelo às vezes pergunta em texto puro em vez de AskUserQuestion;
+      se incomodar, instruir via CLAUDE.md/skill a preferir a tool.
 - [ ] Notificação que chega durante pergunta longa roda o auto-dismiss de 5s
       mascarada e some do notch (banner nativo ainda aparece — mesmo caso do
       ditado v0.8). Spec prometia re-enfileirar.
