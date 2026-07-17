@@ -95,10 +95,15 @@ final class MicRecorder {
     private let engine = AVAudioEngine()
     private var converter: AVAudioConverter?
     private var samples: [Float] = []
+    // append() roda na thread de áudio do AVAudioEngine e stop() lê na main:
+    // Array sob mutação concorrente é UB, então serializamos com este lock.
+    private let samplesLock = NSLock()
     var onLevel: ((Float) -> Void)?
 
     func start() throws {
+        samplesLock.lock()
         samples.removeAll()
+        samplesLock.unlock()
         let input = engine.inputNode
         let inputFormat = input.outputFormat(forBus: 0)
         guard inputFormat.sampleRate > 0 else {
@@ -132,7 +137,9 @@ final class MicRecorder {
         }
         guard let channel = out.floatChannelData?[0], out.frameLength > 0 else { return }
         let chunk = Array(UnsafeBufferPointer(start: channel, count: Int(out.frameLength)))
+        samplesLock.lock()
         samples.append(contentsOf: chunk)
+        samplesLock.unlock()
         let rms = sqrt(chunk.reduce(0) { $0 + $1 * $1 } / Float(chunk.count))
         // ponytail: ganho empírico pra barra de nível ler bem em voz normal
         onLevel?(min(1, rms * 12))
@@ -142,7 +149,10 @@ final class MicRecorder {
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
         converter = nil
-        return samples
+        samplesLock.lock()
+        let captured = samples
+        samplesLock.unlock()
+        return captured
     }
 }
 
