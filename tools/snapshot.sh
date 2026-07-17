@@ -12,5 +12,6 @@ swiftc -O -o build/snapshot \
   Knobler/NotificationInterceptor.swift \
   Knobler/AppSettings.swift \
   Knobler/Shelf.swift \
+  Knobler/Mirror.swift \
   tools/main.swift
 ./build/snapshot Snapshots

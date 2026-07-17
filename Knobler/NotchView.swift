@@ -72,7 +72,7 @@ struct NotchView: View {
 
             switch vm.mode {
             case .closed:
-                if wingsVisible || vm.activity != nil {
+                if wingsVisible || vm.activity != nil || vm.micInUse {
                     closedWings
                         .transition(.blurReplace)
                 }
@@ -133,6 +133,7 @@ struct NotchView: View {
         }
         .animation(morphAnimation, value: vm.mode)
         .animation(morphAnimation, value: wingsVisible)
+        .animation(morphAnimation, value: vm.micInUse)
     }
 
     /// Faixa morta no topo dos cards: só existe onde tem câmera de verdade.
@@ -144,7 +145,7 @@ struct NotchView: View {
         // notch real: asas ao redor da câmera; externo: o conteúdo dita o tamanho
         switch vm.mode {
         case .closed:
-            let hasContent = wingsVisible || vm.activity != nil
+            let hasContent = wingsVisible || vm.activity != nil || vm.micInUse
             if vm.hasRealNotch {
                 return CGSize(
                     width: vm.notchSize.width + (hasContent ? wingWidth * 2 : 0),
@@ -160,9 +161,12 @@ struct NotchView: View {
             )
         case .music:
             let hasShelf = !shelf.items.isEmpty
-            let placeholder = !hasMusic && vm.activity == nil && !hasShelf
+            let placeholder = !hasMusic && vm.activity == nil && !hasShelf && !vm.mirrorOn
             var height = topInset
-            if hasMusic || placeholder { height += 140 }
+            if vm.mirrorOn {
+                height += vm.activity != nil || hasShelf ? 190 : 202
+            }
+            if !vm.mirrorOn, hasMusic || placeholder { height += 140 }
             if vm.activity != nil { height += hasMusic || hasShelf ? 46 : 60 }
             if hasShelf { height += hasMusic || vm.activity != nil ? 62 : 76 }
             return CGSize(width: expandedSize.width, height: height)
@@ -246,17 +250,24 @@ struct NotchView: View {
                     .padding(.leading, vm.hasRealNotch ? 12 : 14)
             }
             Spacer(minLength: 0)
-            // atividade ganha a asa direita; as barras voltam quando ela termina
-            if let activity = vm.activity {
-                ActivityRingView(progress: activity.progress)
-                    .frame(width: 17, height: 17)
-                    .padding(.trailing, vm.hasRealNotch ? 13 : 15)
-                    .transition(.blurReplace)
-            } else if wingsVisible {
-                audioBars
-                    .frame(width: 27, height: 21)
-                    .padding(.trailing, vm.hasRealNotch ? 12 : 14)
+            // asa direita: mic em uso + (atividade OU barras de áudio)
+            HStack(spacing: 8) {
+                if vm.micInUse {
+                    Image(systemName: "mic.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.orange)
+                        .transition(.blurReplace)
+                }
+                if let activity = vm.activity {
+                    ActivityRingView(progress: activity.progress)
+                        .frame(width: 17, height: 17)
+                        .transition(.blurReplace)
+                } else if wingsVisible {
+                    audioBars
+                        .frame(width: 27, height: 21)
+                }
             }
+            .padding(.trailing, vm.hasRealNotch ? 12 : 14)
         }
         .frame(height: vm.notchSize.height)
         .animation(.easeOut(duration: 0.3), value: media.state?.title)
@@ -290,6 +301,10 @@ struct NotchView: View {
     @ViewBuilder
     private var expandedContent: some View {
         VStack(spacing: 10) {
+            if vm.mirrorOn {
+                mirrorSection
+                    .transition(.blurReplace)
+            }
             if !shelf.items.isEmpty {
                 ShelfRowView(shelf: shelf)
                     .transition(.blurReplace)
@@ -298,10 +313,55 @@ struct NotchView: View {
                 activityRow(activity)
                     .transition(.blurReplace)
             }
-            musicSection
+            // espelho aberto toma o lugar da música — ela volta ao fechar
+            if !vm.mirrorOn {
+                musicSection
+            }
         }
         .animation(.easeOut(duration: 0.3), value: vm.activity == nil)
         .animation(.easeOut(duration: 0.3), value: shelf.items)
+        .animation(.easeOut(duration: 0.3), value: vm.mirrorOn)
+    }
+
+    // MARK: - Espelho
+
+    private var mirrorSection: some View {
+        MirrorPreviewView()
+            .frame(height: 180)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(alignment: .topTrailing) {
+                Button { vm.mirrorOn = false } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.white.opacity(0.7), .black.opacity(0.45))
+                }
+                .buttonStyle(.plain)
+                .padding(8)
+            }
+    }
+
+    /// Botão de ligar o espelho; negada a permissão, abre os ajustes de câmera.
+    private var mirrorButton: some View {
+        Button {
+            if vm.mirrorOn {
+                vm.mirrorOn = false
+                return
+            }
+            MirrorController.requestAccess { granted in
+                if granted {
+                    vm.mirrorOn = true
+                } else if let url = URL(string:
+                    "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+        } label: {
+            Image(systemName: vm.mirrorOn ? "video.fill" : "video")
+                .font(.body)
+                .foregroundStyle(vm.mirrorOn ? .white : .white.opacity(0.45))
+                .contentTransition(.symbolEffect(.replace))
+        }
+        .buttonStyle(.plain)
     }
 
     private func activityRow(_ activity: NotchActivity) -> some View {
@@ -353,6 +413,8 @@ struct NotchView: View {
                             .contentTransition(.opacity)
                     }
                     Spacer(minLength: 0)
+                    mirrorButton
+                        .padding(.trailing, 4)
                     audioBars
                         .frame(width: 24, height: 18)
                 }
@@ -362,7 +424,7 @@ struct NotchView: View {
             .frame(maxWidth: .infinity)
             // troca de faixa: capa e textos fazem crossfade em vez de pop
             .animation(.easeOut(duration: 0.3), value: state.title)
-        } else if vm.activity == nil, shelf.items.isEmpty {
+        } else if vm.activity == nil, shelf.items.isEmpty, !vm.mirrorOn {
             VStack(spacing: 6) {
                 Image(systemName: "music.note")
                     .font(.title2)
@@ -370,6 +432,8 @@ struct NotchView: View {
                 Text("Nada tocando")
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.4))
+                mirrorButton
+                    .padding(.top, 4)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -468,7 +532,7 @@ struct NotchView: View {
     private var notificationCard: some View {
         if let notification = vm.activeNotification {
             HStack(spacing: 12) {
-                appIcon(for: notification.appName)
+                appIcon(for: notification)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(notification.title)
                         .font(.subheadline.weight(.semibold))
@@ -492,11 +556,11 @@ struct NotchView: View {
         }
     }
 
-    private func appIcon(for appName: String?) -> some View {
+    private func appIcon(for notification: NotchNotification) -> some View {
         Group {
-            if let app = Self.runningApp(named: appName),
-               let bundleURL = app.bundleURL {
-                Image(nsImage: NSWorkspace.shared.icon(forFile: bundleURL.path))
+            if let path = Self.appPath(
+                bundleID: notification.bundleID, named: notification.appName) {
+                Image(nsImage: NSWorkspace.shared.icon(forFile: path))
                     .resizable()
             } else {
                 Image(systemName: "bell.badge.fill")
@@ -510,7 +574,40 @@ struct NotchView: View {
     }
 
     private func openSourceApp(_ notification: NotchNotification) {
+        if notification.supacodeWorktree != nil || notification.supacodeTab != nil {
+            Self.focusSupacode(
+                worktree: notification.supacodeWorktree, tab: notification.supacodeTab)
+            return
+        }
+        if let bundleID = notification.bundleID,
+           let app = NSRunningApplication.runningApplications(
+               withBundleIdentifier: bundleID).first {
+            app.activate()
+            return
+        }
         Self.runningApp(named: notification.appName)?.activate()
+    }
+
+    /// Foca a sessão no Supacode via CLI do app e traz o app pra frente.
+    private static func focusSupacode(worktree: String?, tab: String?) {
+        let cli = "/Applications/supacode.app/Contents/Resources/bin/supacode"
+        DispatchQueue.global(qos: .userInitiated).async {
+            func run(_ args: [String]) {
+                guard FileManager.default.fileExists(atPath: cli) else { return }
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: cli)
+                process.arguments = args
+                try? process.run()
+                process.waitUntilExit()
+            }
+            if let worktree { run(["worktree", "focus", "-w", worktree]) }
+            if let worktree, let tab { run(["tab", "focus", "-w", worktree, "-t", tab]) }
+            DispatchQueue.main.async {
+                NSRunningApplication.runningApplications(
+                    withBundleIdentifier: "app.supabit.supacode"
+                ).first?.activate()
+            }
+        }
     }
 
     private static func runningApp(named name: String?) -> NSRunningApplication? {
@@ -518,6 +615,19 @@ struct NotchView: View {
         return NSWorkspace.shared.runningApplications.first {
             $0.localizedName?.localizedCaseInsensitiveCompare(name) == .orderedSame
         }
+    }
+
+    /// Caminho do app pro ícone: bundle ID exato, senão app rodando pelo nome,
+    /// senão instalado em /Applications.
+    private static func appPath(bundleID: String?, named name: String?) -> String? {
+        if let bundleID,
+           let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
+            return url.path
+        }
+        if let path = runningApp(named: name)?.bundleURL?.path { return path }
+        guard let name, !name.isEmpty else { return nil }
+        let installed = "/Applications/\(name).app"
+        return FileManager.default.fileExists(atPath: installed) ? installed : nil
     }
 
     private static func timeString(_ seconds: TimeInterval) -> String {

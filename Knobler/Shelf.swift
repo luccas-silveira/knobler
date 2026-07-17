@@ -4,15 +4,25 @@
 //
 //  Prateleira de arquivos: arraste pro notch (expande sozinho ao aproximar),
 //  os itens ficam no card expandido e saem arrastando de volta pro Finder.
-//  ponytail: em memória (zera ao fechar o app) — persistir se sentir falta.
+//  ponytail: persiste paths em UserDefaults (app não é sandboxed) —
+//  bookmarks security-scoped só se um dia sandboxar.
 //
 
 import SwiftUI
 import UniformTypeIdentifiers
 
 final class ShelfStore: ObservableObject {
-    @Published private(set) var items: [URL] = []
+    @Published private(set) var items: [URL] = [] {
+        didSet { UserDefaults.standard.set(items.map(\.path), forKey: Self.storageKey) }
+    }
     private static let capacity = 8
+    private static let storageKey = "shelfItems"
+
+    init() {
+        let paths = UserDefaults.standard.stringArray(forKey: Self.storageKey) ?? []
+        items = paths.map { URL(fileURLWithPath: $0) }
+            .filter { FileManager.default.fileExists(atPath: $0.path) }
+    }
 
     func add(_ url: URL) {
         guard !items.contains(url) else { return }

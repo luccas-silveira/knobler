@@ -34,6 +34,14 @@ final class AppSettings: ObservableObject {
     @Published var calendarCountdown: Bool {
         didSet { UserDefaults.standard.set(calendarCountdown, forKey: "calendarCountdown") }
     }
+    /// Espelho abre sozinho 2min antes de evento com link de call
+    /// (requer a contagem do calendário ligada).
+    @Published var mirrorBeforeMeetings: Bool {
+        didSet { UserDefaults.standard.set(mirrorBeforeMeetings, forKey: "mirrorBeforeMeetings") }
+    }
+    @Published var micIndicator: Bool {
+        didSet { UserDefaults.standard.set(micIndicator, forKey: "micIndicator") }
+    }
 
     /// Estado real no launchd — não é persistido por nós.
     var launchAtLogin: Bool {
@@ -59,6 +67,8 @@ final class AppSettings: ObservableObject {
         liveAudioVisualizer = flag("liveAudioVisualizer")
         localAPI = flag("localAPI")
         calendarCountdown = flag("calendarCountdown")
+        mirrorBeforeMeetings = flag("mirrorBeforeMeetings")
+        micIndicator = flag("micIndicator")
     }
 }
 
@@ -74,6 +84,8 @@ struct SettingsView: View {
                 Toggle("Avisos de bateria", isOn: $settings.batteryAlerts)
                 Toggle("Visualizador com áudio real", isOn: $settings.liveAudioVisualizer)
                 Toggle("Contagem do calendário", isOn: $settings.calendarCountdown)
+                Toggle("Espelho antes de reuniões", isOn: $settings.mirrorBeforeMeetings)
+                Toggle("Indicador de microfone", isOn: $settings.micIndicator)
             }
             Section {
                 Toggle("API local", isOn: $settings.localAPI)

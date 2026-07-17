@@ -17,6 +17,11 @@ struct NotchNotification: Identifiable, Equatable {
     let appName: String?
     let title: String
     let body: String
+    /// Bundle ID do app de origem (banners interceptados) — ícone/abrir exatos.
+    var bundleID: String? = nil
+    /// Alvo de sessão do Supacode: clique na notificação foca worktree/tab.
+    var supacodeWorktree: String? = nil  // ID do worktree (path percent-encoded)
+    var supacodeTab: String? = nil  // UUID da tab
     let date = Date()
 }
 
@@ -79,8 +84,8 @@ final class NotificationInterceptor {
         let callback: AXObserverCallback = { _, _, _, refcon in
             guard let refcon else { return }
             let me = Unmanaged<NotificationInterceptor>.fromOpaque(refcon).takeUnretainedValue()
-            // pequeno delay pro banner terminar de montar o conteúdo
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { me.scan() }
+            // o settle de renderização fica no process(), não aqui
+            DispatchQueue.main.async { me.scan() }
         }
 
         var newObserver: AXObserver?
@@ -115,22 +120,41 @@ final class NotificationInterceptor {
             guard !handled.contains(hash) else { continue }
             handled.insert(hash)
 
-            guard let notification = parse(banner) else { continue }
-
-            // dedupe por conteúdo (o mesmo banner pode reaparecer com outro handle)
-            let key = "\(notification.appName ?? "")|\(notification.title)|\(notification.body)"
-            if key == lastContentKey, Date().timeIntervalSince(lastContentDate) < 2 { continue }
-            lastContentKey = key
-            lastContentDate = Date()
-
-            NSLog("knobler intercepted: app=%@ title=%@",
-                  notification.appName ?? "?", notification.title)
-            onNotification(notification)
-            close(banner)
+            // banner recém-criado ainda está montando o texto (o scan do timer
+            // chegava a ler corpo pela metade) — espera assentar antes de parsear
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+                self?.process(banner)
+            }
         }
 
         handled.formIntersection(present)
     }
+
+    private func process(_ banner: AXUIElement) {
+        guard let parsed = parse(banner) else { return }
+
+        // dedupe por conteúdo (o mesmo banner pode reaparecer com outro handle)
+        let key = "\(parsed.appName ?? "")|\(parsed.title)|\(parsed.body)"
+        if key == lastContentKey, Date().timeIntervalSince(lastContentDate) < 2 { return }
+        lastContentKey = key
+        lastContentDate = Date()
+
+        NSLog("knobler intercepted: title=%@", parsed.title)
+        close(banner)
+        onNotification(NotchNotification(
+            appName: Self.appName(forBundleID: Self.defaultBundleID),
+            title: parsed.title,
+            body: parsed.body,
+            bundleID: Self.defaultBundleID
+        ))
+    }
+
+    /// O Tahoe não expõe o app de origem no banner (AXStackingIdentifier foi
+    /// removido) e o banco da Central de Notificações some com a notificação
+    /// quando ela é lida rápido — nenhuma fonte confiável em tempo real. Como
+    /// o WhatsApp é o único app com notificação ligada neste Mac, todo banner
+    /// interceptado usa o ícone dele. Trocar aqui se habilitar outro app.
+    private static let defaultBundleID = "net.whatsapp.WhatsApp"
 
     private func currentBanners() -> [AXUIElement] {
         guard let app = NSRunningApplication.runningApplications(
@@ -158,7 +182,7 @@ final class NotificationInterceptor {
         return children(of: element).flatMap { bannerDescendants(of: $0, depth: depth + 1) }
     }
 
-    private func parse(_ banner: AXUIElement) -> NotchNotification? {
+    private func parse(_ banner: AXUIElement) -> (appName: String?, title: String, body: String)? {
         var texts: [String] = []
         collectStaticTexts(banner, into: &texts)
         texts = texts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -168,17 +192,21 @@ final class NotificationInterceptor {
         // heurística: banners padrão vêm como [app, título, corpo...];
         // com 2 textos assume [título, corpo]; com 1, só título
         switch texts.count {
-        case 1:
-            return NotchNotification(appName: nil, title: texts[0], body: "")
-        case 2:
-            return NotchNotification(appName: nil, title: texts[0], body: texts[1])
-        default:
-            return NotchNotification(
-                appName: texts[0],
-                title: texts[1],
-                body: texts[2...].joined(separator: " — ")
-            )
+        case 1: return (nil, texts[0], "")
+        case 2: return (nil, texts[0], texts[1])
+        default: return (texts[0], texts[1], texts[2...].joined(separator: " — "))
         }
+    }
+
+    private static func appName(forBundleID bundleID: String) -> String? {
+        if let app = NSRunningApplication.runningApplications(
+            withBundleIdentifier: bundleID).first {
+            return app.localizedName
+        }
+        guard let url = NSWorkspace.shared.urlForApplication(
+            withBundleIdentifier: bundleID) else { return nil }
+        return FileManager.default.displayName(atPath: url.path)
+            .replacingOccurrences(of: ".app", with: "")
     }
 
     private func collectStaticTexts(_ element: AXUIElement, into texts: inout [String], depth: Int = 0) {

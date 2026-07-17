@@ -5,6 +5,8 @@
 //  API local: qualquer script pode publicar no notch.
 //    curl -X POST localhost:4477/notify \
 //      -d '{"title":"Deploy finalizado","body":"zoi-studio em produção","app":"Terminal"}'
+//  /notify aceita supacodeWorktree/supacodeTab opcionais: clique na notificação
+//  foca aquela sessão no Supacode (via CLI do app).
 //    curl -X POST localhost:4477/activity \
 //      -d '{"id":"deploy","title":"Deploy zoi-studio","detail":"rsync…","progress":0.4}'
 //    curl -X POST localhost:4477/activity -d '{"id":"deploy","done":true}'
@@ -22,6 +24,8 @@ final class NotchAPIServer {
     var onActivity: ((NotchActivity?) -> Void)?
     /// Diagnóstico pro GET /status (montado pelo AppDelegate).
     var statusProvider: (() -> [String: Any])?
+    /// POST /mirror — liga/desliga o espelho da câmera no notch.
+    var onMirror: ((Bool) -> Void)?
 
     private var listener: NWListener?
     private var activities: [String: NotchActivity] = [:]
@@ -100,7 +104,9 @@ final class NotchAPIServer {
             let notification = NotchNotification(
                 appName: json["app"] as? String,
                 title: title,
-                body: json["body"] as? String ?? ""
+                body: json["body"] as? String ?? "",
+                supacodeWorktree: json["supacodeWorktree"] as? String,
+                supacodeTab: json["supacodeTab"] as? String
             )
             DispatchQueue.main.async { [weak self] in
                 self?.onNotification?(notification)
@@ -134,6 +140,14 @@ final class NotchAPIServer {
             return Self.ok
         }
 
+        if request.hasPrefix("POST /mirror") {
+            let on = json?["on"] as? Bool ?? true
+            DispatchQueue.main.async { [weak self] in
+                self?.onMirror?(on)
+            }
+            return Self.ok
+        }
+
         if request.hasPrefix("GET /status") {
             let status = statusProvider?() ?? [:]
             let body = (try? JSONSerialization.data(withJSONObject: status))
@@ -143,7 +157,7 @@ final class NotchAPIServer {
 
         return Self.http(
             status: "404 Not Found",
-            body: #"{"ok":false,"usage":["POST /notify {title, body?, app?}","POST /activity {id?, title, detail?, progress?, done?}","GET /status"]}"#
+            body: #"{"ok":false,"usage":["POST /notify {title, body?, app?, supacodeWorktree?, supacodeTab?}","POST /activity {id?, title, detail?, progress?, done?}","POST /mirror {on?}","GET /status"]}"#
         )
     }
 

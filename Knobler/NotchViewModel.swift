@@ -17,7 +17,13 @@ struct NotchActivity: Equatable {
 }
 
 final class NotchViewModel: ObservableObject {
-    @Published var expanded = false
+    @Published var expanded = false {
+        // recolher o notch desliga o espelho — a câmera nunca fica ligada escondida
+        didSet { if !expanded { mirrorOn = false } }
+    }
+    @Published var mirrorOn = false
+    /// Algum app está capturando o microfone (pontinho laranja no notch).
+    @Published var micInUse = false
     /// Música pausada some do notch; hover "espia" (peeking) antes de expandir.
     @Published var musicPaused = false
     @Published var peeking = false

@@ -47,6 +47,21 @@ final class VolumeHUDController {
     private var runLoopSource: CFRunLoopSource?
     private var healthTimer: Timer?
     private var trustedAtCreation = false
+    /// Ring de últimos eventos de tecla vistos (diagnóstico) — um slot único
+    /// era sobrescrito por ruído de mouse antes de conseguirmos ler.
+    private var keyLog: [String] = []
+    private static let logTime: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss.S"
+        return f
+    }()
+    private func logKey(_ entry: String) {
+        keyLog.append("\(Self.logTime.string(from: Date())) \(entry)")
+        if keyLog.count > 12 { keyLog.removeFirst(keyLog.count - 12) }
+    }
+    // brilho observado (Central de Controle, auto, teclas não interceptáveis)
+    private var brightnessPollTimer: Timer?
+    private var lastBrightness: Float = -1
 
     private lazy var volumeAddress = AudioObjectPropertyAddress(
         mSelector: kAudioHardwareServiceDeviceProperty_VirtualMainVolume,
@@ -71,6 +86,16 @@ final class VolumeHUDController {
         healthTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) {
             [weak self] _ in self?.checkTapHealth()
         }
+        // brilho pode mudar por fora das teclas (Central de Controle, auto,
+        // teclado que manda keycode diferente) — o poll pega qualquer mudança
+        brightnessPollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) {
+            [weak self] _ in self?.pollBrightness()
+        }
+        // diagnóstico: teclas de brilho de teclado externo podem chegar como
+        // keyDown comum (F14/F15 etc.) em vez de NX systemDefined
+        NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            self?.logKey("kb=\(event.keyCode)")
+        }
     }
 
     /// Estado do tap pro GET /status da API local (diagnóstico).
@@ -80,6 +105,7 @@ final class VolumeHUDController {
             "tapExists": eventTap != nil,
             "tapEnabled": eventTap.map { CGEvent.tapIsEnabled(tap: $0) } ?? false,
             "brightnessAvailable": canControlBrightness,
+            "keyLog": keyLog,
         ]
     }
 
@@ -147,13 +173,24 @@ final class VolumeHUDController {
         }
         guard cgEvent.type != .null,
               let nsEvent = NSEvent(cgEvent: cgEvent),
-              nsEvent.type == .systemDefined,
-              nsEvent.subtype.rawValue == 8
-        else { return Unmanaged.passRetained(cgEvent) }
+              nsEvent.type == .systemDefined
+        else {
+            if cgEvent.type.rawValue == 14 { logKey("raw14-convfail") }
+            return Unmanaged.passRetained(cgEvent)
+        }
 
         let data1 = nsEvent.data1
         let keyCode = (data1 & 0xFFFF_0000) >> 16
         let stateByte = (data1 & 0xFF00) >> 8
+
+        guard nsEvent.subtype.rawValue == 8 else {
+            // subtipo 7 é botão de mouse — spam que afogaria o ring
+            if nsEvent.subtype.rawValue != 7 {
+                logKey("sd\(nsEvent.subtype.rawValue) data1=0x\(String(data1, radix: 16))")
+            }
+            return Unmanaged.passRetained(cgEvent)
+        }
+        if stateByte == 0xA { logKey("nx=\(keyCode)") }
 
         let isVolume = Self.volumeKeyCodes.contains(keyCode)
             && AppSettings.shared.volumeHUD
@@ -184,14 +221,35 @@ final class VolumeHUDController {
 
     // MARK: - Brilho
 
+    /// A tela principal pode ser um monitor externo sem DisplayServices —
+    /// o brilho controlável é o da embutida.
+    private static func builtinDisplay() -> CGDirectDisplayID {
+        var count: UInt32 = 0
+        var ids = [CGDirectDisplayID](repeating: 0, count: 16)
+        CGGetActiveDisplayList(16, &ids, &count)
+        return ids.prefix(Int(count)).first { CGDisplayIsBuiltin($0) == 1 }
+            ?? CGMainDisplayID()
+    }
+
     private func adjustBrightness(by delta: Float) {
         guard let brightnessGet, let brightnessSet else { return }
-        let display = CGMainDisplayID()
+        let display = Self.builtinDisplay()
         var current: Float = 0
         guard brightnessGet(display, &current) == 0 else { return }
         let target = max(0, min(1, current + delta))
         _ = brightnessSet(display, target)
+        lastBrightness = target // o poll não deve repetir o HUD desta mudança
         onHUD?(.init(kind: .brightness, level: target))
+    }
+
+    private func pollBrightness() {
+        guard AppSettings.shared.brightnessHUD, let brightnessGet else { return }
+        var level: Float = 0
+        guard brightnessGet(Self.builtinDisplay(), &level) == 0 else { return }
+        defer { lastBrightness = level }
+        // primeira leitura só calibra; depois, qualquer mudança vira HUD
+        guard lastBrightness >= 0, abs(level - lastBrightness) > 0.004 else { return }
+        onHUD?(.init(kind: .brightness, level: level))
     }
 
     // MARK: - Ações

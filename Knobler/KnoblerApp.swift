@@ -31,10 +31,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let volumeHUD = VolumeHUDController()
     private let audioLevels = SystemAudioLevels()
     private let battery = BatteryMonitor()
+    private let micMonitor = MicMonitor()
     private let apiServer = NotchAPIServer()
     private let calendar = CalendarCountdown()
     private let shelf = ShelfStore()
     private var apiCancellable: AnyCancellable?
+    /// Evita reabrir o espelho a cada tick se o usuário fechou antes da call.
+    private var mirrorAutoOpened = false
 
     // duas fontes de atividade: API (explícita) vence o calendário (ambiente)
     private var apiActivity: NotchActivity?
@@ -61,14 +64,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupStatusItem()
         placeWindows()
 
+        // notificações aparecem em TODAS as telas, como os HUDs
         let interceptor = NotificationInterceptor { [weak self] notch in
-            self?.viewModelUnderMouse()?.enqueue(notch)
+            self?.notches.values.forEach { $0.viewModel.enqueue(notch) }
         }
         interceptor.start()
         self.interceptor = interceptor
 
         // HUDs são estado global do sistema: aparecem em TODAS as telas
-        // (notificações continuam indo só pra tela do mouse)
         volumeHUD.onHUD = { [weak self] state in
             self?.notches.values.forEach { $0.viewModel.showHUD(state) }
         }
@@ -84,6 +87,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         battery.start()
+
+        // pontinho laranja enquanto algum app usa o microfone
+        micMonitor.onChange = { [weak self] inUse in
+            let show = inUse && AppSettings.shared.micIndicator
+            self?.notches.values.forEach { $0.viewModel.micInUse = show }
+        }
+        micMonitor.start()
 
         // tap de áudio só enquanto o player ativo toca (visualizador reativo real);
         // reavaliado quando o player muda e quando o toggle muda nos Ajustes
@@ -113,7 +123,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // API local: scripts publicam cards no notch (diferencial do Knobler)
         apiServer.onNotification = { [weak self] notification in
-            self?.viewModelUnderMouse()?.enqueue(notification)
+            self?.notches.values.forEach { $0.viewModel.enqueue(notification) }
         }
         // atividade é global: aparece em todos os monitores
         apiServer.onActivity = { [weak self] activity in
@@ -124,12 +134,55 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.calendarActivity = activity
             self?.pushActivity()
         }
+        // espelho automático: abre 2min antes da call, fecha quando ela começa
+        calendar.onMirrorMoment = { [weak self] imminent in
+            guard let self else { return }
+            if imminent, AppSettings.shared.mirrorBeforeMeetings, !self.mirrorAutoOpened {
+                self.mirrorAutoOpened = true
+                if let vm = self.viewModelUnderMouse() {
+                    MirrorController.activate(on: vm, expand: true)
+                }
+            } else if !imminent, self.mirrorAutoOpened {
+                self.mirrorAutoOpened = false
+                self.notches.values.forEach {
+                    guard $0.viewModel.mirrorOn else { return }
+                    $0.viewModel.mirrorOn = false
+                    $0.viewModel.setExpandedDirect(false)
+                }
+            }
+        }
         calendar.start()
+
+        apiServer.onMirror = { [weak self] on in
+            guard let self else { return }
+            if on {
+                if let vm = self.viewModelUnderMouse() {
+                    MirrorController.activate(on: vm, expand: true)
+                }
+            } else {
+                self.notches.values.forEach {
+                    guard $0.viewModel.mirrorOn else { return }
+                    $0.viewModel.mirrorOn = false
+                    $0.viewModel.setExpandedDirect(false)
+                }
+            }
+        }
 
         apiServer.statusProvider = { [weak self] in
             var status = self?.volumeHUD.diagnostics ?? [:]
             status["visualizerTapped"] = self?.tappedBundleID ?? "none"
             status["player"] = self?.media.activeBundleID ?? "none"
+            status.merge(MirrorController.shared.diagnostics) { _, new in new }
+            status["micInUse"] = self?.micMonitor.isRunning ?? false
+            status["notches"] = (self?.notches ?? [:]).map { id, notch in
+                [
+                    "display": Int(id),
+                    "mode": "\(notch.viewModel.mode)",
+                    "hasNotification": notch.viewModel.activeNotification != nil,
+                    "visible": notch.window.isVisible,
+                    "frame": "\(notch.window.frame)",
+                ] as [String: Any]
+            }
             return status
         }
         apiCancellable = AppSettings.shared.objectWillChange
@@ -140,6 +193,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         self?.apiServer.start()
                     } else {
                         self?.apiServer.stop()
+                    }
+                    // indicador de mic é persistente: re-publica quando o toggle muda
+                    self?.micMonitor.publish()
+                    // OSD nativo suprimido enquanto algum HUD nosso estiver ativo
+                    let hudsOn = AppSettings.shared.volumeHUD || AppSettings.shared.brightnessHUD
+                    DispatchQueue.global(qos: .utility).async {
+                        hudsOn ? OSDSuppressor.suppress() : OSDSuppressor.restore()
                     }
                 }
             }
@@ -255,7 +315,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 media.state != nil && media.state?.isPlaying != true
             notch.viewModel.activity = currentActivity
 
-            let size = NSSize(width: 700, height: 300)
+            // altura comporta o card com espelho; área transparente não intercepta cliques
+            let size = NSSize(width: 700, height: 520)
             let frame = NSRect(
                 x: screen.frame.midX - size.width / 2,
                 y: screen.frame.maxY - size.height,
@@ -298,6 +359,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "Quit Knobler", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         item.menu = menu
         statusItem = item
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        // devolve o OSD nativo — sem o Knobler o usuário fica sem HUD nenhum
+        OSDSuppressor.restore()
     }
 
     private var settingsWindow: NSWindow?

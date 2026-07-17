@@ -12,11 +12,29 @@ import Foundation
 
 final class CalendarCountdown {
     var onActivity: ((NotchActivity?) -> Void)?
+    /// true enquanto uma reunião com link de call está a ≤2min de começar —
+    /// borda de subida abre o espelho, de descida fecha (reunião começou).
+    var onMirrorMoment: ((Bool) -> Void)?
 
     private let store = EKEventStore()
     private var timer: Timer?
     private let leadTime: TimeInterval = 15 * 60
+    private let mirrorLead: TimeInterval = 2 * 60
     private let lingerAfterStart: TimeInterval = 60
+
+    // ponytail: lista fixa de domínios de call; adicionar quando aparecer outro
+    private static let callHosts = [
+        "zoom.us", "meet.google.com", "teams.microsoft.com",
+        "webex.com", "whereby.com", "meet.jit.si",
+    ]
+
+    private static func hasCallLink(_ event: EKEvent) -> Bool {
+        let haystack = [event.url?.absoluteString, event.location, event.notes]
+            .compactMap { $0 }
+            .joined(separator: " ")
+            .lowercased()
+        return callHosts.contains { haystack.contains($0) }
+    }
 
     func start() {
         store.requestFullAccessToEvents { [weak self] granted, _ in
@@ -44,6 +62,7 @@ final class CalendarCountdown {
     @objc private func tick() {
         guard AppSettings.shared.calendarCountdown else {
             onActivity?(nil)
+            onMirrorMoment?(false)
             return
         }
 
@@ -61,10 +80,12 @@ final class CalendarCountdown {
 
         guard let event = next else {
             onActivity?(nil)
+            onMirrorMoment?(false)
             return
         }
 
         let remaining = event.startDate.timeIntervalSince(now)
+        onMirrorMoment?(remaining > 0 && remaining <= mirrorLead && Self.hasCallLink(event))
         let minutes = Int(ceil(remaining / 60))
         let detail: String
         switch minutes {
