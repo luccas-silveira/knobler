@@ -89,8 +89,8 @@ struct ShelfRowView: View {
 
     private func shelfItem(_ url: URL) -> some View {
         VStack(spacing: 3) {
-            Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
-                .resizable()
+            // miniatura é uma view AppKit = fonte de drag (ver ShelfThumbnailDragView)
+            ShelfThumbnailDragView(url: url)
                 .frame(width: 30, height: 30)
             Text(url.lastPathComponent)
                 .font(.caption2)
@@ -98,8 +98,6 @@ struct ShelfRowView: View {
                 .lineLimit(1)
                 .frame(maxWidth: 58)
         }
-        // arrastar de volta pro Finder/apps: provider do próprio arquivo
-        .onDrag { NSItemProvider(contentsOf: url) ?? NSItemProvider() }
         .overlay(alignment: .topTrailing) {
             Button {
                 shelf.remove(url)

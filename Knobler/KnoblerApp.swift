@@ -277,6 +277,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             [weak self] event in
             self?.handleScroll(event) ?? event
         }
+        // drag das miniaturas do shelf via monitor (o hit-testing do SwiftUI
+        // engole eventos de mouse nas NSViews embutidas do notch)
+        ShelfDragMonitor.shared.start()
     }
 
     private func handleScroll(_ event: NSEvent) -> NSEvent? {
