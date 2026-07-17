@@ -178,7 +178,11 @@ final class VolumeHUDController {
         }
         if cgEvent.type == .flagsChanged {
             if cgEvent.getIntegerValueField(.keyboardEventKeycode) == 61 {
-                let pressed = cgEvent.flags.contains(.maskAlternate)
+                // .maskAlternate é o estado agregado das duas ⌥: com a esquerda
+                // segurada, soltar a direita ainda leria como press e prenderia
+                // o ditado gravando. Lemos o bit device-específico da ⌥ direita
+                // (NX_DEVICERALTKEYMASK = 0x40; a esquerda é 0x20).
+                let pressed = cgEvent.flags.rawValue & 0x40 != 0
                 DispatchQueue.main.async { [weak self] in
                     self?.onRightOption?(pressed)
                 }
