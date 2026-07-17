@@ -1,3 +1,48 @@
+# 🏁 SESSÃO 2026-07-17 (noite) — v0.10 capturas no shelf + v0.11 arrastar imagem
+
+## O que foi feito
+
+- **v0.10 — capturas de tela vão pro shelf** (`ScreenshotWatcher.swift`):
+  `NSMetadataQuery` (`kMDItemIsScreenCapture == 1 && public.image`) detecta cada
+  print novo e joga no shelf; o card dá um peek de 1,5s (renovável, respeita o
+  cursor em cima e não abre durante pergunta/ditado). Toggle "Capturas de tela
+  vão pro shelf" nos Ajustes (default ligado). Só referência, não move o arquivo.
+- **v0.11 — arrastar imagem do shelf ANEXA a foto** (`ShelfThumbnailDragView.swift`):
+  a miniatura virou view AppKit + um monitor de mouse (`NSEvent` local) que
+  inicia uma sessão de drag AppKit real. O item leva **bytes PNG + file-url no
+  mesmo `NSPasteboardItem`** → o terminal do Claude Code (Electron) e browsers
+  anexam a imagem; o Finder recebe o arquivo.
+
+## GOTCHAS (caros de descobrir)
+
+- `.onDrag` do SwiftUI só entrega **file-url** → Electron cola o CAMINHO.
+- Um `NSView` de drag (overlay OU base) dentro do `NSHostingView` do notch
+  **não recebe mouseDown** — o hit-testing do SwiftUI blinda. `acceptsFirstMouse`
+  e `FirstMouseHostingView` NÃO resolveram. Solução: **monitor local**
+  (`NSEvent.addLocalMonitorForEvents`) que pega o evento antes do SwiftUI e chama
+  `beginDraggingSession` (técnica do Dropover/Dropshit). Registro das miniaturas
+  por frame de tela; o monitor acha a que está sob o cursor.
+- Receita do pasteboard pro Electron anexar imagem: **bytes da imagem tipados
+  (public.png) via `NSPasteboardItem.setData` (síncrono) + file-url no MESMO item**.
+  Só PNG → "nada"; só file-url → caminho; os dois juntos → anexa. (`NSItemProvider`
+  assíncrono/`registerDataRepresentation` NÃO servem — o Chromium lê síncrono.)
+
+## Validação
+
+- Build Release verde. v0.10: print cai no shelf com peek (confirmado). v0.11:
+  arrastar a miniatura pro terminal → imagem anexada (confirmado por captura do
+  usuário); teclado e ditado seguem normais (sem `canBecomeKey=true`, revertido).
+
+## Pendências e followups
+
+- [ ] E2E formal do v0.10 (toggle off/on, captura durante pergunta) — o núcleo
+      está validado; faltam os casos de borda.
+- [ ] Trade-off do drag de imagem: verificar salvar no Finder (bytes+file-url
+      juntos devem cobrir, mas não testado a fundo).
+- [ ] (herdado) re-enfileirar notificação que chega durante pergunta longa.
+
+---
+
 # 🏁 SESSÃO 2026-07-17 (tarde 2) — v0.9 polido: transcript limpo, origem no card, fix do hover
 
 ## O que foi feito
