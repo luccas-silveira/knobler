@@ -36,6 +36,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let dictation = DictationController()
     private let calendar = CalendarCountdown()
     private let shelf = ShelfStore()
+    private let screenshots = ScreenshotWatcher()
+    private var screenshotPeekWork: DispatchWorkItem?
     private var apiCancellable: AnyCancellable?
     private var askKeyCancellables = Set<AnyCancellable>()
     /// Evita reabrir o espelho a cada tick se o usuário fechou antes da call.
@@ -98,6 +100,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 vm.askText = vm.askText.isEmpty ? text : vm.askText + " " + text
             }
             return true
+        }
+
+        // capturas de tela entram na prateleira e o notch dá um peek
+        screenshots.onScreenshot = { [weak self] url in
+            guard let self else { return }
+            self.shelf.add(url)
+            self.peekShelf()
         }
 
         battery.onEvent = { [weak self] level, charging in
@@ -228,6 +237,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     } else {
                         self?.apiServer.stop()
                     }
+                    if AppSettings.shared.screenshotsToShelf {
+                        self?.screenshots.start()
+                    } else {
+                        self?.screenshots.stop()
+                    }
                     // indicador de mic é persistente: re-publica quando o toggle muda
                     self?.micMonitor.publish()
                     // OSD nativo suprimido enquanto algum HUD nosso estiver ativo
@@ -305,6 +319,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func screensChanged() {
         placeWindows()
+    }
+
+    /// Expande o card mostrando a prateleira por 1,5s e fecha. Pergunta ou
+    /// ditado na tela têm prioridade → só adiciona, sem peek. Nova captura
+    /// renova o timer; mouse em cima segura (o hover reprograma o fechamento).
+    private func peekShelf() {
+        let busy = notches.values.contains {
+            $0.viewModel.ask != nil || $0.viewModel.dictation != nil
+        }
+        guard !busy else { return }
+
+        notches.values.forEach { $0.viewModel.setExpandedDirect(true) }
+        screenshotPeekWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.notches.values.forEach { $0.viewModel.setExpandedDirect(false) }
+        }
+        screenshotPeekWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: work)
     }
 
     /// Notificações e HUD vão pro monitor onde o mouse está (onde está a atenção).
