@@ -97,6 +97,9 @@ struct NotchView: View {
                     .padding(.top, topInset)
                     // notificação desce do notch, como no iPhone
                     .transition(.blurReplace.combined(with: .move(edge: .top)))
+            case .question:
+                // UI real vem na Task 3; por ora só satisfaz o switch
+                EmptyView()
             }
         }
         // recorta o conteúdo com a própria forma do notch — fechando, a informação
@@ -175,6 +178,9 @@ struct NotchView: View {
             return CGSize(width: expandedSize.width, height: height)
         case .notification:
             return CGSize(width: notificationWidth, height: topInset + 56)
+        case .question:
+            // tamanho provisório; a Task 3 traz o layout real do card
+            return CGSize(width: 460, height: topInset + 120)
         }
     }
 

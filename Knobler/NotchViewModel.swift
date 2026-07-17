@@ -42,6 +42,13 @@ final class NotchViewModel: ObservableObject {
     @Published var hud: HUDState?
     @Published var dictation: DictationPhase?
     @Published var activity: NotchActivity?
+    /// Pergunta do Claude Code em exibição (card interativo).
+    @Published var ask: AskRequest?
+    /// Página corrente do card (chamada com N perguntas).
+    @Published var askPage = 0
+    /// Texto livre do card — vive aqui (e não em @State) pra receber o
+    /// ditado por fan-out do AppDelegate.
+    @Published var askText = ""
 
     struct HUDState: Equatable {
         enum Kind: Equatable { case volume, brightness, battery }
@@ -52,11 +59,12 @@ final class NotchViewModel: ObservableObject {
     }
 
     enum Mode: Equatable {
-        case closed, music, notification, hud, dictation
+        case closed, music, notification, hud, dictation, question
     }
 
-    /// Prioridade: ditado > notificação > HUD > música (hover).
+    /// Prioridade: pergunta > ditado > notificação > HUD > música (hover).
     var mode: Mode {
+        if ask != nil { return .question }
         if dictation != nil { return .dictation }
         if activeNotification != nil { return .notification }
         if hud != nil { return .hud }
@@ -74,6 +82,7 @@ final class NotchViewModel: ObservableObject {
     private let hudDuration: TimeInterval = 1.5
     private var pendingWork: DispatchWorkItem?
     private var queue: [NotchNotification] = []
+    private var askQueue: [AskRequest] = []
     private var dismissWork: DispatchWorkItem?
     private var hudWork: DispatchWorkItem?
 
@@ -186,5 +195,54 @@ final class NotchViewModel: ObservableObject {
         hudWork = work
         DispatchQueue.main.asyncAfter(
             deadline: .now() + (duration ?? hudDuration), execute: work)
+    }
+
+    // MARK: - Perguntas do Claude Code
+
+    /// Fiação do AppDelegate: resposta/cancelamento voltam pro servidor
+    /// e sincronizam os outros monitores (primeira resposta vence).
+    var onAskAnswered: ((String, [String: AskAnswer]) -> Void)?
+    var onAskCancelled: ((String) -> Void)?
+
+    func enqueueAsk(_ request: AskRequest) {
+        if ask == nil {
+            askPage = 0
+            askText = ""
+            ask = request
+        } else if ask?.id != request.id,
+                  !askQueue.contains(where: { $0.id == request.id }) {
+            askQueue.append(request)
+        }
+    }
+
+    /// Encerra o ask (respondido/cancelado em qualquer monitor) e promove
+    /// o próximo da fila FIFO.
+    func clearAsk(id: String) {
+        askQueue.removeAll { $0.id == id }
+        guard ask?.id == id else { return }
+        ask = nil
+        askPage = 0
+        askText = ""
+        if !askQueue.isEmpty {
+            let next = askQueue.removeFirst()
+            // respiro pra animação de fechar/abrir ler bem (padrão das notificações)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+                self?.enqueueAsk(next)
+            }
+        }
+    }
+
+    /// Chamado pelo card na última página com TODAS as respostas acumuladas.
+    func answerAsk(_ answers: [String: AskAnswer]) {
+        guard let current = ask else { return }
+        onAskAnswered?(current.id, answers)
+        clearAsk(id: current.id)
+    }
+
+    /// ✕ do card: pergunta volta pro terminal do Claude Code.
+    func cancelActiveAsk() {
+        guard let current = ask else { return }
+        onAskCancelled?(current.id)
+        clearAsk(id: current.id)
     }
 }
