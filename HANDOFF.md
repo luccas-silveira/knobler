@@ -1,3 +1,58 @@
+# 🏁 SESSÃO 2026-07-17 (tarde) — v0.9: perguntas do Claude Code no notch
+
+## O que foi feito
+
+- **AskUserQuestion → card no notch**: hook PreToolUse global
+  (`~/.claude/hooks/knobler-ask.sh`, instalado por `tools/claude-hook/install.sh`,
+  idempotente, matcher `AskUserQuestion`, timeout 600s) intercepta a pergunta,
+  faz `POST /ask` e polling em `GET /ask/<id>` (300ms); resposta volta ao Claude
+  via `permissionDecision: deny` + reason ("...NÃO repita a pergunta").
+  Knobler fechado/✕/timeout → exit 0 sem output → pergunta cai no terminal.
+- **Servidor** (`NotchAPIServer`): `POST /ask`, `GET /ask/<id>` (read-once),
+  `POST /ask/<id>/cancel`; estados pending/answered/cancelled, TTL 15min,
+  `ask: {pending}` no `GET /status`.
+- **Card** (`Ask.swift` — modelo + `AskCardView`): botões com label+descrição,
+  multi-select (toggles+Confirmar), paginação 1/N com envio único, preview
+  ASCII em split (hover troca), campo "Outra resposta…" (Enter envia), ✕ e Esc
+  cancelam. `Mode.question` com prioridade máxima; fila FIFO; fan-out a todos
+  os monitores, primeira resposta vence; som "Pop" na chegada.
+- **Teclado condicional** (`NotchWindow.allowsKeyboard`): janela só pode virar
+  key com card na tela (sink Combine em `$ask` reverte com `resignKey`);
+  digitar no card não ativa o app — terminal segue frontmost.
+- **Ditado no card**: `DictationController.transcriptSink` desvia a transcrição
+  pro campo (nível dentro do card); sem card, cola no app ativo como antes.
+- Spec + plano 7 tasks por subagentes (implementer+reviewer por task, review
+  final de branch): `docs/superpowers/specs/2026-07-17-perguntas-notch-design.md`
+  e `docs/superpowers/plans/2026-07-17-perguntas-notch.md`.
+
+## Validação
+
+- Build Release verde em toda task; 4 snapshots novos (ask-simple/multiselect/
+  preview/paged) conferidos; E2E real: ciclo curl (answered/404 read-once/
+  pending 0), fila FIFO com cancel trocando o card, clique em botão, texto
+  digitado e texto DITADO via `tools/knobler ask`; hook instalado exercitado
+  de ponta a ponta (payload real → clique → deny JSON correto no stdout);
+  regressão com Knobler fechado (exit 0, output vazio). Review final: aprovado.
+
+## Pendências e followups
+
+- [ ] **Validação de 1º uso**: sessão Claude real com `/grill-me` — confirmar
+      que o modelo trata deny+reason como resposta e não re-pergunta (só o
+      formato do reason precisaria de ajuste no knobler-ask.sh se não).
+- [ ] Notificação que chega durante pergunta longa roda o auto-dismiss de 5s
+      mascarada e some do notch (banner nativo ainda aparece — mesmo caso do
+      ditado v0.8). Spec prometia re-enfileirar.
+- [ ] HUD de volume/brilho invisível durante pergunta (OSD nativo suprimido +
+      mode question no topo) — ajuste de volume num grill longo fica sem feedback.
+- [ ] Ask promovido da fila FIFO chega sem som (Pop só no POST).
+- [ ] `askKeyCancellables` não podado em desconexão de monitor (vazamento
+      minúsculo; fix: dict por displayID).
+- [ ] `GET /status` ask sem `queued` (spec pedia); `knobler ask` sem deadline e
+      depende de python3 (ferramenta de teste, ok).
+- [ ] graphify-out/ segue desatualizado (v0.8 + v0.9) — regenerar quando valer.
+
+---
+
 # 🏁 SESSÃO 2026-07-17 — v0.8: ditado por voz (estilo Superwhisper)
 
 ## O que foi feito
