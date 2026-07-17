@@ -51,6 +51,10 @@ final class AppSettings: ObservableObject {
     @Published var dictationCloud: Bool {
         didSet { UserDefaults.standard.set(dictationCloud, forKey: "dictationCloud") }
     }
+    /// Toda captura de tela do macOS entra na prateleira automaticamente.
+    @Published var screenshotsToShelf: Bool {
+        didSet { UserDefaults.standard.set(screenshotsToShelf, forKey: "screenshotsToShelf") }
+    }
 
     /// Estado real no launchd — não é persistido por nós.
     var launchAtLogin: Bool {
@@ -80,6 +84,7 @@ final class AppSettings: ObservableObject {
         micIndicator = flag("micIndicator")
         dictation = flag("dictation")
         dictationCloud = defaults.bool(forKey: "dictationCloud") // default false: local-first
+        screenshotsToShelf = flag("screenshotsToShelf")
     }
 }
 
@@ -98,6 +103,7 @@ struct SettingsView: View {
                 Toggle("Contagem do calendário", isOn: $settings.calendarCountdown)
                 Toggle("Espelho antes de reuniões", isOn: $settings.mirrorBeforeMeetings)
                 Toggle("Indicador de microfone", isOn: $settings.micIndicator)
+                Toggle("Capturas de tela vão pro shelf", isOn: $settings.screenshotsToShelf)
             }
             Section {
                 Toggle("API local", isOn: $settings.localAPI)
