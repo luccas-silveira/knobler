@@ -246,8 +246,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     self?.micMonitor.publish()
                     // OSD nativo suprimido enquanto algum HUD nosso estiver ativo
                     let hudsOn = AppSettings.shared.volumeHUD || AppSettings.shared.brightnessHUD
+                    // preview do print some só se o shelf captura E o toggle está on
+                    let hidePreview = AppSettings.shared.screenshotsToShelf
+                        && AppSettings.shared.hideScreenshotPreview
                     DispatchQueue.global(qos: .utility).async {
                         hudsOn ? OSDSuppressor.suppress() : OSDSuppressor.restore()
+                        hidePreview ? ScreenshotPreviewSuppressor.suppress()
+                                    : ScreenshotPreviewSuppressor.restore()
                     }
                 }
             }
@@ -459,6 +464,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         // devolve o OSD nativo — sem o Knobler o usuário fica sem HUD nenhum
         OSDSuppressor.restore()
+        // devolve o preview do print (senão ficaria sem preview E sem shelf)
+        ScreenshotPreviewSuppressor.restore()
     }
 
     private var settingsWindow: NSWindow?

@@ -55,6 +55,10 @@ final class AppSettings: ObservableObject {
     @Published var screenshotsToShelf: Bool {
         didSet { UserDefaults.standard.set(screenshotsToShelf, forKey: "screenshotsToShelf") }
     }
+    /// Esconde o preview flutuante nativo do print (o shelf já mostra).
+    @Published var hideScreenshotPreview: Bool {
+        didSet { UserDefaults.standard.set(hideScreenshotPreview, forKey: "hideScreenshotPreview") }
+    }
 
     /// Estado real no launchd — não é persistido por nós.
     var launchAtLogin: Bool {
@@ -85,6 +89,7 @@ final class AppSettings: ObservableObject {
         dictation = flag("dictation")
         dictationCloud = defaults.bool(forKey: "dictationCloud") // default false: local-first
         screenshotsToShelf = flag("screenshotsToShelf")
+        hideScreenshotPreview = flag("hideScreenshotPreview")
     }
 }
 
@@ -104,6 +109,9 @@ struct SettingsView: View {
                 Toggle("Espelho antes de reuniões", isOn: $settings.mirrorBeforeMeetings)
                 Toggle("Indicador de microfone", isOn: $settings.micIndicator)
                 Toggle("Capturas de tela vão pro shelf", isOn: $settings.screenshotsToShelf)
+                if settings.screenshotsToShelf {
+                    Toggle("Esconder preview nativo do print", isOn: $settings.hideScreenshotPreview)
+                }
             }
             Section {
                 Toggle("API local", isOn: $settings.localAPI)
