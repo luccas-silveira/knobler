@@ -2,12 +2,18 @@ name: Knobler
 options:
   deploymentTarget:
     macOS: "14.2"
+packages:
+  FluidAudio:
+    url: https://github.com/FluidInference/FluidAudio
+    from: 0.12.4
 targets:
   Knobler:
     type: application
     platform: macOS
     sources:
       - Knobler
+    dependencies:
+      - package: FluidAudio
     scheme: {}
     info:
       path: Knobler/Info.plist
@@ -19,6 +25,7 @@ targets:
         NSAudioCaptureUsageDescription: Knobler lê o áudio do Spotify para animar o visualizador no notch, como no iPhone.
         NSCalendarsFullAccessUsageDescription: Knobler mostra a contagem regressiva do próximo evento no notch.
         NSCameraUsageDescription: Knobler mostra sua câmera no notch como espelho antes de reuniões.
+        NSMicrophoneUsageDescription: Knobler grava sua voz enquanto você segura a tecla de ditado, para transcrever onde o cursor estiver.
         CFBundleIconFile: AppIcon
     settings:
       base:
