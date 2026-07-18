@@ -18,7 +18,7 @@ enum KnoblerMain {
     }
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private struct ScreenNotch {
         let window: NotchWindow
         let viewModel: NotchViewModel
@@ -35,6 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let apiServer = NotchAPIServer()
     private let dictation = DictationController()
     private let calendar = CalendarCountdown()
+    private let pomodoro = Pomodoro()
     private let shelf = ShelfStore()
     private let screenshots = ScreenshotWatcher()
     private var screenshotPeekWork: DispatchWorkItem?
@@ -165,6 +166,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         calendar.onActivity = { [weak self] activity in
             self?.calendarActivity = activity
             self?.pushActivity()
+        }
+        pomodoro.configProvider = { Pomodoro.Config.fromSettings() }
+        pomodoro.onState = { [weak self] state in
+            self?.notches.values.forEach { $0.viewModel.pomodoro = state }
+        }
+        pomodoro.onPhaseEnd = { [weak self] ended, next in
+            guard let self else { return }
+            let (title, body) = Self.pomodoroNotice(ended: ended, next: next)
+            self.notches.values.forEach {
+                $0.viewModel.enqueue(NotchNotification(appName: "Pomodoro", title: title, body: body))
+            }
+            if AppSettings.shared.pomodoroSound { NSSound(named: "Glass")?.play() }
         }
         // espelho automático: abre 2min antes da call, fecha quando ela começa
         calendar.onMirrorMoment = { [weak self] imminent in
@@ -448,18 +461,74 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return CGSize(width: 200, height: max(height, 32))
     }
 
+    /// Título/corpo da notificação de fim de fase, conforme o que acabou e o que vem.
+    private static func pomodoroNotice(ended: PomodoroPhase,
+                                       next: PomodoroPhase) -> (String, String) {
+        let s = AppSettings.shared
+        switch next {
+        case .focus:
+            return ("Pausa acabou", "Bora focar — \(s.pomodoroFocus) min")
+        case .shortBreak:
+            return ("Foco concluído", "Hora da pausa — \(s.pomodoroShortBreak) min")
+        case .longBreak:
+            return ("Foco concluído", "Pausa longa — \(s.pomodoroLongBreak) min")
+        }
+    }
+
     private func setupStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.button?.title = "◐"
         let menu = NSMenu()
+        menu.delegate = self   // itens do Pomodoro reconstroem a cada abertura
+        item.menu = menu
+        statusItem = item
+    }
+
+    // MARK: - Menu (reconstruído por estado do Pomodoro)
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        menu.removeAllItems()
+        let s = AppSettings.shared
+        switch pomodoro.runState {
+        case .idle:
+            addPomodoroItem(menu, "▶ Iniciar foco (\(s.pomodoroFocus) min)", #selector(pomStart))
+        case .running:
+            addPomodoroItem(menu, "⏸ Pausar", #selector(pomPause))
+            addPomodoroItem(menu, "⏭ Pular fase", #selector(pomSkip))
+            addPomodoroItem(menu, "↺ Resetar", #selector(pomReset))
+        case .paused:
+            addPomodoroItem(menu, "▶ Retomar", #selector(pomResume))
+            addPomodoroItem(menu, "⏭ Pular fase", #selector(pomSkip))
+            addPomodoroItem(menu, "↺ Resetar", #selector(pomReset))
+        case .waiting:
+            let mins = Int(Pomodoro.duration(of: pomodoro.phase,
+                                             config: .fromSettings()) / 60)
+            let label = pomodoro.phase == .focus
+                ? "▶ Iniciar foco (\(mins) min)"
+                : "▶ Iniciar pausa (\(mins) min)"
+            addPomodoroItem(menu, label, #selector(pomStartNext))
+            addPomodoroItem(menu, "↺ Resetar", #selector(pomReset))
+        }
+        menu.addItem(.separator())
         let settings = menu.addItem(
             withTitle: "Ajustes…", action: #selector(openSettings), keyEquivalent: ",")
         settings.target = self
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit Knobler", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        item.menu = menu
-        statusItem = item
+        menu.addItem(withTitle: "Quit Knobler",
+                     action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
     }
+
+    private func addPomodoroItem(_ menu: NSMenu, _ title: String, _ sel: Selector) {
+        let it = menu.addItem(withTitle: title, action: sel, keyEquivalent: "")
+        it.target = self
+    }
+
+    @objc private func pomStart() { pomodoro.start() }
+    @objc private func pomStartNext() { pomodoro.startNext() }
+    @objc private func pomPause() { pomodoro.pause() }
+    @objc private func pomResume() { pomodoro.resume() }
+    @objc private func pomSkip() { pomodoro.skip() }
+    @objc private func pomReset() { pomodoro.reset() }
 
     func applicationWillTerminate(_ notification: Notification) {
         // devolve o OSD nativo — sem o Knobler o usuário fica sem HUD nenhum
@@ -487,5 +556,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+}
+
+extension Pomodoro.Config {
+    /// Lê as durações atuais dos Ajustes (minutos → segundos), clamp mínimo 1 min.
+    static func fromSettings() -> Pomodoro.Config {
+        let s = AppSettings.shared
+        return .init(
+            focus: TimeInterval(max(1, s.pomodoroFocus) * 60),
+            shortBreak: TimeInterval(max(1, s.pomodoroShortBreak) * 60),
+            longBreak: TimeInterval(max(1, s.pomodoroLongBreak) * 60),
+            cyclesUntilLong: max(1, s.pomodoroCyclesLong)
+        )
     }
 }
