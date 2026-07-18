@@ -158,9 +158,7 @@ struct SettingsView: View {
         TabView {
             generalTab
                 .tabItem { Label("Geral", systemImage: "gearshape") }
-            // ponytail: placeholder; vira RemindersView() na Task 6.
-            Text("Lembretes em breve")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            RemindersView()
                 .tabItem { Label("Lembretes", systemImage: "bell.badge") }
         }
         .frame(width: 380, height: 560)
