@@ -71,6 +71,24 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(hideScreenshotPreview, forKey: "hideScreenshotPreview") }
     }
 
+    // MARK: Pomodoro (durações em minutos)
+    @Published var pomodoroFocus: Int {
+        didSet { UserDefaults.standard.set(pomodoroFocus, forKey: "pomodoroFocus") }
+    }
+    @Published var pomodoroShortBreak: Int {
+        didSet { UserDefaults.standard.set(pomodoroShortBreak, forKey: "pomodoroShortBreak") }
+    }
+    @Published var pomodoroLongBreak: Int {
+        didSet { UserDefaults.standard.set(pomodoroLongBreak, forKey: "pomodoroLongBreak") }
+    }
+    @Published var pomodoroCyclesLong: Int {
+        didSet { UserDefaults.standard.set(pomodoroCyclesLong, forKey: "pomodoroCyclesLong") }
+    }
+    /// Som curto ao trocar de fase (fim de foco/pausa).
+    @Published var pomodoroSound: Bool {
+        didSet { UserDefaults.standard.set(pomodoroSound, forKey: "pomodoroSound") }
+    }
+
     /// Estado real no launchd — não é persistido por nós.
     var launchAtLogin: Bool {
         get { SMAppService.mainApp.status == .enabled }
@@ -104,6 +122,15 @@ final class AppSettings: ObservableObject {
         formatModel = defaults.string(forKey: "formatModel") ?? "gemma3:4b"
         screenshotsToShelf = flag("screenshotsToShelf")
         hideScreenshotPreview = flag("hideScreenshotPreview")
+
+        func intOr(_ key: String, _ d: Int) -> Int {
+            let v = defaults.integer(forKey: key); return v == 0 ? d : v
+        }
+        pomodoroFocus = intOr("pomodoroFocus", 25)
+        pomodoroShortBreak = intOr("pomodoroShortBreak", 5)
+        pomodoroLongBreak = intOr("pomodoroLongBreak", 15)
+        pomodoroCyclesLong = intOr("pomodoroCyclesLong", 4)
+        pomodoroSound = flag("pomodoroSound")   // default true
     }
 }
 
@@ -149,6 +176,17 @@ struct SettingsView: View {
                     TextField("Endpoint", text: $settings.formatEndpoint)
                     TextField("Modelo", text: $settings.formatModel)
                 }
+            }
+            Section("Pomodoro") {
+                Stepper("Foco: \(settings.pomodoroFocus) min",
+                        value: $settings.pomodoroFocus, in: 1...120)
+                Stepper("Pausa curta: \(settings.pomodoroShortBreak) min",
+                        value: $settings.pomodoroShortBreak, in: 1...60)
+                Stepper("Pausa longa: \(settings.pomodoroLongBreak) min",
+                        value: $settings.pomodoroLongBreak, in: 1...60)
+                Stepper("Focos até pausa longa: \(settings.pomodoroCyclesLong)",
+                        value: $settings.pomodoroCyclesLong, in: 1...12)
+                Toggle("Som ao trocar de fase", isOn: $settings.pomodoroSound)
             }
             Section("Geral") {
                 Toggle("Abrir no login", isOn: Binding(
