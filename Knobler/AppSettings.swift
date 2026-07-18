@@ -71,6 +71,15 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(hideScreenshotPreview, forKey: "hideScreenshotPreview") }
     }
 
+    /// Lembretes programados do usuário (JSON em UserDefaults).
+    @Published var reminders: [Reminder] {
+        didSet {
+            if let data = try? JSONEncoder().encode(reminders) {
+                UserDefaults.standard.set(data, forKey: "reminders")
+            }
+        }
+    }
+
     // MARK: Pomodoro (durações em minutos)
     @Published var pomodoroFocus: Int {
         didSet { UserDefaults.standard.set(pomodoroFocus, forKey: "pomodoroFocus") }
@@ -123,6 +132,13 @@ final class AppSettings: ObservableObject {
         screenshotsToShelf = flag("screenshotsToShelf")
         hideScreenshotPreview = flag("hideScreenshotPreview")
 
+        if let data = defaults.data(forKey: "reminders"),
+           let decoded = try? JSONDecoder().decode([Reminder].self, from: data) {
+            reminders = decoded
+        } else {
+            reminders = []
+        }
+
         func intOr(_ key: String, _ d: Int) -> Int {
             let v = defaults.integer(forKey: key); return v == 0 ? d : v
         }
@@ -139,6 +155,18 @@ struct SettingsView: View {
     @State private var deepgramKey = DeepgramKeyStore.load()
 
     var body: some View {
+        TabView {
+            generalTab
+                .tabItem { Label("Geral", systemImage: "gearshape") }
+            // ponytail: placeholder; vira RemindersView() na Task 6.
+            Text("Lembretes em breve")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .tabItem { Label("Lembretes", systemImage: "bell.badge") }
+        }
+        .frame(width: 380, height: 560)
+    }
+
+    private var generalTab: some View {
         Form {
             Section("Notch") {
                 Toggle("Notificações no notch", isOn: $settings.notchNotifications)
@@ -196,8 +224,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 340)
-        .fixedSize()
     }
 }
 
