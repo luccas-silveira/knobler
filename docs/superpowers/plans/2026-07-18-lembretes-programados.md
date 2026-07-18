@@ -66,7 +66,7 @@ Create `Knobler/Reminders.swift`:
 //  parede; "nunca atrasado" — disparo perdido em sleep é pulado, nunca enfileirado.
 //
 //  Self-check:
-//    swiftc -swift-version 5 -D REMINDERS_SELFCHECK Knobler/Reminders.swift -o /tmp/rmck && /tmp/rmck
+//    swiftc -parse-as-library -swift-version 5 -D REMINDERS_SELFCHECK Knobler/Reminders.swift -o /tmp/rmck && /tmp/rmck
 //
 
 import Foundation
@@ -189,7 +189,7 @@ enum RemindersSelfCheck {
 
 Run:
 ```bash
-swiftc -swift-version 5 -D REMINDERS_SELFCHECK Knobler/Reminders.swift -o /tmp/rmck && /tmp/rmck
+swiftc -parse-as-library -swift-version 5 -D REMINDERS_SELFCHECK Knobler/Reminders.swift -o /tmp/rmck && /tmp/rmck
 ```
 Expected: `reminders self-check ok` (sem crash de assert).
 
@@ -329,7 +329,7 @@ In `Knobler/Reminders.swift`, inside `RemindersSelfCheck.main()`, insert before 
 
 Run:
 ```bash
-swiftc -swift-version 5 -D REMINDERS_SELFCHECK Knobler/Reminders.swift -o /tmp/rmck && /tmp/rmck
+swiftc -parse-as-library -swift-version 5 -D REMINDERS_SELFCHECK Knobler/Reminders.swift -o /tmp/rmck && /tmp/rmck
 ```
 Expected: `reminders self-check ok`
 
@@ -475,7 +475,7 @@ In `Knobler/Reminders.swift`, inside `RemindersSelfCheck.main()`, insert before 
 
 Run:
 ```bash
-swiftc -swift-version 5 -D REMINDERS_SELFCHECK Knobler/Reminders.swift -o /tmp/rmck && /tmp/rmck
+swiftc -parse-as-library -swift-version 5 -D REMINDERS_SELFCHECK Knobler/Reminders.swift -o /tmp/rmck && /tmp/rmck
 ```
 Expected: `reminders self-check ok`
 
