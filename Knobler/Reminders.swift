@@ -145,6 +145,67 @@ enum ReminderClock {
     }
 }
 
+// MARK: - Engine
+
+/// Tick de relógio de parede varrendo os lembretes. "Nunca atrasado": um disparo
+/// só conta se caiu na janela de `tolerance` antes de agora; o que passou (sleep)
+/// é pulado e a próxima ocorrência futura é reprogramada. O AppDelegate liga o
+/// observer de wake (NSWorkspace) chamando `tick()` — mantido fora daqui pra o
+/// arquivo seguir só-Foundation (self-check/snapshot).
+final class ReminderScheduler {
+    var remindersProvider: () -> [Reminder] = { [] }
+    var onFire: ((Reminder) -> Void)?
+    /// Folga além do tick pra ainda considerar "na hora".
+    var tolerance: TimeInterval = 90
+
+    private var timer: Timer?
+    /// Próximo disparo por lembrete, chaveado pelo hash do schedule (invalida em edição).
+    private var nextFire: [UUID: (hash: Int, date: Date)] = [:]
+
+    func start() {
+        stop()
+        // Timer(...) + add em .common tica durante tracking de menu / interação no notch.
+        let t = Timer(timeInterval: 15, repeats: true) { [weak self] _ in self?.tick() }
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
+        tick()
+    }
+
+    func stop() {
+        timer?.invalidate(); timer = nil
+    }
+
+    /// `now` injetável pro self-check com relógio falso.
+    func tick(now: Date = Date()) {
+        let reminders = remindersProvider()
+        let live = Set(reminders.map(\.id))
+        nextFire = nextFire.filter { live.contains($0.key) }   // limpa apagados
+
+        for r in reminders where r.enabled {
+            let h = r.schedule.hashValue
+            if nextFire[r.id]?.hash != h {                     // novo ou editado
+                nextFire[r.id] = (h, computeNext(r.schedule, from: now))
+            }
+            guard let nf = nextFire[r.id]?.date, now >= nf else { continue }
+            if now.timeIntervalSince(nf) <= tolerance {        // na hora → dispara
+                onFire?(r)
+            }                                                  // atrasado → só reprograma
+            // avança pra próxima futura: pula backlog e evita refire no mesmo tick.
+            nextFire[r.id] = (h, computeNext(r.schedule, from: now))
+        }
+    }
+
+    private func computeNext(_ schedule: Schedule, from: Date) -> Date {
+        switch schedule {
+        case .interval(let min):
+            // intervalo re-ancora em `from` (nunca atrasado: reinicia a contagem no wake)
+            return from.addingTimeInterval(TimeInterval(max(1, min) * 60))
+        default:
+            return ReminderClock.nextOccurrence(for: schedule, after: from) ?? .distantFuture
+        }
+    }
+}
+
 // Entrada do self-check standalone (molde do Pomodoro). É @main, não expressão
 // top-level, pra o arquivo entrar como biblioteca no build do app sem conflito.
 #if REMINDERS_SELFCHECK
@@ -210,6 +271,51 @@ enum RemindersSelfCheck {
         assert(sum(lastMon) == "Última Seg · 09:00")
         assert(sum(.calendar([DateComponents(hour: 9, weekday: 2, weekdayOrdinal: 1)])) == "1ª Seg · 09:00")
         assert(sum(.oneShot(d("2026-07-20 14:00"))).hasPrefix("Uma vez ·"))
+
+        // --- scheduler: diária 09:00, "nunca atrasado" ---
+        do {
+            let sched = ReminderScheduler()
+            var fired: [String] = []
+            let r = Reminder(title: "D", schedule: daily)
+            sched.remindersProvider = { [r] }
+            sched.onFire = { fired.append($0.title) }
+
+            sched.tick(now: d("2026-07-18 08:59"))            // arma, não dispara
+            assert(fired.isEmpty)
+            sched.tick(now: d("2026-07-18 09:00") + 10)       // dentro da tolerância → dispara
+            assert(fired == ["D"])
+            sched.tick(now: d("2026-07-18 09:00") + 20)       // não redispara
+            assert(fired == ["D"])
+            sched.tick(now: d("2026-07-19 15:00"))            // perdeu 09:00 (wake tardio) → não dispara
+            assert(fired == ["D"])
+            sched.tick(now: d("2026-07-20 09:00") + 5)        // próximo dia, na hora → dispara
+            assert(fired == ["D", "D"])
+        }
+        // --- scheduler: desligado não dispara ---
+        do {
+            let sched = ReminderScheduler()
+            var fired = 0
+            let r = Reminder(title: "off", schedule: daily, enabled: false)
+            sched.remindersProvider = { [r] }
+            sched.onFire = { _ in fired += 1 }
+            sched.tick(now: d("2026-07-18 09:00") + 5)
+            assert(fired == 0)
+        }
+        // --- scheduler: intervalo 60min re-ancora e nunca atrasa ---
+        do {
+            let sched = ReminderScheduler()
+            var fired: [String] = []
+            let r = Reminder(title: "I", schedule: .interval(minutes: 60))
+            sched.remindersProvider = { [r] }
+            sched.onFire = { fired.append($0.title) }
+            let t0 = d("2026-07-18 08:00")
+            sched.tick(now: t0)                               // arma t0+60, não dispara
+            assert(fired.isEmpty)
+            sched.tick(now: t0 + 3600 + 5)                    // na hora → dispara
+            assert(fired == ["I"])
+            sched.tick(now: t0 + 3600 + 3 * 3600)             // muito depois → não redispara
+            assert(fired == ["I"])
+        }
 
         print("reminders self-check ok")
     }
