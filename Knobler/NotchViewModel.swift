@@ -42,6 +42,8 @@ final class NotchViewModel: ObservableObject {
     @Published var hud: HUDState?
     @Published var dictation: DictationPhase?
     @Published var activity: NotchActivity?
+    /// Timer Pomodoro em exibição (pílula própria no notch). nil = idle.
+    @Published var pomodoro: PomodoroState?
     /// Pergunta do Claude Code em exibição (card interativo).
     @Published var ask: AskRequest?
     /// Página corrente do card (chamada com N perguntas).
@@ -59,16 +61,18 @@ final class NotchViewModel: ObservableObject {
     }
 
     enum Mode: Equatable {
-        case closed, music, notification, hud, dictation, question
+        case closed, music, notification, hud, dictation, question, pomodoro
     }
 
-    /// Prioridade: pergunta > ditado > notificação > HUD > música (hover).
+    /// Prioridade: pergunta > ditado > notificação > HUD > música (hover) > pomodoro > fechado.
     var mode: Mode {
         if ask != nil { return .question }
         if dictation != nil { return .dictation }
         if activeNotification != nil { return .notification }
         if hud != nil { return .hud }
-        return expanded ? .music : .closed
+        if expanded { return .music }
+        if pomodoro != nil { return .pomodoro }
+        return .closed
     }
 
     /// Mouse sobre o notch agora — o peek de captura usa isto pra não fechar

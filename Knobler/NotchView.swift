@@ -79,6 +79,9 @@ struct NotchView: View {
                     // o conteúdo cresce junto com a moldura, ancorado no topo
                     .transition(.blurReplace.combined(
                         with: .scale(0.94, anchor: .top)))
+            case .pomodoro:
+                // Timer Pomodoro será implementado em task futura
+                EmptyView()
             case .notification:
                 notificationCard
                     .frame(width: notificationWidth - 48, height: 56)
@@ -171,6 +174,9 @@ struct NotchView: View {
             if vm.activity != nil { height += hasMusic || hasShelf ? 46 : 60 }
             if hasShelf { height += hasMusic || vm.activity != nil ? 62 : 76 }
             return CGSize(width: expandedSize.width, height: height)
+        case .pomodoro:
+            // Timer Pomodoro será implementado em task futura
+            return CGSize(width: vm.notchSize.width, height: vm.notchSize.height)
         case .notification:
             return CGSize(width: notificationWidth, height: topInset + 56)
         case .question:

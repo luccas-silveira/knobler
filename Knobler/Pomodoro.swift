@@ -193,7 +193,16 @@ extension Pomodoro {
     }
 }
 
+// Entrada do self-check standalone: `swiftc -D POMODORO_SELFCHECK Pomodoro.swift`.
+// É uma DECLARAÇÃO (@main), não expressão top-level — assim o arquivo entra como
+// biblioteca no build do app e no harness de snapshot (onde o bloco fica fora)
+// sem esbarrar em "expressions are not allowed at the top level".
 #if POMODORO_SELFCHECK
-Pomodoro.selfCheck()
-print("pomodoro self-check ok")
+@main
+enum PomodoroSelfCheck {
+    static func main() {
+        Pomodoro.selfCheck()
+        print("pomodoro self-check ok")
+    }
+}
 #endif
