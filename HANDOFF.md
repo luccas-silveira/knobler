@@ -1,3 +1,42 @@
+# 🏁 SESSÃO 2026-07-18 — v0.14: Pomodoro no notch (pílula + card + menu)
+
+## O que foi feito
+
+- **Timer Pomodoro** (`Pomodoro.swift`, engine no naipe do CalendarCountdown): fases
+  clássicas foco→pausa→pausa longa a cada N ciclos, durações configuráveis em Ajustes,
+  **relógio de parede** (`endDate` absoluto, imune a tick perdido/sono), estado
+  in-memory (some ao fechar). Lógica pura `advance`/`duration` + `selfCheck` embutido
+  (rodável isolado via `@main` + `-parse-as-library`).
+- **Controle pelo menu da barra** (itens dinâmicos por `runState`) e **pílula própria
+  no notch** (compacto, toma conta do fechado): 🧠 tomate=foco, ☕ verde=pausa, MM:SS;
+  HUD de volume/brilho interrompe 1,5s e volta sozinho.
+- **Para no fim de cada fase**, notifica no notch + som (`Glass`, com toggle), espera
+  você iniciar a próxima. Skip não conta o foco pro ciclo da pausa longa.
+- **Card expandido do Pomodoro** (hover): fase + timer grande + "Ciclo N de M" +
+  controles clicáveis (pausar/retomar/pular/resetar/iniciar próxima + ⚙︎ Ajustes),
+  reusando o padrão do `AskCardView` (view → closure na vm → engine). Enquanto o
+  Pomodoro está ativo a **música some do notch** (volta ao resetar); shelf/atividade
+  seguem. Corrige o "hover abria a música" — o notch centra no que está ativo agora.
+
+## Validação
+
+- Self-check verde; snapshot harness com todos os estados (pílula + cards) inspecionados
+  a olho; build Debug e Release **SUCCEEDED**. **E2E: usuário confirmou "está ótimo".**
+- Feito por subagent-driven-development (5 tasks + review por task + review final opus,
+  "merge com 1 ressalva" adjudicada: rótulo `Pausa longa ▸` equivale ao HUD de bateria
+  já embarcado). Correções de rota: expressão top-level não compila no harness
+  multi-arquivo → self-check via `@main`; `Snapshots/` e `Knobler.xcodeproj/` são gitignored.
+
+## Pendências e followups
+
+- Nova seção "Pomodoro" nos Ajustes (foco/pausa curta/longa/ciclos até a longa/som).
+  Nada externo requerido.
+- Minors não-bloqueantes: sem `deinit` invalidando o `Timer` (engine é singleton);
+  `selfCheck` cobre a lógica pura (paths stateful via E2E). Se "só o pomodoro" incomodar
+  com shelf/atividade visíveis no card, é gate de uma linha.
+
+---
+
 # 🏁 SESSÃO 2026-07-17 (noite 3) — v0.13: formatação de transcript com IA local
 
 ## O que foi feito
