@@ -49,7 +49,8 @@ struct NotchView: View {
     }
 
     private var notch: some View {
-        let compact = vm.mode == .closed || vm.mode == .hud || vm.mode == .dictation
+        let compact = vm.mode == .closed || vm.mode == .hud
+            || vm.mode == .dictation || vm.mode == .pomodoro
         // raios menores no compacto: as curvas de canto decepavam a capa/barras
         let shape = NotchShape(
             topCornerRadius: compact ? 6 : 14,
@@ -80,8 +81,8 @@ struct NotchView: View {
                     .transition(.blurReplace.combined(
                         with: .scale(0.94, anchor: .top)))
             case .pomodoro:
-                // Timer Pomodoro será implementado em task futura
-                EmptyView()
+                pomodoroPill
+                    .transition(.blurReplace)
             case .notification:
                 notificationCard
                     .frame(width: notificationWidth - 48, height: 56)
@@ -158,7 +159,7 @@ struct NotchView: View {
             }
             // externo vazio não pode sumir: 160 mantém presença sem as asas
             return CGSize(width: hasContent ? 200 : 160, height: vm.notchSize.height)
-        case .hud, .dictation:
+        case .hud, .dictation, .pomodoro:
             return CGSize(
                 width: vm.hasRealNotch ? vm.notchSize.width + hudWingWidth * 2 : 232,
                 height: vm.notchSize.height
@@ -174,9 +175,6 @@ struct NotchView: View {
             if vm.activity != nil { height += hasMusic || hasShelf ? 46 : 60 }
             if hasShelf { height += hasMusic || vm.activity != nil ? 62 : 76 }
             return CGSize(width: expandedSize.width, height: height)
-        case .pomodoro:
-            // Timer Pomodoro será implementado em task futura
-            return CGSize(width: vm.notchSize.width, height: vm.notchSize.height)
         case .notification:
             return CGSize(width: notificationWidth, height: topInset + 56)
         case .question:
@@ -264,6 +262,56 @@ struct NotchView: View {
             .padding(.horizontal, 16)
             .frame(height: vm.notchSize.height)
         }
+    }
+
+    // MARK: - Pílula do Pomodoro
+
+    @ViewBuilder
+    private var pomodoroPill: some View {
+        if let p = vm.pomodoro {
+            let focus = p.phase == .focus
+            let tint: Color = focus
+                ? Color(red: 1.00, green: 0.45, blue: 0.32)   // tomate (foco)
+                : Color(red: 0.30, green: 0.82, blue: 0.55)   // verde (pausa)
+            HStack(spacing: 0) {
+                HStack(spacing: 6) {
+                    Image(systemName: focus ? "brain.head.profile" : "cup.and.saucer.fill")
+                        .font(.footnote)
+                        .foregroundStyle(tint)
+                    if p.runState == .paused {
+                        Image(systemName: "pause.fill")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                    if p.runState == .waiting {
+                        Text(Self.pomodoroWaitingLabel(p.phase))
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+                }
+                .padding(.leading, vm.hasRealNotch ? 14 : 16)
+                Spacer(minLength: 0)
+                Text(Self.mmss(p.remaining))
+                    .font(.system(size: 13, weight: .semibold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(.white)
+                    .padding(.trailing, vm.hasRealNotch ? 14 : 16)
+            }
+            .frame(height: vm.notchSize.height)
+        }
+    }
+
+    /// "Foco ▸" / "Pausa ▸" / "Pausa longa ▸" — a próxima ação na espera.
+    private static func pomodoroWaitingLabel(_ phase: PomodoroPhase) -> String {
+        switch phase {
+        case .focus: return "Foco ▸"
+        case .shortBreak: return "Pausa ▸"
+        case .longBreak: return "Pausa longa ▸"
+        }
+    }
+
+    private static func mmss(_ t: TimeInterval) -> String {
+        let s = max(0, Int(t.rounded()))
+        return String(format: "%02d:%02d", s / 60, s % 60)
     }
 
     // MARK: - Card de pergunta (Claude Code)

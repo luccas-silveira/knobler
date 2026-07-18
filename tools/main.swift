@@ -211,6 +211,18 @@ let scenarios: [Scenario] = [
         ], receivedAt: Date())
         vm.askPage = 1
     },
+    Scenario(name: "pomodoro-focus", realNotch: true) { vm, _ in
+        vm.pomodoro = PomodoroState(phase: .focus, runState: .running, remaining: 23 * 60 + 14)
+    },
+    Scenario(name: "pomodoro-break", realNotch: true) { vm, _ in
+        vm.pomodoro = PomodoroState(phase: .shortBreak, runState: .running, remaining: 4 * 60 + 32)
+    },
+    Scenario(name: "pomodoro-paused", realNotch: true) { vm, _ in
+        vm.pomodoro = PomodoroState(phase: .focus, runState: .paused, remaining: 12 * 60 + 3)
+    },
+    Scenario(name: "pomodoro-waiting", realNotch: false) { vm, _ in
+        vm.pomodoro = PomodoroState(phase: .shortBreak, runState: .waiting, remaining: 5 * 60)
+    },
 ]
 
 MainActor.assumeIsolated {
