@@ -17,6 +17,10 @@ struct PomodoroState: Equatable {
     var phase: PomodoroPhase
     var runState: PomodoroRunState
     var remaining: TimeInterval
+    /// Focos concluídos ao natural — o card mostra "Ciclo N de M".
+    var completedFocus: Int
+    /// Focos até a pausa longa (config atual) — o M do "Ciclo N de M".
+    var cyclesUntilLong: Int
 }
 
 final class Pomodoro {
@@ -152,7 +156,10 @@ final class Pomodoro {
         case .paused: rem = pausedRemaining ?? 0
         case .running: rem = currentRemaining()
         }
-        onState?(PomodoroState(phase: phase, runState: runState, remaining: rem))
+        onState?(PomodoroState(
+            phase: phase, runState: runState, remaining: rem,
+            completedFocus: completedFocusSessions,
+            cyclesUntilLong: configProvider().cyclesUntilLong))
     }
 }
 

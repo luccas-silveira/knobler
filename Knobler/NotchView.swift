@@ -166,12 +166,16 @@ struct NotchView: View {
             )
         case .music:
             let hasShelf = !shelf.items.isEmpty
-            let placeholder = !hasMusic && vm.activity == nil && !hasShelf && !vm.mirrorOn
+            let hasPomodoro = vm.pomodoro != nil
+            // Pomodoro ativo suprime música e placeholder
+            let placeholder = !hasMusic && vm.activity == nil && !hasShelf
+                && !vm.mirrorOn && !hasPomodoro
             var height = topInset
+            if hasPomodoro { height += 128 }  // cabeçalho + timer grande + ciclo + controles
             if vm.mirrorOn {
                 height += vm.activity != nil || hasShelf ? 190 : 202
             }
-            if !vm.mirrorOn, hasMusic || placeholder { height += 140 }
+            if !vm.mirrorOn, !hasPomodoro, hasMusic || placeholder { height += 140 }
             if vm.activity != nil { height += hasMusic || hasShelf ? 46 : 60 }
             if hasShelf { height += hasMusic || vm.activity != nil ? 62 : 76 }
             return CGSize(width: expandedSize.width, height: height)
@@ -314,6 +318,98 @@ struct NotchView: View {
         return String(format: "%02d:%02d", s / 60, s % 60)
     }
 
+    // MARK: - Card do Pomodoro (expandido)
+
+    /// Seção no topo do card enquanto o Pomodoro está ativo: fase + timer grande
+    /// + "Ciclo N de M" (no foco) + controles clicáveis. A música fica suprimida.
+    @ViewBuilder
+    private func pomodoroSection(_ p: PomodoroState) -> some View {
+        let focus = p.phase == .focus
+        let tint: Color = focus
+            ? Color(red: 1.00, green: 0.45, blue: 0.32)   // tomate (foco)
+            : Color(red: 0.30, green: 0.82, blue: 0.55)   // verde (pausa)
+        VStack(spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: focus ? "brain.head.profile" : "cup.and.saucer.fill")
+                    .font(.headline)
+                    .foregroundStyle(tint)
+                Text(Self.pomodoroPhaseLabel(p.phase))
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(.white)
+                Spacer(minLength: 0)
+                Button { vm.onPomodoroSettings?() } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.55))
+                }
+                .buttonStyle(.plain)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(Self.mmss(p.remaining))
+                    .font(.system(size: 34, weight: .semibold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(.white)
+                if focus, p.cyclesUntilLong > 0 {
+                    Text("Ciclo \(p.completedFocus % p.cyclesUntilLong + 1) de \(p.cyclesUntilLong)")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.55))
+                }
+                Spacer(minLength: 0)
+            }
+            pomodoroControls(p, tint: tint, focus: focus)
+        }
+    }
+
+    @ViewBuilder
+    private func pomodoroControls(_ p: PomodoroState, tint: Color, focus: Bool) -> some View {
+        HStack(spacing: 8) {
+            switch p.runState {
+            case .running:
+                pomodoroButton("Pausar", "pause.fill", tint) { vm.onPomodoroPause?() }
+                pomodoroButton("Pular", "forward.end.fill", nil) { vm.onPomodoroSkip?() }
+                pomodoroButton("Resetar", "arrow.counterclockwise", nil) { vm.onPomodoroReset?() }
+            case .paused:
+                pomodoroButton("Retomar", "play.fill", tint) { vm.onPomodoroResume?() }
+                pomodoroButton("Pular", "forward.end.fill", nil) { vm.onPomodoroSkip?() }
+                pomodoroButton("Resetar", "arrow.counterclockwise", nil) { vm.onPomodoroReset?() }
+            case .waiting:
+                pomodoroButton(focus ? "Iniciar foco" : "Iniciar pausa", "play.fill", tint) {
+                    vm.onPomodoroStartNext?()
+                }
+                pomodoroButton("Resetar", "arrow.counterclockwise", nil) { vm.onPomodoroReset?() }
+            case .idle:
+                EmptyView()
+            }
+        }
+    }
+
+    private func pomodoroButton(
+        _ label: String, _ icon: String, _ tint: Color?,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: icon).font(.caption.weight(.bold))
+                Text(label).font(.caption.weight(.semibold)).lineLimit(1)
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 7)
+            .background(
+                RoundedRectangle(cornerRadius: 9)
+                    .fill(tint?.opacity(0.9) ?? Color.white.opacity(0.14))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private static func pomodoroPhaseLabel(_ phase: PomodoroPhase) -> String {
+        switch phase {
+        case .focus: return "Foco"
+        case .shortBreak: return "Pausa"
+        case .longBreak: return "Pausa longa"
+        }
+    }
+
     // MARK: - Card de pergunta (Claude Code)
 
     @ViewBuilder
@@ -421,6 +517,11 @@ struct NotchView: View {
     @ViewBuilder
     private var expandedContent: some View {
         VStack(spacing: 10) {
+            // Pomodoro ativo toma o topo do card; a música some enquanto ele roda
+            if let p = vm.pomodoro {
+                pomodoroSection(p)
+                    .transition(.blurReplace)
+            }
             if vm.mirrorOn {
                 mirrorSection
                     .transition(.blurReplace)
@@ -433,14 +534,15 @@ struct NotchView: View {
                 activityRow(activity)
                     .transition(.blurReplace)
             }
-            // espelho aberto toma o lugar da música — ela volta ao fechar
-            if !vm.mirrorOn {
+            // espelho aberto (ou Pomodoro ativo) toma o lugar da música — volta ao fechar/encerrar
+            if !vm.mirrorOn, vm.pomodoro == nil {
                 musicSection
             }
         }
         .animation(.easeOut(duration: 0.3), value: vm.activity == nil)
         .animation(.easeOut(duration: 0.3), value: shelf.items)
         .animation(.easeOut(duration: 0.3), value: vm.mirrorOn)
+        .animation(.easeOut(duration: 0.3), value: vm.pomodoro == nil)
     }
 
     // MARK: - Espelho

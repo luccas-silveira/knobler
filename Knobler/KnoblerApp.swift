@@ -410,6 +410,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     self?.apiServer.cancelAsk(id: id)
                     self?.notches.values.forEach { $0.viewModel.clearAsk(id: id) }
                 }
+                // controles do card do Pomodoro → engine (onState reprograma todas as vms)
+                viewModel.onPomodoroPause = { [weak self] in self?.pomodoro.pause() }
+                viewModel.onPomodoroResume = { [weak self] in self?.pomodoro.resume() }
+                viewModel.onPomodoroSkip = { [weak self] in self?.pomodoro.skip() }
+                viewModel.onPomodoroReset = { [weak self] in self?.pomodoro.reset() }
+                viewModel.onPomodoroStartNext = { [weak self] in self?.pomodoro.startNext() }
+                viewModel.onPomodoroSettings = { [weak self] in self?.openSettings() }
                 // janela só aceita teclado enquanto o card existe — CRÍTICO
                 // reverter, senão o notch rouba foco pra sempre
                 viewModel.$ask

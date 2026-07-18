@@ -119,8 +119,9 @@ final class NotchViewModel: ObservableObject {
 
         let work = DispatchWorkItem { [weak self] in
             guard let self, self.hovering else { return }
-            if self.musicPaused, !self.peeking {
+            if self.musicPaused, !self.peeking, self.pomodoro == nil {
                 // etapa 1: espia as asinhas; mouse parado em cima abre o completo
+                // (só pra música — com Pomodoro ativo abre o card direto)
                 self.peeking = true
                 self.scheduleExpandAfterPeek()
             } else {
@@ -211,6 +212,14 @@ final class NotchViewModel: ObservableObject {
     /// e sincronizam os outros monitores (primeira resposta vence).
     var onAskAnswered: ((String, [String: AskAnswer]) -> Void)?
     var onAskCancelled: ((String) -> Void)?
+
+    /// Controles do card do Pomodoro (view → engine no AppDelegate).
+    var onPomodoroPause: (() -> Void)?
+    var onPomodoroResume: (() -> Void)?
+    var onPomodoroSkip: (() -> Void)?
+    var onPomodoroReset: (() -> Void)?
+    var onPomodoroStartNext: (() -> Void)?
+    var onPomodoroSettings: (() -> Void)?
 
     func enqueueAsk(_ request: AskRequest) {
         if ask == nil {

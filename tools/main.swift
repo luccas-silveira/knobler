@@ -212,21 +212,39 @@ let scenarios: [Scenario] = [
         vm.askPage = 1
     },
     Scenario(name: "pomodoro-focus", realNotch: true) { vm, _ in
-        vm.pomodoro = PomodoroState(phase: .focus, runState: .running, remaining: 23 * 60 + 14)
+        vm.pomodoro = PomodoroState(phase: .focus, runState: .running, remaining: 23 * 60 + 14, completedFocus: 1, cyclesUntilLong: 4)
     },
     Scenario(name: "pomodoro-break", realNotch: true) { vm, _ in
-        vm.pomodoro = PomodoroState(phase: .shortBreak, runState: .running, remaining: 4 * 60 + 32)
+        vm.pomodoro = PomodoroState(phase: .shortBreak, runState: .running, remaining: 4 * 60 + 32, completedFocus: 1, cyclesUntilLong: 4)
     },
     Scenario(name: "pomodoro-paused", realNotch: true) { vm, _ in
-        vm.pomodoro = PomodoroState(phase: .focus, runState: .paused, remaining: 12 * 60 + 3)
+        vm.pomodoro = PomodoroState(phase: .focus, runState: .paused, remaining: 12 * 60 + 3, completedFocus: 1, cyclesUntilLong: 4)
     },
     Scenario(name: "pomodoro-waiting", realNotch: false) { vm, _ in
-        vm.pomodoro = PomodoroState(phase: .shortBreak, runState: .waiting, remaining: 5 * 60)
+        vm.pomodoro = PomodoroState(phase: .shortBreak, runState: .waiting, remaining: 5 * 60, completedFocus: 1, cyclesUntilLong: 4)
     },
     // pausa longa em espera NO NOTCH REAL: o rótulo mais comprido não pode
     // escorregar sob a câmera (asa esquerda ~85pt)
     Scenario(name: "pomodoro-waiting-long", realNotch: true) { vm, _ in
-        vm.pomodoro = PomodoroState(phase: .longBreak, runState: .waiting, remaining: 15 * 60)
+        vm.pomodoro = PomodoroState(phase: .longBreak, runState: .waiting, remaining: 15 * 60, completedFocus: 4, cyclesUntilLong: 4)
+    },
+    // card expandido (hover): foco/pausado/espera + confirmar que a música some
+    Scenario(name: "pomodoro-card-focus", realNotch: true) { vm, _ in
+        vm.pomodoro = PomodoroState(phase: .focus, runState: .running, remaining: 23 * 60 + 14, completedFocus: 1, cyclesUntilLong: 4)
+        vm.expanded = true
+    },
+    Scenario(name: "pomodoro-card-paused", realNotch: true) { vm, _ in
+        vm.pomodoro = PomodoroState(phase: .focus, runState: .paused, remaining: 12 * 60 + 3, completedFocus: 1, cyclesUntilLong: 4)
+        vm.expanded = true
+    },
+    Scenario(name: "pomodoro-card-waiting", realNotch: true) { vm, _ in
+        vm.pomodoro = PomodoroState(phase: .shortBreak, runState: .waiting, remaining: 5 * 60, completedFocus: 1, cyclesUntilLong: 4)
+        vm.expanded = true
+    },
+    Scenario(name: "pomodoro-card-with-music", realNotch: true) { vm, media in
+        media.injectPreview(state: fakeState(), artwork: fakeArtwork())
+        vm.pomodoro = PomodoroState(phase: .focus, runState: .running, remaining: 23 * 60 + 14, completedFocus: 1, cyclesUntilLong: 4)
+        vm.expanded = true
     },
 ]
 
