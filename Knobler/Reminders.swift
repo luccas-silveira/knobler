@@ -7,7 +7,7 @@
 //  parede; "nunca atrasado" — disparo perdido em sleep é pulado, nunca enfileirado.
 //
 //  Self-check:
-//    swiftc -swift-version 5 -D REMINDERS_SELFCHECK Knobler/Reminders.swift -o /tmp/rmck && /tmp/rmck
+//    swiftc -parse-as-library -swift-version 5 -D REMINDERS_SELFCHECK Knobler/Reminders.swift -o /tmp/rmck && /tmp/rmck
 //
 
 import Foundation
@@ -20,11 +20,80 @@ enum Schedule: Codable, Equatable, Hashable {
     case interval(minutes: Int)
 }
 
+struct Reminder: Codable, Identifiable, Equatable {
+    var id: UUID = UUID()
+    var title: String
+    var body: String = ""
+    var schedule: Schedule
+    var soundName: String?        // nome NSSound; nil = mudo
+    var openURL: String?          // clique abre; nil = só dispensa
+    var enabled: Bool = true      // pausar sem apagar
+
+    func scheduleSummary(cal: Calendar = ReminderClock.calendar) -> String {
+        switch schedule {
+        case .oneShot(let date):
+            let f = DateFormatter()
+            f.calendar = cal; f.timeZone = cal.timeZone
+            f.locale = Locale(identifier: "pt_BR")
+            f.dateFormat = "d 'de' MMM, HH:mm"
+            return "Uma vez · \(f.string(from: date))"
+        case .interval(let min):
+            return "A cada \(ReminderClock.humanInterval(min))"
+        case .calendar(let comps):
+            return ReminderClock.humanCalendar(comps)
+        }
+    }
+}
+
+/// Sons do sistema (de /System/Library/Sounds) válidos pra NSSound(named:).
+enum ReminderSounds {
+    static let all = ["Basso", "Blow", "Bottle", "Frog", "Funk", "Glass", "Hero",
+                      "Morse", "Ping", "Pop", "Purr", "Sosumi", "Submarine", "Tink"]
+}
+
 // MARK: - Matemática de agenda (pura)
 
 enum ReminderClock {
     /// Injetável pro self-check com fuso fixo; no app é `.current`.
     static var calendar: Calendar = .current
+
+    static let weekdayNames = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
+    static let weekdayNamesFull = ["Domingo", "Segunda", "Terça", "Quarta",
+                                   "Quinta", "Sexta", "Sábado"]
+    static let monthNames = ["jan", "fev", "mar", "abr", "mai", "jun",
+                             "jul", "ago", "set", "out", "nov", "dez"]
+
+    static func humanInterval(_ min: Int) -> String {
+        if min % 60 == 0 { return "\(min / 60)h" }
+        return "\(min)min"
+    }
+
+    private static func hm(_ dc: DateComponents) -> String {
+        String(format: "%02d:%02d", dc.hour ?? 0, dc.minute ?? 0)
+    }
+
+    /// Rótulo humano de um `[DateComponents]` de calendário. Ordem importa:
+    /// n-ésimo (ordinal+weekday) → semanal (weekday) → anual (mês+dia) → mensal (dia) → diária.
+    static func humanCalendar(_ comps: [DateComponents]) -> String {
+        guard let first = comps.first else { return "" }
+        let time = hm(first)
+        if let ord = first.weekdayOrdinal, let wd = first.weekday {
+            let name = weekdayNames[(wd - 1 + 7) % 7]
+            return "\(ord < 0 ? "Última" : "\(ord)ª") \(name) · \(time)"
+        }
+        if first.weekday != nil {
+            let dias = comps.compactMap { $0.weekday }.sorted()
+                .map { weekdayNames[($0 - 1 + 7) % 7] }.joined(separator: ", ")
+            return "\(dias) · \(time)"
+        }
+        if let month = first.month, let day = first.day {
+            return "\(day)/\(monthNames[(month - 1 + 12) % 12]) · \(time)"
+        }
+        if let day = first.day {
+            return "Dia \(day) · \(time)"
+        }
+        return "Todo dia · \(time)"
+    }
 
     /// Próxima ocorrência estritamente > `after` (calendar/oneShot). Intervalo é
     /// tratado no scheduler (âncora), então retorna nil aqui.
@@ -119,6 +188,28 @@ enum RemindersSelfCheck {
         // oneShot
         assert(next(.oneShot(d("2026-07-20 14:00")), "2026-07-18 00:00") == d("2026-07-20 14:00"))
         assert(next(.oneShot(d("2026-07-10 14:00")), "2026-07-18 00:00") == nil)
+
+        // Codable roundtrip
+        let sample: [Reminder] = [
+            Reminder(title: "💧 Água", schedule: .interval(minutes: 120), soundName: "Glass"),
+            Reminder(title: "Standup", schedule: weekly, soundName: nil,
+                     openURL: "https://meet.example"),
+            Reminder(title: "Uma vez", schedule: .oneShot(d("2026-07-20 14:00")), enabled: false),
+        ]
+        let encoded = try! JSONEncoder().encode(sample)
+        assert(try! JSONDecoder().decode([Reminder].self, from: encoded) == sample)
+
+        // rótulos humanos
+        func sum(_ s: Schedule) -> String { Reminder(title: "x", schedule: s).scheduleSummary() }
+        assert(sum(daily) == "Todo dia · 09:00")
+        assert(sum(weekly) == "Seg, Qua · 09:00")
+        assert(sum(.interval(minutes: 120)) == "A cada 2h")
+        assert(sum(.interval(minutes: 90)) == "A cada 90min")
+        assert(sum(.calendar([DateComponents(day: 15, hour: 9)])) == "Dia 15 · 09:00")
+        assert(sum(.calendar([DateComponents(month: 1, day: 15, hour: 9)])) == "15/jan · 09:00")
+        assert(sum(lastMon) == "Última Seg · 09:00")
+        assert(sum(.calendar([DateComponents(hour: 9, weekday: 2, weekdayOrdinal: 1)])) == "1ª Seg · 09:00")
+        assert(sum(.oneShot(d("2026-07-20 14:00"))).hasPrefix("Uma vez ·"))
 
         print("reminders self-check ok")
     }
