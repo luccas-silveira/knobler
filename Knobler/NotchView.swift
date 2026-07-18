@@ -798,6 +798,10 @@ struct NotchView: View {
     }
 
     private func openSourceApp(_ notification: NotchNotification) {
+        if let raw = notification.openURL, let url = URL(string: raw) {
+            NSWorkspace.shared.open(url)
+            return
+        }
         if notification.supacodeWorktree != nil || notification.supacodeTab != nil {
             Self.focusSupacode(
                 worktree: notification.supacodeWorktree, tab: notification.supacodeTab)

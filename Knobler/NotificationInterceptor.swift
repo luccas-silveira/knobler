@@ -22,6 +22,8 @@ struct NotchNotification: Identifiable, Equatable {
     /// Alvo de sessão do Supacode: clique na notificação foca worktree/tab.
     var supacodeWorktree: String? = nil  // ID do worktree (path percent-encoded)
     var supacodeTab: String? = nil  // UUID da tab
+    /// Lembrete do usuário: clique abre esta URL (http/https/file/app).
+    var openURL: String? = nil
     let date = Date()
 }
 
