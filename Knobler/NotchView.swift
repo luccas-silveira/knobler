@@ -58,18 +58,6 @@ struct NotchView: View {
         return ZStack(alignment: .top) {
             shape.fill(Color.black)
 
-            // glow ambiente: a própria capa borrada tinge o card, estilo Dynamic
-            // Island. O véu preto por cima garante o contraste do texto.
-            if vm.mode == .music, let artwork = media.artwork {
-                Image(nsImage: artwork)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: currentSize.width, height: currentSize.height)
-                    .blur(radius: 50)
-                    .overlay(Color.black.opacity(0.55))
-                    .transition(.opacity)
-            }
-
             switch vm.mode {
             case .closed:
                 if wingsVisible || vm.activity != nil || vm.micInUse {
