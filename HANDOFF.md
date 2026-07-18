@@ -1,3 +1,50 @@
+# 🏁 SESSÃO 2026-07-18 (noite) — Feature: Lembretes programados (notificações personalizadas + recorrentes)
+
+Feature nova, **mergeada em `master` (push feito) e validada em tela ("funciona")**.
+
+## O que foi feito
+
+- **Lembretes programados**: notificações personalizadas agendadas pelo usuário que disparam
+  **no notch** (não banner nativo). Agendador próprio no molde do `Pomodoro`, só-Foundation.
+  - `Knobler/Reminders.swift` (novo): `enum Schedule` (`oneShot`/`calendar([DateComponents])`/`interval`),
+    `struct Reminder` (Codable), `ReminderClock` (matemática pura do próximo disparo + rótulos humanos),
+    `ReminderScheduler` (engine tick de relógio de parede, "nunca atrasado"), self-check assert-based
+    (`#if REMINDERS_SELFCHECK`, compila com **`-parse-as-library`**).
+  - `Knobler/RemindersView.swift` (novo): aba "Lembretes" nos Ajustes — lista (toggle/editar/apagar/empty)
+    + formulário de **7 modos** (uma vez, diária, semanal por dias, mensal, anual, n-ésimo dia, intervalo),
+    Picker de som com preview, URL opcional.
+  - `AppSettings`: `@Published var reminders: [Reminder]` (JSON em UserDefaults) + `SettingsView` virou `TabView` (Geral | Lembretes).
+  - `NotchNotification.openURL` + `openSourceApp` abre no clique; fiação do `ReminderScheduler` no AppDelegate
+    (onFire → enqueue no notch + `NSSound` + desliga oneShot; wake observer em **`NSWorkspace.shared.notificationCenter`**).
+  - `tools/snapshot.sh`: adicionados `Reminders.swift` e `RemindersView.swift` à lista (o harness compila `AppSettings.swift`).
+
+## Como foi feito (processo)
+
+- grill-me (9 decisões) → `SPEC-reminders.md` → **pesquisa com Swift real** (pegou 3 armadilhas antes do código:
+  `.strict` obrigatório vs `.nextTime` que corrompe o "dia 31"; `weekdayOrdinal:-1` NÃO casa em `Calendar.nextDate`
+  → helper próprio; wake postado no `notificationCenter` do NSWorkspace, não no default).
+- Plano em `docs/superpowers/plans/2026-07-18-lembretes-programados.md` (7 tasks) → execução **subagent-driven**
+  (implementer + reviewer opus por task). Todas Spec ✅, 0 Critical/Important.
+- Review final (opus) pegou 1 Important que o build mascarava: `snapshot.sh` quebrado (faltavam os arquivos novos) → corrigido.
+
+## Validação
+
+- Self-check `reminders self-check ok` (7 modos + engine nunca-atrasado, relógio falso).
+- `xcodebuild ... build` → **BUILD SUCCEEDED** (app integrado); `snapshot.sh` regenera os 36 PNGs.
+- **E2E do usuário: "funciona"** — só apareceu após instalar o build fresco em `/Applications` (o app rodava a versão velha de 12:26; gotcha recorrente).
+
+## Pendências e followups (não-bloqueantes)
+
+- **Intervalo re-ancora a CADA launch do app** (não persiste âncora) — "a cada 4h" num Mac que relança o Knobler
+  com frequência pode nunca disparar. Âncora persistida resolveria. (footgun spec-by-design)
+- **Editar um "uma vez" já disparado** fica com `enabled=false` — usuário precisa religar no toggle.
+- **oneShot com data no passado** nunca dispara e fica ligado (sem aviso no form).
+- **`ReminderClock.calendar = .current`** cacheado no 1º acesso — mudança de fuso mid-run só reflete no relaunch.
+- Cobertura do self-check: faltam asserts isolando re-ancoragem de intervalo e o path de edit/hashValue-recompute.
+- `graphify-out/` não regenerado (feature nova é mudança material — rodar `/graphify` se quiser o grafo fresco).
+
+---
+
 # 🏁 SESSÃO 2026-07-18 — Bugfix: HUD volume/brilho (fim do brilho-fantasma + fluidez) + thumbnails reais no shelf
 
 Sessão de **correção de bugs menores**, sem bump de versão.
