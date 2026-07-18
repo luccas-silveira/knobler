@@ -93,6 +93,7 @@ private struct ReminderFormView: View {
     @State private var intervalHours = true
     @State private var soundName: String? = "Glass"
     @State private var openURL = ""
+    @State private var soundReady = false   // ponytail: só toca preview após load inicial
 
     init(reminder: Reminder?, onSave: @escaping (Reminder) -> Void) {
         self.existing = reminder
@@ -120,7 +121,7 @@ private struct ReminderFormView: View {
                         }
                     }
                     .onChange(of: soundName) { _, new in
-                        if let new { NSSound(named: new)?.play() }
+                        if soundReady, let new { NSSound(named: new)?.play() }
                     }
                     TextField("Abrir ao clicar (URL, opcional)", text: $openURL)
                 }
@@ -137,7 +138,11 @@ private struct ReminderFormView: View {
             .padding(12)
         }
         .frame(width: 380, height: 480)
-        .onAppear(perform: loadExisting)
+        .onAppear {
+            loadExisting()
+            // ponytail: libera o preview só no próximo ciclo, depois do load programático
+            DispatchQueue.main.async { soundReady = true }
+        }
     }
 
     @ViewBuilder private var freqFields: some View {

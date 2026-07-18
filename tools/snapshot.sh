@@ -13,6 +13,8 @@ swiftc -O -o build/snapshot \
   Knobler/AudioLevelTap.swift \
   Knobler/NotificationInterceptor.swift \
   Knobler/AppSettings.swift \
+  Knobler/Reminders.swift \
+  Knobler/RemindersView.swift \
   Knobler/Shelf.swift \
   Knobler/ShelfThumbnailDragView.swift \
   Knobler/Mirror.swift \
