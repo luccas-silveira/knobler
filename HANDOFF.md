@@ -1,3 +1,46 @@
+# 🏁 SESSÃO 2026-07-18 — Ferramental de agente: MCP de build/docs + supply-chain
+
+Sessão de **infra do agente** (não bump de versão, nada de código Swift). A partir
+de uma pesquisa (deep-research, 101 agentes), montamos os 3 anéis de feedback que
+deixam o Claude Code escrever Swift com mais confiabilidade.
+
+## O que foi feito
+
+- **`.mcp.json`** (escopo de projeto, versionado):
+  - **XcodeBuildMCP** `@2.6.2` (`npx`) — build/test com erro de compilador em JSON
+    estruturado; habilita o loop escrever→compilar→ler erro→corrigir. **Pinado**, não
+    `@latest`, após review de segurança flagar supply-chain (MCP roda com privilégios
+    locais; `@latest` auto-executaria releases futuras não revisadas).
+  - **xcode** = `xcrun mcpbridge` (MCP oficial da Apple, Xcode 26.6) — `DocumentationSearch`
+    (docs Apple + WWDC) + `ExecuteSnippet` (REPL Swift) pra verificar símbolo de API
+    antes de escrever, contra alucinação. Sem superfície de supply-chain (binário local).
+- **`CLAUDE.md`** (novo) — build via XcodeGen, loop de snapshot (`tools/snapshot.sh`),
+  quando usar cada MCP, e o guardrail: **nunca editar `Knobler.xcodeproj` à mão** (é
+  artefato gerado; mexer em `project.yml` + `xcodegen generate`).
+- Commits `4b5dd3c` (tooling) + este (HANDOFF); **push pra origin** limpando ~12 commits
+  órfãos locais.
+
+## Validação
+
+- **Nenhum código Swift alterado** → gates de build/snapshot da v0.14 (Debug+Release
+  SUCCEEDED, snapshots verdes) permanecem válidos; não re-rodados por não haver superfície
+  compilável tocada.
+- Pré-reqs conferidos: `npx`/node 25.9, `xcrun mcpbridge` presente (Xcode 26.6),
+  `xcodegen` 2.45.4. `npm view xcodebuildmcp version` → 2.6.2 (pin confere).
+- ⚠️ **Os MCPs NÃO estão ativos nesta sessão** — só carregam no start.
+
+## Pendências e followups
+
+- **AÇÃO DO USUÁRIO: reiniciar a sessão** e **aprovar** os servers do `.mcp.json` no
+  prompt do Claude Code. O server `xcode` precisa do **Xcode aberto** pra responder.
+- Bump futuro do XcodeBuildMCP é **manual**: `npm view xcodebuildmcp version` → editar o
+  pin no `.mcp.json` → revisar changelog antes.
+- **Opt-in não feitos** (só se pedir): hook `PostToolUse` de auto-build a cada edição
+  (barulhento; loop do MCP já cobre sob demanda); `apple-docs-mcp`/`Context7` (redundantes;
+  Context7 só vale pra docs de deps SwiftPM de terceiros).
+
+---
+
 # 🏁 SESSÃO 2026-07-18 — v0.14: Pomodoro no notch (pílula + card + menu)
 
 ## O que foi feito
