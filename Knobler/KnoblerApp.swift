@@ -36,6 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let dictation = DictationController()
     private let calendar = CalendarCountdown()
     private let pomodoro = Pomodoro()
+    private let reminderScheduler = ReminderScheduler()
     private let shelf = ShelfStore()
     private let screenshots = ScreenshotWatcher()
     private var screenshotPeekWork: DispatchWorkItem?
@@ -179,6 +180,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             if AppSettings.shared.pomodoroSound { NSSound(named: "Glass")?.play() }
         }
+        // Lembretes programados: engine dispara → notch + som. oneShot desliga após disparar.
+        reminderScheduler.remindersProvider = { AppSettings.shared.reminders }
+        reminderScheduler.onFire = { [weak self] r in
+            guard let self else { return }
+            self.notches.values.forEach {
+                $0.viewModel.enqueue(NotchNotification(
+                    appName: nil, title: r.title, body: r.body, openURL: r.openURL))
+            }
+            if let sound = r.soundName { NSSound(named: NSSound.Name(sound))?.play() }
+            if case .oneShot = r.schedule,
+               let i = AppSettings.shared.reminders.firstIndex(where: { $0.id == r.id }) {
+                AppSettings.shared.reminders[i].enabled = false
+            }
+        }
+        // Wake: NSWorkspace.didWakeNotification é postado no notificationCenter do
+        // NSWorkspace, NÃO no default — observar no center errado = handler mudo.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+        ) { [weak self] _ in self?.reminderScheduler.tick() }
+        reminderScheduler.start()
         // espelho automático: abre 2min antes da call, fecha quando ela começa
         calendar.onMirrorMoment = { [weak self] imminent in
             guard let self else { return }
