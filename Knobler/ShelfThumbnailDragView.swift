@@ -15,6 +15,7 @@
 //
 
 import AppKit
+import QuickLookThumbnailing
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -30,7 +31,7 @@ struct ShelfThumbnailDragView: NSViewRepresentable {
 
 final class DragThumbView: NSView, NSDraggingSource {
     var url: URL {
-        didSet { imageView.image = NSWorkspace.shared.icon(forFile: url.path) }
+        didSet { loadThumbnail() }
     }
 
     private let imageView = NSImageView()
@@ -38,7 +39,6 @@ final class DragThumbView: NSView, NSDraggingSource {
     init(url: URL) {
         self.url = url
         super.init(frame: .zero)
-        imageView.image = NSWorkspace.shared.icon(forFile: url.path)
         imageView.imageScaling = .scaleProportionallyUpOrDown
         imageView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(imageView)
@@ -48,6 +48,28 @@ final class DragThumbView: NSView, NSDraggingSource {
             imageView.leadingAnchor.constraint(equalTo: leadingAnchor),
             imageView.trailingAnchor.constraint(equalTo: trailingAnchor),
         ])
+        loadThumbnail()
+    }
+
+    /// Miniatura real do conteúdo via QuickLook, com o ícone genérico do tipo
+    /// como placeholder enquanto gera (ou se o arquivo não tiver preview). Async:
+    /// o QL mantém cache e chama de volta fora da main.
+    private func loadThumbnail() {
+        let url = self.url
+        imageView.image = NSWorkspace.shared.icon(forFile: url.path)
+        let scale = window?.backingScaleFactor ?? 2
+        let request = QLThumbnailGenerator.Request(
+            fileAt: url, size: CGSize(width: 30, height: 30),
+            scale: scale, representationTypes: .thumbnail)
+        QLThumbnailGenerator.shared.generateBestRepresentation(for: request) {
+            [weak self] rep, _ in
+            guard let rep else { return }
+            DispatchQueue.main.async {
+                // a view pode ter sido reciclada pra outro arquivo enquanto gerava
+                guard let self, self.url == url else { return }
+                self.imageView.image = rep.nsImage
+            }
+        }
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) não usado") }

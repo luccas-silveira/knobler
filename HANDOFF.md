@@ -1,3 +1,49 @@
+# 🏁 SESSÃO 2026-07-18 — Bugfix: HUD volume/brilho (fim do brilho-fantasma + fluidez) + thumbnails reais no shelf
+
+Sessão de **correção de bugs menores**, sem bump de versão.
+
+## O que foi feito
+
+- **Brilho "fantasma" morto** (`VolumeHUD.swift`): removido o `Timer` de 0,5s
+  (`pollBrightness()`) que disparava a pílula pra **qualquer** mudança de brilho > 0,4% —
+  incluindo brilho automático (sensor) e True Tone. Agora o brilho segue o mesmo caminho do
+  volume: pílula só pelas teclas interceptadas (keycodes NX 2/3 → `adjustBrightness`).
+  Removidos junto: campos `brightnessPollTimer`/`lastBrightness` e a linha morta associada.
+  Decisão do usuário: abrir mão da pílula no slider da Central de Controle em troca de zero
+  fantasma.
+- **Fluidez do HUD** (`VolumeHUD.swift` + `NotchView.swift`): (a) enxugadas as chamadas
+  síncronas ao CoreAudio por tecla — `adjust`/`toggleMute` publicam o valor recém-escrito em
+  vez de re-ler o HAL via `publishCurrentState()` (cortou ~metade das chamadas HAL/evento em
+  key-repeat, `defaultOutputDevice()` uma vez só por toque); (b) spring da barra do HUD
+  `0.25/0.9` → `0.18/0.95` pra deslizar contínuo em vez de pular entre passos.
+- **Thumbnails reais no shelf** (`ShelfThumbnailDragView.swift`): antes toda miniatura era
+  `NSWorkspace.shared.icon(forFile:)` = ícone genérico do tipo. Agora usa
+  **`QLThumbnailGenerator`** (QuickLookThumbnailing) pra prévia real do conteúdo (imagem/PDF/
+  vídeo), com o ícone genérico só como placeholder enquanto gera / se não houver preview.
+  Callback guarda contra reciclagem da view (`self.url == url`). `Shelf.swift` intocado; o
+  drag continua igual.
+
+## Validação
+
+- **Build Debug + Release SUCCEEDED.** `xcodegen` não rodado (nenhum arquivo add/removido).
+- **HUD:** usuário confirmou "funcionou". `/status` da API local: `axTrusted`/`tapEnabled`/
+  `tapExists` = true (tap vivo → teclas de brilho embutidas são interceptadas),
+  `brightnessAvailable` = true; dict `diagnostics` intacto após remover o poll.
+- **Shelf:** `QLThumbnailGenerator` validado headless nesta máquina (thumbnail 24.5×30pt de um
+  screenshot real). Usuário confirmou ("Muito bom").
+- **Snapshots NÃO regenerados**: sem mudança de layout estático (HUD só muda timing de
+  animação; a thumbnail do shelf é conteúdo de runtime, não aparece no harness).
+
+## Pendências e followups
+
+- Se em algum **teclado externo** as teclas de brilho não mostrarem a pílula (o built-in está
+  confirmado ativo via tap), reavaliar um poll *gated* só pra teclas não interceptáveis — sem
+  reintroduzir o fantasma.
+- Afinar `dampingFraction` da barra se ainda parecer com pulo em uso real (ceiling anotado no
+  comentário ponytail do `VolumeHUD`: upgrade = cache do device + listener de default output).
+
+---
+
 # 🏁 SESSÃO 2026-07-18 — Ferramental de agente: MCP de build/docs + supply-chain
 
 Sessão de **infra do agente** (não bump de versão, nada de código Swift). A partir

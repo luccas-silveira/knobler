@@ -220,7 +220,9 @@ struct NotchView: View {
                 }
                 .frame(width: 64, height: 6)
                 .padding(.trailing, 16)
-                .animation(.spring(response: 0.25, dampingFraction: 0.9), value: hud.level)
+                // resposta curta + quase sem overshoot: desliza contínuo quando os
+                // passos chegam em rajada (segurar a tecla), em vez de pular
+                .animation(.spring(response: 0.18, dampingFraction: 0.95), value: hud.level)
             }
             .frame(height: vm.notchSize.height)
         }

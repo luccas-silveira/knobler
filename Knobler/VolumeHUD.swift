@@ -63,10 +63,6 @@ final class VolumeHUDController {
         keyLog.append("\(Self.logTime.string(from: Date())) \(entry)")
         if keyLog.count > 12 { keyLog.removeFirst(keyLog.count - 12) }
     }
-    // brilho observado (Central de Controle, auto, teclas não interceptáveis)
-    private var brightnessPollTimer: Timer?
-    private var lastBrightness: Float = -1
-
     private lazy var volumeAddress = AudioObjectPropertyAddress(
         mSelector: kAudioHardwareServiceDeviceProperty_VirtualMainVolume,
         mScope: kAudioDevicePropertyScopeOutput,
@@ -89,11 +85,6 @@ final class VolumeHUDController {
         // quando o estado de confiança muda (mitigação padrão pro problema)
         healthTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) {
             [weak self] _ in self?.checkTapHealth()
-        }
-        // brilho pode mudar por fora das teclas (Central de Controle, auto,
-        // teclado que manda keycode diferente) — o poll pega qualquer mudança
-        brightnessPollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) {
-            [weak self] _ in self?.pollBrightness()
         }
         // diagnóstico: teclas de brilho de teclado externo podem chegar como
         // keyDown comum (F14/F15 etc.) em vez de NX systemDefined
@@ -256,44 +247,38 @@ final class VolumeHUDController {
         guard brightnessGet(display, &current) == 0 else { return }
         let target = max(0, min(1, current + delta))
         _ = brightnessSet(display, target)
-        lastBrightness = target // o poll não deve repetir o HUD desta mudança
         onHUD?(.init(kind: .brightness, level: target))
-    }
-
-    private func pollBrightness() {
-        guard AppSettings.shared.brightnessHUD, let brightnessGet else { return }
-        var level: Float = 0
-        guard brightnessGet(Self.builtinDisplay(), &level) == 0 else { return }
-        defer { lastBrightness = level }
-        // primeira leitura só calibra; depois, qualquer mudança vira HUD
-        guard lastBrightness >= 0, abs(level - lastBrightness) > 0.004 else { return }
-        onHUD?(.init(kind: .brightness, level: level))
     }
 
     // MARK: - Ações
 
+    // ponytail: publica o valor recém-escrito em vez de re-ler o HAL a cada tecla.
+    //           se o write clampar/falhar o publicado pode divergir 1 passo (raro);
+    //           upgrade: cache do device + listener de kAudioHardwarePropertyDefaultOutputDevice.
     private func adjust(by delta: Float32) {
         let device = Self.defaultOutputDevice()
         guard device != kAudioObjectUnknown, let current = readVolume(device) else {
             publishCurrentState()
             return
         }
-        if readMute(device) == true, delta > 0 {
-            writeMute(device, false)
-        }
+        var muted = readMute(device) ?? false
+        if muted, delta > 0 { writeMute(device, false); muted = false }
         let target = max(0, min(1, current + delta))
         writeVolume(device, target)
-        if target == 0 { writeMute(device, true) }
-        publishCurrentState()
+        if target == 0, !muted { writeMute(device, true); muted = true }
+        onHUD?(.init(kind: .volume, level: muted ? 0 : target, muted: muted))
     }
 
     private func toggleMute() {
         let device = Self.defaultOutputDevice()
         guard device != kAudioObjectUnknown else { return }
-        writeMute(device, !(readMute(device) ?? false))
-        publishCurrentState()
+        let muted = !(readMute(device) ?? false)
+        writeMute(device, muted)
+        let level = readVolume(device) ?? 0
+        onHUD?(.init(kind: .volume, level: muted ? 0 : level, muted: muted))
     }
 
+    /// Fallback: só quando a leitura inicial do volume falha em `adjust`.
     private func publishCurrentState() {
         let device = Self.defaultOutputDevice()
         guard device != kAudioObjectUnknown else { return }
