@@ -223,6 +223,11 @@ let scenarios: [Scenario] = [
     Scenario(name: "pomodoro-waiting", realNotch: false) { vm, _ in
         vm.pomodoro = PomodoroState(phase: .shortBreak, runState: .waiting, remaining: 5 * 60)
     },
+    // pausa longa em espera NO NOTCH REAL: o rótulo mais comprido não pode
+    // escorregar sob a câmera (asa esquerda ~85pt)
+    Scenario(name: "pomodoro-waiting-long", realNotch: true) { vm, _ in
+        vm.pomodoro = PomodoroState(phase: .longBreak, runState: .waiting, remaining: 15 * 60)
+    },
 ]
 
 MainActor.assumeIsolated {
