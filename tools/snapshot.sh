@@ -15,6 +15,8 @@ swiftc -O -o build/snapshot \
   Knobler/AppSettings.swift \
   Knobler/Reminders.swift \
   Knobler/RemindersView.swift \
+  Knobler/Descanso.swift \
+  Knobler/DescansoView.swift \
   Knobler/Shelf.swift \
   Knobler/ShelfThumbnailDragView.swift \
   Knobler/Mirror.swift \

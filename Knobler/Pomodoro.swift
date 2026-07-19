@@ -39,6 +39,8 @@ final class Pomodoro {
     var onState: ((PomodoroState?) -> Void)?
     /// Fim de fase (fase que acabou, próxima) — AppDelegate notifica + som.
     var onPhaseEnd: ((PomodoroPhase, PomodoroPhase) -> Void)?
+    /// Início de uma fase que passou a rodar — usado pra travar a tela nas pausas.
+    var onPhaseBegin: ((PomodoroPhase) -> Void)?
 
     private(set) var phase: PomodoroPhase = .focus
     private(set) var runState: PomodoroRunState = .idle
@@ -108,6 +110,7 @@ final class Pomodoro {
         runState = .running
         startTimer()
         publish()
+        onPhaseBegin?(newPhase)
     }
 
     private func currentRemaining() -> TimeInterval {

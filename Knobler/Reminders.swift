@@ -45,6 +45,14 @@ struct Reminder: Codable, Identifiable, Equatable {
     }
 }
 
+/// Item agendável genérico — o `ScheduleEngine` só precisa disto pra tickar.
+/// `Reminder` e `ScreenBreak` conformam.
+protocol Scheduled: Identifiable where ID == UUID {
+    var enabled: Bool { get }
+    var schedule: Schedule { get }
+}
+extension Reminder: Scheduled {}
+
 /// Sons do sistema (de /System/Library/Sounds) válidos pra NSSound(named:).
 enum ReminderSounds {
     static let all = ["Basso", "Blow", "Bottle", "Frog", "Funk", "Glass", "Hero",
@@ -152,9 +160,9 @@ enum ReminderClock {
 /// é pulado e a próxima ocorrência futura é reprogramada. O AppDelegate liga o
 /// observer de wake (NSWorkspace) chamando `tick()` — mantido fora daqui pra o
 /// arquivo seguir só-Foundation (self-check/snapshot).
-final class ReminderScheduler {
-    var remindersProvider: () -> [Reminder] = { [] }
-    var onFire: ((Reminder) -> Void)?
+final class ScheduleEngine<Item: Scheduled> {
+    var itemsProvider: () -> [Item] = { [] }
+    var onFire: ((Item) -> Void)?
     /// Folga além do tick pra ainda considerar "na hora".
     var tolerance: TimeInterval = 90
 
@@ -177,7 +185,7 @@ final class ReminderScheduler {
 
     /// `now` injetável pro self-check com relógio falso.
     func tick(now: Date = Date()) {
-        let reminders = remindersProvider()
+        let reminders = itemsProvider()
         let live = Set(reminders.map(\.id))
         nextFire = nextFire.filter { live.contains($0.key) }   // limpa apagados
 
@@ -205,6 +213,9 @@ final class ReminderScheduler {
         }
     }
 }
+
+/// Mantém o nome usado no resto do código (AppDelegate/self-check).
+typealias ReminderScheduler = ScheduleEngine<Reminder>
 
 // Entrada do self-check standalone (molde do Pomodoro). É @main, não expressão
 // top-level, pra o arquivo entrar como biblioteca no build do app sem conflito.
@@ -277,7 +288,7 @@ enum RemindersSelfCheck {
             let sched = ReminderScheduler()
             var fired: [String] = []
             let r = Reminder(title: "D", schedule: daily)
-            sched.remindersProvider = { [r] }
+            sched.itemsProvider = { [r] }
             sched.onFire = { fired.append($0.title) }
 
             sched.tick(now: d("2026-07-18 08:59"))            // arma, não dispara
@@ -296,7 +307,7 @@ enum RemindersSelfCheck {
             let sched = ReminderScheduler()
             var fired = 0
             let r = Reminder(title: "off", schedule: daily, enabled: false)
-            sched.remindersProvider = { [r] }
+            sched.itemsProvider = { [r] }
             sched.onFire = { _ in fired += 1 }
             sched.tick(now: d("2026-07-18 09:00") + 5)
             assert(fired == 0)
@@ -306,7 +317,7 @@ enum RemindersSelfCheck {
             let sched = ReminderScheduler()
             var fired: [String] = []
             let r = Reminder(title: "I", schedule: .interval(minutes: 60))
-            sched.remindersProvider = { [r] }
+            sched.itemsProvider = { [r] }
             sched.onFire = { fired.append($0.title) }
             let t0 = d("2026-07-18 08:00")
             sched.tick(now: t0)                               // arma t0+60, não dispara

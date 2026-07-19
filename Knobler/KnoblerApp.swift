@@ -37,6 +37,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let calendar = CalendarCountdown()
     private let pomodoro = Pomodoro()
     private let reminderScheduler = ReminderScheduler()
+    private let breakScheduler = ScheduleEngine<ScreenBreak>()
+    private let descanso = DescansoController()
     private let shelf = ShelfStore()
     private let screenshots = ScreenshotWatcher()
     private var screenshotPeekWork: DispatchWorkItem?
@@ -180,8 +182,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             if AppSettings.shared.pomodoroSound { NSSound(named: "Glass")?.play() }
         }
+        // Travar a tela nas pausas do Pomodoro (opt-in): o mesmo overlay do Descanso,
+        // pela duração da pausa que acabou de começar a rodar.
+        pomodoro.onPhaseBegin = { [weak self] phase in
+            guard AppSettings.shared.pomodoroLockScreen,
+                  phase == .shortBreak || phase == .longBreak else { return }
+            let dur = Pomodoro.duration(of: phase, config: .fromSettings())
+            self?.descanso.begin(label: "Pausa do Pomodoro", duration: dur)
+        }
         // Lembretes programados: engine dispara → notch + som. oneShot desliga após disparar.
-        reminderScheduler.remindersProvider = { AppSettings.shared.reminders }
+        reminderScheduler.itemsProvider = { AppSettings.shared.reminders }
         reminderScheduler.onFire = { [weak self] r in
             guard let self else { return }
             self.notches.values.forEach {
@@ -198,8 +208,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // NSWorkspace, NÃO no default — observar no center errado = handler mudo.
         NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
-        ) { [weak self] _ in self?.reminderScheduler.tick() }
+        ) { [weak self] _ in
+            self?.reminderScheduler.tick()
+            self?.breakScheduler.tick()
+        }
         reminderScheduler.start()
+
+        // Descanso: bloqueio agendado dispara o overlay de tela cheia pela duração.
+        // oneShot (inclui "Daqui a X") dispara uma vez → desliga (fica na lista, off).
+        breakScheduler.itemsProvider = { AppSettings.shared.screenBreaks }
+        breakScheduler.onFire = { [weak self] b in
+            self?.descanso.begin(
+                label: b.label, duration: TimeInterval(max(1, b.durationMinutes) * 60))
+            if case .oneShot = b.schedule,
+               let i = AppSettings.shared.screenBreaks.firstIndex(where: { $0.id == b.id }) {
+                AppSettings.shared.screenBreaks[i].enabled = false
+            }
+        }
+        breakScheduler.start()
         // espelho automático: abre 2min antes da call, fecha quando ela começa
         calendar.onMirrorMoment = { [weak self] imminent in
             guard let self else { return }
@@ -557,6 +583,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func pomResume() { pomodoro.resume() }
     @objc private func pomSkip() { pomodoro.skip() }
     @objc private func pomReset() { pomodoro.reset() }
+
+    // Cmd+Q escapa do quiosque (não é coberto pelas flags) → recusar enquanto trava.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        descanso.isActive ? .terminateCancel : .terminateNow
+    }
 
     func applicationWillTerminate(_ notification: Notification) {
         // devolve o OSD nativo — sem o Knobler o usuário fica sem HUD nenhum

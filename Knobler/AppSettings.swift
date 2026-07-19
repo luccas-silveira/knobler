@@ -80,6 +80,19 @@ final class AppSettings: ObservableObject {
         }
     }
 
+    /// Bloqueios de tela agendados ("Descanso") — JSON em UserDefaults.
+    @Published var screenBreaks: [ScreenBreak] {
+        didSet {
+            if let data = try? JSONEncoder().encode(screenBreaks) {
+                UserDefaults.standard.set(data, forKey: "screenBreaks")
+            }
+        }
+    }
+    /// Travar a tela (bloqueio forçado) nas pausas do Pomodoro.
+    @Published var pomodoroLockScreen: Bool {
+        didSet { UserDefaults.standard.set(pomodoroLockScreen, forKey: "pomodoroLockScreen") }
+    }
+
     // MARK: Pomodoro (durações em minutos)
     @Published var pomodoroFocus: Int {
         didSet { UserDefaults.standard.set(pomodoroFocus, forKey: "pomodoroFocus") }
@@ -139,6 +152,14 @@ final class AppSettings: ObservableObject {
             reminders = []
         }
 
+        if let data = defaults.data(forKey: "screenBreaks"),
+           let decoded = try? JSONDecoder().decode([ScreenBreak].self, from: data) {
+            screenBreaks = decoded
+        } else {
+            screenBreaks = []
+        }
+        pomodoroLockScreen = defaults.bool(forKey: "pomodoroLockScreen") // default false: opt-in
+
         func intOr(_ key: String, _ d: Int) -> Int {
             let v = defaults.integer(forKey: key); return v == 0 ? d : v
         }
@@ -160,6 +181,8 @@ struct SettingsView: View {
                 .tabItem { Label("Geral", systemImage: "gearshape") }
             RemindersView()
                 .tabItem { Label("Lembretes", systemImage: "bell.badge") }
+            DescansoTabView()
+                .tabItem { Label("Descanso", systemImage: "moon.zzz") }
         }
         .frame(width: 380, height: 560)
     }
@@ -213,6 +236,7 @@ struct SettingsView: View {
                 Stepper("Focos até pausa longa: \(settings.pomodoroCyclesLong)",
                         value: $settings.pomodoroCyclesLong, in: 1...12)
                 Toggle("Som ao trocar de fase", isOn: $settings.pomodoroSound)
+                Toggle("Travar a tela nas pausas", isOn: $settings.pomodoroLockScreen)
             }
             Section("Geral") {
                 Toggle("Abrir no login", isOn: Binding(

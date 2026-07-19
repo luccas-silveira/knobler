@@ -288,4 +288,32 @@ for scenario in scenarios {
     try? png.write(to: URL(fileURLWithPath: path))
     print("ok \(path)")
 }
+
+// Overlay do Descanso (bloqueio forçado) — render à parte, não usa NotchView.
+@MainActor func renderOverlay(_ name: String, label: String, hold: Double) {
+    let model = BreakOverlayModel()
+    model.endDate = Date().addingTimeInterval(872)   // ~14:32 no contador
+    model.label = label
+    model.holdProgress = hold
+    let view = ZStack {
+        LinearGradient(
+            colors: [Color(red: 0.72, green: 0.78, blue: 0.88),
+                     Color(red: 0.90, green: 0.86, blue: 0.80)],
+            startPoint: .topLeading, endPoint: .bottomTrailing)
+        BreakOverlayView(model: model)
+    }
+    .frame(width: 560, height: 360)
+    let renderer = ImageRenderer(content: view)
+    renderer.scale = 2
+    guard let nsImage = renderer.nsImage,
+          let tiff = nsImage.tiffRepresentation,
+          let rep = NSBitmapImageRep(data: tiff),
+          let png = rep.representation(using: .png, properties: [:])
+    else { print("FALHOU: \(name)"); exit(1) }
+    let path = "\(outputDir)/\(name).png"
+    try? png.write(to: URL(fileURLWithPath: path))
+    print("ok \(path)")
+}
+renderOverlay("descanso", label: "Almoço", hold: 0)
+renderOverlay("descanso-hold", label: "Almoço", hold: 0.6)
 }
