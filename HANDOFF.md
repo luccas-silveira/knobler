@@ -1,3 +1,59 @@
+# 🏁 SESSÃO 2026-07-19 (madrugada) — Feature: Descanso (bloqueio forçado de tela) — v0.16
+
+Feature nova, **validada em tela ("funcionou") e commitada+pushada em `master`**. Build de debug instalado em `/Applications/Knobler.app`.
+
+## O que foi feito
+
+- **Descanso**: bloqueio de tela agendado que **força uma pausa** — overlay escuro (~90%, tela fantasma
+  atrás) cobrindo TODAS as telas + contador regressivo MM:SS + rótulo, em **modo quiosque nativo**, com
+  **escape de emergência** (segurar Esc 5s, dica fixa no rodapé). Dois gatilhos: lista própria + pausas do Pomodoro.
+  - `Knobler/Descanso.swift` (novo): `struct ScreenBreak` (Codable, reusa `Schedule` dos Lembretes +
+    `durationMinutes`), conforma `protocol Scheduled`, self-check (`#if DESCANSO_SELFCHECK`, compila junto de `Reminders.swift`).
+  - `Knobler/DescansoView.swift` (novo): `BreakOverlayView` (contador **sleep-proof**, ancorado em endDate,
+    SwiftUI puro, snapshot-able) + aba "Descanso" (lista + formulário de **8 modos**: os 7 dos Lembretes +
+    "Daqui a X" relativo, + Stepper de duração 1–120min).
+  - `Knobler/DescansoController.swift` (novo): janela de shield por tela (`CGShieldingWindowLevel`, subclasse
+    `ShieldWindow` que vira key p/ capturar Esc), quiosque (`presentationOptions` validado), Esc-hold 5s, fade 0.4s.
+  - `Reminders.swift`: `ReminderScheduler` → **`ScheduleEngine<Item: Scheduled>`** genérico (+ `protocol Scheduled`,
+    `typealias`) — reusa o tick "nunca atrasado"/dedup pros dois. `remindersProvider`→`itemsProvider`.
+  - `Pomodoro.swift`: `onPhaseBegin` (trava a tela nas pausas quando o toggle está on).
+  - `AppSettings`: `@Published screenBreaks` (JSON) + `pomodoroLockScreen`; 3ª aba "Descanso" + toggle "Travar a tela nas pausas".
+  - `KnoblerApp`: fiação (breakScheduler + descanso, wake ticka os dois, oneShot self-disable) +
+    **`applicationShouldTerminate → .terminateCancel`** durante o lock (Cmd+Q NÃO é coberto pelo quiosque).
+  - `tools/snapshot.sh` + `tools/main.swift`: render do overlay (`descanso.png` / `descanso-hold.png`).
+
+## Como foi feito (processo)
+
+- grill-me (8 decisões) → `SPEC-descanso.md` → **pesquisa (Swift real + web/campo)** que corrigiu 3 premissas:
+  **teto honesto** (Cmd+Q e Spotlight TAMBÉM escapam, não só Activity Monitor); **Cmd+Q** precisa de
+  `applicationShouldTerminate` (flags não pegam); `.canJoinAllSpaces`/`.fullScreenAuxiliary` **não empilham**
+  por cima (é o nível). Conjunto de quiosque validado (Kiosk Mode TN + precedente SplashBuddy). Lock "de verdade"
+  (`AEAssessmentSession`) é gated por entitlement aprovado pela Apple → fora de escopo.
+- Plano em `docs/superpowers/plans/2026-07-18-descanso.md` (8 tasks em ordem de dependência) → execução inline,
+  build/self-check a cada fase.
+
+## Validação
+
+- 3 self-checks verdes: `reminders self-check ok` (refactor genérico não quebrou a lógica), `descanso self-check ok`
+  (modelo + Codable + engine tickando ScreenBreak), `pomodoro self-check ok`.
+- `xcodebuild ... build` → **BUILD SUCCEEDED**; `snapshot.sh` regenera os PNGs (overlay validado visualmente, lido).
+- **E2E do usuário: "funcionou"** — lock engatou, cobriu tela/menu bar, Esc-5s abortou. Build fresco em `/Applications`.
+
+## Pendências e followups (não-bloqueantes)
+
+- **Teto honesto**: Spotlight (⌘Espaço) e Monitor de Atividade **escapam** do lock — é empurrão com atrito, não
+  segurança. Lock forte só via `AEAssessmentSession` (entitlement Apple; fora de alcance).
+- **"Daqui a X" salvo vira oneShot absoluto** ao reabrir pra editar (relativo é açúcar de UI, sem case no `Schedule`).
+- **Um lock por vez**: gatilho que chega com lock ativo é ignorado (sem empilhar).
+- **Monitor conectado DURANTE o lock** não é coberto (janelas montadas no `begin`).
+- **Esc via keyUp**: se o keyUp não chegar (janela não-key, raro), o hold poderia "grudar" — mitigado por ser
+  key window; sem teste de estresse.
+- **App troca pra `.regular` + activate no lock** (aparece no Dock/rouba foco por um instante) — preço do quiosque nativo.
+- `graphify-out/` não regenerado (3 arquivos novos + refactor = material — rodar `/graphify` se quiser o grafo fresco).
+- SPEC "Cortado da v1": master-toggle, API HTTP (`POST /break`), `SchedulePickerView` compartilhado (regra de três).
+
+---
+
 # 🏁 SESSÃO 2026-07-18 (noite) — Feature: Lembretes programados (notificações personalizadas + recorrentes)
 
 Feature nova, **mergeada em `master` (push feito) e validada em tela ("funciona")**.
