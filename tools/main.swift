@@ -246,6 +246,29 @@ let scenarios: [Scenario] = [
         vm.pomodoro = PomodoroState(phase: .focus, runState: .running, remaining: 23 * 60 + 14, completedFocus: 1, cyclesUntilLong: 4)
         vm.expanded = true
     },
+    // AirPods: card de conexão (transitório), faixa junto da música,
+    // card dedicado sem música, e aviso de bateria baixa.
+    Scenario(name: "airpods-connect", realNotch: true) { vm, _ in
+        vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 90, right: 89, case_: 31)
+        vm.airpodsCard = true
+    },
+    Scenario(name: "airpods-connect-external", realNotch: false) { vm, _ in
+        vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 90, right: 89, case_: 31)
+        vm.airpodsCard = true
+    },
+    Scenario(name: "airpods-strip-music", realNotch: true) { vm, media in
+        media.injectPreview(state: fakeState(), artwork: fakeArtwork())
+        vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 90, right: 89, case_: 31)
+        vm.expanded = true
+    },
+    Scenario(name: "airpods-card-nomusic", realNotch: true) { vm, _ in
+        vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 90, right: 89, case_: 31)
+        vm.expanded = true
+    },
+    Scenario(name: "airpods-low", realNotch: false) { vm, _ in
+        vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 8, right: 74, case_: nil)
+        vm.airpodsCard = true
+    },
 ]
 
 MainActor.assumeIsolated {

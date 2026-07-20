@@ -44,6 +44,11 @@ final class NotchViewModel: ObservableObject {
     @Published var activity: NotchActivity?
     /// Timer Pomodoro em exibição (pílula própria no notch). nil = idle.
     @Published var pomodoro: PomodoroState?
+    /// AirPods conectados: bateria por componente (nil = desconectado). Alimenta
+    /// a faixa junto da música e o card dedicado no hover.
+    @Published var airpods: AirPodsBattery?
+    /// Card transitório de AirPods (connect / bateria baixa), auto-some.
+    @Published var airpodsCard = false
     /// Pergunta do Claude Code em exibição (card interativo).
     @Published var ask: AskRequest?
     /// Página corrente do card (chamada com N perguntas).
@@ -61,15 +66,16 @@ final class NotchViewModel: ObservableObject {
     }
 
     enum Mode: Equatable {
-        case closed, music, notification, hud, dictation, question, pomodoro
+        case closed, music, notification, hud, dictation, question, pomodoro, airpods
     }
 
-    /// Prioridade: pergunta > ditado > notificação > HUD > música (hover) > pomodoro > fechado.
+    /// Prioridade: pergunta > ditado > notificação > HUD > AirPods(card) > música (hover) > pomodoro > fechado.
     var mode: Mode {
         if ask != nil { return .question }
         if dictation != nil { return .dictation }
         if activeNotification != nil { return .notification }
         if hud != nil { return .hud }
+        if airpodsCard { return .airpods }
         if expanded { return .music }
         if pomodoro != nil { return .pomodoro }
         return .closed
@@ -204,6 +210,19 @@ final class NotchViewModel: ObservableObject {
         hudWork = work
         DispatchQueue.main.asyncAfter(
             deadline: .now() + (duration ?? hudDuration), execute: work)
+    }
+
+    // MARK: - Card de AirPods (transitório)
+
+    private var airpodsWork: DispatchWorkItem?
+
+    /// Mostra o card de AirPods por `duration` e some (igual ao HUD).
+    func showAirPodsCard(duration: TimeInterval = 4.0) {
+        airpodsCard = true
+        airpodsWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.airpodsCard = false }
+        airpodsWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: work)
     }
 
     // MARK: - Perguntas do Claude Code

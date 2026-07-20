@@ -93,6 +93,13 @@ struct NotchView: View {
                 questionCard
                     // pergunta desce do notch, como as notificações
                     .transition(.blurReplace.combined(with: .move(edge: .top)))
+            case .airpods:
+                airpodsConnectCard
+                    .frame(width: 320 - 40)
+                    .padding(.top, topInset)
+                    .padding(.bottom, 12)
+                    // desce do notch, como as notificações
+                    .transition(.blurReplace.combined(with: .move(edge: .top)))
             }
         }
         // recorta o conteúdo com a própria forma do notch — fechando, a informação
@@ -169,7 +176,7 @@ struct NotchView: View {
             let hasPomodoro = vm.pomodoro != nil
             // Pomodoro ativo suprime música e placeholder
             let placeholder = !hasMusic && vm.activity == nil && !hasShelf
-                && !vm.mirrorOn && !hasPomodoro
+                && !vm.mirrorOn && !hasPomodoro && vm.airpods == nil
             var height = topInset
             if hasPomodoro { height += 128 }  // cabeçalho + timer grande + ciclo + controles
             if vm.mirrorOn {
@@ -178,9 +185,13 @@ struct NotchView: View {
             if !vm.mirrorOn, !hasPomodoro, hasMusic || placeholder { height += 140 }
             if vm.activity != nil { height += hasMusic || hasShelf ? 46 : 60 }
             if hasShelf { height += hasMusic || vm.activity != nil ? 62 : 76 }
+            // faixa (com música) ou card dedicado (sem música) dos AirPods
+            if vm.airpods != nil { height += hasMusic ? 30 : 66 }
             return CGSize(width: expandedSize.width, height: height)
         case .notification:
             return CGSize(width: notificationWidth, height: topInset + 56)
+        case .airpods:
+            return CGSize(width: 320, height: topInset + 64)
         case .question:
             guard let ask = vm.ask else {
                 return CGSize(width: 460, height: topInset + 120)
@@ -536,6 +547,10 @@ struct NotchView: View {
                 activityRow(activity)
                     .transition(.blurReplace)
             }
+            if let ap = vm.airpods {
+                airpodsRow(ap, compact: hasMusic)
+                    .transition(.blurReplace)
+            }
             // espelho aberto (ou Pomodoro ativo) toma o lugar da música — volta ao fechar/encerrar
             if !vm.mirrorOn, vm.pomodoro == nil {
                 musicSection
@@ -545,6 +560,7 @@ struct NotchView: View {
         .animation(.easeOut(duration: 0.3), value: shelf.items)
         .animation(.easeOut(duration: 0.3), value: vm.mirrorOn)
         .animation(.easeOut(duration: 0.3), value: vm.pomodoro == nil)
+        .animation(.easeOut(duration: 0.3), value: vm.airpods)
     }
 
     // MARK: - Espelho
@@ -648,7 +664,7 @@ struct NotchView: View {
             .frame(maxWidth: .infinity)
             // troca de faixa: capa e textos fazem crossfade em vez de pop
             .animation(.easeOut(duration: 0.3), value: state.title)
-        } else if vm.activity == nil, shelf.items.isEmpty, !vm.mirrorOn {
+        } else if vm.activity == nil, shelf.items.isEmpty, !vm.mirrorOn, vm.airpods == nil {
             VStack(spacing: 6) {
                 Image(systemName: "music.note")
                     .font(.title2)
@@ -856,6 +872,68 @@ struct NotchView: View {
         guard let name, !name.isEmpty else { return nil }
         let installed = "/Applications/\(name).app"
         return FileManager.default.fileExists(atPath: installed) ? installed : nil
+    }
+
+    // MARK: - AirPods
+
+    /// Card transitório mostrado quando os AirPods conectam ou ficam com bateria
+    /// baixa: nome + bateria L / R / estojo.
+    @ViewBuilder
+    private var airpodsConnectCard: some View {
+        if let ap = vm.airpods {
+            HStack(spacing: 12) {
+                Image(systemName: "airpodspro")
+                    .font(.title2)
+                    .foregroundStyle(.white)
+                    .frame(width: 30)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(ap.name)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                    HStack(spacing: 14) {
+                        airpodsPip("L", ap.left)
+                        airpodsPip("R", ap.right)
+                        airpodsPip("Estojo", ap.case_)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    /// Faixa de AirPods no card expandido: compacta junto da música, ou uma
+    /// linha maior (com nome) quando não há música tocando.
+    private func airpodsRow(_ ap: AirPodsBattery, compact: Bool) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "airpodspro")
+                .font(compact ? .subheadline : .title3)
+                .foregroundStyle(.white.opacity(0.9))
+            if !compact {
+                Text(ap.name)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            airpodsPip("L", ap.left)
+            airpodsPip("R", ap.right)
+            airpodsPip("◎", ap.case_)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    /// Um componente (rótulo + %); vermelho quando ≤10%, "—" quando não reportou.
+    private func airpodsPip(_ label: String, _ level: Int?) -> some View {
+        HStack(spacing: 3) {
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.55))
+            Text(level.map { "\($0)%" } ?? "—")
+                .font(.caption.monospacedDigit().weight(.semibold))
+                .foregroundStyle((level ?? 100) <= 10 ? .red : .white)
+        }
     }
 
     private static func timeString(_ seconds: TimeInterval) -> String {
