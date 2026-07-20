@@ -93,7 +93,8 @@ final class RemoteAvatarLoader: NSObject, ObservableObject, URLSessionDataDelega
 
     func urlSession(_ s: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         guard s === session else { return }   // ignora callback de sessão superada
-        defer { session = nil }
+        // invalidar (não só anular): URLSession retém o delegate até invalidar → senão vaza o loader
+        defer { s.finishTasksAndInvalidate(); session = nil }
         guard error == nil, received.count <= Self.maxBytes,
               let src = CGImageSourceCreateWithData(received as CFData, nil),
               CGImageSourceGetCount(src) > 0,
