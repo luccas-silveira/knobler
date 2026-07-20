@@ -20,6 +20,15 @@ for arg in "$@"; do
 done
 [ -n "$VER" ] || { echo "uso: $0 <versão> [--dry-run]" >&2; exit 2; }
 
+if [ "$DRY" -eq 0 ]; then
+  command -v gh >/dev/null || { echo "gh não instalado" >&2; exit 1; }
+  gh auth status >/dev/null 2>&1 || { echo "gh não autenticado (gh auth login)" >&2; exit 1; }
+  git -C "$TAP_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1 \
+    || { echo "tap não encontrado em $TAP_DIR. Ajuste KNOBLER_TAP_DIR." >&2; exit 1; }
+  [ -z "$(git -C "$REPO_ROOT" status --porcelain)" ] \
+    || echo "⚠️  árvore suja — o release aponta pro commit remoto atual."
+fi
+
 cd "$REPO_ROOT"
 
 echo "==> build Release ($VER)"
@@ -50,6 +59,26 @@ if [ "$DRY" -eq 1 ]; then
   exit 0
 fi
 
-# --- publicação: preenchido na Task 4 ---
-echo "publicação ainda não implementada (rode com --dry-run)" >&2
-exit 1
+echo "==> publicando release v$VER"
+if gh release view "v$VER" >/dev/null 2>&1; then
+  gh release upload "v$VER" "$ZIP" --clobber
+else
+  # --target no commit buildado: a tag aponta pro código real, de qualquer branch
+  gh release create "v$VER" "$ZIP" --title "Knobler v$VER" --notes "Knobler v$VER" \
+    --target "$(git rev-parse HEAD)"
+fi
+
+echo "==> bumpando o cask"
+# ponytail: sed do BSD/macOS exige o argumento vazio após -i
+sed -i '' -E "s/^  version \".*\"/  version \"$VER\"/" "$CASK"
+sed -i '' -E "s/^  sha256 \".*\"/  sha256 \"$SHA\"/" "$CASK"
+ruby -c "$CASK"
+git -C "$TAP_DIR" add Casks/knobler.rb
+git -C "$TAP_DIR" commit -m "knobler $VER"
+git -C "$TAP_DIR" push
+
+echo ""
+echo "✅ publicado. Instale com:"
+echo "   brew tap luccas-silveira/knobler"
+echo "   brew trust luccas-silveira/knobler"
+echo "   brew install --cask knobler"
