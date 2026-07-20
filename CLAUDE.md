@@ -18,6 +18,15 @@ xcodebuild -project Knobler.xcodeproj -scheme Knobler -configuration Debug build
 ⚠️ **Nunca edite `Knobler.xcodeproj` à mão** — a mudança some no próximo
 `xcodegen generate`. Alvos, dependências e settings vivem em `project.yml`.
 
+## Versionamento
+
+**SemVer 2.0.0**, uma versão canônica só (a tag `vX.Y.Z`). Regras completas em
+`VERSIONING.md`. Pré-1.0: **MINOR** = feature, **PATCH** = fix, **MAJOR** travado
+em 0. **Não** existe mais "vN de sessão" — HANDOFF/MEMORY citam a versão de
+release. **Nunca** edite `MARKETING_VERSION` à mão nem crie tag manual: o
+`tools/release.sh` é o único escritor. Escreva as mudanças em `## [Unreleased]` do
+`CHANGELOG.md` conforme desenvolve; publique com `./tools/release.sh <patch|minor|major>`.
+
 ## Loop de snapshot (feedback visual)
 
 `tools/snapshot.sh` compila a `NotchView` isolada com `swiftc` e renderiza cada

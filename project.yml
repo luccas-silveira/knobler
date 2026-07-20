@@ -35,8 +35,11 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.zoi.knobler
         SWIFT_VERSION: "5.0"
         SWIFT_OBJC_BRIDGING_HEADER: Knobler/Knobler-Bridging-Header.h
-        MARKETING_VERSION: "0.0.0"
-        CURRENT_PROJECT_VERSION: "0"
+        # Espelha a última release. NÃO editar à mão — o tools/release.sh é o
+        # único escritor (ver VERSIONING.md). Build de release sobrescreve via
+        # override na linha de comando do xcodebuild.
+        MARKETING_VERSION: "0.2.2"
+        CURRENT_PROJECT_VERSION: "0.2.2"
         CODE_SIGN_IDENTITY: "Apple Development: luccaspessoal11@gmail.com (J8UFPJ9AZJ)"
         CODE_SIGN_STYLE: Manual
         DEVELOPMENT_TEAM: 7UNDW72N73
