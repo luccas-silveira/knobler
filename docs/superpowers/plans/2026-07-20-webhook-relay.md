@@ -1197,13 +1197,22 @@ curl -s https://push.appzoi.com.br/health
 
 ### vhost nginx
 
+Endurecido conforme o review amplo do branch: **`access_log off` na ingestão** (o
+`publishToken` está no path — não pode ir pro log) e **`limit_req` de borda** em
+`/register`, `/rotate` e `/w/` (o token-bucket da app é por-device e só roda após o
+lookup, então **não** cobre criação de device nem token desconhecido — vetor de exaustão).
+
 ```nginx
+# no bloco http {} (uma vez cada; se já houver um `map $http_upgrade` global, não duplicar):
 map $http_upgrade $connection_upgrade { default upgrade; '' close; }
+limit_req_zone $binary_remote_addr zone=push_ip:10m rate=120r/m;
 
 server {
   server_name push.appzoi.com.br;
   listen 80;
   client_max_body_size 64k;
+
+  # WebSocket (conexão longa do Mac)
   location /ws {
     proxy_pass http://127.0.0.1:8477;
     proxy_http_version 1.1;
@@ -1217,6 +1226,32 @@ server {
     proxy_send_timeout 3600s;
     proxy_buffering off;
   }
+
+  # Ingestão do webhook: NÃO logar (publishToken no path) + rate limit de borda
+  location /w/ {
+    access_log off;
+    limit_req zone=push_ip burst=20 nodelay;
+    proxy_pass http://127.0.0.1:8477;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 120s;
+  }
+
+  # Criar/rotacionar device: vetor de exaustão → limite mais apertado
+  location = /register {
+    limit_req zone=push_ip burst=5 nodelay;
+    proxy_pass http://127.0.0.1:8477;
+    proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto $scheme;
+  }
+  location = /rotate {
+    limit_req zone=push_ip burst=5 nodelay;
+    proxy_pass http://127.0.0.1:8477;
+    proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  # /health e resto
   location / {
     proxy_pass http://127.0.0.1:8477;
     proxy_set_header Host $host;
@@ -1227,7 +1262,14 @@ server {
   }
 }
 ```
-(o `map` vai no bloco `http {}`; se já houver um `map $http_upgrade` global, não duplicar.)
+(`/ws` e `/w/` não colidem: `/ws` não começa com `/w/`. certbot converte o `listen 80`
+em 443+redirect.)
+
+### Checklist do review (antes/durante o deploy)
+- **`npm ci --omit=dev` roda sob Node 18 na VPS** → baixa o prebuilt do `better-sqlite3@11`
+  pra linux-x64 ABI 108 (Node 18). Se não houver prebuilt, `apt-get install -y build-essential python3` e `npm rebuild better-sqlite3`.
+- **`relay/` (onde `relay.db` é ancorado via `__dirname`) precisa ser gravável** pelo usuário do pm2.
+- **NUNCA `instances > 1`** no pm2 (o hub e o rate limiter são em memória por processo — `fork`/`instances:1` é carga load-bearing; cluster quebraria o WebSocket).
 
 ## API
 
