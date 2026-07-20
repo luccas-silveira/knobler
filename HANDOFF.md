@@ -1,3 +1,36 @@
+# 🏁 SESSÃO 2026-07-20 — Distribuição via Homebrew — v0.1.0 (primeiro release público)
+
+Sistema de distribuição **entregue e no ar**: amigos instalam com `brew install --cask knobler`. Repo do app **tornado público** (open-source). **E2E final (app abrir num Mac limpo/não-registrado) NÃO confirmado** — depende de um amigo rodar os comandos.
+
+## O que foi feito
+
+- **`tools/release.sh <versão>`** (novo): um comando faz build Release → **re-assina ad-hoc** (`codesign -s -`, remove profile) → zip (`ditto`) → `gh release create` → **auto-bump do cask** (sed version+sha) → push do tap. Tem `--dry-run` (self-check), guard de HEAD pushado, bump idempotente.
+- **`project.yml`**: versão via `$(MARKETING_VERSION)`/`$(CURRENT_PROJECT_VERSION)` (o release.sh injeta no build; evita editar plist pós-build e re-assinar).
+- **Tap `github.com/luccas-silveira/homebrew-knobler`** (novo repo, público): `Casks/knobler.rb` com `postflight` (tira quarantine), `zap` (limpa modelo Parakeet ~600MB + caches), `depends_on macos: :sonoma`, caveats pt-BR. README com fluxo tap→trust→install.
+- **`README.md`** do app: seção Instalação. **Repo do app privado → público** (asset do release dava 404 sem auth).
+- **Release `v0.1.0`** publicado (asset `Knobler-0.1.0.zip`, ad-hoc). Versionamento de distribuição começa em **0.1.0** (os rótulos v0.1–v0.17 eram só doc, nunca viraram tags git).
+
+## Como foi feito (processo)
+
+- brainstorm → spec (`docs/superpowers/specs/2026-07-20-distribuicao-homebrew-design.md`) → **fase de pesquisa** (2 agents + verificação na máquina; `...-research.md`) → plano (5 tasks) → execução inline em branch `feat/distribuicao-homebrew` (merge FF em `master`) → polish.
+- **A pesquisa derrubou 2 suposições load-bearing:** (1) assinar com *Apple Development* trava por allowlist de dispositivo + expira → **ad-hoc** é a opção certa (sem device-lock/expiração, válido no AMFI); (2) `--no-quarantine` **removida no Homebrew 5.1** → **`postflight`** com `xattr`.
+- **Achados que só apareceram testando de verdade:** `depends_on macos: ">= :sonoma"` deprecado (forma string) → `:sonoma`; **`HOMEBREW_REQUIRE_TAP_TRUST` é default no Homebrew 6.x** → amigo precisa de `brew trust`; release de branch precisa de `--target` no commit buildado.
+
+## Validação
+
+- `release.sh --dry-run` → build + `codesign --verify` ad-hoc (`Signature=adhoc`, `TeamIdentifier=not set`), zip com `Knobler.app/` na raiz.
+- Release real v0.1.0 publicado; **`brew fetch --cask knobler` → ✔︎** (asset público baixa, HTTP 200, sha256 confere); `brew info` limpo (sem deprecação, "Required: macOS >= 14").
+- `bash -n` do release.sh, `ruby -c` do cask.
+
+## Pendências e followups
+
+- **E2E final NÃO confirmado**: amigo num Mac limpo (não-registrado, macOS 15/26) rodando `brew tap luccas-silveira/knobler && brew trust … && brew install --cask knobler` → app **abre** (prova que o ad-hoc matou a restrição de dispositivo — não validável no Mac do autor, que é registrado).
+- **`/Applications/Knobler.app` local ainda é a instalação manual antiga** (Apple Development, rodando pid 92340) — o brew install E2E foi validado por `brew fetch` (não-invasivo) pra não derrubar a instância rodando. Pra dogfood via brew: `rm -rf /Applications/Knobler.app && brew install --cask knobler`.
+- **UI do notch não foi tocada** (fora de escopo). Passada de design nos snapshots: coerente/on-brand, sem drift a corrigir; artefatos de fake-state (shelf em todo estado, thumbnails 🚫) não são bugs.
+- Próximo release: `./tools/release.sh 0.1.1`.
+
+---
+
 # 🏁 SESSÃO 2026-07-19/20 — Feature: AirPods no notch — v0.17
 
 Feature nova, **implementada + revisada + mergeada em `master`**; build Release **instalado em `/Applications` e rodando estável**. **E2E final (card na conexão) NÃO confirmado pelo usuário** — falta permitir Bluetooth + conectar os AirPods. Push pro origin pendente.
