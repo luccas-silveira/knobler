@@ -156,6 +156,18 @@ final class NotchViewModel: ObservableObject {
     // MARK: - Notificações
 
     func enqueue(_ notification: NotchNotification) {
+        // progresso: mesmo webhookID substitui a ativa ou a enfileirada
+        if let wid = notification.webhookID {
+            if activeNotification?.webhookID == wid {
+                activeNotification = notification
+                scheduleDismiss()
+                return
+            }
+            if let i = queue.firstIndex(where: { $0.webhookID == wid }) {
+                queue[i] = notification
+                return
+            }
+        }
         if activeNotification == nil {
             show(notification)
         } else {

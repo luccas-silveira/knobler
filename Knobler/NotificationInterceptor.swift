@@ -24,6 +24,10 @@ struct NotchNotification: Identifiable, Equatable {
     var supacodeTab: String? = nil  // UUID da tab
     /// Lembrete do usuário: clique abre esta URL (http/https/file/app).
     var openURL: String? = nil
+    /// Avatar remoto (webhook): URL https carregada com guardas no card.
+    var iconURL: String? = nil
+    /// ID de dedupe do webhook: mesmo id substitui em vez de empilhar (progresso).
+    var webhookID: String? = nil
     let date = Date()
 }
 
