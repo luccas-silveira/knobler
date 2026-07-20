@@ -61,6 +61,8 @@ final class BluetoothMonitor: NSObject {
 
     @objc private func bluetoothDisconnected(_ note: IOBluetoothUserNotification,
                                              device: IOBluetoothDevice) {
+        // nota one-shot já disparou — remove a ref morta (evita acúmulo por ciclo)
+        disconnectNotes.removeAll { $0 === note }
         refresh(announce: true)
     }
 
@@ -77,7 +79,11 @@ final class BluetoothMonitor: NSObject {
         readBattery { [weak self] battery in
             guard let self else { return }
             guard let battery else {
-                if self.present {
+                // nil só é desconexão real quando veio de um evento do IOBluetooth
+                // (announce). nil num poll é falha transitória do system_profiler —
+                // mantém o último estado e segue no poll (o próximo tick recupera);
+                // desconexão de verdade chega por bluetoothDisconnected → announce=true.
+                if announce, self.present {
                     self.present = false
                     self.warnedLow = false
                     self.stopPolling()

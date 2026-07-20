@@ -127,14 +127,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         // AirPods: card no connect + faixa de bateria enquanto conectado.
         // start()/stop() ficam no sink de settings (reage ao toggle).
-        bluetooth.onAnnounce = { [weak self] battery in
+        bluetooth.onAnnounce = { [weak self] ap in
             self?.notches.values.forEach {
-                $0.viewModel.airpods = battery
+                $0.viewModel.airpods = ap
                 $0.viewModel.showAirPodsCard()
             }
         }
-        bluetooth.onUpdate = { [weak self] battery in
-            self?.notches.values.forEach { $0.viewModel.airpods = battery }
+        bluetooth.onUpdate = { [weak self] ap in
+            self?.notches.values.forEach { $0.viewModel.airpods = ap }
         }
         bluetooth.onDisconnect = { [weak self] in
             self?.notches.values.forEach {

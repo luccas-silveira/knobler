@@ -59,6 +59,10 @@ enum AirPodsSelfCheck {
         precondition(AirPodsBattery.parse(from: intPct)
             == AirPodsBattery(name: "Fone", left: 55, right: nil, case_: nil), "intPct")
 
+        // minLevel = menor componente reportado (nil se nenhum reportou)
+        precondition(AirPodsBattery(name: "x", left: 90, right: 30, case_: 50).minLevel == 30, "minLevel")
+        precondition(AirPodsBattery(name: "x", left: nil, right: nil, case_: nil).minLevel == nil, "minLevel nil")
+
         print("airpods parser: OK")
     }
 }
