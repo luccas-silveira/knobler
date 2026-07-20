@@ -1,3 +1,43 @@
+# 🏁 SESSÃO 2026-07-19/20 — Feature: AirPods no notch — v0.17
+
+Feature nova, **implementada + revisada + mergeada em `master`**; build Release **instalado em `/Applications` e rodando estável**. **E2E final (card na conexão) NÃO confirmado pelo usuário** — falta permitir Bluetooth + conectar os AirPods. Push pro origin pendente.
+
+## O que foi feito
+
+- **AirPods no notch**: conectou AirPods → card transitório (~4s) com nome + bateria **L / R / estojo**; enquanto conectado, bateria no **hover** (faixinha junto da música, card dedicado quando não há música). Aviso de bateria baixa (≤10%) e toggle opt-out "AirPods no notch".
+  - `Knobler/AirPodsBattery.swift` (novo): modelo puro + parser do JSON do `system_profiler SPBluetoothDataType -json` (chaves `device_batteryLevelLeft/Right/Case`, filtro `device_minorType == "Headphones"`), self-check `@main`/`-parse-as-library`.
+  - `Knobler/BluetoothMonitor.swift` (novo): conexão via `IOBluetooth` **event-driven** (zero polling parado); bateria via `system_profiler` off-main + poll 60s **só enquanto conectado**; callbacks `onAnnounce`/`onUpdate`/`onDisconnect`; hysteresis de bateria baixa (10/20).
+  - `NotchViewModel`: `airpods`/`airpodsCard` + `Mode.airpods` (prioridade após hud, antes de música) + `showAirPodsCard` (espelha `showHUD`).
+  - `NotchView`: card de conexão + `airpodsRow(compact:)` (faixa com música / card sem) + supressão do placeholder; `currentSize` acomoda a altura.
+  - `AppSettings` (toggle) + `KnoblerApp` (fiação, start/stop no sink de settings) + `tools/main.swift`/`snapshot.sh` (5 cenários).
+  - `project.yml`: **`NSBluetoothAlwaysUsageDescription`** (fix do crash TCC — ver abaixo).
+
+## Como foi feito (processo)
+
+- brainstorm → spec (`docs/superpowers/specs/2026-07-19-airpods-notch-design.md`) → **pesquisa na máquina real** (system_profiler entrega L/R/estojo em ~0.19s; `ioreg` **não** tem as chaves aqui; API do IOBluetooth verificada por `swiftc -typecheck`) → plano (`docs/superpowers/plans/2026-07-19-airpods-notch.md`, 5 tasks).
+- **Execução subagent-driven** (implementer + review por-task, tudo opus): gates self-check/typecheck/xcodebuild/snapshots. **Review final da branch** pegou 1 Important — falha transitória do `system_profiler` (nil no poll) caía no branch de disconnect e **matava o único timer**, some pra sempre → corrigido (nil só desconecta com `announce=true`) + re-revisado. Merge fast-forward em `master`. Ledger em `.superpowers/sdd/progress.md`.
+
+## Bugs achados no E2E (debugging sistemático)
+
+1. **App velho rodando**: `/Applications/Knobler.app` era de 18/jul (sem a feature) → **"nada apareceu no knob"**. Instalei o build **Release** novo por cima (backup do velho em `/tmp`).
+2. **Crash de TCC no launch**: tocar no `IOBluetooth` sem `NSBluetoothAlwaysUsageDescription` **aborta o app** (SIGABRT via TCC, `Knobler-2026-07-20-090656.ips`) no macOS atual — não é prompt, é crash fatal. Corrigido em `project.yml` (commit `49086bb`). App agora sobe estável e pede permissão de Bluetooth normalmente.
+
+## Validação
+
+- Self-checks verdes (parser, incl. bordas: componente ausente/JSON lixo/sem AirPods), `swiftc -typecheck` do monitor, `snapshot.sh` (5 PNGs `airpods-*` lidos/validados), `xcodebuild` Debug **e Release** → BUILD SUCCEEDED.
+- App Release rodando estável em `/Applications` (PID vivo, API `127.0.0.1:4477` respondendo, sem novo crash pós-fix).
+- **PENDENTE — E2E do usuário**: permitir Bluetooth (Ajustes → Privacidade → Bluetooth) + conectar AirPods → confirmar o card. Não confirmado nesta sessão.
+
+## Pendências e followups
+
+- **E2E final não confirmado** (card na conexão) — depende de permissão de Bluetooth + conexão dos AirPods.
+- **Push pendente**: `master` está à frente de `origin/master` (esta feature + pendências anteriores).
+- **Design (de propósito)**: card só pipoca em conexão **nova**; AirPods já conectados no launch → sem card (bateria só no hover). Evita incomodar todo login.
+- Minors não-bloqueantes (ver ledger `.superpowers/sdd/progress.md`): connect-já-baixo mostra 1 card só; `disconnectNotes` bounded no fix; teardown depende da notificação IOBluetooth (cobertura de notas completa via start + bluetoothConnected).
+- `graphify-out/` não regenerado — rodar `/graphify` se quiser o grafo fresco.
+
+---
+
 # 🏁 SESSÃO 2026-07-19 (madrugada) — Feature: Descanso (bloqueio forçado de tela) — v0.16
 
 Feature nova, **validada em tela ("funcionou") e commitada+pushada em `master`**. Build de debug instalado em `/Applications/Knobler.app`.
