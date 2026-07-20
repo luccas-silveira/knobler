@@ -78,9 +78,12 @@ Uma função pura, ~20 linhas + self-check.
   nome, status (mapeado/captura-only), link+copiar, "Mapear", rotacionar, excluir.
 - **Editor de mapeamento (lado a lado)** — sheet/janela por perfil:
   - Esquerda: campos (Título*, Corpo, URL de clique, Ícone [URL/emoji + toggle "do payload"],
-    Som [toggle], ID [dedupe opcional]) — cada um um `TextField` de template.
-  - Direita: `lastPayload` em **árvore navegável** (`DisclosureGroup` recursivo); clicar
-    numa folha insere `{{ caminho }}` no campo focado.
+    Som [toggle], ID [dedupe opcional]) — cada um um **`NSViewRepresentable` sobre `NSTextView`**
+    (não `TextField`: `TextSelection`/cursor é macOS 15+, alvo é 14.2 — ver pesquisa); um
+    `InsertionRouter` compartilhado guarda o último campo focado.
+  - Direita: `lastPayload` em **árvore** (`DisclosureGroup` recursivo, **expandida por padrão**,
+    tipo+valor por nó); folha usa **`.onTapGesture`** (não `Button` — roubaria o foco) → insere
+    `{{ caminho }}` no cursor via o router.
   - **Preview ao vivo**: renderiza o template contra o `lastPayload` (mesmo motor, reimplementado
     em Swift — ~20 linhas — pra não round-trip no relay a cada tecla).
   - "Mandar teste": mostra o link + instrução; ao chegar, o `GET /profiles/<id>` traz o payload novo.
