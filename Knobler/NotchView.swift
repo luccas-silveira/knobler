@@ -1055,7 +1055,7 @@ private struct RemoteAvatarView: View {
             }
         }
         .onAppear { reload() }
-        .onChange(of: iconURL) { _ in reload() }   // notificações consecutivas com avatares diferentes
+        .onChange(of: iconURL) { _, _ in reload() }   // notificações consecutivas com avatares diferentes
     }
 
     private func reload() {
