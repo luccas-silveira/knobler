@@ -36,7 +36,7 @@ Um Mac pessoal fica atrás de NAT e não recebe conexão de entrada da internet.
 | Offline | Relay **enfileira** (máx **50 msgs / TTL 24h** por device); drena no reconnect. |
 | Imagem | **Avatar/ícone** no slot esquerdo do card. **O Mac baixa direto** a URL (opção A) com guardas. Toggle "carregar imagens remotas". |
 | Clique (`url`) | **Só `http`/`https`**, abre na hora. `file://` e outros esquemas: nunca. |
-| Segurança | 128 bits, storage **hasheado**; `deviceSecret` (WS) separado do `publishToken` (URL); rate limit **20/min burst 5 → 429**; botão rotacionar; TLS/WSS; sem HMAC. |
+| Segurança | **256 bits** (32 bytes base62/base64url), storage **hasheado**; `deviceSecret` (WS) separado do `publishToken` (URL); rate limit **20/min burst 5 → 429** (na app, em memória); botão rotacionar (morte imediata); TLS/WSS; sem HMAC; token nunca em log (truncar). |
 | Config | **Aba nova "Notificações externas"** no Ajustes. |
 | Código do relay | Mora **no próprio repo**, em `relay/`. Deploy por **pm2** na VPS. |
 
@@ -68,7 +68,8 @@ processo pm2 isolado.
 
 ### Stack
 - Node 18 + `ws` (WebSocket, JS puro) + `http` nativo (ou micro-router) + **SQLite via
-  `better-sqlite3`** para o estado (devices + fila). Sem Docker. pm2 fork mode.
+  `better-sqlite3@11`** (pin: v12+ dropa Node 18) para o estado (devices + fila). WAL mode
+  + prepared statements. Sem Docker. pm2 **fork mode** + graceful shutdown (SIGINT/SIGTERM).
 - Escuta em `127.0.0.1:<porta livre>` (confirmar porta no deploy). nginx faz proxy com
   os headers de **WS upgrade** (`Upgrade`/`Connection` — o vhost de exemplo da casa não
   os tem; o vhost novo precisa deles). certbot emite cert para `push.appzoi.com.br`.
@@ -100,9 +101,9 @@ gravados em claro — só o hash; comparação por hash na autenticação.
 ### Endpoints HTTP
 | Método/rota | Auth | Função |
 |---|---|---|
-| `POST /register` | nenhuma | Cria device. Gera `deviceId` (uuid), `deviceSecret` (128 bits), `publishToken` (128 bits, base62). Grava hashes. Responde `{deviceId, deviceSecret, publishToken}` **uma vez** (só aqui trafega em claro). |
+| `POST /register` | nenhuma | Cria device. Gera `deviceId` (uuid), `deviceSecret` (256 bits), `publishToken` (256 bits, base64url). Grava hashes. Responde `{deviceId, deviceSecret, publishToken}` **uma vez** (só aqui trafega em claro). |
 | `POST /rotate` | `deviceSecret` (header `Authorization: Bearer`) | Gera novo `publishToken`, atualiza o hash, responde o novo em claro. O antigo deixa de resolver. |
-| `GET /ws` (upgrade) | `deviceSecret` (query `?s=` ou header) | Abre a conexão viva. Registra `device_id → socket` no hub em memória. Ao conectar, **drena a fila** daquele device e a esvazia. ping/pong ~30s; socket morto → remove do hub. |
+| `GET /ws` (upgrade) | `deviceSecret` via **header `Authorization: Bearer`** (não query — evita vazar no access log do nginx) | Abre a conexão viva. Registra `device_id → socket` no hub; fecha conexão antiga do mesmo device. Ao conectar, **drena a fila** daquele device e a esvazia. Heartbeat ping/pong ~30s (`isAlive`/`terminate`); socket morto → remove do hub. |
 | `POST /w/<publishToken>` | o token na URL | **Ingress do webhook.** Resolve o device pelo hash do token; valida + sanitiza + rate limit; device online → push imediato; offline → enfileira. |
 | `GET /health` | nenhuma | Diagnóstico simples (200 + contadores). |
 
@@ -114,8 +115,9 @@ gravados em claro — só o hash; comparação por hash na autenticação.
 - Campos → ver **Contrato do payload** abaixo.
 - **Sanitização:** `title`/`body` têm caracteres de controle removidos e são truncados
   (ex.: title ≤ 200, body ≤ 1000 chars). `icon`/`url` validados como URL `https`/`http`.
-- **Rate limit:** token bucket por device — **20/min, burst 5**. Estouro → `429` com
-  `Retry-After`.
+- **Rate limit:** token bucket por device — **20/min, burst 5** — **na app Node, em memória**
+  (o token está no path, não em header; sem Redis). Um limite grosso por IP no nginx como
+  defesa em profundidade (opcional). Estouro → `429` com `Retry-After`.
 - **Resposta:** `202 Accepted` `{ok:true, delivered:"push"|"queued"}` no sucesso;
   `400` payload inválido; `404` token desconhecido; `429` rate limit.
 
@@ -146,9 +148,18 @@ Mensagem normalizada empurrada pelo WS ao Mac:
 - **Pareamento (1º uso com a feature ligada):** se não há credenciais no Keychain, faz
   `POST /register`, guarda `deviceSecret` + `publishToken` + `deviceId` no **Keychain**
   (padrão do `DeepgramKeyStore`), e expõe o link (`https://push.appzoi.com.br/w/<publishToken>`).
-- **Conexão:** `URLSessionWebSocketTask` para `wss://push.appzoi.com.br/ws?s=<deviceSecret>`.
-  Mantém aberto; **reconnect com backoff exponencial** (teto ~30s) em queda/erro; envia
-  ping periódico; ao voltar do sono (`NSWorkspace.didWakeNotification`) força reconectar.
+- **Conexão:** `URLSessionWebSocketTask` para `wss://push.appzoi.com.br/ws`, com
+  `deviceSecret` no **header `Authorization: Bearer`**. Mantém aberto; **reconnect com backoff
+  exponencial + jitter** (teto ~30s) em queda/erro. Como o erro nativo de queda demora
+  60s–3min (bug documentado da Apple DTS), a detecção rápida vem de: **pong-timeout de
+  aplicação (~10s)** + `NWPathMonitor` (rede caiu/voltou) + `NSWorkspace.didWakeNotification`
+  (acordou). Idempotência por **epoch token** (mata reconnect duplicado e o double-call do
+  pong que dá crash); tudo numa serial queue. `maximumMessageSize` explícito (1 MiB).
+  **App Nap:** segurar `ProcessInfo.beginActivity(.userInitiatedAllowingIdleSystemSleep)`
+  enquanto conectado (senão o timer de ping estica e o socket morre por idle).
+  Instância única pela vida do app (`URLSession` retém o delegate → evitar recriar a cada
+  toggle; `shutdown()` no encerramento). **Plano B** se ficar frágil: migrar o transporte
+  pra `NWConnection`/`NWProtocolWebSocket`. (Ver R3 na pesquisa: classe `WebhookClient` pronta.)
 - **Recebe** mensagem `type:"notify"` → mapeia para `NotchNotification` → chama
   `viewModel.enqueue(...)` em todos os notches (reusa fila/dedupe/auto-dismiss).
   `sound:true` → toca um som (padrão do Ask). `id` → substitui card existente com mesmo id.
@@ -205,7 +216,8 @@ Nova aba no `TabView` do `SettingsView` (junto de Geral/Lembretes/Descanso), íc
 
 ## Segurança (resumo)
 
-- `publishToken` e `deviceSecret` = 128 bits aleatórios; VPS guarda **só SHA-256**.
+- `publishToken` e `deviceSecret` = **256 bits** aleatórios; VPS guarda **só SHA-256**; token
+  nunca aparece em log (truncar tipo `aBcD…90_-`).
 - Dois segredos separados: rotacionar o link (público) **não** derruba o WS nem re-pareia.
 - Rate limit por device no relay; sanitização de título/corpo; validação de URL de
   imagem e de clique; clique só `http`/`https`.
