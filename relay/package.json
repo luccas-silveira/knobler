@@ -1,0 +1,16 @@
+{
+  "name": "knobler-relay",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Relay de notificações webhook do Knobler",
+  "type": "commonjs",
+  "engines": { "node": ">=18 <21" },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "ws": "^8.16.0"
+  }
+}
