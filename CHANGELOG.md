@@ -7,6 +7,15 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 ## [Unreleased]
 
 ### Added
+- **Notificações externas via webhook**: cada dispositivo tem um link próprio
+  (`https://push.appzoi.com.br/w/<token>`) que recebe título, descrição, avatar
+  e ação de clique, exibidos como card no notch. Relay próprio na VPS (Node/pm2
+  atrás do nginx, TLS) + WebSocket que o Mac mantém aberto (reconecta sozinho,
+  fila offline). Opt-in em Ajustes › Notificações externas (link + copiar +
+  rotacionar + toggle de imagens remotas). Avatar remoto com guardas
+  (só https, content-type de imagem, teto de tamanho, bloqueio de IP privado);
+  clique abre só http/https. (`WebhookClient.swift`, `RemoteAvatarLoader.swift`,
+  `WebhookKeychainStore.swift`, `WebhookSettingsView.swift`, `relay/`.)
 - **AirPods no notch**: ao conectar, card transitório (~4s) com nome + bateria
   L / R / estojo; enquanto conectado, bateria no hover (faixinha junto da música,
   card dedicado quando não há música). Aviso de bateria baixa (≤10%) e toggle
