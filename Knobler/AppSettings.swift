@@ -74,6 +74,14 @@ final class AppSettings: ObservableObject {
     @Published var hideScreenshotPreview: Bool {
         didSet { UserDefaults.standard.set(hideScreenshotPreview, forKey: "hideScreenshotPreview") }
     }
+    /// Recebe notificações externas via webhook (relay push.appzoi.com.br). Opt-in.
+    @Published var webhookNotifications: Bool {
+        didSet { UserDefaults.standard.set(webhookNotifications, forKey: "webhookNotifications") }
+    }
+    /// Baixa o avatar remoto das notificações de webhook (expõe o IP do Mac ao remetente).
+    @Published var loadRemoteImages: Bool {
+        didSet { UserDefaults.standard.set(loadRemoteImages, forKey: "loadRemoteImages") }
+    }
 
     /// Lembretes programados do usuário (JSON em UserDefaults).
     @Published var reminders: [Reminder] {
@@ -149,6 +157,8 @@ final class AppSettings: ObservableObject {
         formatModel = defaults.string(forKey: "formatModel") ?? "gemma3:4b"
         screenshotsToShelf = flag("screenshotsToShelf")
         hideScreenshotPreview = flag("hideScreenshotPreview")
+        webhookNotifications = defaults.bool(forKey: "webhookNotifications") // default false: opt-in
+        loadRemoteImages = flag("loadRemoteImages")                           // default true
 
         if let data = defaults.data(forKey: "reminders"),
            let decoded = try? JSONDecoder().decode([Reminder].self, from: data) {
@@ -178,6 +188,7 @@ final class AppSettings: ObservableObject {
 
 struct SettingsView: View {
     @ObservedObject var settings = AppSettings.shared
+    @ObservedObject var webhookClient: WebhookClient
     @State private var deepgramKey = DeepgramKeyStore.load()
 
     var body: some View {
@@ -188,8 +199,10 @@ struct SettingsView: View {
                 .tabItem { Label("Lembretes", systemImage: "bell.badge") }
             DescansoTabView()
                 .tabItem { Label("Descanso", systemImage: "moon.zzz") }
+            WebhookSettingsView(client: webhookClient)
+                .tabItem { Label("Notificações externas", systemImage: "bell.and.waves.left.and.right") }
         }
-        .frame(width: 380, height: 560)
+        .frame(width: 400, height: 580)
     }
 
     private var generalTab: some View {
