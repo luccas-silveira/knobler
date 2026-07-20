@@ -16,6 +16,13 @@ enum KnoblerMain {
         if CommandLine.arguments.contains(DictationModelProvisioner.flag) {
             DictationModelProvisioner.runAndExit()
         }
+        // Self-check headless do shim de exceção (sem UI): prova que o crash-proofing
+        // do installTap funciona no binário compilado.
+        if CommandLine.arguments.contains("--selfcheck") {
+            let ok = MicRecorder.exceptionGuardWorks()
+            print(ok ? "selfcheck: exception guard OK" : "selfcheck: FALHOU")
+            exit(ok ? 0 : 1)
+        }
         let app = NSApplication.shared
         app.delegate = delegate
         app.run()

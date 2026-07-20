@@ -34,6 +34,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.zoi.knobler
         SWIFT_VERSION: "5.0"
+        SWIFT_OBJC_BRIDGING_HEADER: Knobler/Knobler-Bridging-Header.h
         MARKETING_VERSION: "0.0.0"
         CURRENT_PROJECT_VERSION: "0"
         CODE_SIGN_IDENTITY: "Apple Development: luccaspessoal11@gmail.com (J8UFPJ9AZJ)"

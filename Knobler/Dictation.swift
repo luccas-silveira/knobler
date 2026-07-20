@@ -106,20 +106,55 @@ final class MicRecorder {
         samplesLock.unlock()
         let input = engine.inputNode
         let inputFormat = input.outputFormat(forBus: 0)
-        guard inputFormat.sampleRate > 0 else {
+        // Sem microfone (ex.: Mac mini sem mic externo) ou permissão negada, o
+        // inputNode reporta um formato INVÁLIDO — 0 canais, e às vezes sampleRate
+        // herdado da saída (> 0). installTap com esse formato lança uma NSException
+        // do ObjC (não capturável por try) e aborta o processo. channelCount é a
+        // condição que realmente valida o formato pro tap, então checamos os dois.
+        guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0 else {
             throw NSError(domain: "MicRecorder", code: 1,
-                          userInfo: [NSLocalizedDescriptionKey: "input indisponível"])
+                          userInfo: [NSLocalizedDescriptionKey: "microfone indisponível"])
         }
         let outFormat = AVAudioFormat(
             commonFormat: .pcmFormatFloat32, sampleRate: Self.sampleRate,
             channels: 1, interleaved: false)!
         converter = AVAudioConverter(from: inputFormat, to: outFormat)
-        input.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) {
-            [weak self] buffer, _ in
-            self?.append(buffer, outFormat: outFormat)
+        // installTap lança NSException do ObjC (não capturável por `try`) em alguns
+        // devices cujo formato passa no guard acima mas o tap rejeita (Bluetooth,
+        // áudio virtual/agregado). O shim @try/@catch converte em Error → o begin()
+        // mostra "microfone indisponível" em vez de abortar o app.
+        // removeTap defensivo: se um start() anterior deixou tap pendurado, um novo
+        // installTap na mesma bus também lançaria NSException.
+        // catching(_:) é importado como `throws` (BOOL + NSError** do ObjC): se o
+        // installTap lançar NSException, vira Error de Swift → o catch do begin().
+        try ObjCException.catching {
+            input.removeTap(onBus: 0)
+            input.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) {
+                [weak self] buffer, _ in
+                self?.append(buffer, outFormat: outFormat)
+            }
         }
         engine.prepare()
         try engine.start()
+    }
+
+    /// Prova que o shim ObjC captura NSException (determinístico, independe do
+    /// device): se retornar false, o crash-proofing do installTap não vale nada.
+    /// Rodável via `Knobler --selfcheck` (sem UI) e no assert de DEBUG no launch.
+    static func exceptionGuardWorks() -> Bool {
+        let catchesThrow: Bool
+        do {
+            try ObjCException.catching {
+                NSException(name: .genericException, reason: "selfcheck", userInfo: nil).raise()
+            }
+            catchesThrow = false   // devia ter lançado
+        } catch {
+            catchesThrow = true
+        }
+        let passesClean: Bool
+        do { try ObjCException.catching { }; passesClean = true }
+        catch { passesClean = false }
+        return catchesThrow && passesClean
     }
 
     private func append(_ buffer: AVAudioPCMBuffer, outFormat: AVAudioFormat) {
@@ -182,6 +217,7 @@ final class DictationController {
         prepareLocalEngine()
         #if DEBUG
         TranscriptFormatter._selfCheck()
+        assert(MicRecorder.exceptionGuardWorks(), "shim ObjC não captura NSException")
         #endif
         if AppSettings.shared.formatTranscript {
             Task { await formatter().prewarm() }
