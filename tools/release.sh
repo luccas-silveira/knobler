@@ -25,8 +25,11 @@ if [ "$DRY" -eq 0 ]; then
   gh auth status >/dev/null 2>&1 || { echo "gh não autenticado (gh auth login)" >&2; exit 1; }
   git -C "$TAP_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1 \
     || { echo "tap não encontrado em $TAP_DIR. Ajuste KNOBLER_TAP_DIR." >&2; exit 1; }
-  [ -z "$(git -C "$REPO_ROOT" status --porcelain)" ] \
-    || echo "⚠️  árvore suja — o release aponta pro commit remoto atual."
+  git -C "$REPO_ROOT" branch -r --contains HEAD 2>/dev/null | grep -q . \
+    || { echo "HEAD não está em nenhum branch remoto — dê 'git push' antes (o release taga este commit)." >&2; exit 1; }
+  # só fontes que entram no build; ignora docs untracked pra o aviso não virar ruído
+  [ -z "$(git -C "$REPO_ROOT" status --porcelain -- Knobler project.yml tools)" ] \
+    || echo "⚠️  mudanças não-commitadas em fontes — o zip buildado pode divergir da tag v$VER."
 fi
 
 cd "$REPO_ROOT"
@@ -73,9 +76,13 @@ echo "==> bumpando o cask"
 sed -i '' -E "s/^  version \".*\"/  version \"$VER\"/" "$CASK"
 sed -i '' -E "s/^  sha256 \".*\"/  sha256 \"$SHA\"/" "$CASK"
 ruby -c "$CASK"
-git -C "$TAP_DIR" add Casks/knobler.rb
-git -C "$TAP_DIR" commit -m "knobler $VER"
-git -C "$TAP_DIR" push
+if git -C "$TAP_DIR" diff --quiet -- Casks/knobler.rb; then
+  echo "   cask já em $VER/$SHA — nada a commitar no tap"
+else
+  git -C "$TAP_DIR" add Casks/knobler.rb
+  git -C "$TAP_DIR" commit -m "knobler $VER"
+  git -C "$TAP_DIR" push
+fi
 
 echo ""
 echo "✅ publicado. Instale com:"
