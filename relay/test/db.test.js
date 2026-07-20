@@ -68,3 +68,54 @@ test('TTL 24h: prune remove antigos', () => {
   assert.deepStrictEqual(drained.map((p) => p.title), ['novo']);
   db.close();
 });
+
+test('perfis: create, lookup por token, list, get, update, delete', () => {
+  const db = openDB(':memory:');
+  db.createDevice({ deviceId: 'd1', deviceSecretHash: 'sh', publishTokenHash: 'ph-dev', now: 1 });
+  db.createProfile({ profileId: 'p1', deviceId: 'd1', publishTokenHash: 'ph1', name: 'GitHub', now: 1 });
+  assert.strictEqual(db.findProfileByPublishTokenHash('ph1').profile_id, 'p1');
+  assert.strictEqual(db.listProfiles('d1').some(p => p.profile_id === 'p1'), true);
+  assert.strictEqual(db.getProfile({ profileId: 'p1', deviceId: 'd1' }).name, 'GitHub');
+  db.updateProfile({ profileId: 'p1', deviceId: 'd1', mapping: '{"title":"{{x}}"}', icon: '🚀' });
+  const g = db.getProfile({ profileId: 'p1', deviceId: 'd1' });
+  assert.strictEqual(g.mapping, '{"title":"{{x}}"}');
+  assert.strictEqual(g.icon, '🚀');
+  assert.strictEqual(g.name, 'GitHub'); // update parcial não apagou o nome
+  db.deleteProfile({ profileId: 'p1', deviceId: 'd1' });
+  assert.strictEqual(db.getProfile({ profileId: 'p1', deviceId: 'd1' }), undefined);
+  db.close();
+});
+
+test('update/get/delete são escopados por device (não vaza entre devices)', () => {
+  const db = openDB(':memory:');
+  db.createDevice({ deviceId: 'd1', deviceSecretHash: 'a', publishTokenHash: 'x', now: 1 });
+  db.createProfile({ profileId: 'p1', deviceId: 'd1', publishTokenHash: 'ph1', name: 'N', now: 1 });
+  assert.strictEqual(db.getProfile({ profileId: 'p1', deviceId: 'OUTRO' }), undefined);
+  db.updateProfile({ profileId: 'p1', deviceId: 'OUTRO', name: 'hack' });
+  assert.strictEqual(db.getProfile({ profileId: 'p1', deviceId: 'd1' }).name, 'N');
+  db.close();
+});
+
+test('storeLastPayload guarda o último', () => {
+  const db = openDB(':memory:');
+  db.createDevice({ deviceId: 'd1', deviceSecretHash: 'a', publishTokenHash: 'x', now: 1 });
+  db.createProfile({ profileId: 'p1', deviceId: 'd1', publishTokenHash: 'ph1', name: 'N', now: 1 });
+  db.storeLastPayload({ profileId: 'p1', payload: '{"a":1}', now: 2 });
+  db.storeLastPayload({ profileId: 'p1', payload: '{"a":2}', now: 3 });
+  assert.strictEqual(db.findProfileByPublishTokenHash('ph1').last_payload, '{"a":2}');
+  db.close();
+});
+
+test('migração: device com publish_token_h vira perfil Padrão', () => {
+  const db = openDB(':memory:');
+  db.createDevice({ deviceId: 'd1', deviceSecretHash: 'a', publishTokenHash: 'phX', now: 1 });
+  db.migrateProfiles({ now: 5 });
+  const prof = db.findProfileByPublishTokenHash('phX');
+  assert.ok(prof, 'perfil padrão criado com o token do device');
+  assert.strictEqual(prof.mapping, null);       // captura-only
+  assert.strictEqual(prof.device_id, 'd1');
+  // idempotente: rodar de novo não duplica
+  db.migrateProfiles({ now: 6 });
+  assert.strictEqual(db.listProfiles('d1').length, 1);
+  db.close();
+});
