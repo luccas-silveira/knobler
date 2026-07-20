@@ -20,7 +20,10 @@ final class RemoteAvatarLoader: NSObject, ObservableObject, URLSessionDataDelega
     /// Nomes DNS que resolvem pra IP privado (rebind) NÃO são cobertos — residual aceito.
     private static func isPrivateHost(_ host: String?) -> Bool {
         guard let host else { return false }
-        if host == "::1" || host.hasPrefix("fe80:") || host.hasPrefix("fc") || host.hasPrefix("fd") { return true }
+        if host.contains(":") {   // literal IPv6
+            return host == "::1" || host.hasPrefix("fe80:")
+                || host.hasPrefix("fc") || host.hasPrefix("fd")
+        }
         let parts = host.split(separator: ".")
         guard parts.count == 4, parts.allSatisfy({ Int($0) != nil }),
               let a = Int(parts[0]), let b = Int(parts[1]) else { return false } // hostname → permite
@@ -61,6 +64,7 @@ final class RemoteAvatarLoader: NSObject, ObservableObject, URLSessionDataDelega
     func urlSession(_ s: URLSession, dataTask: URLSessionDataTask,
                     didReceive response: URLResponse,
                     completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
+        guard s === session else { return }   // ignora callback de sessão superada
         guard let http = response as? HTTPURLResponse,
               let ct = http.value(forHTTPHeaderField: "Content-Type")?.lowercased(),
               ct.hasPrefix("image/") else { completionHandler(.cancel); return }
@@ -70,6 +74,7 @@ final class RemoteAvatarLoader: NSObject, ObservableObject, URLSessionDataDelega
     }
 
     func urlSession(_ s: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+        guard s === session else { return }   // ignora callback de sessão superada
         received.append(data)
         if received.count > Self.maxBytes { dataTask.cancel() }
     }
@@ -77,6 +82,7 @@ final class RemoteAvatarLoader: NSObject, ObservableObject, URLSessionDataDelega
     func urlSession(_ s: URLSession, task: URLSessionTask,
                     willPerformHTTPRedirection response: HTTPURLResponse, newRequest req: URLRequest,
                     completionHandler: @escaping (URLRequest?) -> Void) {
+        guard s === session else { completionHandler(nil); return }   // ignora callback de sessão superada
         // só segue o redirect se continuar https e o host não for privado
         if req.url?.scheme?.lowercased() == "https", !Self.isPrivateHost(req.url?.host) {
             completionHandler(req)
@@ -86,6 +92,7 @@ final class RemoteAvatarLoader: NSObject, ObservableObject, URLSessionDataDelega
     }
 
     func urlSession(_ s: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        guard s === session else { return }   // ignora callback de sessão superada
         defer { session = nil }
         guard error == nil, received.count <= Self.maxBytes,
               let src = CGImageSourceCreateWithData(received as CFData, nil),
