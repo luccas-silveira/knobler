@@ -25,6 +25,7 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     var onNotify: ((NotchNotification) -> Void)?
 
     private let base = URL(string: "https://push.appzoi.com.br")!
+    private let wsURL = URL(string: "wss://push.appzoi.com.br/ws")!
     private let log = Logger(subsystem: "com.zoi.knobler", category: "webhook")
     private let queue = DispatchQueue(label: "com.zoi.knobler.webhook")
 
@@ -44,6 +45,7 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private let backoffCap: TimeInterval = 30
     private let path = NWPathMonitor(); private var online = true
     private var activity: NSObjectProtocol?
+    private var observersInstalled = false
 
     // MARK: API pública
 
@@ -132,7 +134,8 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         guard running, let secret = WebhookKeychainStore.load(.deviceSecret) else { return }
         reconnectWork?.cancel(); reconnectWork = nil
         epoch &+= 1
-        var req = URLRequest(url: base.appendingPathComponent("ws"))
+        task?.cancel(with: .goingAway, reason: nil); task = nil   // sem task órfão
+        var req = URLRequest(url: wsURL)
         req.timeoutInterval = 15
         req.setValue("Bearer \(secret)", forHTTPHeaderField: "Authorization")
         let t = session.webSocketTask(with: req)
@@ -143,6 +146,7 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private func teardown(reconnect: Bool) {
         epoch &+= 1
         pingWork?.cancel(); pongWork?.cancel()
+        reconnectWork?.cancel(); reconnectWork = nil   // evita reconnect órfão duplicado
         task?.cancel(with: .goingAway, reason: nil); task = nil
         DispatchQueue.main.async { self.connected = false }
         if reconnect { scheduleReconnect() }
@@ -158,7 +162,7 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         guard running, online else { return }
         let ceil = min(backoffCap, pow(2, Double(attempt))); attempt += 1
         let delay = Double.random(in: 0...ceil)
-        let item = DispatchWorkItem { [weak self] in guard let s = self, s.running else { return }; s.connect() }
+        let item = DispatchWorkItem { [weak self] in guard let s = self, s.running, s.online else { return }; s.connect() }
         reconnectWork = item
         queue.asyncAfter(deadline: .now() + delay, execute: item)
     }
@@ -230,6 +234,9 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     // MARK: observers (wake / rede) + App Nap
 
     private func installObservers() {
+        beginActivity()
+        guard !observersInstalled else { return }
+        observersInstalled = true
         NSWorkspace.shared.notificationCenter.addObserver(
             self, selector: #selector(didWake),
             name: NSWorkspace.didWakeNotification, object: nil)
@@ -240,7 +247,6 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             else if !ok, s.running { s.teardown(reconnect: false) }
         } }
         path.start(queue: queue)
-        beginActivity()
     }
 
     @objc private func didWake() { queue.async { self.forceReconnect() } }
