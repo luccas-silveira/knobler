@@ -43,14 +43,12 @@ knobler done <id>
 ## Instalação
 
 ```bash
-brew tap luccas-silveira/knobler
-brew trust luccas-silveira/knobler    # Homebrew 6+ pede trust em taps de terceiros
-brew install --cask knobler
+brew tap luccas-silveira/knobler && brew trust luccas-silveira/knobler && brew install knobler
 ```
 
-App assinado ad-hoc (sem Developer ID). O Homebrew tira a quarentena no install,
-então abre limpo. Update: `brew upgrade --cask knobler` · Remover:
-`brew uninstall --zap --cask knobler`.
+App assinado ad-hoc (sem Developer ID). O `brew trust` é exigido pelo Homebrew 6+
+em taps de terceiros; o cask tira a quarentena no install, então abre limpo.
+Update: `brew upgrade knobler` · Remover: `brew uninstall --zap knobler`.
 
 Sem Homebrew: baixe o zip do [Releases](https://github.com/luccas-silveira/knobler/releases)
 e rode `xattr -dr com.apple.quarantine /Applications/Knobler.app` uma vez.

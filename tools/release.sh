@@ -86,6 +86,4 @@ fi
 
 echo ""
 echo "✅ publicado. Instale com:"
-echo "   brew tap luccas-silveira/knobler"
-echo "   brew trust luccas-silveira/knobler"
-echo "   brew install --cask knobler"
+echo "   brew tap luccas-silveira/knobler && brew trust luccas-silveira/knobler && brew install knobler"
