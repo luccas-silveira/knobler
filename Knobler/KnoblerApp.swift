@@ -12,6 +12,10 @@ enum KnoblerMain {
     static let delegate = AppDelegate()
 
     static func main() {
+        // Modo provisionamento (cask postflight): baixa o modelo e sai, sem UI.
+        if CommandLine.arguments.contains(DictationModelProvisioner.flag) {
+            DictationModelProvisioner.runAndExit()
+        }
         let app = NSApplication.shared
         app.delegate = delegate
         app.run()
