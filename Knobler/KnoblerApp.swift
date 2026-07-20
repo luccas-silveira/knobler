@@ -31,6 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let volumeHUD = VolumeHUDController()
     private let audioLevels = SystemAudioLevels()
     private let battery = BatteryMonitor()
+    private let bluetooth = BluetoothMonitor()
     private let micMonitor = MicMonitor()
     private let apiServer = NotchAPIServer()
     private let dictation = DictationController()
@@ -123,6 +124,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         }
         battery.start()
+
+        // AirPods: card no connect + faixa de bateria enquanto conectado.
+        // start()/stop() ficam no sink de settings (reage ao toggle).
+        bluetooth.onAnnounce = { [weak self] battery in
+            self?.notches.values.forEach {
+                $0.viewModel.airpods = battery
+                $0.viewModel.showAirPodsCard()
+            }
+        }
+        bluetooth.onUpdate = { [weak self] battery in
+            self?.notches.values.forEach { $0.viewModel.airpods = battery }
+        }
+        bluetooth.onDisconnect = { [weak self] in
+            self?.notches.values.forEach {
+                $0.viewModel.airpods = nil
+                $0.viewModel.airpodsCard = false
+            }
+        }
 
         // pontinho laranja enquanto algum app usa o microfone
         micMonitor.onChange = { [weak self] inUse in
@@ -301,6 +320,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                         self?.screenshots.start()
                     } else {
                         self?.screenshots.stop()
+                    }
+                    if AppSettings.shared.airpodsNotch {
+                        self?.bluetooth.start()
+                    } else {
+                        self?.bluetooth.stop()
                     }
                     // indicador de mic é persistente: re-publica quando o toggle muda
                     self?.micMonitor.publish()

@@ -43,6 +43,10 @@ final class AppSettings: ObservableObject {
     @Published var micIndicator: Bool {
         didSet { UserDefaults.standard.set(micIndicator, forKey: "micIndicator") }
     }
+    /// Card de AirPods no notch (connect + bateria L/R/estojo no hover).
+    @Published var airpodsNotch: Bool {
+        didSet { UserDefaults.standard.set(airpodsNotch, forKey: "airpodsNotch") }
+    }
     /// Segurar ⌥ direita grava, soltar transcreve e insere no cursor.
     @Published var dictation: Bool {
         didSet { UserDefaults.standard.set(dictation, forKey: "dictation") }
@@ -137,6 +141,7 @@ final class AppSettings: ObservableObject {
         calendarCountdown = flag("calendarCountdown")
         mirrorBeforeMeetings = flag("mirrorBeforeMeetings")
         micIndicator = flag("micIndicator")
+        airpodsNotch = flag("airpodsNotch")
         dictation = flag("dictation")
         dictationCloud = defaults.bool(forKey: "dictationCloud") // default false: local-first
         formatTranscript = defaults.bool(forKey: "formatTranscript") // default false: opt-in
@@ -198,6 +203,7 @@ struct SettingsView: View {
                 Toggle("Contagem do calendário", isOn: $settings.calendarCountdown)
                 Toggle("Espelho antes de reuniões", isOn: $settings.mirrorBeforeMeetings)
                 Toggle("Indicador de microfone", isOn: $settings.micIndicator)
+                Toggle("AirPods no notch", isOn: $settings.airpodsNotch)
                 Toggle("Capturas de tela vão pro shelf", isOn: $settings.screenshotsToShelf)
                 if settings.screenshotsToShelf {
                     Toggle("Esconder preview nativo do print", isOn: $settings.hideScreenshotPreview)
