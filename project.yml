@@ -20,6 +20,8 @@ targets:
       properties:
         CFBundleName: Knobler
         CFBundleDisplayName: Knobler
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         LSUIElement: true
         NSAppleEventsUsageDescription: Knobler exibe e controla a reprodução do Spotify no notch.
         NSAudioCaptureUsageDescription: Knobler lê o áudio do Spotify para animar o visualizador no notch, como no iPhone.
@@ -32,6 +34,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.zoi.knobler
         SWIFT_VERSION: "5.0"
+        MARKETING_VERSION: "0.0.0"
+        CURRENT_PROJECT_VERSION: "0"
         CODE_SIGN_IDENTITY: "Apple Development: luccaspessoal11@gmail.com (J8UFPJ9AZJ)"
         CODE_SIGN_STYLE: Manual
         DEVELOPMENT_TEAM: 7UNDW72N73
