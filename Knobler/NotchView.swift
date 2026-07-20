@@ -797,24 +797,15 @@ struct NotchView: View {
     }
 
     private func appIcon(for notification: NotchNotification) -> some View {
-        Group {
-            if let path = Self.appPath(
-                bundleID: notification.bundleID, named: notification.appName) {
-                Image(nsImage: NSWorkspace.shared.icon(forFile: path))
-                    .resizable()
-            } else {
-                Image(systemName: "bell.badge.fill")
-                    .resizable()
-                    .scaledToFit()
-                    .padding(6)
-                    .foregroundStyle(.white.opacity(0.6))
-            }
-        }
-        .frame(width: 32, height: 32)
+        RemoteAvatarView(iconURL: notification.iconURL,
+                         fallbackPath: Self.appPath(bundleID: notification.bundleID,
+                                                    named: notification.appName))
+            .frame(width: 32, height: 32)
     }
 
     private func openSourceApp(_ notification: NotchNotification) {
-        if let raw = notification.openURL, let url = URL(string: raw) {
+        if let raw = notification.openURL, let url = URL(string: raw),
+           let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
             NSWorkspace.shared.open(url)
             return
         }
@@ -1039,5 +1030,35 @@ struct AudioBarsView: View {
             let mixed = 0.6 * fast + 0.4 * slow
             return 0.25 + 0.75 * CGFloat((mixed + 1) / 2)
         }
+    }
+}
+
+// MARK: - Avatar remoto do card
+
+/// Avatar do card: tenta o avatar remoto (com guardas) quando há iconURL e o
+/// toggle está on; senão o ícone do app; senão o sino.
+private struct RemoteAvatarView: View {
+    let iconURL: String?
+    let fallbackPath: String?
+    @StateObject private var loader = RemoteAvatarLoader()
+
+    var body: some View {
+        Group {
+            if let img = loader.image {
+                Image(nsImage: img).resizable().scaledToFit()
+                    .clipShape(RoundedRectangle(cornerRadius: 7))
+            } else if let path = fallbackPath {
+                Image(nsImage: NSWorkspace.shared.icon(forFile: path)).resizable()
+            } else {
+                Image(systemName: "bell.badge.fill").resizable().scaledToFit()
+                    .padding(6).foregroundStyle(.white.opacity(0.6))
+            }
+        }
+        .onAppear { reload() }
+        .onChange(of: iconURL) { _ in reload() }   // notificações consecutivas com avatares diferentes
+    }
+
+    private func reload() {
+        if AppSettings.shared.loadRemoteImages { loader.load(iconURL) }
     }
 }

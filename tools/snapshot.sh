@@ -13,6 +13,10 @@ swiftc -O -o build/snapshot \
   Knobler/MediaController.swift \
   Knobler/AudioLevelTap.swift \
   Knobler/NotificationInterceptor.swift \
+  Knobler/RemoteAvatarLoader.swift \
+  Knobler/WebhookKeychainStore.swift \
+  Knobler/WebhookClient.swift \
+  Knobler/WebhookSettingsView.swift \
   Knobler/AppSettings.swift \
   Knobler/Reminders.swift \
   Knobler/RemindersView.swift \
