@@ -40,6 +40,24 @@ knobler activity <id> <0-100|-> "Título" ["detalhe"]
 knobler done <id>
 ```
 
+## Instalação
+
+```bash
+brew tap luccas-silveira/knobler
+brew trust luccas-silveira/knobler    # Homebrew 6+ pede trust em taps de terceiros
+brew install --cask knobler
+```
+
+App assinado ad-hoc (sem Developer ID). O Homebrew tira a quarentena no install,
+então abre limpo. Update: `brew upgrade --cask knobler` · Remover:
+`brew uninstall --zap --cask knobler`.
+
+Sem Homebrew: baixe o zip do [Releases](https://github.com/luccas-silveira/knobler/releases)
+e rode `xattr -dr com.apple.quarantine /Applications/Knobler.app` uma vez.
+
+Permissões pedidas em runtime: Acessibilidade, Gravação de Áudio do Sistema,
+Automação (Spotify/Music), Calendário, Mic, Bluetooth.
+
 ## Build
 
 ```bash
