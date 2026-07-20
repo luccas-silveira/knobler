@@ -45,6 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let bluetooth = BluetoothMonitor()
     private let micMonitor = MicMonitor()
     private let apiServer = NotchAPIServer()
+    let webhookClient = WebhookClient()
     private let dictation = DictationController()
     private let calendar = CalendarCountdown()
     private let pomodoro = Pomodoro()
@@ -191,6 +192,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         apiServer.onNotification = { [weak self] notification in
             self?.notches.values.forEach { $0.viewModel.enqueue(notification) }
         }
+        // webhook externo (relay): cada notificação recebida vira card em todas as telas
+        webhookClient.onNotify = { [weak self] notification in
+            self?.notches.values.forEach { $0.viewModel.enqueue(notification) }
+        }
         // atividade é global: aparece em todos os monitores
         apiServer.onActivity = { [weak self] activity in
             self?.apiActivity = activity
@@ -326,6 +331,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                         self?.apiServer.start()
                     } else {
                         self?.apiServer.stop()
+                    }
+                    if AppSettings.shared.webhookNotifications {
+                        self?.webhookClient.start()
+                    } else {
+                        self?.webhookClient.stop()
                     }
                     if AppSettings.shared.screenshotsToShelf {
                         self?.screenshots.start()
@@ -629,6 +639,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         OSDSuppressor.restore()
         // devolve o preview do print (senão ficaria sem preview E sem shelf)
         ScreenshotPreviewSuppressor.restore()
+        // fecha o socket de push e libera os recursos do relay
+        webhookClient.shutdown()
     }
 
     private var settingsWindow: NSWindow?
@@ -642,7 +654,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 defer: false
             )
             window.title = "Ajustes do Knobler"
-            window.contentView = NSHostingView(rootView: SettingsView())
+            window.contentView = NSHostingView(rootView: SettingsView(webhookClient: webhookClient))
             window.isReleasedWhenClosed = false
             window.setContentSize(window.contentView!.fittingSize)
             window.center()
