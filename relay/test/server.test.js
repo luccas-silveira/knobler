@@ -83,6 +83,20 @@ test('token desconhecido → 404; sem title → 400', async () => {
   await new Promise((r) => srv.stop(r));
 });
 
+test('payload > 64KB → 400 (não derruba a conexão nem o processo)', async () => {
+  const { srv, base } = await boot();
+  const { publishToken } = (await post(base, '/register')).json;
+  // JSON válido cujo corpo passa de 64KB: excede o limitBytes durante o stream.
+  const big = JSON.stringify({ title: 'x'.repeat(70 * 1024) });
+  assert.ok(Buffer.byteLength(big) > 64 * 1024);
+  const res = await post(base, `/w/${publishToken}`, {
+    headers: { 'Content-Type': 'application/json' }, body: big,
+  });
+  assert.strictEqual(res.status, 400);
+  assert.strictEqual(res.json.ok, false);
+  await new Promise((r) => srv.stop(r));
+});
+
 test('WebSocket sem/errado deviceSecret → recusado', async () => {
   const { srv, port } = await boot();
   const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`, { headers: { Authorization: 'Bearer errado' } });

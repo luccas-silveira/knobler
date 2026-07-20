@@ -18,6 +18,10 @@ const heartbeatTimer = setInterval(() => srv.heartbeat(), 30_000);
 const pruneTimer = setInterval(() => db.prune({ now: Date.now() }), 5 * 60_000);
 heartbeatTimer.unref(); pruneTimer.unref();
 
+// Boot robusto: se a porta já estiver ocupada (ou outro erro de listen), o httpServer
+// emite 'error' sem listener → uncaught → crash mudo em loop no pm2. Loga e sai limpo.
+srv.httpServer.on('error', (e) => { console.error('erro no servidor HTTP:', e); process.exit(1); });
+
 srv.start(PORT, HOST, () => console.log(`knobler-relay escutando em ${HOST}:${PORT}`));
 
 let shuttingDown = false;

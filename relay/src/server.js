@@ -6,14 +6,19 @@ const { normalizePayload, ValidationError } = require('./normalize');
 
 function readBody(req, limitBytes = 64 * 1024) {
   return new Promise((resolve, reject) => {
-    let size = 0; const chunks = [];
+    let size = 0; const chunks = []; let done = false;
     req.on('data', (c) => {
+      if (done) return;
       size += c.length;
-      if (size > limitBytes) { reject(new ValidationError('payload grande demais')); req.destroy(); return; }
+      if (size > limitBytes) {
+        done = true;
+        reject(new ValidationError('payload grande demais')); // NÃO destruir o request: deixa o catch escrever o 400
+        return;
+      }
       chunks.push(c);
     });
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-    req.on('error', reject);
+    req.on('end', () => { if (!done) { done = true; resolve(Buffer.concat(chunks).toString('utf8')); } });
+    req.on('error', (e) => { if (!done) { done = true; reject(e); } });
   });
 }
 
