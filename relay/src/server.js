@@ -2,7 +2,8 @@
 const http = require('http');
 const { WebSocketServer } = require('ws');
 const { genToken, sha256 } = require('./tokens');
-const { normalizePayload, ValidationError } = require('./normalize');
+const { ValidationError, clean, safeURL } = require('./normalize');
+const { render } = require('./template');
 
 function readBody(req, limitBytes = 64 * 1024) {
   return new Promise((resolve, reject) => {
@@ -80,25 +81,38 @@ function createServer({ db, hub, rateLimiter }) {
 
       if (req.method === 'POST' && path.startsWith('/w/')) {
         const publishToken = decodeURIComponent(path.slice('/w/'.length));
-        const dev = db.findByPublishTokenHash(sha256(publishToken));
-        if (!dev) return json(res, 404, { ok: false, error: 'token desconhecido' });
+        const prof = db.findProfileByPublishTokenHash(sha256(publishToken));
+        if (!prof) return json(res, 404, { ok: false, error: 'token desconhecido' });
 
-        const gate = rateLimiter.allow(dev.device_id);
+        // rate limit chaveado por perfil (1 perfil = 1 link)
+        const gate = rateLimiter.allow(prof.profile_id);
         if (!gate.ok) {
           res.setHeader('Retry-After', String(gate.retryAfter));
           return json(res, 429, { ok: false, error: 'rate limit' });
         }
 
-        const rawBody = await readBody(req);
-        const msg = { type: 'notify',
-          ...normalizePayload({ contentType: req.headers['content-type'] || '', rawBody,
-            query: Object.fromEntries(url.searchParams) }),
+        const rawBody = await readBody(req, 16 * 1024);
+        let payload; try { payload = JSON.parse(rawBody || '{}'); } catch { return json(res, 400, { ok: false, error: 'JSON inválido' }); }
+        db.storeLastPayload({ profileId: prof.profile_id, payload: rawBody.slice(0, 16 * 1024) });
+
+        // sem mapping = captura-only: guarda o payload e não empurra nada
+        if (!prof.mapping) return json(res, 202, { ok: true, delivered: 'captured' });
+
+        const m = JSON.parse(prof.mapping);
+        const title = clean(render(m.title || '', payload), 200) || prof.name;   // fallback: nome do perfil
+        const iconRendered = m.iconTemplate ? render(m.iconTemplate, payload) : (prof.icon || '');
+        const isURL = /^https?:\/\//i.test(iconRendered);
+        const msg = { type: 'notify', title,
+          body: clean(render(m.body || '', payload), 1000),
+          iconURL: isURL ? safeURL(iconRendered, ['https:']) : null,
+          iconEmoji: !isURL && iconRendered ? iconRendered.slice(0, 8) : null,
+          url: safeURL(render(m.url || '', payload), ['http:', 'https:']),
+          sound: !!m.sound,
+          id: render(m.id || '', payload) || null,
           ts: Date.now() };
 
-        if (hub.send(dev.device_id, msg)) {
-          return json(res, 202, { ok: true, delivered: 'push' });
-        }
-        db.enqueue({ deviceId: dev.device_id, payload: msg, dedupeId: msg.id, now: Date.now() });
+        if (hub.send(prof.device_id, msg)) return json(res, 202, { ok: true, delivered: 'push' });
+        db.enqueue({ deviceId: prof.device_id, payload: msg, dedupeId: msg.id, now: Date.now() });
         return json(res, 202, { ok: true, delivered: 'queued' });
       }
 

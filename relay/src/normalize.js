@@ -58,4 +58,4 @@ function normalizePayload({ contentType = '', rawBody = '', query = {} }) {
   };
 }
 
-module.exports = { normalizePayload, ValidationError };
+module.exports = { normalizePayload, ValidationError, clean, safeURL };
