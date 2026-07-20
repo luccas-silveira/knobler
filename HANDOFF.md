@@ -1,33 +1,48 @@
-# 🏁 SESSÃO 2026-07-20 — Distribuição via Homebrew — v0.1.0 (primeiro release público)
+# 🏁 SESSÃO 2026-07-20 — Distribuição via Homebrew + provisionamento do modelo + fix de crash — v0.2.2
 
-Sistema de distribuição **entregue e no ar**: amigos instalam com `brew install --cask knobler`. Repo do app **tornado público** (open-source). **E2E final (app abrir num Mac limpo/não-registrado) NÃO confirmado** — depende de um amigo rodar os comandos.
+Distribuição **entregue e no ar**: amigos instalam com **uma linha**; o modelo de ditado é provisionado no install com progresso ao vivo; e um crash determinístico do ditado foi corrigido. Repo do app **tornado público** (open-source). 4 releases (v0.1.0→v0.2.2), **v0.2.2 Latest**.
+
+**Comando de instalação (one-liner):**
+```bash
+brew tap luccas-silveira/knobler && brew trust luccas-silveira/knobler && brew install knobler
+```
 
 ## O que foi feito
 
-- **`tools/release.sh <versão>`** (novo): um comando faz build Release → **re-assina ad-hoc** (`codesign -s -`, remove profile) → zip (`ditto`) → `gh release create` → **auto-bump do cask** (sed version+sha) → push do tap. Tem `--dry-run` (self-check), guard de HEAD pushado, bump idempotente.
-- **`project.yml`**: versão via `$(MARKETING_VERSION)`/`$(CURRENT_PROJECT_VERSION)` (o release.sh injeta no build; evita editar plist pós-build e re-assinar).
-- **Tap `github.com/luccas-silveira/homebrew-knobler`** (novo repo, público): `Casks/knobler.rb` com `postflight` (tira quarantine), `zap` (limpa modelo Parakeet ~600MB + caches), `depends_on macos: :sonoma`, caveats pt-BR. README com fluxo tap→trust→install.
-- **`README.md`** do app: seção Instalação. **Repo do app privado → público** (asset do release dava 404 sem auth).
-- **Release `v0.1.0`** publicado (asset `Knobler-0.1.0.zip`, ad-hoc). Versionamento de distribuição começa em **0.1.0** (os rótulos v0.1–v0.17 eram só doc, nunca viraram tags git).
+**Distribuição (v0.1.0):**
+- **`tools/release.sh <versão>`** (novo): build Release → **re-assina ad-hoc** (`codesign -s -`, remove profile) → zip (`ditto`) → `gh release create --target <commit>` → **auto-bump do cask** (sed version+sha) → push do tap. Tem `--dry-run`, guard de HEAD pushado, bump idempotente.
+- **`project.yml`**: versão via `$(MARKETING_VERSION)`/`$(CURRENT_PROJECT_VERSION)` (injetada no build; sem editar plist pós-build).
+- **Tap `github.com/luccas-silveira/homebrew-knobler`** (novo repo público): `Casks/knobler.rb` com `postflight` (tira quarantine + provisiona modelo), `zap` (modelo Parakeet + caches), `depends_on macos: :sonoma`.
+- **Repo do app privado → PÚBLICO** (asset do release dava 404 sem auth). `README.md` com seção Instalação.
+
+**Provisionamento do modelo no install (v0.2.0 + v0.2.2):**
+- `Knobler/DictationModelProvisioner.swift` (novo): modo headless **`Knobler --download-model`** — baixa o Parakeet (~461MB) pro cache default do FluidAudio e sai, **sem subir o NSApp** (interceptado no topo de `KnoblerMain.main()`, antes do `NSApplication`). Também um modo `--selfcheck`.
+- `postflight` do cask roda `--download-model` (`must_succeed: false` = best-effort; offline não quebra o install → fallback no launch). **1º ditado instantâneo.**
+- **Progresso streaming** (v0.2.2): stdout unbuffered (`setvbuf _IONBF`) + progresso **por fase e monotônico** (% no download, "compilando <modelo>…" na compilação CoreML) — o `brew install` não fica mais mudo. `print_stderr: false` no cask esconde o ruído `[INFO]` do FluidAudio.
+
+**Fix de crash do ditado (v0.2.1):**
+- **Root cause (crash log em M2/macOS26):** `AVAudioEngine.installTap` lança **NSException do ObjC** em devices de formato estranho (Bluetooth/áudio virtual); Swift `try/catch` **não pega NSException** → `abort()`. O guard de `MicRecorder.start()` só cobria `0ch/0Hz`.
+- **Fix:** shim ObjC `ObjCException` (`.h`/`.m` + `Knobler-Bridging-Header.h`, `SWIFT_OBJC_BRIDGING_HEADER` no project.yml) — importado como `throws`. `MicRecorder.start()` envolve o `installTap` nele → NSException vira Error → `begin()` trata gracioso ("Sem acesso ao microfone") em vez de abortar.
 
 ## Como foi feito (processo)
 
-- brainstorm → spec (`docs/superpowers/specs/2026-07-20-distribuicao-homebrew-design.md`) → **fase de pesquisa** (2 agents + verificação na máquina; `...-research.md`) → plano (5 tasks) → execução inline em branch `feat/distribuicao-homebrew` (merge FF em `master`) → polish.
-- **A pesquisa derrubou 2 suposições load-bearing:** (1) assinar com *Apple Development* trava por allowlist de dispositivo + expira → **ad-hoc** é a opção certa (sem device-lock/expiração, válido no AMFI); (2) `--no-quarantine` **removida no Homebrew 5.1** → **`postflight`** com `xattr`.
-- **Achados que só apareceram testando de verdade:** `depends_on macos: ">= :sonoma"` deprecado (forma string) → `:sonoma`; **`HOMEBREW_REQUIRE_TAP_TRUST` é default no Homebrew 6.x** → amigo precisa de `brew trust`; release de branch precisa de `--target` no commit buildado.
+- Distribuição: brainstorm → spec → **pesquisa** (2 agents + verificação; `docs/superpowers/specs/2026-07-20-distribuicao-homebrew-{design,research}.md`) → plano (5 tasks) → execução inline (branch `feat/distribuicao-homebrew`, merge FF) → polish.
+- Crash: **systematic-debugging** — peguei o `.ips`, o stack apontou `installTap`→NSException→abort (matou as hipóteses de Intel/modelo/cache). Provado por `--selfcheck`.
+- **Achados load-bearing:** *Apple Development* trava por device-allowlist+expiração → **ad-hoc**; `--no-quarantine` removida no Homebrew 5.1 → **`postflight`**; `depends_on macos: ">= :sonoma"` deprecado → `:sonoma`; `HOMEBREW_REQUIRE_TAP_TRUST` default no Homebrew 6 → `brew trust`.
 
 ## Validação
 
-- `release.sh --dry-run` → build + `codesign --verify` ad-hoc (`Signature=adhoc`, `TeamIdentifier=not set`), zip com `Knobler.app/` na raiz.
-- Release real v0.1.0 publicado; **`brew fetch --cask knobler` → ✔︎** (asset público baixa, HTTP 200, sha256 confere); `brew info` limpo (sem deprecação, "Required: macOS >= 14").
-- `bash -n` do release.sh, `ruby -c` do cask.
+- `release.sh --dry-run`, `bash -n`, `ruby -c` do cask, `brew fetch`/`brew info` limpos.
+- Binário shipado (cada versão): `--selfcheck` = "exception guard OK"; `--download-model` provado com **download fresco real de 461MB** (23 arquivos da HF + compilação) através de um pipe, com o progresso streaming limpo.
+- Assinatura do artefato: `Signature=adhoc`, `TeamIdentifier=not set`.
 
 ## Pendências e followups
 
-- **E2E final NÃO confirmado**: amigo num Mac limpo (não-registrado, macOS 15/26) rodando `brew tap luccas-silveira/knobler && brew trust … && brew install --cask knobler` → app **abre** (prova que o ad-hoc matou a restrição de dispositivo — não validável no Mac do autor, que é registrado).
-- **`/Applications/Knobler.app` local ainda é a instalação manual antiga** (Apple Development, rodando pid 92340) — o brew install E2E foi validado por `brew fetch` (não-invasivo) pra não derrubar a instância rodando. Pra dogfood via brew: `rm -rf /Applications/Knobler.app && brew install --cask knobler`.
-- **UI do notch não foi tocada** (fora de escopo). Passada de design nos snapshots: coerente/on-brand, sem drift a corrigir; artefatos de fake-state (shelf em todo estado, thumbnails 🚫) não são bugs.
-- Próximo release: `./tools/release.sh 0.1.1`.
+- **⚠️ Ditado num Mac específico do amigo (M2):** o crash foi corrigido (v0.2.1+), mas naquele device o `installTap` ainda **lança** — então vai mostrar "Sem acesso ao microfone" em vez de transcrever. **Falta a 2ª metade (fazer FUNCIONAR):** preciso da **razão da NSException** daquele Mac (`log show --predicate 'process == "Knobler"' --last 5m | grep -iE "required condition|coreaudio"`) pra mirar o fix de formato (provável `format: nil` no tap + converter do buffer real). Não chutar sem a razão.
+- **E2E ad-hoc não confirmado:** amigo num Mac limpo abrindo o app prova que o ad-hoc matou a restrição de dispositivo (não validável no Mac do autor, que é registrado). O `Mac-mini-de-Zoi` estava testando.
+- **`/Applications/Knobler.app` local ainda é a instalação manual antiga** (Apple Development, rodando). Pra dogfood via brew: `rm -rf /Applications/Knobler.app && brew install knobler`.
+- **UI do notch não foi tocada** (fora de escopo). Snapshots: coerente/on-brand, sem drift; artefatos de fake-state não são bugs.
+- Próximo release: `./tools/release.sh 0.2.3`.
 
 ---
 
