@@ -31,6 +31,13 @@ function json(res, status, obj) {
 /** Segredo truncado pra log: nunca logar o valor cru. */
 function redact(s) { return s && s.length > 8 ? `${s.slice(0, 4)}…${s.slice(-4)}` : '****'; }
 
+/** Autentica o device pelo deviceSecret do header Authorization: Bearer. */
+function authDevice(req, db) {
+  const auth = req.headers['authorization'] || '';
+  const secret = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  return secret ? db.findBySecretHash(sha256(secret)) : undefined;
+}
+
 function createServer({ db, hub, rateLimiter }) {
   const httpServer = http.createServer(handle);
   const wss = new WebSocketServer({ noServer: true });
@@ -48,12 +55,16 @@ function createServer({ db, hub, rateLimiter }) {
         const deviceId = genToken();          // uuid-like opaco; reusa gerador
         const deviceSecret = genToken();
         const publishToken = genToken();
+        const now = Date.now();
         db.createDevice({
           deviceId,
           deviceSecretHash: sha256(deviceSecret),
           publishTokenHash: sha256(publishToken),
-          now: Date.now(),
+          now,
         });
+        // cria o perfil "Padrão" reusando o publishToken do device
+        const profileId = genToken();
+        db.createProfile({ profileId, deviceId, publishTokenHash: sha256(publishToken), name: 'Padrão', now });
         return json(res, 200, { deviceId, deviceSecret, publishToken });
       }
 
@@ -89,6 +100,43 @@ function createServer({ db, hub, rateLimiter }) {
         }
         db.enqueue({ deviceId: dev.device_id, payload: msg, dedupeId: msg.id, now: Date.now() });
         return json(res, 202, { ok: true, delivered: 'queued' });
+      }
+
+      // ---- API de perfis (auth por deviceSecret) ----
+      if (path === '/profiles' && req.method === 'POST') {
+        const dev = authDevice(req, db); if (!dev) return json(res, 401, { ok: false });
+        if (db.countProfiles(dev.device_id) >= 50) return json(res, 429, { ok: false, error: 'limite de perfis' });
+        const body = JSON.parse(await readBody(req) || '{}');
+        const name = (body.name || 'Sem nome').toString().slice(0, 60);
+        const profileId = genToken(), publishToken = genToken();
+        db.createProfile({ profileId, deviceId: dev.device_id, publishTokenHash: sha256(publishToken), name, now: Date.now() });
+        return json(res, 200, { profileId, publishToken });
+      }
+      if (path === '/profiles' && req.method === 'GET') {
+        const dev = authDevice(req, db); if (!dev) return json(res, 401, { ok: false });
+        return json(res, 200, db.listProfiles(dev.device_id).map(p => ({ profileId: p.profile_id, name: p.name, hasMapping: !!p.mapping, icon: p.icon })));
+      }
+      if (path.startsWith('/profiles/')) {
+        const dev = authDevice(req, db); if (!dev) return json(res, 401, { ok: false });
+        const rest = path.slice('/profiles/'.length);
+        const [id, action] = rest.split('/');
+        if (action === 'rotate' && req.method === 'POST') {
+          if (!db.getProfile({ profileId: id, deviceId: dev.device_id })) return json(res, 404, { ok: false });
+          const publishToken = genToken();
+          db.rotateProfileToken({ profileId: id, deviceId: dev.device_id, publishTokenHash: sha256(publishToken) });
+          return json(res, 200, { publishToken });
+        }
+        const prof = db.getProfile({ profileId: id, deviceId: dev.device_id });
+        if (!prof) return json(res, 404, { ok: false });
+        // GET não devolve `link`: o relay só guarda o hash do publishToken.
+        // O app monta o link a partir do token recebido no create/rotate.
+        if (req.method === 'GET') return json(res, 200, { profileId: prof.profile_id, name: prof.name, mapping: prof.mapping, icon: prof.icon, lastPayload: prof.last_payload, link: null });
+        if (req.method === 'PUT') {
+          const b = JSON.parse(await readBody(req) || '{}');
+          db.updateProfile({ profileId: id, deviceId: dev.device_id, name: b.name, mapping: b.mapping, icon: b.icon });
+          return json(res, 200, { ok: true });
+        }
+        if (req.method === 'DELETE') { db.deleteProfile({ profileId: id, deviceId: dev.device_id }); return json(res, 200, { ok: true }); }
       }
 
       return json(res, 404, { ok: false, error: 'rota desconhecida' });

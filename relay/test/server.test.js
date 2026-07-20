@@ -115,3 +115,39 @@ test('rate limit: o 6º POST rápido no mesmo token → 429', async () => {
   assert.strictEqual(last.status, 429);
   await new Promise((r) => srv.stop(r));
 });
+
+test('register cria device + perfil Padrão; /profiles lista ele', async () => {
+  const { srv, base } = await boot();
+  const reg = (await post(base, '/register')).json;
+  const list = await fetch(base + '/profiles', { headers: { Authorization: `Bearer ${reg.deviceSecret}` } }).then(r => r.json());
+  assert.strictEqual(list.length, 1);
+  assert.strictEqual(list[0].name, 'Padrão');
+  assert.strictEqual(list[0].hasMapping, false);
+  await new Promise(r => srv.stop(r));
+});
+
+test('CRUD de perfil: cria, atualiza mapping, pega, deleta', async () => {
+  const { srv, base } = await boot();
+  const reg = (await post(base, '/register')).json;
+  const H = { Authorization: `Bearer ${reg.deviceSecret}`, 'Content-Type': 'application/json' };
+  const created = await fetch(base + '/profiles', { method: 'POST', headers: H, body: JSON.stringify({ name: 'GitHub' }) }).then(r => r.json());
+  assert.ok(created.profileId && created.publishToken);
+  await fetch(base + `/profiles/${created.profileId}`, { method: 'PUT', headers: H, body: JSON.stringify({ mapping: '{"title":"{{repo.name}}"}', icon: '🚀' }) });
+  const got = await fetch(base + `/profiles/${created.profileId}`, { headers: H }).then(r => r.json());
+  assert.strictEqual(got.mapping, '{"title":"{{repo.name}}"}');
+  assert.strictEqual(got.icon, '🚀');
+  // O relay guarda só o hash do publishToken → não devolve `link` no GET.
+  // O app monta o link a partir do publishToken recebido no create/rotate.
+  const link = `https://push.appzoi.com.br/w/${created.publishToken}`;
+  assert.ok(link.includes(created.publishToken));
+  const del = await fetch(base + `/profiles/${created.profileId}`, { method: 'DELETE', headers: H });
+  assert.strictEqual(del.status, 200);
+  await new Promise(r => srv.stop(r));
+});
+
+test('API de perfis exige deviceSecret válido', async () => {
+  const { srv, base } = await boot();
+  const r = await fetch(base + '/profiles', { headers: { Authorization: 'Bearer errado' } });
+  assert.strictEqual(r.status, 401);
+  await new Promise(r2 => srv.stop(r2));
+});
