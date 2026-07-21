@@ -29,7 +29,7 @@ Entrega o codec do protocolo (a única lógica não-trivial: framing binário + 
 **Files:**
 - Create: `Knobler/Wire.swift`
 - Create: `Knobler/Peer.swift`
-- Create: `tools/wirecheck.swift` (fora do alvo; rodado à mão, como `tools/main.swift`)
+- Create: `tools/wirecheck/main.swift` (fora do alvo; rodado à mão. **DEVE** se chamar `main.swift`: o swiftc 6.3.3 proíbe código top-level em compilação multi-arquivo a menos que o arquivo seja `main.swift`)
 
 **Interfaces:**
 - Consumes: nada.
@@ -134,12 +134,12 @@ enum Frame {
 }
 ```
 
-- [ ] **Step 2: Escrever `tools/wirecheck.swift` (self-check por asserts)**
+- [ ] **Step 2: Escrever `tools/wirecheck/main.swift` (self-check por asserts)**
 
 ```swift
 //
-//  wirecheck.swift — self-check do protocolo de fio. NÃO faz parte do alvo.
-//  Rodar: xcrun swiftc Knobler/Wire.swift tools/wirecheck.swift -o /tmp/wirecheck && /tmp/wirecheck
+//  main.swift — self-check do protocolo de fio. NÃO faz parte do alvo.
+//  Rodar: xcrun swiftc Knobler/Wire.swift tools/wirecheck/main.swift -o /tmp/wirecheck && /tmp/wirecheck
 //
 
 import Foundation
@@ -172,7 +172,7 @@ print("wire ok")
 
 - [ ] **Step 3: Rodar o self-check e ver FALHAR (Wire.swift ainda incompleto? não — verificar que compila e passa)**
 
-Run: `cd /Users/luccassilveira/Desktop/knobler && xcrun swiftc Knobler/Wire.swift tools/wirecheck.swift -o /tmp/wirecheck && /tmp/wirecheck`
+Run: `cd /Users/luccassilveira/Desktop/knobler && xcrun swiftc Knobler/Wire.swift tools/wirecheck/main.swift -o /tmp/wirecheck && /tmp/wirecheck`
 Expected: imprime `wire ok`. (Se algum assert quebrar, o processo aborta com a mensagem do assert — corrigir antes de seguir.)
 
 - [ ] **Step 4: Escrever `Knobler/Peer.swift` (modelos)**
@@ -230,7 +230,7 @@ Expected: sem saída (exit 0).
 
 ```bash
 cd /Users/luccassilveira/Desktop/knobler
-git add Knobler/Wire.swift Knobler/Peer.swift tools/wirecheck.swift
+git add Knobler/Wire.swift Knobler/Peer.swift tools/wirecheck/main.swift
 git commit -m "feat(mensagens): protocolo de fio + modelos (Wire, Peer)"
 ```
 
@@ -843,24 +843,23 @@ git commit -m "feat(mensagens): motor Bonjour + protocolo + gate de Rede Local"
 
 ---
 
-### Task 5: NotchViewModel + NotchView — aba e modo de card
+### Task 5: NotchViewModel — estado de aba e de mensagens (aditivo)
 
-Adiciona o estado de aba (Música | Mensagens) no notch aberto e o modo `.message` do card de entrada.
+Adiciona SÓ estado e métodos ao `NotchViewModel` — nada que quebre o build. **Não** mexe no `enum Mode` nem na `NotchView` (isso é Task 7, junto do switch, senão o `switch vm.mode` da NotchView fica não-exaustivo e o build quebra neste commit).
 
 **Files:**
 - Modify: `Knobler/NotchViewModel.swift`
-- Modify: `Knobler/NotchView.swift` (novo `case .message` no switch de conteúdo, tamanho, e a barra de abas dentro de `expandedContent`)
 
 **Interfaces:**
-- Consumes: `MessageStore`, `LANMessaging` (via ambiente, Task 3/4).
+- Consumes: nada novo.
 - Produces (em `NotchViewModel`):
-  - `enum NotchTab { case music, messages }` + `@Published var tab: NotchTab`
+  - `enum NotchTab: Equatable { case music, messages }` + `@Published var tab: NotchTab`
   - `struct IncomingMessage: Equatable { let peerID, name, text: String; let allowReply: Bool }`
   - `@Published var incoming: IncomingMessage?`
-  - `func showIncoming(_ m: IncomingMessage)` / `func dismissIncoming()`
-  - `func openThread(peerID: String)`
-  - `var onSendReply: ((String, String) -> Void)?` (peerID, texto)
-  - `case message` adicionado a `Mode` e à prioridade de `mode`.
+  - `var onSendReply: ((String, String) -> Void)?`
+  - `func showIncoming(_:)` / `func dismissIncoming()` / `func openThread(peerID:)`
+
+> **Nota de ordem:** o `enum Mode` ganha `.message` só na Task 7. Aqui `showIncoming` seta `incoming`, mas como `mode` ainda não mapeia `incoming` → `.message`, nada aparece — é o esperado até a Task 7 fiar tudo. Este commit **compila e builda verde** (adições não usadas ainda).
 
 - [ ] **Step 1: Adicionar estado ao `NotchViewModel.swift`**
 
@@ -884,33 +883,7 @@ Adicionar após `@Published var askText = ""`:
     private var incomingWork: DispatchWorkItem?
 ```
 
-- [ ] **Step 2: Registrar o modo `.message`**
-
-No `enum Mode`, adicionar `message`:
-
-```swift
-    enum Mode: Equatable {
-        case closed, music, notification, hud, dictation, question, pomodoro, airpods, message
-    }
-```
-
-No cálculo de `mode`, inserir `.message` logo abaixo de `.question` (prioridade alta, mas sem atropelar a pergunta interativa):
-
-```swift
-    var mode: Mode {
-        if ask != nil { return .question }
-        if incoming != nil { return .message }
-        if dictation != nil { return .dictation }
-        if activeNotification != nil { return .notification }
-        if hud != nil { return .hud }
-        if airpodsCard { return .airpods }
-        if expanded { return .music }
-        if pomodoro != nil { return .pomodoro }
-        return .closed
-    }
-```
-
-- [ ] **Step 3: Adicionar os métodos de mensagem ao `NotchViewModel`**
+- [ ] **Step 2: Adicionar os métodos de mensagem ao `NotchViewModel`**
 
 ```swift
     // MARK: - Mensagens LAN
@@ -939,85 +912,22 @@ No cálculo de `mode`, inserir `.message` logo abaixo de `.question` (prioridade
     }
 ```
 
-- [ ] **Step 4: Renderizar o card `.message` no `NotchView.swift`**
+- [ ] **Step 3: Regenerar e build completo (verde — só adições)**
 
-No `switch vm.mode` de conteúdo (perto do `case .notification:`), adicionar:
-
-```swift
-            case .message:
-                if let incoming = vm.incoming {
-                    IncomingMessageView(vm: vm, incoming: incoming)
-                        .frame(width: 360 - 40)
-                        .padding(.top, topInset)
-                        .padding(.bottom, 12)
-                        .transition(.blurReplace.combined(with: .move(edge: .top)))
-                }
+Run:
+```bash
+cd /Users/luccassilveira/Desktop/knobler && xcodegen generate && \
+xcodebuild -project Knobler.xcodeproj -scheme Knobler -configuration Debug build 2>&1 | tail -3
 ```
+Expected: `** BUILD SUCCEEDED **`. (Ignorar diagnósticos do SourceKit por-arquivo — o gate é o xcodebuild.)
 
-No `currentSize` (switch de tamanho), adicionar antes do fechamento:
-
-```swift
-        case .message:
-            let tall = vm.incoming?.allowReply == true
-            return CGSize(width: 360, height: topInset + (tall ? 108 : 72))
-```
-
-E na lista `compact` (linha ~52) o `.message` **não** é compacto (é um card) — nada a mudar ali, pois `compact` lista só closed/hud/dictation/pomodoro.
-
-- [ ] **Step 5: Adicionar a barra de abas ao `expandedContent`**
-
-Localizar `private var expandedContent: some View {` (~linha 531). Envolver o conteúdo atual de música numa troca por aba. No topo do `VStack`/`Group` retornado, inserir a barra e, quando `vm.tab == .messages`, mostrar `MessagesView`:
-
-```swift
-    @ViewBuilder
-    private var expandedContent: some View {
-        VStack(spacing: 8) {
-            tabBar
-            if vm.tab == .messages {
-                MessagesView(vm: vm)
-            } else {
-                musicContent   // (renomear o corpo antigo de expandedContent p/ musicContent)
-            }
-        }
-    }
-
-    private var tabBar: some View {
-        HStack(spacing: 6) {
-            tabButton("Música", .music, "music.note")
-            tabButton("Mensagens", .messages, "bubble.left.and.bubble.right")
-            Spacer()
-        }
-        .foregroundStyle(.white)
-    }
-
-    private func tabButton(_ title: String, _ tab: NotchViewModel.NotchTab,
-                           _ icon: String) -> some View {
-        Button { vm.tab = tab } label: {
-            Label(title, systemImage: icon)
-                .font(.caption.weight(.medium))
-                .padding(.horizontal, 8).padding(.vertical, 4)
-                .background(Capsule().fill(.white.opacity(vm.tab == tab ? 0.22 : 0.08)))
-        }
-        .buttonStyle(.plain)
-    }
-```
-
-> Renomear o corpo atual de `expandedContent` (todo o conteúdo de música/shelf/pomodoro/mirror) para uma nova propriedade `private var musicContent: some View { ... }` com o mesmo conteúdo. A `NotchView` já recebe `shelf` e `vm`; `MessagesView(vm:)` usa os objetos de ambiente (Task 8 injeta `LANMessaging`/`MessageStore`/`AppSettings` via `.environmentObject`).
-
-- [ ] **Step 6: Compilar (vai falhar até Task 6/7 criarem as views — verificação parcial)**
-
-Run: `cd /Users/luccassilveira/Desktop/knobler && xcrun swiftc -typecheck -target arm64-apple-macos14.2 Knobler/NotchViewModel.swift`
-Expected: `NotchViewModel.swift` sozinho compila (exit 0). O build completo só fecha após Task 7 — **não** commitar quebrado; ver Step 7.
-
-- [ ] **Step 7: Commit (parcial, do ViewModel; NotchView fica junto de Task 7)**
+- [ ] **Step 4: Commit**
 
 ```bash
 cd /Users/luccassilveira/Desktop/knobler
 git add Knobler/NotchViewModel.swift
-git commit -m "feat(mensagens): estado de aba + modo de card no NotchViewModel"
+git commit -m "feat(mensagens): estado de aba + de mensagens no NotchViewModel"
 ```
-
-> As edições de `NotchView.swift` (Steps 4-5) dependem de `MessagesView`/`IncomingMessageView` (Tasks 6-7); serão commitadas no fim da Task 7, quando o build fecha.
 
 ---
 
@@ -1195,10 +1105,16 @@ struct MessagesView: View {
 }
 ```
 
-- [ ] **Step 2: Verificar type-check isolado**
+- [ ] **Step 2: Regenerar e build completo**
 
-Run: `cd /Users/luccassilveira/Desktop/knobler && xcrun swiftc -typecheck -target arm64-apple-macos14.2 Knobler/MessagesView.swift Knobler/NotchViewModel.swift Knobler/Peer.swift Knobler/MessageStore.swift Knobler/LANMessaging.swift Knobler/Wire.swift Knobler/AppSettings.swift 2>&1 | tail -5`
-Expected: sem erros (exit 0). Avisos de `@EnvironmentObject` são normais.
+`MessagesView.swift` já entra no alvo (pasta `Knobler/`) e é compilada, mesmo sem ninguém referenciá-la ainda (só na Task 7). Ela consome os tipos da Task 5 (`vm.tab` etc.) e o ambiente das Tasks 3/4 — build fica verde.
+
+Run:
+```bash
+cd /Users/luccassilveira/Desktop/knobler && xcodegen generate && \
+xcodebuild -project Knobler.xcodeproj -scheme Knobler -configuration Debug build 2>&1 | tail -3
+```
+Expected: `** BUILD SUCCEEDED **`. (SourceKit por-arquivo pode acusar tipo ausente — ignorar; o gate é o xcodebuild.)
 
 - [ ] **Step 3: Commit**
 
@@ -1210,17 +1126,18 @@ git commit -m "feat(mensagens): MessagesView (lista de online + conversa + envio
 
 ---
 
-### Task 7: IncomingMessageView — card de entrada + fechar o build
+### Task 7: Card de entrada + integração na NotchView (fecha o build)
 
-O card que desce do notch quando chega mensagem (foto + nome + texto + resposta rápida). Fecha as edições de `NotchView.swift` da Task 5.
+O card que desce do notch quando chega mensagem (foto + nome + texto + resposta rápida), MAIS a integração completa na `NotchView`: o `case .message` no enum `Mode`, o mapeamento em `mode`, o render do card, o tamanho, e a barra de abas no `expandedContent`. **Tudo num commit** — a mudança do enum e o `switch vm.mode` da NotchView precisam casar pra o build ficar exaustivo/verde.
 
 **Files:**
 - Create: `Knobler/IncomingMessageView.swift`
-- Modify: `Knobler/NotchView.swift` (as edições de Task 5, Steps 4-5, agora compiláveis)
+- Modify: `Knobler/NotchViewModel.swift` (adicionar `.message` ao `enum Mode` e ao `mode`)
+- Modify: `Knobler/NotchView.swift` (render do card, tamanho, barra de abas)
 
 **Interfaces:**
-- Consumes: `NotchViewModel`, `NotchViewModel.IncomingMessage` (Task 5), `MessageStore` (ambiente).
-- Produces: `struct IncomingMessageView: View` (init `IncomingMessageView(vm:incoming:)`).
+- Consumes: `NotchViewModel`, `NotchViewModel.IncomingMessage`, `NotchViewModel.NotchTab` (Task 5), `MessageStore` (ambiente), `MessagesView` (Task 6).
+- Produces: `struct IncomingMessageView: View` (init `IncomingMessageView(vm:incoming:)`); `Mode.message` disponível.
 
 - [ ] **Step 1: Criar `Knobler/IncomingMessageView.swift`**
 
@@ -1301,11 +1218,98 @@ struct IncomingMessageView: View {
 }
 ```
 
-- [ ] **Step 2: Aplicar as edições pendentes de `NotchView.swift` (Task 5, Steps 4-5)**
+- [ ] **Step 2: Adicionar `.message` ao `enum Mode` e ao `mode` (em `NotchViewModel.swift`)**
 
-Confirmar que `NotchView.swift` tem: (a) `case .message:` no switch de conteúdo, (b) `case .message:` no `currentSize`, (c) `expandedContent` dividido em `tabBar` + `musicContent`/`MessagesView`. (Ver Task 5 para o código exato.)
+No `enum Mode` de `NotchViewModel`, acrescentar `message`:
 
-- [ ] **Step 3: Regenerar e build completo**
+```swift
+    enum Mode: Equatable {
+        case closed, music, notification, hud, dictation, question, pomodoro, airpods, message
+    }
+```
+
+No cálculo de `mode`, inserir `.message` logo abaixo do `ask` (alta prioridade, sem atropelar a pergunta interativa):
+
+```swift
+    var mode: Mode {
+        if ask != nil { return .question }
+        if incoming != nil { return .message }
+        if dictation != nil { return .dictation }
+        if activeNotification != nil { return .notification }
+        if hud != nil { return .hud }
+        if airpodsCard { return .airpods }
+        if expanded { return .music }
+        if pomodoro != nil { return .pomodoro }
+        return .closed
+    }
+```
+
+- [ ] **Step 3: Renderizar o card `.message` no `NotchView.swift`**
+
+No `switch vm.mode` do conteúdo (perto do `case .notification:`, ~linha 86), adicionar um novo case:
+
+```swift
+            case .message:
+                if let incoming = vm.incoming {
+                    IncomingMessageView(vm: vm, incoming: incoming)
+                        .frame(width: 360 - 40)
+                        .padding(.top, topInset)
+                        .padding(.bottom, 12)
+                        .transition(.blurReplace.combined(with: .move(edge: .top)))
+                }
+```
+
+No `switch` de `currentSize` (~linha 158), adicionar antes do fechamento:
+
+```swift
+        case .message:
+            let tall = vm.incoming?.allowReply == true
+            return CGSize(width: 360, height: topInset + (tall ? 108 : 72))
+```
+
+> A lista `compact` (~linha 52) só inclui closed/hud/dictation/pomodoro — `.message` é card, não precisa entrar lá.
+
+- [ ] **Step 4: Dividir `expandedContent` em barra de abas + conteúdo**
+
+Localizar `private var expandedContent: some View {` (~linha 531). Renomear TODO o corpo atual (música/shelf/pomodoro/mirror) para uma nova propriedade `private var musicContent: some View { ... }` (mesmo conteúdo, mesmo `@ViewBuilder`). Depois criar o novo `expandedContent` e a barra:
+
+```swift
+    @ViewBuilder
+    private var expandedContent: some View {
+        VStack(spacing: 8) {
+            tabBar
+            if vm.tab == .messages {
+                MessagesView(vm: vm)
+            } else {
+                musicContent
+            }
+        }
+    }
+
+    private var tabBar: some View {
+        HStack(spacing: 6) {
+            tabButton("Música", .music, "music.note")
+            tabButton("Mensagens", .messages, "bubble.left.and.bubble.right")
+            Spacer()
+        }
+        .foregroundStyle(.white)
+    }
+
+    private func tabButton(_ title: String, _ tab: NotchViewModel.NotchTab,
+                           _ icon: String) -> some View {
+        Button { vm.tab = tab } label: {
+            Label(title, systemImage: icon)
+                .font(.caption.weight(.medium))
+                .padding(.horizontal, 8).padding(.vertical, 4)
+                .background(Capsule().fill(.white.opacity(vm.tab == tab ? 0.22 : 0.08)))
+        }
+        .buttonStyle(.plain)
+    }
+```
+
+> `MessagesView(vm:)` usa `@EnvironmentObject` (`LANMessaging`/`MessageStore`) — injetados na Task 8. O build fecha mesmo assim (o compilador não exige o ambiente em tempo de compilação); em runtime, MessagesView só é criada quando `vm.tab == .messages`, após a injeção da Task 8.
+
+- [ ] **Step 5: Regenerar e build completo**
 
 Run:
 ```bash
@@ -1314,11 +1318,11 @@ xcodebuild -project Knobler.xcodeproj -scheme Knobler -configuration Debug build
 ```
 Expected: `** BUILD SUCCEEDED **`.
 
-- [ ] **Step 4: Commit (fecha Task 5 + Task 7)**
+- [ ] **Step 6: Commit**
 
 ```bash
 cd /Users/luccassilveira/Desktop/knobler
-git add Knobler/IncomingMessageView.swift Knobler/NotchView.swift
+git add Knobler/IncomingMessageView.swift Knobler/NotchViewModel.swift Knobler/NotchView.swift
 git commit -m "feat(mensagens): card de entrada + integração na NotchView"
 ```
 
@@ -1477,9 +1481,11 @@ xcodebuild -project Knobler.xcodeproj -scheme Knobler -configuration Debug build
 Expected: `** BUILD SUCCEEDED **`.
 
 ```bash
-git add Knobler/KnoblerApp.swift tools/snapshot.sh CHANGELOG.md Snapshots
+git add Knobler/KnoblerApp.swift tools/snapshot.sh CHANGELOG.md
 git commit -m "feat(mensagens): fiação no app, snapshot e CHANGELOG"
 ```
+
+> **NÃO** commitar `Snapshots/` nem `Knobler.xcodeproj` — ambos são **gitignored** (artefatos regeneráveis). Adicionar só os paths rastreados explicitados.
 
 - [ ] **Step 9: Verificação manual ponta a ponta (dois Macs)**
 
