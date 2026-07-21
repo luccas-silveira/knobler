@@ -61,13 +61,22 @@ final class MessageStore: ObservableObject {
         scheduleSave()
     }
 
+    /// Caminho do arquivo de foto — só pra peerID em formato UUID canônico.
+    /// Defesa estrutural contra path-traversal: o peerID vem da rede e vira nome
+    /// de arquivo; sem UUID válido, `nil` (não escreve/lê fora do diretório).
+    private func avatarFile(for peerID: String) -> URL? {
+        guard UUID(uuidString: peerID) != nil else { return nil }
+        return avatarsDir.appendingPathComponent("\(peerID).jpg")
+    }
+
     func cacheAvatar(_ jpeg: Data, for peerID: String) {
-        try? jpeg.write(to: avatarsDir.appendingPathComponent("\(peerID).jpg"))
+        guard let url = avatarFile(for: peerID) else { return }
+        try? jpeg.write(to: url)
         objectWillChange.send()
     }
 
     func avatar(for peerID: String) -> NSImage? {
-        NSImage(contentsOf: avatarsDir.appendingPathComponent("\(peerID).jpg"))
+        avatarFile(for: peerID).flatMap { NSImage(contentsOf: $0) }
     }
 
     // ponytail: debounce simples de 1s; some flush no quit se virar problema
