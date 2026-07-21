@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-07-21
+
 ### Changed
 - **Now playing universal**: o card de música agora mostra e controla qualquer
   fonte de mídia do macOS (YouTube no navegador, podcasts, IINA…), não só
