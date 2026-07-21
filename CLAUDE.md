@@ -47,7 +47,9 @@ mantidos à mão: rode `Knobler.app/Contents/MacOS/Knobler --ajustes=<painel>`
 (painéis: `geral notch ditado pomodoro lembretes descanso webhooks
 mensagens`), tire o screenshot da janela real e salve em `docs/images/`
 (as imagens usadas pelos docs de usuário ficam ali, não em `Snapshots/` —
-`Snapshots/` é gitignored e serve só de QA visual local).
+`Snapshots/` é gitignored e serve só de QA visual local). `screencapture -l<windowID>`
+captura a sombra própria do macOS (PNG com alpha) — corte pra
+`802x554+55+37` antes de salvar (bordas reais da janela, sem halo).
 
 ## MCP servers (ativos após reiniciar a sessão)
 
