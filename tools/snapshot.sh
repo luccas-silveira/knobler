@@ -11,6 +11,7 @@ swiftc -O -o build/snapshot \
   Knobler/Pomodoro.swift \
   Knobler/Ask.swift \
   Knobler/MediaController.swift \
+  Knobler/MediaRemoteSource.swift \
   Knobler/AudioLevelTap.swift \
   Knobler/NotificationInterceptor.swift \
   Knobler/RemoteAvatarLoader.swift \
