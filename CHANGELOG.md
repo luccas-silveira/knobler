@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-07-21
+
 ### Added
 - **Anexo por link nas Mensagens LAN**: botão 🔗 no composer transforma o campo
   de mensagem em campo de URL; o app baixa a imagem/GIF (https, link direto,
