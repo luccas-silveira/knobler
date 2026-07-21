@@ -1,3 +1,76 @@
+# 🏁 SESSÃO 2026-07-21 (meio-dia) — Card de música enxugado — **v0.5.0 no ar**
+
+O usuário abriu o notch, olhou e disse: "tá carregada". Estava mesmo — 5 faixas
+empilhadas no card aberto: barra de abas, linha de AirPods, capa+título+espelho+
+barras de áudio, progresso, 5 controles. Duas dessas faixas eram chrome de
+navegação ou informação duplicada, não conteúdo. Sobraram 3.
+
+## O que mudou
+
+- **Abas viraram gesto.** A barra `Música | Mensagens` saiu inteira. A troca de
+  tela agora é **swipe horizontal de dois dedos sobre o card aberto**; o
+  indicador é um par de pontinhos discretos no rodapé (`pageDots` em
+  `NotchView.swift`), **clicáveis** — o gesto não se anuncia sozinho e o clique
+  é a affordance de descoberta.
+- **O gesto já existia.** `handleScroll` no `KnoblerApp.swift` (monitor local de
+  `.scrollWheel`, zona = notch/card) só pulava faixa no horizontal. Virou
+  contextual: **card aberto → troca de tela; notch fechado → pula faixa**, usando
+  a variável `expanded` que a função já calculava. Zero código de gesto novo.
+- **AirPods saíram do card.** Primeiro viraram uma faixa fina no topo, comum às
+  duas telas; o usuário então pediu para não mostrar "as infos do fone o tempo
+  todo" e a faixa foi removida de vez. A bateria continua aparecendo nos dois
+  momentos em que importa, que já existiam: o card transitório ao conectar
+  (`airpodsConnectCard`) e o aviso de ≤10%. `airpodsRow` foi deletada.
+- **Barras de áudio fora do expandido** — o notch fechado já as mostra; no card
+  aberto eram decoração. `AudioBarsView` segue viva, só o uso no expandido saiu.
+- **Botão dos Ajustes de Som removido**; o **espelho** deixou a linha do título e
+  assumiu o 5º slot dos controles (`shuffle · ◀◀ · ▶ · ▶▶ · vídeo`).
+
+## Validação
+
+- `./tools/snapshot.sh` + leitura dos PNGs (`music-expanded`, `expanded-shelf`,
+  `airpods-*`, `pomodoro-card-*`, `expanded-activity-only`) — foi assim que os
+  números de altura foram calibrados, não no olho do código.
+- `xcodebuild … Debug build` verde; app reinstalado em `/Applications` e relançado.
+- `./tools/release.sh minor --dry-run` verde antes de publicar; **v0.5.0 publicada**
+  (GitHub Release + cask do tap bumpado).
+- ⚠️ **O gesto em si não foi testado com trackpad de verdade** — snapshot não
+  exercita `scrollWheel`. É o primeiro item a conferir na próxima sessão.
+
+## Achados que valem lembrar
+
+- **O snapshot vazava estado entre cenários.** `tools/main.swift` recriava
+  `currentShelf = ShelfStore()` a cada cenário achando que isso limpava — mas o
+  `init()` do `ShelfStore` **relê o UserDefaults**, e o `didSet` do cenário
+  anterior já tinha gravado os arquivos fake lá. Resultado: todo snapshot depois
+  de `expanded-shelf` vinha com `Relatório…/foto.png/notas.txt` que não deviam
+  estar ali, e eu estava validando layout contra imagens erradas. Fix:
+  `currentShelf.clear()` depois do construtor.
+- **`/Applications/Knobler.app` não é o que o `xcodebuild` produz.** O primeiro
+  "não mudou nada" do usuário foi exatamente isso: build novo no DerivedData,
+  binário velho rodando. Depois de qualquer mudança de UI: `quit` → `rm -rf` →
+  `cp -R` do `BUILT_PRODUCTS_DIR` → `open`.
+- Os diagnósticos do SourceKit ("Cannot find type 'NotchViewModel'") ao editar
+  arquivos soltos do projeto são ruído — o índice não enxerga o módulo. Só o
+  `snapshot.sh`/`xcodebuild` dizem a verdade.
+
+## Pendências e followups
+
+- **P1 — testar o swipe no trackpad.** Card aberto: dois dedos para a esquerda vai
+  para Mensagens, para a direita volta; os pontinhos acompanham. Notch fechado:
+  continua pulando faixa. O threshold é `abs(scrollAccumX) > 50`; se ficar difícil
+  de disparar, é esse número.
+- **P2 — descoberta do gesto.** Sem a barra de abas, nada anuncia que existe a tela
+  de Mensagens além de dois pontinhos de 5pt. Se o usuário reclamar de "sumiu as
+  mensagens", a resposta barata é um hint na primeira abertura.
+- **P3 — consultar bateria dos AirPods sob demanda.** Hoje não existe: só conexão e
+  ≤10%. Lugar natural seria o menu da barra de status.
+- **P4 — alturas do card são constantes mágicas.** `currentSize` soma valores fixos
+  por seção (118 para música, 128 para pomodoro…). Funciona, mas qualquer mudança
+  de conteúdo exige recalibrar pelos PNGs. Trocar por medição real só se doer.
+- `DESIGN.md` e `PRODUCT.md` foram commitados (estavam untracked); `.impeccable/`
+  ficou de fora de propósito.
+
 # 🏁 SESSÃO 2026-07-21 (manhã) — Foto e GIF nas Mensagens LAN — **v0.4.0 no ar**
 
 Anexo de imagem na troca de mensagens entre Macs: botão 📷 no compositor manda JPEG/PNG/GIF, que aparece no card que desce do notch (largura cheia) e no balão da conversa, **com GIF animando**.
