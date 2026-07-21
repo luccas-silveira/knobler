@@ -86,12 +86,13 @@ final class NotchViewModel: ObservableObject {
     }
 
     enum Mode: Equatable {
-        case closed, music, notification, hud, dictation, question, pomodoro, airpods
+        case closed, music, notification, hud, dictation, question, pomodoro, airpods, message
     }
 
-    /// Prioridade: pergunta > ditado > notificação > HUD > AirPods(card) > música (hover) > pomodoro > fechado.
+    /// Prioridade: pergunta > mensagem > ditado > notificação > HUD > AirPods(card) > música (hover) > pomodoro > fechado.
     var mode: Mode {
         if ask != nil { return .question }
+        if incoming != nil { return .message }
         if dictation != nil { return .dictation }
         if activeNotification != nil { return .notification }
         if hud != nil { return .hud }
