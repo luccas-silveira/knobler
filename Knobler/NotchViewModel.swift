@@ -67,8 +67,19 @@ final class NotchViewModel: ObservableObject {
         let name: String
         let text: String
         let allowReply: Bool
+        /// Arquivo da foto/GIF recebido (nome em `media/`), se houver.
+        var mediaFile: String?
+        /// Altura que a imagem ocupa no card (o app calcula: tem o store).
+        var mediaHeight: CGFloat = 0
     }
     @Published var incoming: IncomingMessage?
+    /// Foto/GIF escolhido, esperando o envio. Mora aqui (e não em @State da
+    /// MessagesView) porque o painel de arquivos tira o mouse do notch, o notch
+    /// fecha e a view morreria levando a escolha junto.
+    struct PendingAttachment { let data: Data; let kind: MediaKind }
+    @Published var pendingAttachment: PendingAttachment?
+    /// Última escolha falhou (formato/tamanho) — a view mostra o aviso.
+    @Published var attachmentFailed = false
     /// Conversa aberta na aba Mensagens (peerID) — nil = mostra a lista.
     /// Fonte da verdade da seleção (a MessagesView lê/escreve aqui) pra que
     /// `openThread` (clique no card) consiga abrir a conversa certa.
@@ -176,15 +187,27 @@ final class NotchViewModel: ObservableObject {
 
     // MARK: - Mensagens LAN
 
-    /// Mostra o card de entrada. Sem resposta permitida, some sozinho (como
-    /// notificação); com resposta, fica até o usuário responder ou fechar.
+    /// Mostra o card de entrada. Some sozinho como notificação — com resposta
+    /// permitida demora mais (dá tempo de ler e digitar), mas some.
     func showIncoming(_ m: IncomingMessage) {
         incoming = m
+        scheduleIncomingDismiss()
+    }
+
+    private func scheduleIncomingDismiss() {
+        guard let incoming else { return }
         incomingWork?.cancel()
-        guard !m.allowReply else { return }
         let work = DispatchWorkItem { [weak self] in self?.incoming = nil }
         incomingWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 6, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + (incoming.allowReply ? 20 : 6),
+                                      execute: work)
+    }
+
+    /// Ponteiro sobre o card segura; ao sair, o relógio recomeça (igual às
+    /// notificações) — ninguém perde o card no meio da resposta.
+    func holdIncoming(_ hovering: Bool) {
+        guard incoming != nil else { return }
+        if hovering { incomingWork?.cancel() } else { scheduleIncomingDismiss() }
     }
 
     func dismissIncoming() {
@@ -192,9 +215,17 @@ final class NotchViewModel: ObservableObject {
         incoming = nil
     }
 
+    /// Fechar/abrir o card vale pra TODAS as telas — o app faz o fan-out.
+    /// Sem isso, o X some só no monitor clicado e sobra card no outro.
+    var onDismissEverywhere: (() -> Void)?
+
+    func requestDismissIncoming() {
+        if let onDismissEverywhere { onDismissEverywhere() } else { dismissIncoming() }
+    }
+
     /// Abre a conversa daquele peer na aba Mensagens.
     func openThread(peerID: String) {
-        dismissIncoming()
+        requestDismissIncoming()
         selectedThreadPeerID = peerID
         tab = .messages
         setExpandedDirect(true)

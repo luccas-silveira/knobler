@@ -79,16 +79,24 @@ struct MessagesView: View {
                     ForEach(store.messages(for: peerID)) { bubble($0) }
                 }
             }
-            .frame(maxHeight: 160)
+            .frame(maxHeight: 200)
             composer(peer: peer)
         }
     }
 
     private func bubble(_ m: PeerMessage) -> some View {
-        HStack {
-            if !m.incoming { Spacer(minLength: 24) }
-            VStack(alignment: m.incoming ? .leading : .trailing, spacing: 1) {
-                Text(m.text).font(.footnote)
+        let media = m.mediaFile.flatMap { store.mediaURL($0) }
+        // com imagem o balão toma a largura toda (sem recuo do lado oposto)
+        return HStack {
+            if !m.incoming, media == nil { Spacer(minLength: 24) }
+            VStack(alignment: m.incoming ? .leading : .trailing, spacing: 4) {
+                if let url = media {
+                    MediaThumb(url: url)
+                        .aspectRatio(MessageMedia.aspect(url), contentMode: .fit)
+                        .frame(maxWidth: .infinity, maxHeight: 220)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                if !m.text.isEmpty { Text(m.text).font(.footnote) }
                 if !m.incoming, !m.delivered {
                     Text("não entregue").font(.caption2).foregroundStyle(.orange)
                 }
@@ -96,24 +104,45 @@ struct MessagesView: View {
             .padding(.horizontal, 8).padding(.vertical, 5)
             .background(RoundedRectangle(cornerRadius: 8)
                 .fill(.white.opacity(m.incoming ? 0.10 : 0.22)))
-            if m.incoming { Spacer(minLength: 24) }
+            if m.incoming, media == nil { Spacer(minLength: 24) }
         }
     }
 
     private func composer(peer: Peer?) -> some View {
-        HStack(spacing: 6) {
-            Toggle("", isOn: $allowReply).labelsHidden().toggleStyle(.switch).scaleEffect(0.7)
-                .help("Permite resposta")
-            TextField("Mensagem…", text: $draft)
-                .textFieldStyle(.plain).font(.footnote)
-                .padding(.horizontal, 8).padding(.vertical, 5)
-                .background(RoundedRectangle(cornerRadius: 8).fill(.white.opacity(0.08)))
-                .onSubmit { sendDraft(to: peer) }
-            Button { sendDraft(to: peer) } label: { Image(systemName: "paperplane.fill") }
-                .buttonStyle(.plain)
-                .disabled(peer == nil ||
-                    draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        VStack(alignment: .leading, spacing: 4) {
+            if vm.pendingAttachment != nil || vm.attachmentFailed { attachmentBar }
+            HStack(spacing: 6) {
+                Toggle("", isOn: $allowReply).labelsHidden().toggleStyle(.switch).scaleEffect(0.7)
+                    .help("Permite resposta")
+                Button(action: pickAttachment) { Image(systemName: "photo") }
+                    .buttonStyle(.plain).help("Anexar foto ou GIF")
+                TextField("Mensagem…", text: $draft)
+                    .textFieldStyle(.plain).font(.footnote)
+                    .padding(.horizontal, 8).padding(.vertical, 5)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(.white.opacity(0.08)))
+                    .onSubmit { sendDraft(to: peer) }
+                Button { sendDraft(to: peer) } label: { Image(systemName: "paperplane.fill") }
+                    .buttonStyle(.plain)
+                    .disabled(peer == nil || (vm.pendingAttachment == nil &&
+                        draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
+            }
         }
+    }
+
+    private var attachmentBar: some View {
+        HStack(spacing: 6) {
+            if let a = vm.pendingAttachment {
+                Image(systemName: a.kind == .gif ? "photo.stack" : "photo")
+                Text("\(a.kind.ext.uppercased()) · \(a.data.count / 1024) KB").font(.caption2)
+                Button { vm.pendingAttachment = nil } label: { Image(systemName: "xmark.circle.fill") }
+                    .buttonStyle(.plain)
+            } else {
+                Text("Não deu pra anexar (formato ou tamanho).").font(.caption2)
+                    .foregroundStyle(.orange)
+            }
+            Spacer(minLength: 0)
+        }
+        .foregroundStyle(.white.opacity(0.7))
     }
 
     // MARK: Ações
@@ -131,14 +160,30 @@ struct MessagesView: View {
         }
     }
 
+    private func pickAttachment() {
+        MessageMedia.pick { picked in
+            vm.pendingAttachment = picked.map { .init(data: $0.0, kind: $0.1) }
+            vm.attachmentFailed = picked == nil
+            // o painel de arquivos tira o mouse do notch: reabre na conversa
+            vm.tab = .messages
+            vm.setExpandedDirect(true)
+        }
+    }
+
     private func sendDraft(to peer: Peer?) {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let peer, !text.isEmpty else { return }
+        let media = vm.pendingAttachment
+        guard let peer, !text.isEmpty || media != nil else { return }
         draft = ""
+        vm.pendingAttachment = nil
+        vm.attachmentFailed = false
         let reply = allowReply
-        lan.send(text, to: peer, allowReply: reply) { ok in
+        // grava a cópia local antes de enviar: o balão mostra o que saiu daqui
+        let file = media.flatMap { store.saveMedia($0.data, ext: $0.kind.ext) }
+        lan.send(text, to: peer, allowReply: reply, media: media.map { ($0.data, $0.kind) }) { ok in
             store.append(PeerMessage(id: UUID().uuidString, peerID: peer.id, incoming: false,
-                                     text: text, allowReply: reply, at: Date(), delivered: ok))
+                                     text: text, allowReply: reply, at: Date(), delivered: ok,
+                                     mediaFile: file))
         }
     }
 

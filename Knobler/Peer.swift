@@ -31,6 +31,8 @@ struct PeerMessage: Identifiable, Codable, Equatable {
     var allowReply: Bool
     let at: Date
     var delivered: Bool = true
+    /// Nome do arquivo da foto/GIF em `media/` (nil = mensagem só de texto).
+    var mediaFile: String?
 }
 
 /// Perfil publicado por um peer (resposta ao pedido `profile`).

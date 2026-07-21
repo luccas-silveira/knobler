@@ -31,6 +31,11 @@ final class MessageStore: ObservableObject {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
+    private var mediaDir: URL {
+        let dir = baseDir.appendingPathComponent("media", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
 
     init() {
         if let data = try? Data(contentsOf: threadsURL),
@@ -48,9 +53,31 @@ final class MessageStore: ObservableObject {
     func append(_ msg: PeerMessage) {
         var list = threads[msg.peerID] ?? []
         list.append(msg)
-        if list.count > Self.maxPerPeer { list.removeFirst(list.count - Self.maxPerPeer) }
+        if list.count > Self.maxPerPeer {
+            // some do histórico → o arquivo da foto/GIF vai junto (sem órfãos no disco)
+            let dropped = list.prefix(list.count - Self.maxPerPeer)
+            for old in dropped {
+                if let url = old.mediaFile.flatMap(mediaURL) { try? FileManager.default.removeItem(at: url) }
+            }
+            list.removeFirst(list.count - Self.maxPerPeer)
+        }
         threads[msg.peerID] = list
         scheduleSave()
+    }
+
+    // MARK: Fotos/GIFs das mensagens
+
+    /// Grava o anexo e devolve o nome do arquivo (nome sempre gerado aqui —
+    /// nada vindo da rede vira caminho).
+    func saveMedia(_ data: Data, ext: String) -> String? {
+        let name = "\(UUID().uuidString).\(ext)"
+        guard (try? data.write(to: mediaDir.appendingPathComponent(name))) != nil else { return nil }
+        return name
+    }
+
+    func mediaURL(_ file: String) -> URL? {
+        guard file == (file as NSString).lastPathComponent, !file.hasPrefix(".") else { return nil }
+        return mediaDir.appendingPathComponent(file)
     }
 
     func name(for peerID: String) -> String? { names[peerID] }

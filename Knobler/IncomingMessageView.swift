@@ -19,6 +19,12 @@ struct IncomingMessageView: View {
         VStack(alignment: .leading, spacing: 6) {
             Button { vm.openThread(peerID: incoming.peerID) } label: { header }
                 .buttonStyle(.plain)
+            if let url = incoming.mediaFile.flatMap({ store.mediaURL($0) }) {
+                MediaThumb(url: url)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: incoming.mediaHeight)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
             if incoming.allowReply { replyField }
         }
         .foregroundStyle(.white)
@@ -29,11 +35,12 @@ struct IncomingMessageView: View {
             avatar.frame(width: 30, height: 30)
             VStack(alignment: .leading, spacing: 1) {
                 Text(incoming.name).font(.footnote.weight(.semibold))
-                Text(incoming.text).font(.caption).foregroundStyle(.white.opacity(0.75))
+                Text(incoming.text.isEmpty ? "Mandou uma imagem" : incoming.text)
+                    .font(.caption).foregroundStyle(.white.opacity(0.75))
                     .lineLimit(2)
             }
             Spacer(minLength: 0)
-            Button { vm.dismissIncoming() } label: {
+            Button { vm.requestDismissIncoming() } label: {
                 Image(systemName: "xmark.circle.fill").foregroundStyle(.white.opacity(0.5))
             }.buttonStyle(.plain)
         }

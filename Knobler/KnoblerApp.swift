@@ -193,14 +193,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         // Mensagens LAN: perfil próprio + recebimento (card em todas as telas, como notificação)
         lanMessaging.profileProvider = { AppSettings.shared.myProfile() }
-        lanMessaging.onIncoming = { [weak self] msg, profile in
+        lanMessaging.onIncoming = { [weak self] msg, profile, media in
             guard let self else { return }
             let name = profile?.name ?? self.messageStore.name(for: msg.peerID) ?? "?"
             self.messageStore.rememberName(name, for: msg.peerID)
+            var msg = msg
+            msg.mediaFile = media.flatMap { self.messageStore.saveMedia($0.0, ext: $0.1.ext) }
             self.messageStore.append(msg)
+            let mediaHeight = msg.mediaFile.flatMap { self.messageStore.mediaURL($0) }
+                .map { MessageMedia.cardHeight($0) } ?? 0
             self.notches.values.forEach {
                 $0.viewModel.showIncoming(.init(peerID: msg.peerID, name: name,
-                                                text: msg.text, allowReply: msg.allowReply))
+                                                text: msg.text, allowReply: msg.allowReply,
+                                                mediaFile: msg.mediaFile,
+                                                mediaHeight: mediaHeight))
             }
             if let peer = self.lanMessaging.peer(withID: msg.peerID) {
                 self.lanMessaging.fetchProfile(from: peer) { prof in
@@ -548,6 +554,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                             incoming: false, text: text, allowReply: true, at: Date(), delivered: ok))
                     }
                     self.notches.values.forEach { $0.viewModel.dismissIncoming() }
+                }
+                // fechar o card (X) ou abrir a conversa fecha em TODAS as telas
+                viewModel.onDismissEverywhere = { [weak self] in
+                    self?.notches.values.forEach { $0.viewModel.dismissIncoming() }
                 }
                 // Rede Local: liga o Bonjour quando o usuário abre a aba Mensagens
                 // (app ativo → prompt num momento sensato). start() é idempotente.

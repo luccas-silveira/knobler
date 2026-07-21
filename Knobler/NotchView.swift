@@ -141,6 +141,8 @@ struct NotchView: View {
         .onHover { inside in
             if vm.mode == .notification {
                 vm.holdNotification(inside)
+            } else if vm.mode == .message {
+                vm.holdIncoming(inside)
             } else if !inside || vm.mode != .question {
                 // hover no card de pergunta é pra clicar em opção, não pra
                 // expandir: setHover(true) aqui armava expanded invisível e o
@@ -206,7 +208,10 @@ struct NotchView: View {
             return CGSize(width: notificationWidth, height: topInset + 56)
         case .message:
             let tall = vm.incoming?.allowReply == true
-            return CGSize(width: 360, height: topInset + (tall ? 108 : 72))
+            // a imagem toma a largura toda do card; a altura vem do app (aspecto real)
+            let media = vm.incoming?.mediaHeight ?? 0
+            return CGSize(width: 360,
+                          height: topInset + (tall ? 108 : 72) + (media > 0 ? media + 6 : 0))
         case .airpods:
             return CGSize(width: 320, height: topInset + 64)
         case .question:

@@ -32,6 +32,7 @@ swiftc -O -o build/snapshot \
   Knobler/Wire.swift \
   Knobler/LANMessaging.swift \
   Knobler/MessageStore.swift \
+  Knobler/MessageMedia.swift \
   Knobler/MessagesView.swift \
   Knobler/IncomingMessageView.swift \
   tools/main.swift

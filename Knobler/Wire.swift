@@ -12,11 +12,13 @@ import Foundation
 enum Packet: Codable, Equatable {
     case profileRequest
     case profileResponse(id: String, name: String, avatar: Data?)
-    case message(id: String, from: String, fromName: String, text: String, reply: Bool)
+    /// `media`/`mime` presentes = foto ou GIF anexado (texto pode vir vazio).
+    case message(id: String, from: String, fromName: String, text: String, reply: Bool,
+                 media: Data? = nil, mime: String? = nil)
     case ack
 
     private enum Key: String, CodingKey {
-        case t, id, name, avatar, from, fromName, text, reply
+        case t, id, name, avatar, from, fromName, text, reply, media, mime
     }
 
     func encode(to encoder: Encoder) throws {
@@ -29,13 +31,15 @@ enum Packet: Codable, Equatable {
             try c.encode(id, forKey: .id)
             try c.encode(name, forKey: .name)
             try c.encodeIfPresent(avatar, forKey: .avatar) // Data → base64 no JSON
-        case let .message(id, from, fromName, text, reply):
+        case let .message(id, from, fromName, text, reply, media, mime):
             try c.encode("msg", forKey: .t)
             try c.encode(id, forKey: .id)
             try c.encode(from, forKey: .from)
             try c.encode(fromName, forKey: .fromName)
             try c.encode(text, forKey: .text)
             try c.encode(reply, forKey: .reply)
+            try c.encodeIfPresent(media, forKey: .media) // Data → base64 no JSON
+            try c.encodeIfPresent(mime, forKey: .mime)
         case .ack:
             try c.encode("ack", forKey: .t)
         }
@@ -57,7 +61,9 @@ enum Packet: Codable, Equatable {
                 from: try c.decode(String.self, forKey: .from),
                 fromName: try c.decode(String.self, forKey: .fromName),
                 text: try c.decode(String.self, forKey: .text),
-                reply: try c.decode(Bool.self, forKey: .reply))
+                reply: try c.decode(Bool.self, forKey: .reply),
+                media: try c.decodeIfPresent(Data.self, forKey: .media),
+                mime: try c.decodeIfPresent(String.self, forKey: .mime))
         case "ack":
             self = .ack
         default:
@@ -70,7 +76,10 @@ enum Packet: Codable, Equatable {
 enum WireError: Error { case tooBig }
 
 enum Frame {
-    static let maxSize = 64 * 1024
+    /// Teto do corpo JSON. Anexo cru cabe em `maxMedia`; o base64 infla ~33%.
+    static let maxSize = 12 * 1024 * 1024
+    /// Teto do anexo (foto/GIF) antes de virar base64.
+    static let maxMedia = 6 * 1024 * 1024
 
     /// 4 bytes de tamanho (big-endian) + corpo JSON.
     static func encode(_ packet: Packet) throws -> Data {
@@ -84,5 +93,30 @@ enum Frame {
 
     static func decode(_ body: Data) throws -> Packet {
         try JSONDecoder().decode(Packet.self, from: body)
+    }
+}
+
+/// Anexo de imagem aceito no fio. Só três tipos, e o `mime` declarado tem que
+/// bater com os bytes mágicos — remetente não escolhe a extensão do arquivo
+/// que vamos gravar nem nos empurra outro formato disfarçado.
+enum MediaKind: String {
+    case jpeg, png, gif
+
+    var mime: String { "image/\(rawValue)" }
+    var ext: String { rawValue == "jpeg" ? "jpg" : rawValue }
+
+    /// Identifica pelos bytes; `nil` = não é imagem suportada.
+    static func detect(_ data: Data) -> MediaKind? {
+        let head = [UInt8](data.prefix(8))
+        if head.starts(with: [0xFF, 0xD8, 0xFF]) { return .jpeg }
+        if head.starts(with: [0x89, 0x50, 0x4E, 0x47]) { return .png }
+        if head.starts(with: Array("GIF8".utf8)) { return .gif }
+        return nil
+    }
+
+    /// Valida um anexo recebido: tamanho, bytes mágicos e coerência com o `mime`.
+    static func validate(_ data: Data, mime: String?) -> MediaKind? {
+        guard data.count <= Frame.maxMedia, let kind = detect(data), kind.mime == mime else { return nil }
+        return kind
     }
 }

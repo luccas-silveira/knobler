@@ -6,6 +6,28 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- **Foto e GIF nas Mensagens LAN**: botão de anexo no compositor manda uma imagem
+  (JPEG/PNG/GIF) pro outro Mac; ela aparece no card que desce do notch e no balão
+  da conversa, com GIF animando. Imagem grande é reamostrada pra 1600 px/JPEG antes
+  de ir; GIF vai cru pra não perder a animação (teto de 6 MB). O recebedor valida
+  os bytes mágicos contra o tipo declarado e grava em `media/` com nome gerado
+  localmente. (`MessageMedia.swift`, `MediaKind` em `Wire.swift`.)
+- GIF acima do teto é reamostrado mantendo a animação (reduz o lado maior e,
+  se preciso, pula quadros somando o tempo do quadro pulado) — um GIF de 46 MB
+  do Giphy vira 5,7 MB e continua girando.
+
+### Fixed
+- **Card de mensagem não sumia mais da tela**: com resposta permitida ele ficava
+  para sempre. Agora some em 20 s (6 s sem resposta), com o relógio pausado
+  enquanto o ponteiro está sobre o card.
+- **Fechar o card fechava só num monitor**: o X (e abrir a conversa) agora vale
+  para todas as telas, como a resposta rápida já fazia.
+- **Pacote acima de 64 KB era descartado calado**: `NWConnection` não entrega
+  mais que isso por `receive`, e pedir o corpo inteiro de uma vez fazia a leitura
+  falhar sem erro — nenhuma imagem passaria. O corpo agora é lido em pedaços, e o
+  tempo-limite da troca subiu de 5 s para 20 s (anexo de MBs em Wi-Fi ruim).
+
 ## [0.3.0] - 2026-07-21
 
 ### Added

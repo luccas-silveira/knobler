@@ -36,10 +36,31 @@ let bogus = Data(#"{"t":"xpto"}"#.utf8)
 do { _ = try Frame.decode(bogus); assert(false, "tag desconhecida deveria lançar") }
 catch is DecodingError { /* esperado */ }
 
-// teto de 64 KB
+// teto do frame
 let huge = Packet.message(id: "x", from: "x", fromName: "x",
-                          text: String(repeating: "a", count: 70_000), reply: false)
+                          text: String(repeating: "a", count: Frame.maxSize + 1), reply: false)
 do { _ = try Frame.encode(huge); assert(false, "deveria estourar o teto") }
 catch WireError.tooBig { /* esperado */ }
+
+// mensagem com anexo sobrevive ao round-trip (Data → base64 → Data)
+let gif = Data(Array("GIF89a".utf8) + [0, 1, 2])
+let withMedia = Packet.message(id: "m3", from: "u1", fromName: "Luccas", text: "olha",
+                               reply: true, media: gif, mime: "image/gif")
+assert(try! Frame.decode(Frame.encode(withMedia).suffix(from: 4)) == withMedia,
+       "mensagem com anexo sobrevive")
+
+// mensagem sem anexo continua decodificando (campos ausentes → nil)
+assert(try! Frame.decode(Data(#"{"t":"msg","id":"m4","from":"u","fromName":"n","text":"oi","reply":false}"#.utf8))
+       == .message(id: "m4", from: "u", fromName: "n", text: "oi", reply: false),
+       "msg antigo (sem campos de mídia) ainda decodifica")
+
+// validação do anexo: tipo detectado pelos bytes e coerente com o mime
+assert(MediaKind.validate(gif, mime: "image/gif") == .gif, "gif válido passa")
+assert(MediaKind.validate(gif, mime: "image/png") == nil, "mime mentindo é rejeitado")
+assert(MediaKind.validate(Data([0xFF, 0xD8, 0xFF, 0]), mime: "image/jpeg") == .jpeg, "jpeg passa")
+assert(MediaKind.validate(Data("<script>".utf8), mime: "image/png") == nil, "não-imagem é rejeitada")
+assert(MediaKind.validate(Data(repeating: 0x47, count: Frame.maxMedia + 1), mime: "image/gif") == nil,
+       "anexo acima do teto é rejeitado")
+assert(MediaKind.gif.ext == "gif" && MediaKind.jpeg.ext == "jpg", "extensão do arquivo")
 
 print("wire ok")

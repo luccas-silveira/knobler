@@ -12,6 +12,8 @@ import Network
 
 final class LANMessaging: ObservableObject {
     static let serviceType = "_knobler._tcp"
+    /// Teto de uma troca (conexão efêmera) — dimensionado pelo anexo, não pelo texto.
+    private static let timeout: TimeInterval = 20
 
     @Published private(set) var peers: [Peer] = []
     /// Rede Local negada pelo usuário (kDNSServiceErr_PolicyDenied -65570).
@@ -19,8 +21,9 @@ final class LANMessaging: ObservableObject {
 
     /// App fornece o próprio perfil (id/nome/foto) pra anunciar e responder `profile`.
     var profileProvider: (() -> PeerProfile)?
-    /// Mensagem recebida (já validada) → app grava/mostra.
-    var onIncoming: ((PeerMessage, PeerProfile?) -> Void)?
+    /// Mensagem recebida (já validada) → app grava/mostra. `media` = anexo cru
+    /// já validado (bytes + tipo); o app decide onde gravar.
+    var onIncoming: ((PeerMessage, PeerProfile?, (Data, MediaKind)?) -> Void)?
 
     private var listener: NWListener?
     private var browser: NWBrowser?
@@ -115,7 +118,8 @@ final class LANMessaging: ObservableObject {
         conn.start(queue: .main)
         // watchdog: peer que abre e não envia (ou trickle) não pode segurar o socket
         // pra sempre. cancel após completar/fechar é no-op — seguro.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { conn.cancel() }
+        // 20s (e não 5) porque um GIF de alguns MB em Wi-Fi ruim leva mais que isso.
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.timeout) { conn.cancel() }
         receiveFrame(on: conn) { [weak self] packet in
             guard let self, let packet else { conn.cancel(); return }
             switch packet {
@@ -123,15 +127,20 @@ final class LANMessaging: ObservableObject {
                 let p = self.profileProvider?() ?? PeerProfile(id: "", name: "?", avatarJPEG: nil)
                 self.sendFrame(.profileResponse(id: p.id, name: p.name, avatar: p.avatarJPEG),
                                on: conn, close: true)
-            case let .message(id, from, fromName, text, reply):
+            case let .message(id, from, fromName, text, reply, media, mime):
                 // `from` vira chave de arquivo (histórico/foto) — exige UUID canônico
                 // (mesma defesa do updatePeers). Remetente forjado é descartado.
                 guard UUID(uuidString: from) != nil else { conn.cancel(); return }
+                // anexo só passa se os bytes forem mesmo jpeg/png/gif e casarem
+                // com o mime declarado; caso contrário vira mensagem só de texto.
+                let attachment = media.flatMap { data in
+                    MediaKind.validate(data, mime: mime).map { (data, $0) }
+                }
                 let clipped = String(text.prefix(2000))
                 let msg = PeerMessage(id: id, peerID: from, incoming: true,
                                       text: clipped, allowReply: reply, at: Date())
                 let prof = PeerProfile(id: from, name: fromName, avatarJPEG: nil)
-                DispatchQueue.main.async { self.onIncoming?(msg, prof) }
+                DispatchQueue.main.async { self.onIncoming?(msg, prof, attachment) }
                 self.sendFrame(.ack, on: conn, close: true)
             default:
                 conn.cancel()
@@ -142,11 +151,13 @@ final class LANMessaging: ObservableObject {
     // MARK: Enviar
 
     func send(_ text: String, to peer: Peer, allowReply: Bool,
+              media: (Data, MediaKind)? = nil,
               completion: @escaping (Bool) -> Void) {
         guard let me = profileProvider?() else { completion(false); return }
         let packet = Packet.message(
             id: UUID().uuidString, from: me.id, fromName: me.name,
-            text: String(text.prefix(2000)), reply: allowReply)
+            text: String(text.prefix(2000)), reply: allowReply,
+            media: media?.0, mime: media?.1.mime)
         request(packet, to: peer.endpoint) { reply in
             if case .ack = reply { completion(true) } else { completion(false) }
         }
@@ -191,7 +202,7 @@ final class LANMessaging: ObservableObject {
         }
         conn.start(queue: .main)
         // rede local não deve demorar; corta pendências
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { finish(nil) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.timeout) { finish(nil) }
     }
 
     // MARK: Framing sobre NWConnection
@@ -209,11 +220,20 @@ final class LANMessaging: ObservableObject {
             guard let header, header.count == 4, err == nil else { then(nil); return }
             let n = Int(header.withUnsafeBytes { $0.loadUnaligned(as: UInt32.self).bigEndian })
             guard n > 0, n <= Frame.maxSize else { then(nil); return }
-            conn.receive(minimumIncompleteLength: n, maximumLength: n) { body, _, _, err in
-                guard let body, body.count == n, err == nil,
-                      let packet = try? Frame.decode(body) else { then(nil); return }
-                then(packet)
+            // NWConnection não entrega mais que 64 KB por receive — pedir `n` de
+            // uma vez faz a leitura falhar calada em qualquer frame com anexo.
+            // Acumula em pedaços até fechar o corpo.
+            var body = Data()
+            body.reserveCapacity(n)
+            func more() {
+                conn.receive(minimumIncompleteLength: 1,
+                             maximumLength: min(n - body.count, 64 * 1024)) { chunk, _, _, err in
+                    guard let chunk, !chunk.isEmpty, err == nil else { then(nil); return }
+                    body.append(chunk)
+                    if body.count < n { more() } else { then(try? Frame.decode(body)) }
+                }
             }
+            more()
         }
     }
 
