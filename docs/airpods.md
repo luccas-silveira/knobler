@@ -1,10 +1,10 @@
 # Bateria dos AirPods
 
-![Card de conexão com bateria por componente](../Snapshots/airpods-connect.png)
+![Card de conexão com bateria por componente](images/airpods-connect.png)
 
 *Conectou — bateria por componente (esquerdo/direito/case).*
 
-![Aviso de bateria baixa](../Snapshots/airpods-low.png)
+![Aviso de bateria baixa](images/airpods-low.png)
 
 *Bateria baixa.*
 

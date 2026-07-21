@@ -1,6 +1,6 @@
 # Countdown de calendário
 
-![Anel de atividade no notch (mesma UI usada pelo countdown)](../Snapshots/expanded-activity-only.png)
+![Anel de atividade no notch (mesma UI usada pelo countdown)](images/expanded-activity-only.png)
 
 *O countdown usa o mesmo anel de "live activity" genérico do Knobler — não
 tem uma UI própria separada.*

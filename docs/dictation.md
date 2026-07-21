@@ -1,10 +1,10 @@
 # Ditado
 
-![Gravando ditado](../Snapshots/dictation-recording.png)
+![Gravando ditado](images/dictation-recording.png)
 
 *Gravando (⌥ direita segurada).*
 
-![Transcrevendo](../Snapshots/dictation-transcribing.png)
+![Transcrevendo](images/dictation-transcribing.png)
 
 *Transcrevendo.*
 

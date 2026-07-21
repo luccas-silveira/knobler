@@ -1,14 +1,14 @@
 # Descanso
 
-![Aviso de descanso chegando](../Snapshots/descanso.png)
+![Aviso de descanso chegando](images/descanso.png)
 
 *Aviso antes do bloqueio.*
 
-![Bloqueio de tela segurando o cursor](../Snapshots/descanso-hold.png)
+![Bloqueio de tela segurando o cursor](images/descanso-hold.png)
 
 *Bloqueio forçado — segurar pra dispensar.*
 
-![Painel de Ajustes do Descanso](../Snapshots/settings-descanso.png)
+![Painel de Ajustes do Descanso](images/settings-descanso.png)
 
 *Ajustes → Descanso.*
 

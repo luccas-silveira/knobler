@@ -1,10 +1,10 @@
 # Now Playing
 
-![Notch fechado com música tocando](../Snapshots/closed-music.png)
+![Notch fechado com música tocando](images/closed-music.png)
 
 *Fechado — capa + visualizador.*
 
-![Notch expandido em música](../Snapshots/music-expanded.png)
+![Notch expandido em música](images/music-expanded.png)
 
 *Aberto (hover) — controles, progresso e shuffle.*
 

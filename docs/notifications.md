@@ -1,6 +1,6 @@
 # Notificações do sistema
 
-![Card de notificação no notch](../Snapshots/notification.png)
+![Card de notificação no notch](images/notification.png)
 
 ## O que faz
 

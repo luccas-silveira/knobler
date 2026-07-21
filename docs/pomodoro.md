@@ -1,14 +1,14 @@
 # Pomodoro
 
-![Fase de foco](../Snapshots/pomodoro-focus.png)
+![Fase de foco](images/pomodoro-focus.png)
 
 *Foco.*
 
-![Fase de pausa](../Snapshots/pomodoro-break.png)
+![Fase de pausa](images/pomodoro-break.png)
 
 *Pausa.*
 
-![Painel de Ajustes do Pomodoro](../Snapshots/settings-pomodoro.png)
+![Painel de Ajustes do Pomodoro](images/settings-pomodoro.png)
 
 *Ajustes → Pomodoro.*
 

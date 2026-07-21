@@ -1,10 +1,10 @@
 # Perguntas do Claude Code (Ask)
 
-![Card de pergunta simples](../Snapshots/ask-simple.png)
+![Card de pergunta simples](images/ask-simple.png)
 
 *Pergunta de escolha única.*
 
-![Card de múltipla escolha](../Snapshots/ask-multiselect.png)
+![Card de múltipla escolha](images/ask-multiselect.png)
 
 *Múltipla escolha.*
 

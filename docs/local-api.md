@@ -1,6 +1,6 @@
 # API local
 
-![Live activity de deploy tocando junto com a música](../Snapshots/closed-activity-music.png)
+![Live activity de deploy tocando junto com a música](images/closed-activity-music.png)
 
 ## O que faz
 

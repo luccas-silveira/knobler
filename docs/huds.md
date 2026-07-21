@@ -1,14 +1,14 @@
 # HUDs (volume, brilho, bateria)
 
-![HUD de volume](../Snapshots/hud-volume.png)
+![HUD de volume](images/hud-volume.png)
 
 *Volume.*
 
-![HUD de brilho](../Snapshots/hud-brightness.png)
+![HUD de brilho](images/hud-brightness.png)
 
 *Brilho.*
 
-![HUD de bateria carregando](../Snapshots/hud-battery-charging.png)
+![HUD de bateria carregando](images/hud-battery-charging.png)
 
 *Bateria (conectou o carregador, ou cruzou 20%).*
 

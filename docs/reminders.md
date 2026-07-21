@@ -1,6 +1,6 @@
 # Lembretes
 
-![Painel de Ajustes de Lembretes](../Snapshots/settings-lembretes.png)
+![Painel de Ajustes de Lembretes](images/settings-lembretes.png)
 
 ## O que faz
 

@@ -1,14 +1,14 @@
 # Mensagens (LAN)
 
-![Lista de pessoas online na rede local](../Snapshots/messages-online.png)
+![Lista de pessoas online na rede local](images/messages-online.png)
 
 *Aba Mensagens — quem está online agora.*
 
-![Card de mensagem chegando](../Snapshots/messages-incoming.png)
+![Card de mensagem chegando](images/messages-incoming.png)
 
 *Mensagem chegando — desce do notch.*
 
-![Painel de identidade (nome/foto exibidos aos outros)](../Snapshots/settings-mensagens.png)
+![Painel de identidade (nome/foto exibidos aos outros)](images/settings-mensagens.png)
 
 *Ajustes → Mensagens (nome e foto que os outros veem).*
 

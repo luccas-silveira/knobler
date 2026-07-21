@@ -1,6 +1,6 @@
 # Prateleira de arquivos (Shelf)
 
-![Notch expandido com a prateleira](../Snapshots/expanded-shelf.png)
+![Notch expandido com a prateleira](images/expanded-shelf.png)
 
 ## O que faz
 

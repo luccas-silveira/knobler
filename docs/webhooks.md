@@ -1,10 +1,10 @@
 # Notificações externas (Webhooks)
 
-![Painel de Ajustes de Notificações externas](../Snapshots/settings-webhooks.png)
+![Painel de Ajustes de Notificações externas](images/settings-webhooks.png)
 
 *Ajustes → Notificações externas — lista de perfis.*
 
-![Editor de mapeamento de um perfil](../Snapshots/mapping-editor.png)
+![Editor de mapeamento de um perfil](images/mapping-editor.png)
 
 *Mapear um perfil — como o JSON recebido vira o card.*
 

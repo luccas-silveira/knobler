@@ -1,10 +1,10 @@
 # Ajustes
 
-![Painel Geral](../Snapshots/settings-geral.png)
+![Painel Geral](images/settings-geral.png)
 
 *Geral.*
 
-![Painel Notch](../Snapshots/settings-notch.png)
+![Painel Notch](images/settings-notch.png)
 
 *Notch — liga/desliga cada feature individualmente.*
 
