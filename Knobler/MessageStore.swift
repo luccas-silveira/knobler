@@ -82,4 +82,11 @@ final class MessageStore: ObservableObject {
         if let data = try? JSONEncoder().encode(threads) { try? data.write(to: threadsURL) }
         if let data = try? JSONEncoder().encode(names) { try? data.write(to: namesURL) }
     }
+
+    /// Grava agora (chamado no encerramento do app) — fecha a janela do debounce.
+    func flush() {
+        saveWork?.cancel()
+        saveWork = nil
+        save()
+    }
 }
