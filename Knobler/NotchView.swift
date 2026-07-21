@@ -798,6 +798,7 @@ struct NotchView: View {
 
     private func appIcon(for notification: NotchNotification) -> some View {
         RemoteAvatarView(iconURL: notification.iconURL,
+                         iconEmoji: notification.iconEmoji,
                          fallbackPath: Self.appPath(bundleID: notification.bundleID,
                                                     named: notification.appName))
             .frame(width: 32, height: 32)
@@ -1039,12 +1040,15 @@ struct AudioBarsView: View {
 /// toggle está on; senão o ícone do app; senão o sino.
 private struct RemoteAvatarView: View {
     let iconURL: String?
+    let iconEmoji: String?
     let fallbackPath: String?
     @StateObject private var loader = RemoteAvatarLoader()
 
     var body: some View {
         Group {
-            if let img = loader.image {
+            if let e = iconEmoji, !e.isEmpty {
+                Text(e).font(.system(size: 22))
+            } else if let img = loader.image {
                 Image(nsImage: img).resizable().scaledToFit()
                     .clipShape(RoundedRectangle(cornerRadius: 7))
             } else if let path = fallbackPath {
@@ -1059,6 +1063,7 @@ private struct RemoteAvatarView: View {
     }
 
     private func reload() {
+        guard iconEmoji == nil else { return }   // emoji fixo: renderiza local, não baixa nada
         if AppSettings.shared.loadRemoteImages { loader.load(iconURL) }
     }
 }

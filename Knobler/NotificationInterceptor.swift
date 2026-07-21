@@ -26,6 +26,8 @@ struct NotchNotification: Identifiable, Equatable {
     var openURL: String? = nil
     /// Avatar remoto (webhook): URL https carregada com guardas no card.
     var iconURL: String? = nil
+    /// Emoji fixo do perfil (webhook) — renderiza local, sem baixar nada.
+    var iconEmoji: String? = nil
     /// ID de dedupe do webhook: mesmo id substitui em vez de empilhar (progresso).
     var webhookID: String? = nil
     let date = Date()

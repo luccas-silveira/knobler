@@ -16,6 +16,7 @@ import os
 private struct PushNotification: Decodable {
     let type: String
     let title: String?; let body: String?; let iconURL: String?
+    let iconEmoji: String?
     let url: String?; let sound: Bool?; let id: String?
 }
 
@@ -220,10 +221,10 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         guard let n = try? JSONDecoder().decode(PushNotification.self, from: data), n.type == "notify",
               let title = n.title, !title.isEmpty else { return }
         // ordem dos args = ordem de declaração na struct (memberwise init é sensível à ordem):
-        // appName, title, body, [bundleID], [supacode*], openURL, iconURL, webhookID
+        // appName, title, body, [bundleID], [supacode*], openURL, iconURL, iconEmoji, webhookID
         let note = NotchNotification(
             appName: nil, title: title, body: n.body ?? "",
-            openURL: n.url, iconURL: n.iconURL, webhookID: n.id)
+            openURL: n.url, iconURL: n.iconURL, iconEmoji: n.iconEmoji, webhookID: n.id)
         let playSound = n.sound ?? false
         DispatchQueue.main.async {
             if playSound { NSSound(named: "Pop")?.play() }
