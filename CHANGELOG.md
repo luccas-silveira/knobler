@@ -6,6 +6,20 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Changed
+- **Card de música enxugado**: a barra de abas "Música | Mensagens" saiu. A troca
+  de tela agora é por swipe horizontal de dois dedos sobre o card aberto, com um
+  par de pontinhos discretos no rodapé como indicador (também clicáveis). Com o
+  notch fechado, o mesmo gesto continua pulando faixa.
+- A bateria dos AirPods saiu do card expandido: aparece só no card transitório de
+  conexão e quando algum componente cai a ≤10%.
+- O botão do espelho saiu de junto do título e assumiu o 5º slot dos controles,
+  no lugar do atalho pros Ajustes de Som.
+
+### Removed
+- Barras de áudio do card expandido (o notch fechado já as mostra) e o botão que
+  abria os Ajustes de Som.
+
 ## [0.4.0] - 2026-07-21
 
 ### Added

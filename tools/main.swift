@@ -273,7 +273,10 @@ let scenarios: [Scenario] = [
 
 MainActor.assumeIsolated {
 for scenario in scenarios {
+    // ShelfStore() relê o UserDefaults — sem o clear, os arquivos fake de um
+    // cenário vazavam pros seguintes
     currentShelf = ShelfStore()
+    currentShelf.clear()
     let vm = NotchViewModel()
     let media = MediaController()
     media.injectPreview(state: nil, artwork: nil)

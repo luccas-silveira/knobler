@@ -455,9 +455,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 scrollActed = true
                 // natural scrolling: dedos pra baixo → deltaY positivo
                 vm.setExpandedDirect(scrollAccumY > 0)
-            } else if abs(scrollAccumX) > 50, media.state != nil {
+            } else if abs(scrollAccumX) > 50 {
                 scrollActed = true
-                if scrollAccumX < 0 { media.nextTrack() } else { media.previousTrack() }
+                if expanded {
+                    // card aberto: horizontal navega entre as telas (Música/Mensagens)
+                    withAnimation(.easeOut(duration: 0.22)) {
+                        vm.tab = scrollAccumX < 0 ? .messages : .music
+                    }
+                } else if media.state != nil {
+                    if scrollAccumX < 0 { media.nextTrack() } else { media.previousTrack() }
+                }
             }
         }
         return nil // engole o scroll na zona — a janela de trás não rola junto

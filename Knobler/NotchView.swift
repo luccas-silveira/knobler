@@ -182,27 +182,26 @@ struct NotchView: View {
                 height: vm.notchSize.height
             )
         case .music:
+            // topo (câmera) + pontinhos de página no rodapé, comuns às duas telas
+            let chrome = topInset + 10 + 16
             if vm.tab == .messages {
                 // aba Mensagens tem altura própria (conversa: cabeçalho + histórico
                 // rolável até 160 + campo); a lista de online cabe no mesmo espaço.
-                return CGSize(width: expandedSize.width, height: topInset + 300)
+                return CGSize(width: expandedSize.width, height: chrome + 272)
             }
             let hasShelf = !shelf.items.isEmpty
             let hasPomodoro = vm.pomodoro != nil
             // Pomodoro ativo suprime música e placeholder
             let placeholder = !hasMusic && vm.activity == nil && !hasShelf
-                && !vm.mirrorOn && !hasPomodoro && vm.airpods == nil
-            // barra de abas (Música|Mensagens) fica sempre no topo do card aberto
-            var height = topInset + 34
+                && !vm.mirrorOn && !hasPomodoro
+            var height = chrome
             if hasPomodoro { height += 128 }  // cabeçalho + timer grande + ciclo + controles
             if vm.mirrorOn {
                 height += vm.activity != nil || hasShelf ? 190 : 202
             }
-            if !vm.mirrorOn, !hasPomodoro, hasMusic || placeholder { height += 140 }
+            if !vm.mirrorOn, !hasPomodoro, hasMusic || placeholder { height += 118 }
             if vm.activity != nil { height += hasMusic || hasShelf ? 46 : 60 }
             if hasShelf { height += hasMusic || vm.activity != nil ? 62 : 76 }
-            // faixa (com música) ou card dedicado (sem música) dos AirPods
-            if vm.airpods != nil { height += hasMusic ? 30 : 66 }
             return CGSize(width: expandedSize.width, height: height)
         case .notification:
             return CGSize(width: notificationWidth, height: topInset + 56)
@@ -552,33 +551,37 @@ struct NotchView: View {
     @ViewBuilder
     private var expandedContent: some View {
         VStack(spacing: 8) {
-            tabBar
-            if vm.tab == .messages {
-                MessagesView(vm: vm)
-            } else {
-                musicContent
+            Group {
+                if vm.tab == .messages {
+                    MessagesView(vm: vm)
+                } else {
+                    musicContent
+                }
+            }
+            .transition(.blurReplace)
+            Spacer(minLength: 0)
+            pageDots
+        }
+    }
+
+    /// Único indicador de navegação: a troca de tela é por swipe de dois dedos.
+    /// Clicáveis porque o gesto não se anuncia sozinho.
+    private var pageDots: some View {
+        HStack(spacing: 6) {
+            ForEach([NotchViewModel.NotchTab.music, .messages], id: \.self) { tab in
+                Button {
+                    withAnimation(.easeOut(duration: 0.22)) { vm.tab = tab }
+                } label: {
+                    Circle()
+                        .fill(.white.opacity(vm.tab == tab ? 0.75 : 0.25))
+                        .frame(width: 5, height: 5)
+                        // alvo de clique maior que o ponto desenhado
+                        .padding(4)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
         }
-    }
-
-    private var tabBar: some View {
-        HStack(spacing: 6) {
-            tabButton("Música", .music, "music.note")
-            tabButton("Mensagens", .messages, "bubble.left.and.bubble.right")
-            Spacer()
-        }
-        .foregroundStyle(.white)
-    }
-
-    private func tabButton(_ title: String, _ tab: NotchViewModel.NotchTab,
-                           _ icon: String) -> some View {
-        Button { vm.tab = tab } label: {
-            Label(title, systemImage: icon)
-                .font(.caption.weight(.medium))
-                .padding(.horizontal, 8).padding(.vertical, 4)
-                .background(Capsule().fill(.white.opacity(vm.tab == tab ? 0.22 : 0.08)))
-        }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -599,10 +602,6 @@ struct NotchView: View {
             }
             if let activity = vm.activity {
                 activityRow(activity)
-                    .transition(.blurReplace)
-            }
-            if let ap = vm.airpods {
-                airpodsRow(ap, compact: hasMusic)
                     .transition(.blurReplace)
             }
             // espelho aberto (ou Pomodoro ativo) toma o lugar da música — volta ao fechar/encerrar
@@ -707,10 +706,6 @@ struct NotchView: View {
                             .contentTransition(.opacity)
                     }
                     Spacer(minLength: 0)
-                    mirrorButton
-                        .padding(.trailing, 4)
-                    audioBars
-                        .frame(width: 24, height: 18)
                 }
                 progressBar(state)
                 controls(state)
@@ -718,7 +713,7 @@ struct NotchView: View {
             .frame(maxWidth: .infinity)
             // troca de faixa: capa e textos fazem crossfade em vez de pop
             .animation(.easeOut(duration: 0.3), value: state.title)
-        } else if vm.activity == nil, shelf.items.isEmpty, !vm.mirrorOn, vm.airpods == nil {
+        } else if vm.activity == nil, shelf.items.isEmpty, !vm.mirrorOn {
             VStack(spacing: 6) {
                 Image(systemName: "music.note")
                     .font(.title2)
@@ -776,8 +771,8 @@ struct NotchView: View {
         }
     }
 
-    // 5 itens distribuídos na largura toda, como na referência:
-    // star · backward · play/pause (maior) · forward · macbook
+    // 5 itens distribuídos na largura toda:
+    // shuffle · backward · play/pause (maior) · forward · espelho
     private func controls(_ state: MediaController.PlaybackState) -> some View {
         HStack(spacing: 0) {
             Button { media.toggleShuffle() } label: {
@@ -806,15 +801,7 @@ struct NotchView: View {
                     .foregroundStyle(.white)
             }
             Spacer()
-            Button {
-                if let url = URL(string: "x-apple.systempreferences:com.apple.Sound-Settings.extension") {
-                    NSWorkspace.shared.open(url)
-                }
-            } label: {
-                Image(systemName: "macbook")
-                    .font(.body)
-                    .foregroundStyle(.white.opacity(0.45))
-            }
+            mirrorButton
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
@@ -947,27 +934,6 @@ struct NotchView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-    }
-
-    /// Faixa de AirPods no card expandido: compacta junto da música, ou uma
-    /// linha maior (com nome) quando não há música tocando.
-    private func airpodsRow(_ ap: AirPodsBattery, compact: Bool) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: "airpodspro")
-                .font(compact ? .subheadline : .title3)
-                .foregroundStyle(.white.opacity(0.9))
-            if !compact {
-                Text(ap.name)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 0)
-            airpodsPip("L", ap.left)
-            airpodsPip("R", ap.right)
-            airpodsPip("◎", ap.case_)
-        }
-        .frame(maxWidth: .infinity)
     }
 
     /// Um componente (rótulo + %); vermelho quando ≤10%, "—" quando não reportou.
