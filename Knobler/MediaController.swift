@@ -2,9 +2,8 @@
 //  MediaController.swift
 //  Knobler
 //
-//  Now Playing do Spotify e do Apple Music via AppleScript, atualizado por
-//  push (DistributedNotificationCenter) — sem polling contínuo. Se os dois
-//  estiverem abertos, quem está tocando ganha.
+//  Now Playing universal (qualquer app que apareça no Control Center) via
+//  MediaRemoteSource — push pelo stream do mediaremote-adapter, sem polling.
 //
 
 import AppKit
@@ -22,30 +21,11 @@ final class MediaController: ObservableObject {
         var fetchedAt: Date
         var artworkURL: String?
         var shuffling = false
+        /// Velocidade de reprodução (podcast a 1,5× etc.) — extrapola a posição.
+        var rate: Double = 1
+        /// A fonte reporta shuffle? (navegador não) — apaga o botão no card.
+        var shuffleAvailable = true
     }
-
-    private struct Player {
-        let bundleID: String
-        let scriptName: String
-        let notificationName: String
-        let durationInMilliseconds: Bool
-        let hasArtworkURL: Bool
-        /// Nome da propriedade de shuffle no dicionário AppleScript do player.
-        let shuffleProperty: String
-    }
-
-    private static let players = [
-        Player(
-            bundleID: "com.spotify.client", scriptName: "Spotify",
-            notificationName: "com.spotify.client.PlaybackStateChanged",
-            durationInMilliseconds: true, hasArtworkURL: true,
-            shuffleProperty: "shuffling"),
-        Player(
-            bundleID: "com.apple.Music", scriptName: "Music",
-            notificationName: "com.apple.Music.playerInfo",
-            durationInMilliseconds: false, hasArtworkURL: false,
-            shuffleProperty: "shuffle enabled"),
-    ]
 
     @Published private(set) var state: PlaybackState?
     @Published private(set) var artwork: NSImage? {
@@ -53,28 +33,19 @@ final class MediaController: ObservableObject {
     }
     /// Cor vibrante dominante da capa — tinge o visualizador como no iPhone.
     @Published private(set) var artworkTint: Color?
-    /// Bundle ID do player ativo (pro tap de áudio saber quem capturar).
+    /// Bundle ID do app dono do som (pro tap de áudio saber quem capturar).
     private(set) var activeBundleID: String?
 
-    private var activePlayer: Player?
-    private var compiledScripts: [String: NSAppleScript] = [:]
-    private var lastArtworkKey: String?
+    private let source = MediaRemoteSource()
+    private var lastTrackKey: String?
+    private var lastArtworkData: String?
 
     init() {
-        for player in Self.players {
-            DistributedNotificationCenter.default().addObserver(
-                self,
-                selector: #selector(playbackChanged),
-                name: Notification.Name(player.notificationName),
-                object: nil
-            )
-        }
-        refresh()
+        source.onUpdate = { [weak self] in self?.apply($0) }
+        source.start()
     }
 
-    deinit {
-        DistributedNotificationCenter.default().removeObserver(self)
-    }
+    deinit { source.stop() }
 
     /// Usado pelo harness de renderização offline (verificação visual pré-entrega).
     func injectPreview(state: PlaybackState?, artwork: NSImage?) {
@@ -84,146 +55,65 @@ final class MediaController: ObservableObject {
 
     // MARK: - Comandos
 
-    func playPause() { command("playpause") }
-    func nextTrack() { command("next track") }
-    func previousTrack() { command("previous track") }
+    func playPause() { source.send(.togglePlayPause) }
+    func nextTrack() { source.send(.nextTrack) }
+    func previousTrack() { source.send(.previousTrack) }
+    func toggleShuffle() { source.send(.toggleShuffle) }
 
-    func toggleShuffle() {
-        guard let player = activePlayer else { return }
-        command("set \(player.shuffleProperty) to not \(player.shuffleProperty)")
-    }
-
-    /// Posição estimada agora, sem refetch: posição do último fetch + tempo decorrido.
+    /// Posição estimada agora, sem refetch: última posição + decorrido × rate.
     func currentPosition(at date: Date = Date()) -> TimeInterval {
         guard let s = state else { return 0 }
         guard s.isPlaying else { return s.position }
-        return min(s.duration, s.position + date.timeIntervalSince(s.fetchedAt))
+        let position = s.position + date.timeIntervalSince(s.fetchedAt) * s.rate
+        guard s.duration > 0 else { return position }   // live: duração desconhecida
+        return min(s.duration, position)
     }
 
     // MARK: - Estado
 
-    @objc private func playbackChanged() {
-        refresh()
-    }
-
-    func refresh() {
-        // player ativo: entre os abertos, o que estiver tocando ganha;
-        // nenhum tocando → o primeiro aberto com faixa carregada
-        var chosen: (Player, PlaybackState)?
-        for player in Self.players where isRunning(player) {
-            guard let fetched = fetchState(of: player) else { continue }
-            if fetched.isPlaying {
-                chosen = (player, fetched)
-                break
-            }
-            if chosen == nil { chosen = (player, fetched) }
-        }
-
-        guard let (player, newState) = chosen else {
-            activePlayer = nil
-            activeBundleID = nil
+    private func apply(_ now: MediaRemoteSource.NowPlaying?) {
+        guard let now, let title = now.title else {
             state = nil
+            activeBundleID = nil
+            artwork = nil
+            lastTrackKey = nil
+            lastArtworkData = nil
             return
         }
-        activePlayer = player
-        activeBundleID = player.bundleID
-        state = newState
-        fetchArtworkIfNeeded(player: player, state: newState)
-    }
-
-    private func fetchState(of player: Player) -> PlaybackState? {
-        let source = """
-        tell application "\(player.scriptName)"
-            if player state is stopped then return "stopped"
-            set t to current track
-            set artURL to ""
-            \(player.hasArtworkURL ? "set artURL to artwork url of t" : "")
-            return (player state as string) & "\\n" & name of t & "\\n" & artist of t \
-                & "\\n" & album of t & "\\n" & player position & "\\n" & duration of t \
-                & "\\n" & artURL & "\\n" & \(player.shuffleProperty)
-        end tell
-        """
-
-        guard let output = run(source), output != "stopped" else { return nil }
-        let parts = output.components(separatedBy: "\n")
-        guard parts.count >= 8 else { return nil }
-
-        let rawDuration = Self.number(parts[5]) ?? 0
-        return PlaybackState(
-            isPlaying: parts[0] == "playing",
-            title: parts[1],
-            artist: parts[2],
-            album: parts[3],
-            duration: player.durationInMilliseconds ? rawDuration / 1000 : rawDuration,
-            position: Self.number(parts[4]) ?? 0,
+        // Aba de navegador: o cliente MediaRemote é o processo WebKit; o app
+        // visível (e dono do som, pro tap) é o pai.
+        activeBundleID = now.parentBundleIdentifier ?? now.bundleIdentifier
+        let rate = now.playbackRate ?? 1
+        state = PlaybackState(
+            isPlaying: now.playing,
+            title: title,
+            artist: now.artist ?? "",
+            album: now.album ?? "",
+            duration: now.duration ?? 0,
+            position: now.elapsedTime ?? 0,
             fetchedAt: Date(),
-            artworkURL: parts[6].isEmpty ? nil : parts[6],
-            shuffling: parts[7] == "true"
+            artworkURL: nil,
+            shuffling: (now.shuffleMode ?? 1) > 1,
+            rate: rate > 0 ? rate : 1,
+            shuffleAvailable: now.shuffleMode != nil
         )
-    }
-
-    // MARK: - Privados
-
-    private func isRunning(_ player: Player) -> Bool {
-        // "tell application" abriria o app se não estiver rodando — guarda antes.
-        NSWorkspace.shared.runningApplications.contains {
-            $0.bundleIdentifier == player.bundleID
+        // A capa chega em base64 no próprio stream — às vezes atrasada em
+        // relação aos metadados: o card renderiza sem capa e atualiza depois.
+        let trackKey = "\(title)|\(now.artist ?? "")|\(now.album ?? "")"
+        if trackKey != lastTrackKey {
+            lastTrackKey = trackKey
+            if now.artworkData == nil {   // capa da faixa anterior não vale mais
+                artwork = nil
+                lastArtworkData = nil
+            }
         }
-    }
-
-    private func command(_ verb: String) {
-        guard let player = activePlayer, isRunning(player) else { return }
-        _ = run("tell application \"\(player.scriptName)\" to \(verb)")
-        // o player emite a notificação na sequência, mas o refetch curto
-        // deixa a UI instantânea
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            self?.refresh()
+        if let data = now.artworkData, data != lastArtworkData {
+            lastArtworkData = data
+            artwork = Data(base64Encoded: data).flatMap(NSImage.init(data:))
         }
-    }
-
-    private func run(_ source: String) -> String? {
-        let script: NSAppleScript
-        if let cached = compiledScripts[source] {
-            script = cached
-        } else {
-            guard let fresh = NSAppleScript(source: source) else { return nil }
-            compiledScripts[source] = fresh
-            script = fresh
-        }
-        var error: NSDictionary?
-        let descriptor = script.executeAndReturnError(&error)
-        guard error == nil else { return nil }
-        return descriptor.stringValue
-    }
-
-    /// AppleScript coage real → string com separador decimal do locale (vírgula em pt-BR).
-    private static func number(_ raw: String) -> Double? {
-        Double(raw.replacingOccurrences(of: ",", with: "."))
     }
 
     // MARK: - Artwork
-
-    private func fetchArtworkIfNeeded(player: Player, state: PlaybackState) {
-        if player.hasArtworkURL {
-            // Spotify: URL http da capa
-            guard let urlString = state.artworkURL, urlString != lastArtworkKey,
-                  let url = URL(string: urlString) else { return }
-            lastArtworkKey = urlString
-            URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
-                guard let data, let image = NSImage(data: data) else { return }
-                DispatchQueue.main.async { self?.artwork = image }
-            }.resume()
-        } else {
-            // Apple Music: bytes crus do artwork via AppleScript (só na troca de faixa)
-            let key = "\(state.title)|\(state.artist)|\(state.album)"
-            guard key != lastArtworkKey else { return }
-            lastArtworkKey = key
-            let source = "tell application \"Music\" to get data of artwork 1 of current track"
-            var error: NSDictionary?
-            let descriptor = NSAppleScript(source: source)?.executeAndReturnError(&error)
-            artwork = (error == nil ? descriptor?.data : nil).flatMap(NSImage.init(data:))
-        }
-    }
 
     /// Cor vibrante dominante da capa (não a média — média de capa colorida
     /// vira marrom). Histograma de matiz em 12 baldes, cada pixel pesando
