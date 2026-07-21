@@ -180,6 +180,11 @@ struct NotchView: View {
                 height: vm.notchSize.height
             )
         case .music:
+            if vm.tab == .messages {
+                // aba Mensagens tem altura própria (conversa: cabeçalho + histórico
+                // rolável até 160 + campo); a lista de online cabe no mesmo espaço.
+                return CGSize(width: expandedSize.width, height: topInset + 300)
+            }
             let hasShelf = !shelf.items.isEmpty
             let hasPomodoro = vm.pomodoro != nil
             // Pomodoro ativo suprime música e placeholder
