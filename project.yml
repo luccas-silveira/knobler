@@ -12,9 +12,17 @@ targets:
     platform: macOS
     sources:
       - Knobler
+      # script que o MediaRemoteSource roda via /usr/bin/perl (now playing universal)
+      - path: Vendor/mediaremote-adapter.pl
+        buildPhase: resources
     dependencies:
       - package: FluidAudio
       - sdk: Collaboration.framework
+      # carregado pelo perl, não pelo app — embed sem link (ver Vendor/PROVENANCE.md)
+      - framework: Vendor/MediaRemoteAdapter.framework
+        embed: true
+        link: false
+        codeSign: true
     scheme: {}
     info:
       path: Knobler/Info.plist
