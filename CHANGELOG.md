@@ -7,6 +7,13 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 ## [Unreleased]
 
 ### Added
+- **Webhooks configuráveis (mapeamento por perfil)**: cada fonte externa (GitHub,
+  Stripe, n8n…) vira um perfil com link próprio; manda um webhook de teste e um
+  editor lado-a-lado mapeia os campos da notificação a partir do payload capturado
+  (texto livre + `{{ variáveis }}` do payload, aninhado). Ícone fixo por perfil
+  (URL ou emoji). O relay guarda o template e aplica; o app tem a lista de perfis +
+  o editor com árvore do payload clique-pra-inserir e preview ao vivo.
+  (`template.js`/`profiles` no relay; `MappingEditorView`/`ProfilesListView` no app.)
 - **Notificações externas via webhook**: cada dispositivo tem um link próprio
   (`https://push.appzoi.com.br/w/<token>`) que recebe título, descrição, avatar
   e ação de clique, exibidos como card no notch. Relay próprio na VPS (Node/pm2
