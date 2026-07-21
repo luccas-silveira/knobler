@@ -319,7 +319,7 @@ for scenario in scenarios {
 // Cenários de Mensagens LAN — precisam de LANMessaging/MessageStore no
 // ambiente, que os demais cenários não usam.
 @MainActor func renderMessageScenario(
-    _ name: String, realNotch: Bool,
+    _ name: String, realNotch: Bool, frameHeight: CGFloat = 240,
     configure: (NotchViewModel, LANMessaging, MessageStore) -> Void
 ) {
     let vm = NotchViewModel()
@@ -344,7 +344,7 @@ for scenario in scenarios {
             .environmentObject(lan)
             .environmentObject(store)
     }
-    .frame(width: 560, height: 240)
+    .frame(width: 560, height: frameHeight)
 
     let renderer = ImageRenderer(content: view)
     renderer.scale = 2
@@ -383,7 +383,10 @@ for scenario in scenarios {
     try? png.write(to: URL(fileURLWithPath: path))
     print("ok \(path)")
 }
-renderMessageScenario("messages-online", realNotch: true) { vm, lan, _ in
+// frameHeight maior que o padrão 240: o painel de Mensagens (chrome + 272,
+// ver NotchView.currentSize case .music com tab == .messages) rende mais
+// alto que os demais cenários e cortava embaixo com o frame default.
+renderMessageScenario("messages-online", realNotch: true, frameHeight: 390) { vm, lan, _ in
     vm.expanded = true
     vm.tab = .messages
     lan.injectPreview(peers: [
