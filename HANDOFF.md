@@ -1,3 +1,43 @@
+# 🏁 SESSÃO 2026-07-21 (tarde 2) — Anexo por link nas Mensagens — **v0.7.0 no ar**
+
+Envio de imagem/GIF por link no composer das Mensagens LAN. Design fechado via
+grill-me: download acontece **no remetente** (o destinatário recebe bytes, nunca
+toca a URL — sem vazamento de IP/tracking), só link direto https, botão 🔗
+dedicado que transforma o campo de mensagem em campo de URL.
+
+## O que foi feito
+
+- **`MessageMedia.swift`**: `prepare()` dividido em versão de arquivo + versão de
+  `Data` em memória; nova `fetch(_ link:)` — `URLSession` (https só, o ATS já
+  bloqueia http; timeout 15 s), bytes passam pelo pipeline existente (bytes
+  mágicos, `shrunkGIF`, downscale JPEG). Sem cap de download além do timeout
+  (ponytail comentado no código).
+- **`MessagesView.swift`**: botão 🔗 ao lado do de foto. Em modo link o campo
+  vira "Cole o link da imagem…" (draft de texto preservado); Enter baixa,
+  Esc/re-clique cancela. Barra de anexo mostra "Baixando…" com spinner; enviar
+  travado em modo link/download. Falha → aviso existente, agora "(link, formato
+  ou tamanho)". URL é descartada após o anexo (só a imagem vai).
+- **Fio intacto**: `Wire.swift` não mudou — zero mudança de protocolo, peers
+  antigos seguem compatíveis.
+
+## Validação
+
+- `xcodebuild` Debug verde. Diagnósticos do SourceKit pós-edit eram índice frio
+  (símbolos de `Wire.swift` no mesmo módulo) — o build completo confirmou.
+- **v0.7.0 publicada**: commit da feature → `release.sh minor` → GitHub Release
+  + cask do tap bumpado + push do master e da tag.
+
+## Pendências e followups
+
+- **E2E real pendente**: colar um link de GIF (ex.: media.giphy.com) e enviar a
+  outro Mac — validação foi só build, sem teste de rede real.
+- Só link direto: link de página Giphy/Tenor falha (sem parsing de og:image) —
+  adicionar se virar hábito colar link de página.
+- P1 herdado: swipe no trackpad segue sem teste com gesto real.
+- `graphify-out/` não regenerado (nenhum arquivo novo, mudança pequena).
+
+---
+
 # 🏁 SESSÃO 2026-07-21 (tarde) — Now playing universal — **v0.6.0 no ar**
 
 O card de música deixou de ser refém do AppleScript: agora mostra e controla
