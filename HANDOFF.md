@@ -1,3 +1,40 @@
+# 🏁 SESSÃO 2026-07-21 — Mensagens LAN entre Macs (Bonjour) — **v0.3.0 no ar**
+
+Feature nova **no ar e validada E2E entre dois Macs**: troca de mensagens peer-to-peer entre computadores na mesma rede local. Abre a aba **Mensagens** no notch → vê quem está online (outros Knobler na LAN) → escolhe alguém → manda recado (com toggle "permite resposta") → aparece no notch da pessoa com nome + foto. Histórico últimas 20/peer. Identidade (nome+foto) configurável em Ajustes › Mensagens, pré-preenchida da conta do macOS.
+
+## Arquitetura
+- **Descoberta + transporte:** Bonjour `_knobler._tcp` via `NWListener` (anúncio, TXT `id`/`name`) + `NWBrowser` (descoberta). Protocolo próprio minúsculo em `Wire.swift`: **moldura de 4 bytes (tamanho, big-endian) + JSON `Packet`** (`profile`/`profileResp`/`msg`/`ack`); teto 64 KB. Conexões **efêmeras** (conecta→manda→fecha). Tudo nos callbacks `.main`.
+- **Limite de segurança:** o listener P2P é **separado** do `NotchAPIServer` (localhost) — a API de automação (`/notify`,`/ask`) **NÃO** fica exposta à LAN. Modo aberto (qualquer Knobler na rede alcança), com: frames ≤64 KB, texto truncado a 2000, foto decodificada só como imagem, e **`peerID` exige UUID canônico no ingresso** (fecha path-traversal — ver C1 abaixo).
+- **Permissão de Rede Local (macOS 15+/26):** `NSLocalNetworkUsageDescription` + `NSBonjourServices=[_knobler._tcp]` no `project.yml`. Prompt disparado ao abrir a aba (app ativo). Negação = `kDNSServiceErr_PolicyDenied (-65570)` → `permissionDenied` (exposto no `GET /status`).
+- **Identidade:** `CBUserIdentity` (framework **Collaboration**) dá nome+foto da conta; `myID` = UUID estável em UserDefaults (chaveia histórico/foto). `jpegThumbnail` corta em quadrado + 64px real.
+- **Persistência:** `MessageStore` (últimas 20/peer em `messages.json` + fotos `.jpg`, debounce + `flush()` no encerramento).
+
+## Arquivos
+- **Novos:** `Wire.swift`, `Peer.swift`, `LANMessaging.swift`, `MessageStore.swift`, `MessagesView.swift`, `IncomingMessageView.swift`, `IdentitySettingsView.swift`, `tools/wirecheck/main.swift` (self-check do codec).
+- **Modificados:** `NotchViewModel.swift` (tab/incoming/`.message`/selectedThreadPeerID), `NotchView.swift` (barra de abas Música|Mensagens no card aberto, card de entrada, tamanho), `AppSettings.swift` (identidade), `KnoblerApp.swift` (fiação multi-tela: fan-out onIncoming, onSendReply, start-ao-abrir-aba, teclado, `/status`, `flush()`/`stop()` no willTerminate, re-anúncio ao trocar nome), `project.yml` (Collaboration + Info.plist).
+
+## Processo (superpowers, ponta a ponta)
+brainstorming → spec (`docs/superpowers/specs/2026-07-20-mensagens-lan-design.md`) → **fase de pesquisa** (APIs de rede verificadas por compilação; `CBUserIdentity.image` provado em runtime; risco de Rede Local resolvido: framework `Network` É o caminho suportado, negação = -65570) → plano (`docs/superpowers/plans/2026-07-20-mensagens-lan.md`) → **subagent-driven** (8 tasks, review por-task + **review amplo final no opus**). Ledger em `.superpowers/sdd/progress.md`.
+
+## Segurança — Critical pego no review amplo (FECHADO)
+- **C1 (path traversal, zero-click):** `peerID` cru da rede virava nome de arquivo no cache de foto → um host malicioso na LAN podia escrever bytes fora do diretório via `onIncoming→cacheAvatar`. **Fix:** exige UUID canônico no `updatePeers` E no `serve` (ingresso) + guarda estrutural em `MessageStore.avatarFile`. Re-verificado: **CLOSED**.
+- Minors "pode-ficar" (reviewer OK deixar, ver ledger): **M1** card com resposta persiste em telas extras (multi-monitor; single-screen ok); **M3** leitura de foto no disco a cada mudança de descoberta (perf micro).
+
+## Release + validação
+- **v0.3.0 publicada** via `./tools/release.sh minor`: tag `v0.3.0`, push do `master`, **GitHub Release** (`Knobler-0.3.0.zip`, sha256 `d036882…`) e **cask bumpado** (tap `homebrew-knobler`).
+- **E2E entre dois Macs CONFIRMADO pelo usuário** após `brew update && brew upgrade knobler` na segunda máquina (o `brew upgrade` sozinho não pega o commit novo do tap — precisa `brew update` antes).
+- Gate por task: `xcodebuild BUILD SUCCEEDED` + self-check `wire ok`. Snapshot regenerado (também consertou `snapshot.sh` que uma task de webhook deixou quebrado).
+
+## Estado do repo
+- **Tudo commitado E PUSHADO** (`master` sincronizado com `origin`). Isto **resolve** a pendência da sessão anterior ("Push pro origin, 41 commits") — o `release.sh` pushou tudo (os 41 do webhook + os 20 desta feature).
+- Local: `/Applications/Knobler.app` é o build Debug que instalei direto (já com a feature). Pra o build oficial gerenciado pelo brew, `brew upgrade knobler`.
+
+## Pendências
+- Nenhuma crítica. Minors M1/M3 documentados no ledger (opcionais).
+- (Herdadas da sessão anterior, ainda válidas) edge de migração do perfil "Padrão" do webhook; `node`/`npm` do Homebrew quebrados (usar nvm) — não afetam esta feature.
+
+---
+
 # 🏁 SESSÃO 2026-07-20 (noite) — Notificações externas via webhook + webhooks configuráveis (mapeamento por perfil)
 
 Duas features grandes, ambas **no ar**: (1) notificações que chegam **de fora do computador** via webhook, exibidas no notch; (2) **mapeamento configurável** — cada fonte externa (GitHub, Stripe, n8n…) vira um **perfil** com link próprio, e um **editor lado-a-lado** monta os campos da notificação a partir do payload capturado (texto livre + `{{ variáveis }}`).
