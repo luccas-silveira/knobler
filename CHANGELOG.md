@@ -6,6 +6,21 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Changed
+- **Now playing universal**: o card de música agora mostra e controla qualquer
+  fonte de mídia do macOS (YouTube no navegador, podcasts, IINA…), não só
+  Spotify/Apple Music. Motor novo: mediaremote-adapter v0.7.6 vendorado
+  (framework carregado via `/usr/bin/perl`, contornando o bloqueio do
+  MediaRemote no 15.4+; ver `Vendor/PROVENANCE.md`). O AppleScript saiu; se um
+  update da Apple quebrar o adapter, o card fica vazio sem derrubar o app.
+  Shuffle aparece apagado quando a fonte não reporta (navegador); barra de
+  progresso lida com duração desconhecida (live). A capa agora chega em base64
+  pelo próprio stream (sem download da URL do Spotify).
+  (`MediaRemoteSource.swift`, `MediaController.swift` reescrito por dentro.)
+
+### Removed
+- `NSAppleEventsUsageDescription` do Info.plist — nada mais usa AppleScript.
+
 ## [0.5.0] - 2026-07-21
 
 ### Changed
