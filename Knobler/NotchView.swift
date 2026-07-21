@@ -764,7 +764,10 @@ struct NotchView: View {
                     }
                 }
                 .frame(height: 5)
-                Text("-" + Self.timeString(max(0, state.duration - position)))
+                // sem duração (live) não há "quanto falta" — mantém a altura da linha
+                Text(state.duration > 0
+                     ? "-" + Self.timeString(max(0, state.duration - position))
+                     : "–:––")
             }
             .font(.caption2.monospacedDigit())
             .foregroundStyle(.white.opacity(0.5))
@@ -781,6 +784,9 @@ struct NotchView: View {
                     .foregroundStyle(state.shuffling ? .white : .white.opacity(0.45))
                     .contentTransition(.symbolEffect(.replace))
             }
+            // fonte sem shuffle (navegador) → botão apagado, layout estável
+            .disabled(!state.shuffleAvailable)
+            .opacity(state.shuffleAvailable ? 1 : 0.2)
             Spacer()
             Button { media.previousTrack() } label: {
                 Image(systemName: "backward.fill")

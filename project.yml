@@ -32,8 +32,7 @@ targets:
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         LSUIElement: true
-        NSAppleEventsUsageDescription: Knobler exibe e controla a reprodução do Spotify no notch.
-        NSAudioCaptureUsageDescription: Knobler lê o áudio do Spotify para animar o visualizador no notch, como no iPhone.
+        NSAudioCaptureUsageDescription: Knobler lê o áudio do player para animar o visualizador no notch, como no iPhone.
         NSCalendarsFullAccessUsageDescription: Knobler mostra a contagem regressiva do próximo evento no notch.
         NSCameraUsageDescription: Knobler mostra sua câmera no notch como espelho antes de reuniões.
         NSMicrophoneUsageDescription: Knobler grava sua voz enquanto você segura a tecla de ditado, para transcrever onde o cursor estiver.
