@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-07-21
+
 ### Changed
 - **Ajustes redesenhados no estilo do Ajustes do Sistema**: a janela deixou o
   `TabView` 400×580 e virou `NavigationSplitView` (800×520, redimensionável)
