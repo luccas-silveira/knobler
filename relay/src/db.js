@@ -74,10 +74,13 @@ function openDB(path) {
 
   // migra tokens antigos (device→perfil Padrão) na subida; idempotente
   // ponytail: duplica migrateProfiles de propósito (o método existe pro teste chamar com `now` fixo)
-  { const migSelect = db.prepare(`SELECT device_id, publish_token_h FROM devices d WHERE NOT EXISTS (SELECT 1 FROM profiles p WHERE p.publish_token_h = d.publish_token_h)`);
+  // guarda-chuva: uma exceção aqui não pode abortar o openDB (relay não subiria) — degrada e segue.
+  try {
+    const migSelect = db.prepare(`SELECT device_id, publish_token_h FROM devices d WHERE NOT EXISTS (SELECT 1 FROM profiles p WHERE p.publish_token_h = d.publish_token_h)`);
     const migIns = stmts.profCreate;
     const tx = db.transaction(() => { for (const d of migSelect.all()) migIns.run({ profileId: 'mig-'+d.publish_token_h.slice(0,16), deviceId: d.device_id, publishTokenHash: d.publish_token_h, name: 'Padrão', now: Date.now() }); });
-    tx(); }
+    tx();
+  } catch (e) { console.error('migração de perfis falhou (seguindo):', e); }
 
   return {
     _db: db,

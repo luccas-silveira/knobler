@@ -74,8 +74,16 @@ function createServer({ db, hub, rateLimiter }) {
         const secret = auth.startsWith('Bearer ') ? auth.slice(7) : '';
         const dev = secret && db.findBySecretHash(sha256(secret));
         if (!dev) return json(res, 401, { ok: false, error: 'deviceSecret inválido' });
+        const oldHash = dev.publish_token_h;                 // guarda o hash antigo antes de rotacionar
         const publishToken = genToken();
-        db.rotatePublishToken({ deviceId: dev.device_id, publishTokenHash: sha256(publishToken) });
+        const newHash = sha256(publishToken);
+        db.rotatePublishToken({ deviceId: dev.device_id, publishTokenHash: newHash });
+        // o /w/ resolve o perfil por publish_token_h → rotaciona também o perfil Padrão
+        // (o que ainda carrega o hash antigo), senão o link novo dá 404 e o antigo não morre.
+        const prof = db.findProfileByPublishTokenHash(oldHash);
+        if (prof && prof.device_id === dev.device_id) {
+          db.rotateProfileToken({ profileId: prof.profile_id, deviceId: dev.device_id, publishTokenHash: newHash });
+        }
         return json(res, 200, { ok: true, publishToken });
       }
 
@@ -147,6 +155,10 @@ function createServer({ db, hub, rateLimiter }) {
         if (req.method === 'GET') return json(res, 200, { profileId: prof.profile_id, name: prof.name, mapping: prof.mapping, icon: prof.icon, lastPayload: prof.last_payload, link: null });
         if (req.method === 'PUT') {
           const b = JSON.parse(await readBody(req) || '{}');
+          // valida o mapping antes de salvar: mapping malformado no banco = 500 em todo /w/ do perfil
+          if (b.mapping !== undefined && b.mapping !== null) {
+            try { JSON.parse(b.mapping); } catch { return json(res, 400, { ok: false, error: 'mapping inválido' }); }
+          }
           db.updateProfile({ profileId: id, deviceId: dev.device_id, name: b.name, mapping: b.mapping, icon: b.icon });
           return json(res, 200, { ok: true });
         }

@@ -157,6 +157,42 @@ test('CRUD de perfil: cria, atualiza mapping, pega, deleta', async () => {
   await new Promise(r => srv.stop(r));
 });
 
+test('rotate: link antigo morre (404) e o novo resolve o perfil Padrão', async () => {
+  const { srv, base } = await boot();
+  const reg = (await post(base, '/register')).json;
+  // dá mapping ao perfil Padrão pra distinguir captura de entrega/enfileiramento
+  const H = { Authorization: `Bearer ${reg.deviceSecret}`, 'Content-Type': 'application/json' };
+  const list = await fetch(base + '/profiles', { headers: H }).then(r => r.json());
+  await fetch(base + `/profiles/${list[0].profileId}`, { method: 'PUT', headers: H, body: JSON.stringify({ mapping: JSON.stringify({ title: '{{msg}}' }) }) });
+
+  const oldToken = reg.publishToken;
+  const rot = await post(base, '/rotate', { headers: { Authorization: `Bearer ${reg.deviceSecret}` } });
+  assert.strictEqual(rot.status, 200);
+  const newToken = rot.json.publishToken;
+  assert.ok(newToken && newToken !== oldToken);
+
+  // link antigo morre
+  const oldRes = await post(base, `/w/${oldToken}`, { headers: { 'Content-Type': 'application/json' }, body: '{"msg":"x"}' });
+  assert.strictEqual(oldRes.status, 404);
+  // link novo resolve o perfil (device offline → queued)
+  const newRes = await post(base, `/w/${newToken}`, { headers: { 'Content-Type': 'application/json' }, body: '{"msg":"x"}' });
+  assert.strictEqual(newRes.status, 202);
+  assert.strictEqual(newRes.json.delivered, 'queued');
+  await new Promise(r => srv.stop(r));
+});
+
+test('PUT /profiles: mapping malformado → 400 (não salva)', async () => {
+  const { srv, base } = await boot();
+  const reg = (await post(base, '/register')).json;
+  const H = { Authorization: `Bearer ${reg.deviceSecret}`, 'Content-Type': 'application/json' };
+  const list = await fetch(base + '/profiles', { headers: H }).then(r => r.json());
+  const res = await fetch(base + `/profiles/${list[0].profileId}`, { method: 'PUT', headers: H, body: JSON.stringify({ mapping: '{nao json' }) });
+  assert.strictEqual(res.status, 400);
+  const got = await res.json();
+  assert.strictEqual(got.ok, false);
+  await new Promise(r => srv.stop(r));
+});
+
 test('API de perfis exige deviceSecret válido', async () => {
   const { srv, base } = await boot();
   const r = await fetch(base + '/profiles', { headers: { Authorization: 'Bearer errado' } });
