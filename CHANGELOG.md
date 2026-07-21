@@ -6,6 +6,14 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- **Documentação de usuário** (`docs/*.md`): um arquivo por feature (Now
+  Playing, HUDs, Notificações, Countdown de Calendário, Ditado, Ask,
+  Pomodoro, Descanso, Lembretes, Shelf, Mensagens, Webhooks, API local,
+  AirPods, Mirror, Ajustes), cada um com descrição, modo de uso, permissões
+  e screenshot real (`docs/images/`). README linka cada feature pro doc
+  correspondente.
+
 ## [0.8.0] - 2026-07-21
 
 ### Changed

@@ -39,6 +39,16 @@ estado em `Snapshots/*.png` — é o jeito de "ver" a UI sem abrir o app.
 ⚠️ A lista de arquivos em `tools/snapshot.sh` é **manual**. Ao adicionar um
 `.swift` novo em `Knobler/` que a `NotchView` use, adicione-o lá também.
 
+⚠️ **`NavigationSplitView`/`HSplitView` não renderizam via `ImageRenderer`
+offscreen** (viram um ícone de "proibido" em vez do conteúdo — confirmado
+com repro isolado). Por isso `settings-*.png` (7 painéis de Ajustes) e
+`mapping-editor.png` **não** são gerados por `tools/snapshot.sh` — são
+mantidos à mão: rode `Knobler.app/Contents/MacOS/Knobler --ajustes=<painel>`
+(painéis: `geral notch ditado pomodoro lembretes descanso webhooks
+mensagens`), tire o screenshot da janela real e salve em `docs/images/`
+(as imagens usadas pelos docs de usuário ficam ali, não em `Snapshots/` —
+`Snapshots/` é gitignored e serve só de QA visual local).
+
 ## MCP servers (ativos após reiniciar a sessão)
 
 Registrados em `.mcp.json` (escopo de projeto):
