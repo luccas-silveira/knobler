@@ -265,6 +265,11 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     // MARK: API de perfis (HTTP autenticado pelo deviceSecret)
 
+    /// Usado pelo harness de renderização offline (tools/main.swift) — evita
+    /// bater na rede real quando presente.
+    var previewProfiles: [WebhookProfile]?
+    var previewProfileDetail: ProfileDetail?
+
     struct WebhookProfile: Identifiable {
         let id: String
         var name: String
@@ -295,6 +300,7 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     /// nil = falha (rede/auth/parse) — diferente de "zero perfis", pra UI não
     /// esvaziar uma lista já carregada por causa de um erro transitório.
     func listProfiles() async -> [WebhookProfile]? {
+        if let previewProfiles { return previewProfiles }
         guard let d = await authed("profiles"),
               let arr = try? JSONSerialization.jsonObject(with: d) as? [[String: Any]] else { return nil }
         return arr.map {
@@ -313,6 +319,7 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     }
 
     func getProfile(_ id: String) async -> ProfileDetail? {
+        if let previewProfileDetail { return previewProfileDetail }
         guard let d = await authed("profiles/\(id)"),
               let o = try? JSONSerialization.jsonObject(with: d) as? [String: Any] else { return nil }
         return ProfileDetail(name: o["name"] as? String ?? "", mapping: o["mapping"] as? String,
