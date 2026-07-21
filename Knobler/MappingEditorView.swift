@@ -105,7 +105,9 @@ indirect enum JSONValue {
     var sample: String {
         switch self {
         case .string(let s): return "\"\(s)\""
-        case .number(let d): return d == d.rounded() ? String(Int(d)) : String(d)
+        // %.0f formata inteiro sem passar por Int(Double) — que dá trap fora do range de Int
+        // (payload é entrada não confiável: snowflake/epoch em ns podem exceder ~9.22e18)
+        case .number(let d): return d == d.rounded() ? String(format: "%.0f", d) : String(d)
         case .bool(let b): return b ? "true" : "false"
         case .null: return "null"
         case .array(let a): return "[\(a.count)]"
@@ -219,7 +221,8 @@ private func resolve(_ path: String, _ root: JSONValue?) -> String {
     }
     switch node {
     case .string(let s): return s
-    case .number(let d): return d == d.rounded() ? String(Int(d)) : String(d)
+    // %.0f evita trap de Int(Double) em número enorme vindo do payload (entrada não confiável)
+    case .number(let d): return d == d.rounded() ? String(format: "%.0f", d) : String(d)
     case .bool(let b): return b ? "true" : "false"
     case .null: return ""
     // objeto/array inteiros não têm representação de texto útil no template
@@ -352,7 +355,8 @@ struct MappingEditorView: View {
                 Text("Dados do teste").font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 Button {
-                    Task { await load() }
+                    // só recarrega a árvore do payload — NÃO reescreve os campos editados
+                    Task { await reloadPayload() }
                 } label: {
                     Label("Recarregar", systemImage: "arrow.clockwise")
                 }
@@ -405,6 +409,16 @@ struct MappingEditorView: View {
             root = JSONValue.from(any)
         } else {
             root = nil
+        }
+    }
+
+    /// Recarrega só a árvore do último payload capturado, sem tocar nos campos
+    /// (title/body/url/id/sound/icon) — evita perder edições não salvas ao clicar "Recarregar".
+    private func reloadPayload() async {
+        guard let detail = await client.getProfile(profile.id) else { return }
+        if let payload = detail.lastPayload, let data = payload.data(using: .utf8),
+           let any = try? JSONSerialization.jsonObject(with: data) {
+            root = JSONValue.from(any)
         }
     }
 
