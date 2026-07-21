@@ -15,16 +15,24 @@ struct IdentitySettingsView: View {
     var body: some View {
         Form {
             Section {
-                HStack(spacing: 12) {
+                HStack(spacing: 14) {
                     avatarThumb
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 8) {
                         TextField("Nome de exibição", text: $settings.displayName)
                         HStack {
                             Button("Escolher foto…") { pickPhoto() }
                             Button("Usar a do macOS") { useMacOSPhoto() }
+                            if avatar != nil {
+                                Button("Remover") {
+                                    settings.removeMyAvatar()
+                                    avatar = nil
+                                }
+                            }
                         }
+                        .controlSize(.small)
                     }
                 }
+                .padding(.vertical, 4)
             } header: {
                 Text("Como você aparece na rede")
             } footer: {
@@ -43,11 +51,11 @@ struct IdentitySettingsView: View {
             } else {
                 ZStack {
                     Circle().fill(.gray.opacity(0.3))
-                    Text(initials).font(.title3.weight(.semibold)).foregroundStyle(.white)
+                    Text(initials).font(.title2.weight(.semibold)).foregroundStyle(.white)
                 }
             }
         }
-        .frame(width: 56, height: 56)
+        .frame(width: 64, height: 64)
         .clipShape(Circle())
     }
 

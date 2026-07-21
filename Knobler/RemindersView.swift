@@ -28,11 +28,11 @@ struct RemindersView: View {
             }
             Divider()
             HStack {
-                Spacer()
                 Button { creating = true } label: {
-                    Image(systemName: "plus").frame(width: 24, height: 24)
+                    Label("Novo lembrete", systemImage: "plus")
                 }
                 .buttonStyle(.borderless).padding(8)
+                Spacer()
             }
         }
         .sheet(isPresented: $creating) {
@@ -62,9 +62,19 @@ struct RemindersView: View {
                     }
                 }))
                 .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.small)
         }
         .contentShape(Rectangle())
         .onTapGesture { editing = r }
+        .help("Clique para editar")
+        .contextMenu {
+            Button("Editar…") { editing = r }
+            Divider()   // separa o destrutivo — misclick não apaga sem querer
+            Button("Apagar", role: .destructive) {
+                settings.reminders.removeAll { $0.id == r.id }
+            }
+        }
     }
 }
 

@@ -96,11 +96,11 @@ struct DescansoTabView: View {
             }
             Divider()
             HStack {
-                Spacer()
                 Button { creating = true } label: {
-                    Image(systemName: "plus").frame(width: 24, height: 24)
+                    Label("Novo bloqueio", systemImage: "plus")
                 }
                 .buttonStyle(.borderless).padding(8)
+                Spacer()
             }
         }
         .sheet(isPresented: $creating) {
@@ -130,9 +130,19 @@ struct DescansoTabView: View {
                     }
                 }))
                 .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.small)
         }
         .contentShape(Rectangle())
         .onTapGesture { editing = b }
+        .help("Clique para editar")
+        .contextMenu {
+            Button("Editar…") { editing = b }
+            Divider()   // separa o destrutivo — misclick não apaga sem querer
+            Button("Apagar", role: .destructive) {
+                settings.screenBreaks.removeAll { $0.id == b.id }
+            }
+        }
     }
 }
 

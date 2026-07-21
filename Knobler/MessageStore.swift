@@ -106,6 +106,13 @@ final class MessageStore: ObservableObject {
         avatarFile(for: peerID).flatMap { NSImage(contentsOf: $0) }
     }
 
+    /// Peer respondeu o perfil SEM foto → ele removeu; limpa o cache local.
+    func removeAvatar(for peerID: String) {
+        guard let url = avatarFile(for: peerID) else { return }
+        try? FileManager.default.removeItem(at: url)
+        objectWillChange.send()
+    }
+
     // ponytail: debounce simples de 1s; some flush no quit se virar problema
     private func scheduleSave() {
         saveWork?.cancel()

@@ -215,6 +215,11 @@ final class AppSettings: ObservableObject {
 
     func myAvatarJPEG() -> Data? { try? Data(contentsOf: myAvatarURL) }
 
+    func removeMyAvatar() {
+        try? FileManager.default.removeItem(at: myAvatarURL)
+        objectWillChange.send()
+    }
+
     func setMyAvatar(_ image: NSImage) {
         guard let jpeg = AppSettings.jpegThumbnail(image) else { return }
         try? jpeg.write(to: myAvatarURL)
@@ -254,90 +259,6 @@ final class AppSettings: ObservableObject {
                    from: crop, operation: .copy, fraction: 1)
         NSGraphicsContext.restoreGraphicsState()
         return rep.representation(using: .jpeg, properties: [.compressionFactor: 0.7])
-    }
-}
-
-struct SettingsView: View {
-    @ObservedObject var settings = AppSettings.shared
-    @ObservedObject var webhookClient: WebhookClient
-    @State private var deepgramKey = DeepgramKeyStore.load()
-
-    var body: some View {
-        TabView {
-            generalTab
-                .tabItem { Label("Geral", systemImage: "gearshape") }
-            RemindersView()
-                .tabItem { Label("Lembretes", systemImage: "bell.badge") }
-            DescansoTabView()
-                .tabItem { Label("Descanso", systemImage: "moon.zzz") }
-            WebhookSettingsView(client: webhookClient)
-                .tabItem { Label("Notificações externas", systemImage: "bell.and.waves.left.and.right") }
-            IdentitySettingsView()
-                .tabItem { Label("Mensagens", systemImage: "bubble.left.and.bubble.right") }
-        }
-        .frame(width: 400, height: 580)
-    }
-
-    private var generalTab: some View {
-        Form {
-            Section("Notch") {
-                Toggle("Notificações no notch", isOn: $settings.notchNotifications)
-                Toggle("HUD de som", isOn: $settings.volumeHUD)
-                Toggle("HUD de brilho", isOn: $settings.brightnessHUD)
-                Toggle("Avisos de bateria", isOn: $settings.batteryAlerts)
-                Toggle("Visualizador com áudio real", isOn: $settings.liveAudioVisualizer)
-                Toggle("Contagem do calendário", isOn: $settings.calendarCountdown)
-                Toggle("Espelho antes de reuniões", isOn: $settings.mirrorBeforeMeetings)
-                Toggle("Indicador de microfone", isOn: $settings.micIndicator)
-                Toggle("AirPods no notch", isOn: $settings.airpodsNotch)
-                Toggle("Capturas de tela vão pro shelf", isOn: $settings.screenshotsToShelf)
-                if settings.screenshotsToShelf {
-                    Toggle("Esconder preview nativo do print", isOn: $settings.hideScreenshotPreview)
-                }
-            }
-            Section {
-                Toggle("API local", isOn: $settings.localAPI)
-            } footer: {
-                Text("POST http://localhost:4477/notify · {\"title\", \"body\", \"app\"}")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-            }
-            Section("Ditado") {
-                Toggle("Ditado (segurar ⌥ direita)", isOn: $settings.dictation)
-                Toggle("Usar Deepgram (cloud)", isOn: $settings.dictationCloud)
-                if settings.dictationCloud {
-                    SecureField("API key do Deepgram", text: $deepgramKey)
-                        .onChange(of: deepgramKey) { _, new in
-                            DeepgramKeyStore.save(new)
-                        }
-                }
-                Toggle("Formatar com IA (local)", isOn: $settings.formatTranscript)
-                if settings.formatTranscript {
-                    TextField("Endpoint", text: $settings.formatEndpoint)
-                    TextField("Modelo", text: $settings.formatModel)
-                }
-            }
-            Section("Pomodoro") {
-                Stepper("Foco: \(settings.pomodoroFocus) min",
-                        value: $settings.pomodoroFocus, in: 1...120)
-                Stepper("Pausa curta: \(settings.pomodoroShortBreak) min",
-                        value: $settings.pomodoroShortBreak, in: 1...60)
-                Stepper("Pausa longa: \(settings.pomodoroLongBreak) min",
-                        value: $settings.pomodoroLongBreak, in: 1...60)
-                Stepper("Focos até pausa longa: \(settings.pomodoroCyclesLong)",
-                        value: $settings.pomodoroCyclesLong, in: 1...12)
-                Toggle("Som ao trocar de fase", isOn: $settings.pomodoroSound)
-                Toggle("Travar a tela nas pausas", isOn: $settings.pomodoroLockScreen)
-            }
-            Section("Geral") {
-                Toggle("Abrir no login", isOn: Binding(
-                    get: { settings.launchAtLogin },
-                    set: { settings.launchAtLogin = $0 }
-                ))
-            }
-        }
-        .formStyle(.grouped)
     }
 }
 

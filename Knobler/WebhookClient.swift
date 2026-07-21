@@ -292,9 +292,11 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         return try? await session.data(for: req).0
     }
 
-    func listProfiles() async -> [WebhookProfile] {
+    /// nil = falha (rede/auth/parse) — diferente de "zero perfis", pra UI não
+    /// esvaziar uma lista já carregada por causa de um erro transitório.
+    func listProfiles() async -> [WebhookProfile]? {
         guard let d = await authed("profiles"),
-              let arr = try? JSONSerialization.jsonObject(with: d) as? [[String: Any]] else { return [] }
+              let arr = try? JSONSerialization.jsonObject(with: d) as? [[String: Any]] else { return nil }
         return arr.map {
             WebhookProfile(id: $0["profileId"] as? String ?? "", name: $0["name"] as? String ?? "",
                            hasMapping: $0["hasMapping"] as? Bool ?? false, icon: $0["icon"] as? String)

@@ -6,6 +6,36 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Changed
+- **Ajustes redesenhados no estilo do Ajustes do Sistema**: a janela deixou o
+  `TabView` 400×580 e virou `NavigationSplitView` (800×520, redimensionável)
+  com sidebar de 8 painéis e ícones coloridos — Geral, Notch, Ditado, Pomodoro,
+  Lembretes, Descanso, Notificações externas e Mensagens. A antiga aba "Geral"
+  (parede de 20+ controles) foi dividida em quatro painéis; todo toggle agora é
+  switch com descrição do que faz; sub-opções dependentes ficam desabilitadas
+  em vez de escondidas. O menu do Pomodoro abre os Ajustes direto no painel
+  Pomodoro. (`SettingsView.swift` novo; `AppSettings.swift`, `KnoblerApp.swift`.)
+- **Notificações externas**: aba refeita como Form agrupado; ações de cada
+  perfil (mapear, rotacionar, apagar) num menu "…" e copiar link virou ícone.
+  Ícone de perfil que era URL de imagem não quebra mais o layout da lista.
+  `ProfilesListView.swift` foi fundido em `WebhookSettingsView.swift`.
+- **Lembretes/Descanso**: linhas com menu de contexto (Editar/Apagar), switch
+  compacto e botão rotulado "Novo lembrete"/"Novo bloqueio" no rodapé.
+- **Mensagens**: botão "Remover" foto de perfil (novo
+  `AppSettings.removeMyAvatar()`); avatar maior no painel.
+
+### Added
+- Flag de desenvolvimento `--ajustes[=painel]` abre a janela de Ajustes direto
+  (usada pelos screenshots de UI).
+
+### Fixed
+- Perfis de webhook: falha de rede não "esvazia" mais a lista carregada
+  (`listProfiles` agora distingue erro de zero perfis), reload automático ao
+  reconectar, respostas atrasadas de reloads antigos são descartadas e criar
+  perfil com o relay fora do ar não come mais o nome digitado.
+- Remover a foto de perfil agora propaga: peer que responde o perfil sem foto
+  tem o avatar limpo do cache dos outros Macs (`MessageStore.removeAvatar`).
+
 ## [0.7.0] - 2026-07-21
 
 ### Added

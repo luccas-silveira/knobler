@@ -210,7 +210,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             if let peer = self.lanMessaging.peer(withID: msg.peerID) {
                 self.lanMessaging.fetchProfile(from: peer) { prof in
-                    if let jpeg = prof?.avatarJPEG { self.messageStore.cacheAvatar(jpeg, for: msg.peerID) }
+                    if let jpeg = prof?.avatarJPEG {
+                        self.messageStore.cacheAvatar(jpeg, for: msg.peerID)
+                    } else if prof != nil {
+                        // perfil veio sem foto = o peer removeu; fetch falho (nil) não apaga
+                        self.messageStore.removeAvatar(for: msg.peerID)
+                    }
                 }
             }
         }
@@ -394,6 +399,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     }
                 }
             }
+
+        // atalho de desenvolvimento: abre os Ajustes direto (screenshots de UI).
+        // "--ajustes" ou "--ajustes=<painel>" (ex.: --ajustes=pomodoro)
+        if let arg = CommandLine.arguments.first(where: { $0.hasPrefix("--ajustes") }) {
+            let pane = arg.split(separator: "=").last
+                .flatMap { SettingsPane(rawValue: String($0)) }
+            showSettings(pane: pane)
+        }
     }
 
     /// Liga/desliga o tap conforme o estado atual — idempotente, barato.
@@ -551,7 +564,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 viewModel.onPomodoroSkip = { [weak self] in self?.pomodoro.skip() }
                 viewModel.onPomodoroReset = { [weak self] in self?.pomodoro.reset() }
                 viewModel.onPomodoroStartNext = { [weak self] in self?.pomodoro.startNext() }
-                viewModel.onPomodoroSettings = { [weak self] in self?.openSettings() }
+                viewModel.onPomodoroSettings = { [weak self] in
+                    self?.showSettings(pane: .pomodoro)
+                }
 
                 // resposta rápida do card → envia, grava o outgoing e some em todas as telas
                 viewModel.onSendReply = { [weak self] peerID, text in
@@ -719,19 +734,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private var settingsWindow: NSWindow?
+    private let settingsRouter = SettingsRouter()
 
-    @objc private func openSettings() {
+    @objc private func openSettings() { showSettings(pane: nil) }
+
+    private func showSettings(pane: SettingsPane?) {
+        // sheet aberto (ex.: MappingEditor com edições) → não trocar o painel,
+        // senão o detalhe é recriado e o sheet morre levando o que foi digitado
+        if let pane, settingsWindow?.attachedSheet == nil { settingsRouter.pane = pane }
         if settingsWindow == nil {
             let window = NSWindow(
                 contentRect: .zero,
-                styleMask: [.titled, .closable],
+                styleMask: [.titled, .closable, .resizable],
                 backing: .buffered,
                 defer: false
             )
             window.title = "Ajustes do Knobler"
-            window.contentView = NSHostingView(rootView: SettingsView(webhookClient: webhookClient))
+            window.contentView = NSHostingView(
+                rootView: SettingsView(router: settingsRouter, webhookClient: webhookClient))
             window.isReleasedWhenClosed = false
-            window.setContentSize(window.contentView!.fittingSize)
+            window.setContentSize(NSSize(width: 800, height: 520))
+            window.contentMinSize = NSSize(width: 720, height: 470)
             window.center()
             settingsWindow = window
         }

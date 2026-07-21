@@ -18,9 +18,9 @@ swiftc -O -o build/snapshot \
   Knobler/WebhookKeychainStore.swift \
   Knobler/WebhookClient.swift \
   Knobler/WebhookSettingsView.swift \
-  Knobler/ProfilesListView.swift \
   Knobler/MappingEditorView.swift \
   Knobler/AppSettings.swift \
+  Knobler/SettingsView.swift \
   Knobler/IdentitySettingsView.swift \
   Knobler/Reminders.swift \
   Knobler/RemindersView.swift \
