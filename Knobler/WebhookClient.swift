@@ -75,23 +75,6 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         session.invalidateAndCancel()
     }
 
-    /// Rotaciona o publishToken (link novo); o WS não cai (usa o deviceSecret).
-    func rotate() {
-        queue.async {
-            guard let secret = WebhookKeychainStore.load(.deviceSecret) else { return }
-            var req = URLRequest(url: self.base.appendingPathComponent("rotate"))
-            req.httpMethod = "POST"
-            req.setValue("Bearer \(secret)", forHTTPHeaderField: "Authorization")
-            self.session.dataTask(with: req) { [weak self] data, _, _ in
-                guard let self, let data,
-                      let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                      let pub = obj["publishToken"] as? String else { return }
-                WebhookKeychainStore.save(pub, .publishToken)
-                self.publishLink(pub)
-            }.resume()
-        }
-    }
-
     // MARK: Pareamento
 
     private func ensurePairedThenConnect() {
