@@ -190,7 +190,8 @@ struct NotchView: View {
             // Pomodoro ativo suprime música e placeholder
             let placeholder = !hasMusic && vm.activity == nil && !hasShelf
                 && !vm.mirrorOn && !hasPomodoro && vm.airpods == nil
-            var height = topInset
+            // barra de abas (Música|Mensagens) fica sempre no topo do card aberto
+            var height = topInset + 34
             if hasPomodoro { height += 128 }  // cabeçalho + timer grande + ciclo + controles
             if vm.mirrorOn {
                 height += vm.activity != nil || hasShelf ? 190 : 202
