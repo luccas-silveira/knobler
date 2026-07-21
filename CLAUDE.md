@@ -39,10 +39,17 @@ estado em `Snapshots/*.png` — é o jeito de "ver" a UI sem abrir o app.
 ⚠️ A lista de arquivos em `tools/snapshot.sh` é **manual**. Ao adicionar um
 `.swift` novo em `Knobler/` que a `NotchView` use, adicione-o lá também.
 
-⚠️ **`NavigationSplitView`/`HSplitView` não renderizam via `ImageRenderer`
-offscreen** (viram um ícone de "proibido" em vez do conteúdo — confirmado
-com repro isolado). Por isso `settings-*.png` (7 painéis de Ajustes) e
-`mapping-editor.png` **não** são gerados por `tools/snapshot.sh` — são
+⚠️ **Qualquer view que dependa de um `NSView` real (janela/WindowServer de
+verdade) não renderiza via `ImageRenderer` offscreen** — vira o ícone de
+"proibido" no lugar do conteúdo. Casos confirmados até agora:
+`NavigationSplitView`/`HSplitView` (repro isolado), `TextField` (o rodapé do
+`AskCardView` — por isso `ask-simple.png`/`ask-multiselect.png` cortam antes
+da barra do campo de texto), e `NSWorkspace.icon(forFile:)`/`QLThumbnailGenerator`
+(`ShelfThumbnailDragView` — por isso `expanded-shelf.png` é capturado no app
+rodando de verdade, não pelo harness). Ao adicionar cenário novo ao harness,
+desconfie de qualquer subview que envolva um desses. Por isso `settings-*.png`
+(7 painéis de Ajustes) e `mapping-editor.png` **não** são gerados por
+`tools/snapshot.sh` — são
 mantidos à mão: rode `Knobler.app/Contents/MacOS/Knobler --ajustes=<painel>`
 (painéis: `geral notch ditado pomodoro lembretes descanso webhooks
 mensagens`), tire o screenshot da janela real e salve em `docs/images/`
