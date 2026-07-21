@@ -87,8 +87,12 @@ final class LANMessaging: ObservableObject {
         let myID = profileProvider?().id
         var found: [Peer] = []
         for r in results {
+            // id DEVE ser um UUID canônico (nosso id é sempre UUID().uuidString).
+            // Rejeitar o resto barra path-traversal no cache de foto (o id vira
+            // nome de arquivo) e enchente de peers forjados de qualquer host da LAN.
             guard case let .bonjour(txt) = r.metadata,
-                  let id = txt["id"], id != myID else { continue }
+                  let id = txt["id"], id != myID,
+                  UUID(uuidString: id) != nil else { continue }
             let name = txt["name"] ?? id
             found.append(Peer(id: id, name: name, endpoint: r.endpoint))
         }
@@ -110,6 +114,9 @@ final class LANMessaging: ObservableObject {
                 self.sendFrame(.profileResponse(id: p.id, name: p.name, avatar: p.avatarJPEG),
                                on: conn, close: true)
             case let .message(id, from, fromName, text, reply):
+                // `from` vira chave de arquivo (histórico/foto) — exige UUID canônico
+                // (mesma defesa do updatePeers). Remetente forjado é descartado.
+                guard UUID(uuidString: from) != nil else { conn.cancel(); return }
                 let clipped = String(text.prefix(2000))
                 let msg = PeerMessage(id: id, peerID: from, incoming: true,
                                       text: clipped, allowReply: reply, at: Date())

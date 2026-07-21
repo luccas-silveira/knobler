@@ -47,7 +47,8 @@ struct IncomingMessageView: View {
                 .background(RoundedRectangle(cornerRadius: 8).fill(.white.opacity(0.10)))
                 .onSubmit(send)
             Button(action: send) { Image(systemName: "paperplane.fill") }
-                .buttonStyle(.plain).disabled(reply.isEmpty)
+                .buttonStyle(.plain)
+                .disabled(reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
     }
 
