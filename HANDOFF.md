@@ -1,3 +1,42 @@
+# 🏁 SESSÃO 2026-07-21 (manhã) — Foto e GIF nas Mensagens LAN — **v0.4.0 no ar**
+
+Anexo de imagem na troca de mensagens entre Macs: botão 📷 no compositor manda JPEG/PNG/GIF, que aparece no card que desce do notch (largura cheia) e no balão da conversa, **com GIF animando**.
+
+## Como funciona
+- **Fio:** o caso `.message` de `Wire.swift` ganhou `media: Data?` + `mime: String?` (opcionais → pacote antigo sem os campos ainda decodifica). Frame subiu de 64 KB para **12 MB**; anexo cru até **6 MB** (`Frame.maxMedia`).
+- **Validação no ingresso:** `MediaKind.validate` só aceita jpeg/png/gif **e** exige que os bytes mágicos batam com o `mime` declarado — o remetente não escolhe a extensão do arquivo que gravamos. Nome do arquivo em `media/` é sempre UUID gerado local (mesma defesa do cache de foto).
+- **Preparo do envio (`MessageMedia.swift`, novo):** JPEG/PNG ≤1,5 MB vai cru, acima disso vira JPEG 1600 px/q0.7; **GIF acima do teto é reamostrado mantendo a animação** (reduz o lado maior; se ainda não couber, pula quadros somando o delay do quadro pulado). GIF de 46 MB do Giphy → **5,7 MB em ~6 s**, por isso roda fora da main thread.
+- **Exibição:** `MediaThumb` (NSViewRepresentable sobre `NSImageView.animates`) — `SwiftUI.Image` mostraria só o 1º quadro. Cache do caminho no `identifier` evita reler o arquivo (e reiniciar o GIF) a cada render.
+- **Anexo pendente mora no `NotchViewModel`**, não em `@State`: o `NSOpenPanel` tira o mouse do notch, o notch fecha e a `MessagesView` morreria levando a escolha junto.
+
+## Bugs corrigidos (todos com causa real, não sintoma)
+- **Nenhuma imagem passava:** `NWConnection.receive` **não entrega mais que 64 KB por chamada** — pedir o corpo inteiro de uma vez fazia a leitura falhar **sem erro**, e o app fechava a conexão calado. Agora o corpo é lido em pedaços; timeout da troca 5 s → 20 s. Achado por bissecção de tamanho (60 KB ok, 100 KB não).
+- **Botão 📷 "não funcionava":** app é `LSUIElement`, então o `NSOpenPanel` abria sem foco atrás de tudo. Fix: `NSApp.activate` + `level = .modalPanel` antes do `begin`.
+- **Card ficava para sempre** (era o minor **M1** do handoff anterior): com resposta permitida não tinha timer. Agora 20 s (6 s sem resposta), pausado enquanto o ponteiro está sobre o card (`holdIncoming`, igual às notificações).
+- **X fechava só num monitor** (também M1): `requestDismissIncoming()` → `onDismissEverywhere` faz o fan-out no `KnoblerApp`, como `onSendReply` já fazia.
+
+## Arquivos
+- **Novo:** `Knobler/MessageMedia.swift` (preparo/recompressão + `MediaThumb` + `pick`), adicionado à lista manual do `tools/snapshot.sh`.
+- **Modificados:** `Wire.swift` (+`MediaKind`, tetos), `LANMessaging.swift` (leitura em pedaços, timeout, `onIncoming` com anexo), `MessageStore.swift` (pasta `media/`, `saveMedia`/`mediaURL`, apaga arquivo quando a mensagem cai do histórico), `Peer.swift` (`mediaFile`), `MessagesView.swift`, `IncomingMessageView.swift`, `NotchViewModel.swift`, `NotchView.swift`, `KnoblerApp.swift`, `tools/wirecheck/main.swift` (round-trip com anexo, mime mentindo, teto).
+
+## Teste sem segundo Mac
+`/tmp/demosend` (fonte em `<scratchpad>/main.swift`, compila com `swiftc Knobler/Wire.swift Knobler/MessageMedia.swift <scratchpad>/main.swift`): simula outro Mac e manda foto/GIF **direto no listener local**.
+`./demosend --port <porta> [--gif | --file x.gif]`; a porta sai de `lsof -nP -a -p $(pgrep -x Knobler) -iTCP -sTCP:LISTEN`. **O modo "procura na rede" foi removido de propósito**: numa rede com outros Knobler ele acerta o Mac de outra pessoa (aconteceu uma vez nesta sessão).
+⚠️ O Bonjour só liga quando a aba **Mensagens** é aberta — sem isso não há listener nem porta.
+
+## Estado do repo
+- **v0.4.0 publicada** (`./tools/release.sh minor`): tag `v0.4.0`, push do `master`, GitHub Release (`Knobler-0.4.0.zip`, sha256 `f3086f6…`) e cask do tap bumpado.
+- Não rastreados, de outra sessão (não toquei): `.impeccable/`, `DESIGN.md`, `PRODUCT.md`.
+- `/Applications/Knobler.app` é o build **Debug** instalado à mão. Para o oficial: `brew update && brew upgrade knobler`.
+
+## Pendências
+- **Teto de altura da imagem no card** (190 pt): usuário achou pequeno. Decidir entre subir o teto (~344 pt, largura cheia para o GIF quase quadrado) ou preencher recortando (`scaleAxesIndependently`).
+- **Drag & drop** de imagem no notch: ficou de fora porque o `ShelfDropDelegate` já captura `.fileURL` no card inteiro.
+- Anexo na **resposta rápida** do card (só o compositor da conversa tem 📷).
+- PNG grande com transparência vira JPEG (fundo preto) — gravar PNG quando `hasAlpha` se incomodar.
+
+---
+
 # 🏁 SESSÃO 2026-07-21 — Mensagens LAN entre Macs (Bonjour) — **v0.3.0 no ar**
 
 Feature nova **no ar e validada E2E entre dois Macs**: troca de mensagens peer-to-peer entre computadores na mesma rede local. Abre a aba **Mensagens** no notch → vê quem está online (outros Knobler na LAN) → escolhe alguém → manda recado (com toggle "permite resposta") → aparece no notch da pessoa com nome + foto. Histórico últimas 20/peer. Identidade (nome+foto) configurável em Ajustes › Mensagens, pré-preenchida da conta do macOS.
