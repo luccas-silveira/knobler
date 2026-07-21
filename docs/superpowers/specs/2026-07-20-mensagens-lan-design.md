@@ -138,12 +138,20 @@ Verificação por compilação/execução real contra o SDK instalado (não mem�
    veio 640×640 em runtime). **Mantém o prefill de foto** (antes cogitado dropar). Requer:
    linkar `Collaboration.framework` no `project.yml`; redimensionar para ~64px antes do JPEG
    (imagem cheia = ~152 KB).
-3. **Permissão de Rede Local (macOS 15+/26) — NOVO REQUISITO.** Bonjour agora exige
-   consentimento do usuário. Info.plist precisa de `NSLocalNetworkUsageDescription` e
-   `NSBonjourServices = ["_knobler._tcp"]` (ambos via `project.yml`), senão `NWBrowser`
-   devolve `PolicyDenied (-65570)`. **Risco:** apps agente (`LSUIElement`, caso do Knobler)
-   e CLIs às vezes não disparam o prompt — a implementação deve testar a concessão real e
-   ter um caminho de diagnóstico (ex.: expor estado da permissão / erro no `GET /status`).
+3. **Permissão de Rede Local (macOS 15+/26) — NOVO REQUISITO, risco resolvido.** Bonjour
+   agora exige consentimento do usuário. Info.plist precisa de `NSLocalNetworkUsageDescription`
+   e `NSBonjourServices = ["_knobler._tcp"]` (ambos via `project.yml`; o tipo vale para anunciar
+   E descobrir). Fatos que rebaixam o risco (TN3179 + fóruns Apple):
+   - O caminho do **framework `Network`** (`NWBrowser`/`NWListener`/`NWConnection`) É o
+     suportado e dispara o prompt corretamente. Os relatos de "prompt não aparece" eram de
+     **UDP broadcast cru** (BSD sockets) — caminho diferente, não o nosso.
+   - Negação é **detectável em código**: `kDNSServiceErr_PolicyDenied (-65570)` chega no
+     `stateUpdateHandler` do browser/connection.
+   - **Mitigação de app agente (`LSUIElement`):** disparar browse/advertise quando o usuário
+     **abre a aba Mensagens** (app ativo = momento certo do prompt), não no launch. Ao ver
+     `-65570`, mostrar "libere Rede Local em Ajustes" e expor o estado no `GET /status`.
+   - Reset p/ testar: `tccutil reset` não cobre Local Network de forma confiável; testar em
+     VM limpa / alternar o toggle em Ajustes › Privacidade › Rede Local.
 
 ## Versionamento
 
