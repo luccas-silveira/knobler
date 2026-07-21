@@ -58,6 +58,7 @@ Rejeitadas:
 - `NotchView.swift` — barra de abas quando aberto + apresentação do card de entrada.
 - `KnoblerApp.swift` — instancia o motor, fia recebimento → notch.
 - Settings de identidade numa seção própria onde vivem os ajustes do app.
+- `project.yml` — linkar `Collaboration.framework`; adicionar Info.plist `NSLocalNetworkUsageDescription` e `NSBonjourServices=["_knobler._tcp"]` (ver Pesquisa).
 - `tools/snapshot.sh` — adicionar `MessagesView.swift` e `IncomingMessageView.swift` à lista manual.
 
 ## Protocolo
@@ -123,6 +124,26 @@ o `id` não). `displayName` e foto começam preenchidos com os do macOS, editáv
 Self-check `assert`-based do codec + moldura: encoda um `PeerMessage`, emoldura,
 desemoldura, decoda, confere igualdade; idem `profile`. É a única lógica
 não-trivial (parsing/framing binário).
+
+## Pesquisa (verificado 2026-07-20)
+
+Verificação por compilação/execução real contra o SDK instalado (não memória).
+
+1. **APIs de rede — compilam no alvo macOS 14.2.** `NWListener.Service(name:type:txtRecord:)`,
+   `NWTXTRecord`, `NWBrowser(for: .bonjourWithTXTRecord(type:domain:))` com TXT lido
+   via `case .bonjour(let txt) = result.metadata`, `NWConnection(to:)` e framing
+   length-prefixed com `receive(minimumIncompleteLength:maximumLength:)` — todos type-check limpo.
+2. **Nome + foto do macOS — viável (Collaboration.framework).** `CBUserIdentity(posixUID:
+   getuid(), authority: .default())` dá `.fullName` (String) e `.image` (NSImage da conta;
+   veio 640×640 em runtime). **Mantém o prefill de foto** (antes cogitado dropar). Requer:
+   linkar `Collaboration.framework` no `project.yml`; redimensionar para ~64px antes do JPEG
+   (imagem cheia = ~152 KB).
+3. **Permissão de Rede Local (macOS 15+/26) — NOVO REQUISITO.** Bonjour agora exige
+   consentimento do usuário. Info.plist precisa de `NSLocalNetworkUsageDescription` e
+   `NSBonjourServices = ["_knobler._tcp"]` (ambos via `project.yml`), senão `NWBrowser`
+   devolve `PolicyDenied (-65570)`. **Risco:** apps agente (`LSUIElement`, caso do Knobler)
+   e CLIs às vezes não disparam o prompt — a implementação deve testar a concessão real e
+   ter um caminho de diagnóstico (ex.: expor estado da permissão / erro no `GET /status`).
 
 ## Versionamento
 
