@@ -279,4 +279,85 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     func urlSession(_ s: URLSession, task t: URLSessionTask, didCompleteWithError e: Error?) {
         queue.async { guard t === self.task else { return }; self.handleDrop("complete \(e?.localizedDescription ?? "nil")") }
     }
+
+    // MARK: API de perfis (HTTP autenticado pelo deviceSecret)
+
+    struct WebhookProfile: Identifiable {
+        let id: String
+        var name: String
+        var hasMapping: Bool
+        var icon: String?
+    }
+
+    struct ProfileDetail {
+        var name: String
+        var mapping: String?
+        var icon: String?
+        var lastPayload: String?
+    }
+
+    /// Request autenticado ao relay (Bearer deviceSecret). Retorna o corpo cru ou nil.
+    private func authed(_ path: String, method: String = "GET", body: Data? = nil) async -> Data? {
+        guard let secret = WebhookKeychainStore.load(.deviceSecret) else { return nil }
+        var req = URLRequest(url: base.appendingPathComponent(path))
+        req.httpMethod = method
+        req.setValue("Bearer \(secret)", forHTTPHeaderField: "Authorization")
+        if let body {
+            req.httpBody = body
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
+        return try? await session.data(for: req).0
+    }
+
+    func listProfiles() async -> [WebhookProfile] {
+        guard let d = await authed("profiles"),
+              let arr = try? JSONSerialization.jsonObject(with: d) as? [[String: Any]] else { return [] }
+        return arr.map {
+            WebhookProfile(id: $0["profileId"] as? String ?? "", name: $0["name"] as? String ?? "",
+                           hasMapping: $0["hasMapping"] as? Bool ?? false, icon: $0["icon"] as? String)
+        }
+    }
+
+    /// Cria um perfil; guarda o publishToken no Keychain e retorna o profileId.
+    func createProfile(name: String) async -> String? {
+        guard let d = await authed("profiles", method: "POST", body: try? JSONSerialization.data(withJSONObject: ["name": name])),
+              let o = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
+              let id = o["profileId"] as? String, let tok = o["publishToken"] as? String else { return nil }
+        WebhookKeychainStore.saveProfileToken(tok, id)
+        return id
+    }
+
+    func getProfile(_ id: String) async -> ProfileDetail? {
+        guard let d = await authed("profiles/\(id)"),
+              let o = try? JSONSerialization.jsonObject(with: d) as? [String: Any] else { return nil }
+        return ProfileDetail(name: o["name"] as? String ?? "", mapping: o["mapping"] as? String,
+                             icon: o["icon"] as? String, lastPayload: o["lastPayload"] as? String)
+    }
+
+    func updateProfile(_ id: String, name: String? = nil, mapping: String? = nil, icon: String? = nil) async {
+        var b: [String: Any] = [:]
+        if let name { b["name"] = name }
+        if let mapping { b["mapping"] = mapping }
+        if let icon { b["icon"] = icon }
+        _ = await authed("profiles/\(id)", method: "PUT", body: try? JSONSerialization.data(withJSONObject: b))
+    }
+
+    func deleteProfile(_ id: String) async {
+        _ = await authed("profiles/\(id)", method: "DELETE")
+        WebhookKeychainStore.deleteProfileToken(id)
+    }
+
+    /// Rotaciona o token do perfil e guarda o novo no Keychain.
+    func rotateProfile(_ id: String) async {
+        guard let d = await authed("profiles/\(id)/rotate", method: "POST"),
+              let o = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
+              let tok = o["publishToken"] as? String else { return }
+        WebhookKeychainStore.saveProfileToken(tok, id)
+    }
+
+    /// Monta o link público do perfil (…/w/<token>) a partir do Keychain.
+    func link(for id: String) -> String? {
+        guard let tok = WebhookKeychainStore.loadProfileToken(id) else { return nil }
+        return base.appendingPathComponent("w").appendingPathComponent(tok).absoluteString
+    }
 }
