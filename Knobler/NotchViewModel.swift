@@ -69,6 +69,10 @@ final class NotchViewModel: ObservableObject {
         let allowReply: Bool
     }
     @Published var incoming: IncomingMessage?
+    /// Conversa aberta na aba Mensagens (peerID) — nil = mostra a lista.
+    /// Fonte da verdade da seleção (a MessagesView lê/escreve aqui) pra que
+    /// `openThread` (clique no card) consiga abrir a conversa certa.
+    @Published var selectedThreadPeerID: String?
     /// Resposta rápida do card → app envia (peerID, texto).
     var onSendReply: ((String, String) -> Void)?
     private var incomingWork: DispatchWorkItem?
@@ -190,6 +194,7 @@ final class NotchViewModel: ObservableObject {
     /// Abre a conversa daquele peer na aba Mensagens.
     func openThread(peerID: String) {
         dismissIncoming()
+        selectedThreadPeerID = peerID
         tab = .messages
         setExpandedDirect(true)
     }
