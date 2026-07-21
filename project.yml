@@ -14,6 +14,7 @@ targets:
       - Knobler
     dependencies:
       - package: FluidAudio
+      - sdk: Collaboration.framework
     scheme: {}
     info:
       path: Knobler/Info.plist

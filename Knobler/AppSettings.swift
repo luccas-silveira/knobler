@@ -7,6 +7,8 @@
 //  na hora, sem reiniciar.
 //
 
+import AppKit
+import Collaboration
 import Security
 import ServiceManagement
 import SwiftUI
@@ -82,6 +84,13 @@ final class AppSettings: ObservableObject {
     @Published var loadRemoteImages: Bool {
         didSet { UserDefaults.standard.set(loadRemoteImages, forKey: "loadRemoteImages") }
     }
+
+    /// Nome que os outros veem nas Mensagens LAN. Começa com o do macOS.
+    @Published var displayName: String {
+        didSet { UserDefaults.standard.set(displayName, forKey: "displayName") }
+    }
+    /// UUID estável desta instalação — chaveia histórico e foto. Gerado 1x.
+    let myID: String
 
     /// Lembretes programados do usuário (JSON em UserDefaults).
     @Published var reminders: [Reminder] {
@@ -183,6 +192,58 @@ final class AppSettings: ObservableObject {
         pomodoroLongBreak = intOr("pomodoroLongBreak", 15)
         pomodoroCyclesLong = intOr("pomodoroCyclesLong", 4)
         pomodoroSound = flag("pomodoroSound")   // default true
+
+        if let existing = defaults.string(forKey: "myID") {
+            myID = existing
+        } else {
+            let generated = UUID().uuidString
+            defaults.set(generated, forKey: "myID")
+            myID = generated
+        }
+        displayName = defaults.string(forKey: "displayName") ?? AppSettings.macOSFullName()
+    }
+
+    // MARK: - Identidade das Mensagens LAN
+
+    /// Foto de perfil em App Support (me.jpg). nil se o usuário não definiu.
+    private var myAvatarURL: URL {
+        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Knobler", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("me.jpg")
+    }
+
+    func myAvatarJPEG() -> Data? { try? Data(contentsOf: myAvatarURL) }
+
+    func setMyAvatar(_ image: NSImage) {
+        guard let jpeg = AppSettings.jpegThumbnail(image) else { return }
+        try? jpeg.write(to: myAvatarURL)
+        objectWillChange.send()
+    }
+
+    func myProfile() -> PeerProfile {
+        PeerProfile(id: myID, name: displayName, avatarJPEG: myAvatarJPEG())
+    }
+
+    static func macOSFullName() -> String {
+        let name = NSFullUserName()
+        return name.isEmpty ? NSUserName() : name
+    }
+
+    static func macOSAvatar() -> NSImage? {
+        CBUserIdentity(posixUID: getuid(), authority: .default())?.image
+    }
+
+    /// Redimensiona pra `side`×`side` e comprime em JPEG (~alguns KB).
+    static func jpegThumbnail(_ image: NSImage, side: CGFloat = 64) -> Data? {
+        let target = NSImage(size: NSSize(width: side, height: side))
+        target.lockFocus()
+        image.draw(in: NSRect(x: 0, y: 0, width: side, height: side),
+                   from: .zero, operation: .copy, fraction: 1)
+        target.unlockFocus()
+        guard let tiff = target.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff) else { return nil }
+        return rep.representation(using: .jpeg, properties: [.compressionFactor: 0.7])
     }
 }
 
@@ -201,6 +262,8 @@ struct SettingsView: View {
                 .tabItem { Label("Descanso", systemImage: "moon.zzz") }
             WebhookSettingsView(client: webhookClient)
                 .tabItem { Label("Notificações externas", systemImage: "bell.and.waves.left.and.right") }
+            IdentitySettingsView()
+                .tabItem { Label("Mensagens", systemImage: "bubble.left.and.bubble.right") }
         }
         .frame(width: 400, height: 580)
     }
