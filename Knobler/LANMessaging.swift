@@ -29,6 +29,7 @@ final class LANMessaging: ObservableObject {
 
     func start() {
         guard listener == nil else { return }
+        permissionDenied = false   // dá nova chance: usuário pode ter concedido desde a última negação
         startListener()
         startBrowser()
     }
@@ -98,6 +99,9 @@ final class LANMessaging: ObservableObject {
 
     private func serve(_ conn: NWConnection) {
         conn.start(queue: .main)
+        // watchdog: peer que abre e não envia (ou trickle) não pode segurar o socket
+        // pra sempre. cancel após completar/fechar é no-op — seguro.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { conn.cancel() }
         receiveFrame(on: conn) { [weak self] packet in
             guard let self, let packet else { conn.cancel(); return }
             switch packet {
@@ -157,9 +161,13 @@ final class LANMessaging: ObservableObject {
             case .ready:
                 self?.sendFrame(packet, on: conn, close: false)
                 self?.receiveFrame(on: conn) { finish($0) }
-            case let .failed(err), let .waiting(err):
+            case let .failed(err):
                 self?.noteError(err)
                 finish(nil)
+            case let .waiting(err):
+                // .waiting é transitório (pode virar .ready). Captura -65570 aqui,
+                // mas deixa o timeout de 5s decidir — não falha na hora.
+                self?.noteError(err)
             default:
                 break
             }
@@ -182,7 +190,7 @@ final class LANMessaging: ObservableObject {
     private func receiveFrame(on conn: NWConnection, then: @escaping (Packet?) -> Void) {
         conn.receive(minimumIncompleteLength: 4, maximumLength: 4) { header, _, _, err in
             guard let header, header.count == 4, err == nil else { then(nil); return }
-            let n = Int(header.withUnsafeBytes { $0.load(as: UInt32.self).bigEndian })
+            let n = Int(header.withUnsafeBytes { $0.loadUnaligned(as: UInt32.self).bigEndian })
             guard n > 0, n <= Frame.maxSize else { then(nil); return }
             conn.receive(minimumIncompleteLength: n, maximumLength: n) { body, _, _, err in
                 guard let body, body.count == n, err == nil,
