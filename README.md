@@ -8,16 +8,39 @@ Dynamic Island para o notch do Mac — nativo, Swift/SwiftUI, macOS 14.2+.
 
 - **Now Playing** (Spotify e Apple Music): capa + visualizador no notch fechado;
   hover expande com controles, progresso e shuffle. Música pausada se esconde;
-  hover "espia" antes de abrir.
+  hover "espia" antes de abrir. → [detalhes](docs/now-playing.md)
 - **Visualizador com áudio real**: CoreAudio process tap no player + FFT em 5
   bandas — as barras dançam com a música de verdade, tingidas pela cor da capa.
 - **HUDs no notch**: volume, brilho e bateria (carregador/20%) substituem o OSD
-  nativo.
+  nativo. → [detalhes](docs/huds.md)
 - **Notificações do sistema** interceptadas e exibidas no notch (Acessibilidade).
+  → [detalhes](docs/notifications.md)
 - **Countdown de calendário**: próximo evento entra 15min antes com anel regressivo.
+  → [detalhes](docs/calendar-countdown.md)
+- **Ditado** estilo Superwhisper com limpeza opcional por IA local.
+  → [detalhes](docs/dictation.md)
+- **Perguntas do Claude Code** (`AskUserQuestion`) viram card interativo no notch.
+  → [detalhes](docs/ask.md)
+- **Pomodoro**. → [detalhes](docs/pomodoro.md)
+- **Descanso**: bloqueio de tela programado (ex.: hora do almoço).
+  → [detalhes](docs/descanso.md)
+- **Lembretes** programados (únicos, recorrentes ou por intervalo).
+  → [detalhes](docs/reminders.md)
+- **Prateleira de arquivos**: arraste pro notch, screenshots caem sozinhos.
+  → [detalhes](docs/shelf.md)
+- **Mensagens** com outros Macs na rede local (texto, foto, GIF).
+  → [detalhes](docs/messages.md)
+- **Notificações externas** (webhooks): link próprio por perfil, qualquer
+  serviço publica no notch. → [detalhes](docs/webhooks.md)
+- **Bateria dos AirPods** por componente ao conectar.
+  → [detalhes](docs/airpods.md)
+- **Espelho de câmera** antes de reuniões. → [detalhes](docs/mirror.md)
 - **Gestos**: dois dedos pra baixo abre, pra cima fecha, horizontal pula faixa.
 - **Multi-monitor**: notch real no MacBook, ilha simulada nos externos.
 - **API local** (`127.0.0.1:4477`) — o diferencial: qualquer script publica no notch.
+  → [detalhes](docs/local-api.md)
+
+Configuração de tudo isso numa janela de Ajustes única. → [detalhes](docs/settings.md)
 
 ## API local
 
