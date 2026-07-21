@@ -1,3 +1,52 @@
+# 🏁 SESSÃO 2026-07-20 (noite) — Notificações externas via webhook + webhooks configuráveis (mapeamento por perfil)
+
+Duas features grandes, ambas **no ar**: (1) notificações que chegam **de fora do computador** via webhook, exibidas no notch; (2) **mapeamento configurável** — cada fonte externa (GitHub, Stripe, n8n…) vira um **perfil** com link próprio, e um **editor lado-a-lado** monta os campos da notificação a partir do payload capturado (texto livre + `{{ variáveis }}`).
+
+## Arquitetura (nova)
+
+**Relay próprio na VPS** (`147.79.87.179`, `push.appzoi.com.br`): um Mac pessoal atrás de NAT não recebe HTTP de entrada, então um serviço na nuvem hospeda o link, recebe o webhook e **empurra** pro app pelo WebSocket que o Mac mantém aberto.
+- **Código:** `relay/` no repo (Node 18 + `ws` + `better-sqlite3@11`, sem framework). Módulos: `tokens`, `normalize`, `db` (devices + fila offline + **profiles**), `ratelimit`, `hub`, `server`, `template` (motor `{{dot.path}}`), `index`.
+- **Prod:** roda em `/opt/knobler-relay` sob **pm2** (`knobler-relay`, fork, `instances:1` — hub+ratelimit em memória, NUNCA cluster), atrás do **nginx** (`push.appzoi.com.br`, vhost `sites-available/push.appzoi.com.br.conf`, reusa `$connection_upgrade` global, `access_log off` na `/w/`, `limit_req knobler_push`), **TLS via certbot**. Escuta `127.0.0.1:8477`.
+- **DNS:** `push.appzoi.com.br → 147.79.87.179` (registro A criado via **Hostinger API**, zona appzoi.com.br). Token Hostinger: o usuário forneceu na sessão.
+
+**App (Mac):** `WebhookClient.swift` (pareamento `POST /register` → Keychain; WSS com auth por **header** `Authorization: Bearer <deviceSecret>`; reconnect robusto — contorna 2 bugs do `URLSessionWebSocketTask` com pong-timeout de app + NWPathMonitor + wake + epoch; App Nap via `beginActivity`). `RemoteAvatarLoader.swift` (avatar remoto com guardas). `WebhookKeychainStore.swift`. `MappingEditorView.swift` (editor lado-a-lado). `ProfilesListView.swift`. Config em Ajustes › **Notificações externas** (opt-in, default off).
+
+## O que foi feito
+
+**Feature 1 — notificações via webhook** (Planos 1+2, mergeados antes):
+- Relay: link por device, contrato `{title,body,icon,url,sound,id}` (JSON/form/query), fila offline (50/24h, replace por `id`), rate limit 20/min. Deployado + E2E.
+- App: card no notch com avatar remoto (só https, content-type, teto 512KB, bloqueio de IP privado literal), clique só http/https, aba de config. Validado: app real conecta (online 0→1).
+
+**Feature 2 — webhooks configuráveis / mapeamento por perfil** (Planos A+B, esta rodada):
+- **Decisões (grill-me):** mapeia no relay; 1 perfil = 1 link + 1 mapa; relay guarda o último payload; template `{{dot.path}}` (aninhado/array, ausente→vazio, sem lógica); editor lado-a-lado clique-pra-inserir; ícone fixo por perfil (URL **ou emoji**); **mapeamento obrigatório** (sem mapa = captura-only, o atalho `{title,body}` direto SAIU).
+- **Relay:** tabela `profiles` (token+mapa+ícone+last_payload por perfil) + migração idempotente (device antigo → perfil "Padrão"); API CRUD de perfis (auth deviceSecret); ingress `/w/<token>` resolve perfil → captura → renderiza+sanitiza+empurra (com `iconEmoji`) ou captura-only.
+- **App:** aba vira lista de perfis; editor lado-a-lado (wrapper **AppKit `NSTextView`** — o `TextSelection`/cursor do SwiftUI é macOS 15+, alvo 14.2; folha da árvore em `.onTapGesture` não `Button`; preview ao vivo); emoji no card.
+- **Pesquisa de-risk:** o nó era a inserção-no-cursor (resolvido: NSTextView wrapper) + prior art (Zapier/n8n/Make → árvore+clique+preview, `{{}}` cru sem pills na v1).
+
+## Validação
+
+- **Gates:** relay `node --test` **43/43** (Node 18 na VPS e Node 23 local); app `xcodebuild` **BUILD SUCCEEDED**.
+- **E2E do mapeamento VERDE em produção** (headless, contra `https://push.appzoi.com.br`): payload nativo GitHub → `{{repository.name}}`/`{{commits.0.message}}`/`{{pusher.name}}` + texto livre → "Push em knobler" / "fix o bug do notch — luccas" / 🚀 / sound; captura-only não empurra.
+- **E2E visual confirmado pelo usuário** (criar perfil, mapear no editor, ver o card).
+- Cada task passou por review por-subagente + **revisão ampla do branch**; 3 bugs de integração relay↔app pegos no review amplo (rotate incoerente, deploy-gate, mapping malformado→500) — **todos corrigidos**; deploy relay+app **juntos** (sem janela de notificações-off).
+
+## DEPLOYADO vs COMMITADO
+
+- **DEPLOYADO em prod:** o relay (`/opt/knobler-relay` @ pm2, com o mapeamento). Health `{"ok":true}`. Migração rodou (perfis "Padrão" captura-only dos devices existentes).
+- **COMMITADO em master, NÃO PUSHADO:** **41 commits à frente do `origin/master`**. ⚠️ Decisão do usuário: o repo do app é **público** — pushar publica o código do relay (que referencia `push.appzoi.com.br`/a VPS; sem segredos no código, tokens são por-device). Não pushei (política: só quando pedido). `git push` quando decidir.
+- **App:** build Debug instalado/rodando local (não é release; sem novo `release.sh`).
+
+## Pendências e followups
+
+- **Push pro origin** (41 commits) — decisão do usuário (repo público).
+- **Edge de migração (menor):** o perfil "Padrão" migrado NÃO mostra link no app novo (o token do device ficou no Keychain account `publishToken`, não `profile:<id>`). Contorno: criar perfis novos (link aparece); o Padrão é leftover captura-only, pode deletar.
+- **Release:** rodar `./tools/release.sh minor` quando quiser publicar a versão (CHANGELOG `[Unreleased]` já tem as duas features).
+- **Minors "pode-ficar"** (triados nos reviews, ver `.superpowers/sdd/progress.md`): validar `mapping` no PUT já feito; `iconTemplate` (mapear ícone do payload) suportado no relay mas sem UI (v1 é ícone fixo); árvore do editor não colapsa; pills/autocomplete/busca são polish futuro.
+- **Ambiente:** `node`/`npm` do Homebrew do usuário estão QUEBRADOS (dylib libllhttp, v25) — dev usou o do nvm (v23.11.1). `brew reinstall node` conserta.
+- **Especificações:** `docs/superpowers/specs/` e `docs/superpowers/plans/` têm os 4 designs + 2 pesquisas + 4 planos desta feature.
+
+---
+
 # 🏁 SESSÃO 2026-07-20 — Distribuição via Homebrew + provisionamento do modelo + fix de crash — v0.2.2
 
 Distribuição **entregue e no ar**: amigos instalam com **uma linha**; o modelo de ditado é provisionado no install com progresso ao vivo; e um crash determinístico do ditado foi corrigido. Repo do app **tornado público** (open-source). 4 releases (v0.1.0→v0.2.2), **v0.2.2 Latest**.
