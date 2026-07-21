@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-21
+
 ### Added
 - **Mensagens LAN**: descubra outros Macs com Knobler na mesma rede e mande recados
   que aparecem no notch da pessoa, com nome e foto. Aba Mensagens no notch aberto,
