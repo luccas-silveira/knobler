@@ -959,7 +959,8 @@ struct MessagesView: View {
     @EnvironmentObject var lan: LANMessaging
     @EnvironmentObject var store: MessageStore
 
-    @State private var selectedPeerID: String?
+    // Seleção mora no VM (vm.selectedThreadPeerID) pra que openThread (clique no
+    // card de entrada) consiga abrir a conversa certa. Aqui é só leitura/escrita.
     @State private var draft = ""
     @State private var allowReply = true
 
@@ -967,7 +968,7 @@ struct MessagesView: View {
         Group {
             if lan.permissionDenied {
                 info("Libere a Rede Local em Ajustes › Privacidade › Rede Local.")
-            } else if let id = selectedPeerID {
+            } else if let id = vm.selectedThreadPeerID {
                 conversation(peerID: id)
             } else {
                 peerList
@@ -1010,7 +1011,7 @@ struct MessagesView: View {
         let name = peer?.name ?? store.name(for: peerID) ?? "?"
         return VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
-                Button { selectedPeerID = nil } label: {
+                Button { vm.selectedThreadPeerID = nil } label: {
                     Image(systemName: "chevron.left")
                 }.buttonStyle(.plain)
                 avatar(peerID: peerID, name: name).frame(width: 22, height: 22)
@@ -1063,7 +1064,7 @@ struct MessagesView: View {
     // MARK: Ações
 
     private func open(_ peerID: String) {
-        selectedPeerID = peerID
+        vm.selectedThreadPeerID = peerID
         if let peer = lan.peer(withID: peerID) {
             store.rememberName(peer.name, for: peerID)
             lan.fetchProfile(from: peer) { profile in
