@@ -110,7 +110,9 @@ struct MessagesView: View {
                 .background(RoundedRectangle(cornerRadius: 8).fill(.white.opacity(0.08)))
                 .onSubmit { sendDraft(to: peer) }
             Button { sendDraft(to: peer) } label: { Image(systemName: "paperplane.fill") }
-                .buttonStyle(.plain).disabled(peer == nil || draft.isEmpty)
+                .buttonStyle(.plain)
+                .disabled(peer == nil ||
+                    draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
     }
 
@@ -120,8 +122,11 @@ struct MessagesView: View {
         vm.selectedThreadPeerID = peerID
         if let peer = lan.peer(withID: peerID) {
             store.rememberName(peer.name, for: peerID)
-            lan.fetchProfile(from: peer) { profile in
-                if let jpeg = profile?.avatarJPEG { store.cacheAvatar(jpeg, for: peerID) }
+            // ponytail: só busca a foto se ainda não temos cache (evita ida à rede a cada toque)
+            if store.avatar(for: peerID) == nil {
+                lan.fetchProfile(from: peer) { profile in
+                    if let jpeg = profile?.avatarJPEG { store.cacheAvatar(jpeg, for: peerID) }
+                }
             }
         }
     }
