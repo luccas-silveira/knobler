@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-21
+
 ### Changed
 - **Card de música enxugado**: a barra de abas "Música | Mensagens" saiu. A troca
   de tela agora é por swipe horizontal de dois dedos sobre o card aberto, com um
