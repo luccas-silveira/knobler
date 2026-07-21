@@ -396,79 +396,16 @@ renderMessageScenario("messages-incoming", realNotch: true) { vm, _, _ in
         peerID: "p1", name: "Marina", text: "Bora almoçar daqui a pouco?", allowReply: true)
 }
 
-// Janela de Ajustes — cada painel renderizado isolado (sem Xcode/janela real).
-@MainActor func renderSettingsPane(
-    _ name: String, pane: SettingsPane,
-    configureClient: (WebhookClient) -> Void = { _ in }
-) {
-    let router = SettingsRouter()
-    router.pane = pane
-    let client = WebhookClient()
-    configureClient(client)
-    let view = ZStack {
-        LinearGradient(
-            colors: [Color(red: 0.72, green: 0.78, blue: 0.88),
-                     Color(red: 0.90, green: 0.86, blue: 0.80)],
-            startPoint: .topLeading, endPoint: .bottomTrailing)
-        SettingsView(router: router, webhookClient: client)
-    }
-    .frame(width: 760, height: 520)
-    let renderer = ImageRenderer(content: view)
-    renderer.scale = 2
-    guard let nsImage = renderer.nsImage,
-          let tiff = nsImage.tiffRepresentation,
-          let rep = NSBitmapImageRep(data: tiff),
-          let png = rep.representation(using: .png, properties: [:])
-    else { print("FALHOU: \(name)"); exit(1) }
-    let path = "\(outputDir)/\(name).png"
-    try? png.write(to: URL(fileURLWithPath: path))
-    print("ok \(path)")
-}
-
-// Editor de mapeamento — sheet aberto a partir de WebhookSettingsView; aqui
-// renderizado sozinho, como o renderOverlay do Descanso.
-@MainActor func renderMappingEditor(_ name: String) {
-    let client = WebhookClient()
-    client.previewProfileDetail = WebhookClient.ProfileDetail(
-        name: "Deploys", mapping: nil, icon: nil,
-        lastPayload: #"{"title":"Deploy pronto","body":"produção"}"#)
-    let profile = WebhookClient.WebhookProfile(id: "1", name: "Deploys", hasMapping: true, icon: nil)
-    let view = ZStack {
-        LinearGradient(
-            colors: [Color(red: 0.72, green: 0.78, blue: 0.88),
-                     Color(red: 0.90, green: 0.86, blue: 0.80)],
-            startPoint: .topLeading, endPoint: .bottomTrailing)
-        MappingEditorView(client: client, profile: profile, onClose: {})
-    }
-    .frame(width: 760, height: 560)
-    let renderer = ImageRenderer(content: view)
-    renderer.scale = 2
-    guard let nsImage = renderer.nsImage,
-          let tiff = nsImage.tiffRepresentation,
-          let rep = NSBitmapImageRep(data: tiff),
-          let png = rep.representation(using: .png, properties: [:])
-    else { print("FALHOU: \(name)"); exit(1) }
-    let path = "\(outputDir)/\(name).png"
-    try? png.write(to: URL(fileURLWithPath: path))
-    print("ok \(path)")
-}
-
-renderSettingsPane("settings-geral", pane: .geral)
-renderSettingsPane("settings-notch", pane: .notch)
-renderSettingsPane("settings-pomodoro", pane: .pomodoro)
-renderSettingsPane("settings-descanso", pane: .descanso)
-
-AppSettings.shared.reminders = [Reminder(title: "Beber água", schedule: .interval(minutes: 60))]
-renderSettingsPane("settings-lembretes", pane: .lembretes)
-
-AppSettings.shared.webhookNotifications = true
-renderSettingsPane("settings-webhooks", pane: .webhooks) { client in
-    client.previewProfiles = [
-        .init(id: "1", name: "Deploys", hasMapping: true, icon: nil),
-    ]
-}
-renderSettingsPane("settings-mensagens", pane: .mensagens)
-renderMappingEditor("mapping-editor")
+// settings-*.png e mapping-editor.png NÃO são gerados por este harness: o
+// SettingsView usa NavigationSplitView e o MappingEditorView usa HSplitView,
+// e nenhum dos dois renderiza via ImageRenderer offscreen neste toolchain —
+// vira um ícone de "proibido" no lugar do conteúdo (confirmado com um repro
+// mínimo: até um NavigationSplitView vazio quebra do mesmo jeito). Esses 9
+// PNGs são capturados manualmente: rodar
+//   Knobler.app/Contents/MacOS/Knobler --ajustes=<painel>
+// (painéis: geral, notch, ditado, pomodoro, lembretes, descanso, webhooks,
+// mensagens) e tirar o screenshot da janela real. mapping-editor.png sai de
+// dentro do painel "webhooks" clicando "…" → "Mapear campos…" num perfil.
 
 renderOverlay("descanso", label: "Almoço", hold: 0)
 renderOverlay("descanso-hold", label: "Almoço", hold: 0.6)
