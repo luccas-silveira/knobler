@@ -234,15 +234,25 @@ final class AppSettings: ObservableObject {
         CBUserIdentity(posixUID: getuid(), authority: .default())?.image
     }
 
-    /// Redimensiona pra `side`×`side` e comprime em JPEG (~alguns KB).
-    static func jpegThumbnail(_ image: NSImage, side: CGFloat = 64) -> Data? {
-        let target = NSImage(size: NSSize(width: side, height: side))
-        target.lockFocus()
+    /// Corta o centro em quadrado e gera um JPEG `side`×`side` real (~alguns KB).
+    /// Usa um NSBitmapImageRep explícito de `side` px — não escala pelo backing
+    /// Retina (senão sairia 2×) — e recorta a fonte pra não distorcer não-quadradas.
+    static func jpegThumbnail(_ image: NSImage, side: Int = 64) -> Data? {
+        let s = image.size
+        guard s.width > 0, s.height > 0 else { return nil }
+        let edge = min(s.width, s.height)                       // maior quadrado central
+        let crop = NSRect(x: (s.width - edge) / 2, y: (s.height - edge) / 2,
+                          width: edge, height: edge)
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil, pixelsWide: side, pixelsHigh: side,
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return nil }
+        rep.size = NSSize(width: side, height: side)            // 1 px = 1 unidade
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
         image.draw(in: NSRect(x: 0, y: 0, width: side, height: side),
-                   from: .zero, operation: .copy, fraction: 1)
-        target.unlockFocus()
-        guard let tiff = target.tiffRepresentation,
-              let rep = NSBitmapImageRep(data: tiff) else { return nil }
+                   from: crop, operation: .copy, fraction: 1)
+        NSGraphicsContext.restoreGraphicsState()
         return rep.representation(using: .jpeg, properties: [.compressionFactor: 0.7])
     }
 }
