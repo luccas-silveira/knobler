@@ -7,6 +7,7 @@
 //
 
 import AppKit
+import Network
 import SwiftUI
 
 let outputDir = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "Snapshots"
@@ -315,6 +316,48 @@ for scenario in scenarios {
     print("ok \(path)")
 }
 
+// Cenários de Mensagens LAN — precisam de LANMessaging/MessageStore no
+// ambiente, que os demais cenários não usam.
+@MainActor func renderMessageScenario(
+    _ name: String, realNotch: Bool,
+    configure: (NotchViewModel, LANMessaging, MessageStore) -> Void
+) {
+    let vm = NotchViewModel()
+    let media = MediaController()
+    media.injectPreview(state: nil, artwork: nil)
+    let lan = LANMessaging()
+    let store = MessageStore()
+    vm.hasRealNotch = realNotch
+    vm.notchSize = realNotch
+        ? CGSize(width: 200, height: 32)
+        : CGSize(width: 190, height: 30)
+    configure(vm, lan, store)
+
+    let view = ZStack(alignment: .top) {
+        LinearGradient(
+            colors: [Color(red: 0.72, green: 0.78, blue: 0.88),
+                     Color(red: 0.90, green: 0.86, blue: 0.80)],
+            startPoint: .topLeading, endPoint: .bottomTrailing
+        )
+        NotchView(vm: vm, media: media, levels: SystemAudioLevels(),
+                  shelf: currentShelf, dropTargetsEnabled: false)
+            .environmentObject(lan)
+            .environmentObject(store)
+    }
+    .frame(width: 560, height: 240)
+
+    let renderer = ImageRenderer(content: view)
+    renderer.scale = 2
+    guard let nsImage = renderer.nsImage,
+          let tiff = nsImage.tiffRepresentation,
+          let rep = NSBitmapImageRep(data: tiff),
+          let png = rep.representation(using: .png, properties: [:])
+    else { print("FALHOU: \(name)"); exit(1) }
+    let path = "\(outputDir)/\(name).png"
+    try? png.write(to: URL(fileURLWithPath: path))
+    print("ok \(path)")
+}
+
 // Overlay do Descanso (bloqueio forçado) — render à parte, não usa NotchView.
 @MainActor func renderOverlay(_ name: String, label: String, hold: Double) {
     let model = BreakOverlayModel()
@@ -340,6 +383,19 @@ for scenario in scenarios {
     try? png.write(to: URL(fileURLWithPath: path))
     print("ok \(path)")
 }
+renderMessageScenario("messages-online", realNotch: true) { vm, lan, _ in
+    vm.expanded = true
+    vm.tab = .messages
+    lan.injectPreview(peers: [
+        Peer(id: "p1", name: "Marina", endpoint: .hostPort(host: "127.0.0.1", port: 1)),
+        Peer(id: "p2", name: "Diego", endpoint: .hostPort(host: "127.0.0.1", port: 2)),
+    ])
+}
+renderMessageScenario("messages-incoming", realNotch: true) { vm, _, _ in
+    vm.incoming = NotchViewModel.IncomingMessage(
+        peerID: "p1", name: "Marina", text: "Bora almoçar daqui a pouco?", allowReply: true)
+}
+
 renderOverlay("descanso", label: "Almoço", hold: 0)
 renderOverlay("descanso-hold", label: "Almoço", hold: 0.6)
 }
