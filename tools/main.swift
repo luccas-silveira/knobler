@@ -425,6 +425,34 @@ renderMessageScenario("messages-incoming", realNotch: true) { vm, _, _ in
     print("ok \(path)")
 }
 
+// Editor de mapeamento — sheet aberto a partir de WebhookSettingsView; aqui
+// renderizado sozinho, como o renderOverlay do Descanso.
+@MainActor func renderMappingEditor(_ name: String) {
+    let client = WebhookClient()
+    client.previewProfileDetail = WebhookClient.ProfileDetail(
+        name: "Deploys", mapping: nil, icon: nil,
+        lastPayload: #"{"title":"Deploy pronto","body":"produção"}"#)
+    let profile = WebhookClient.WebhookProfile(id: "1", name: "Deploys", hasMapping: true, icon: nil)
+    let view = ZStack {
+        LinearGradient(
+            colors: [Color(red: 0.72, green: 0.78, blue: 0.88),
+                     Color(red: 0.90, green: 0.86, blue: 0.80)],
+            startPoint: .topLeading, endPoint: .bottomTrailing)
+        MappingEditorView(client: client, profile: profile, onClose: {})
+    }
+    .frame(width: 760, height: 560)
+    let renderer = ImageRenderer(content: view)
+    renderer.scale = 2
+    guard let nsImage = renderer.nsImage,
+          let tiff = nsImage.tiffRepresentation,
+          let rep = NSBitmapImageRep(data: tiff),
+          let png = rep.representation(using: .png, properties: [:])
+    else { print("FALHOU: \(name)"); exit(1) }
+    let path = "\(outputDir)/\(name).png"
+    try? png.write(to: URL(fileURLWithPath: path))
+    print("ok \(path)")
+}
+
 renderSettingsPane("settings-geral", pane: .geral)
 renderSettingsPane("settings-notch", pane: .notch)
 renderSettingsPane("settings-pomodoro", pane: .pomodoro)
@@ -440,6 +468,7 @@ renderSettingsPane("settings-webhooks", pane: .webhooks) { client in
     ]
 }
 renderSettingsPane("settings-mensagens", pane: .mensagens)
+renderMappingEditor("mapping-editor")
 
 renderOverlay("descanso", label: "Almoço", hold: 0)
 renderOverlay("descanso-hold", label: "Almoço", hold: 0.6)
