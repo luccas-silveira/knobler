@@ -57,6 +57,26 @@ final class NotchViewModel: ObservableObject {
     /// ditado por fan-out do AppDelegate.
     @Published var askText = ""
 
+    /// Aba do notch aberto: música (default) ou mensagens LAN.
+    enum NotchTab: Equatable { case music, messages }
+    @Published var tab: NotchTab = .music
+
+    /// Mensagem LAN chegando, exibida como card no notch.
+    struct IncomingMessage: Equatable {
+        let peerID: String
+        let name: String
+        let text: String
+        let allowReply: Bool
+    }
+    @Published var incoming: IncomingMessage?
+    /// Conversa aberta na aba Mensagens (peerID) — nil = mostra a lista.
+    /// Fonte da verdade da seleção (a MessagesView lê/escreve aqui) pra que
+    /// `openThread` (clique no card) consiga abrir a conversa certa.
+    @Published var selectedThreadPeerID: String?
+    /// Resposta rápida do card → app envia (peerID, texto).
+    var onSendReply: ((String, String) -> Void)?
+    private var incomingWork: DispatchWorkItem?
+
     struct HUDState: Equatable {
         enum Kind: Equatable { case volume, brightness, battery }
         var kind: Kind = .volume
@@ -66,12 +86,13 @@ final class NotchViewModel: ObservableObject {
     }
 
     enum Mode: Equatable {
-        case closed, music, notification, hud, dictation, question, pomodoro, airpods
+        case closed, music, notification, hud, dictation, question, pomodoro, airpods, message
     }
 
-    /// Prioridade: pergunta > ditado > notificação > HUD > AirPods(card) > música (hover) > pomodoro > fechado.
+    /// Prioridade: pergunta > mensagem > ditado > notificação > HUD > AirPods(card) > música (hover) > pomodoro > fechado.
     var mode: Mode {
         if ask != nil { return .question }
+        if incoming != nil { return .message }
         if dictation != nil { return .dictation }
         if activeNotification != nil { return .notification }
         if hud != nil { return .hud }
@@ -151,6 +172,32 @@ final class NotchViewModel: ObservableObject {
     func setExpandedDirect(_ value: Bool) {
         pendingWork?.cancel()
         expanded = value
+    }
+
+    // MARK: - Mensagens LAN
+
+    /// Mostra o card de entrada. Sem resposta permitida, some sozinho (como
+    /// notificação); com resposta, fica até o usuário responder ou fechar.
+    func showIncoming(_ m: IncomingMessage) {
+        incoming = m
+        incomingWork?.cancel()
+        guard !m.allowReply else { return }
+        let work = DispatchWorkItem { [weak self] in self?.incoming = nil }
+        incomingWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6, execute: work)
+    }
+
+    func dismissIncoming() {
+        incomingWork?.cancel()
+        incoming = nil
+    }
+
+    /// Abre a conversa daquele peer na aba Mensagens.
+    func openThread(peerID: String) {
+        dismissIncoming()
+        selectedThreadPeerID = peerID
+        tab = .messages
+        setExpandedDirect(true)
     }
 
     // MARK: - Notificações

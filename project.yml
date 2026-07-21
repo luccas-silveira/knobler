@@ -14,6 +14,7 @@ targets:
       - Knobler
     dependencies:
       - package: FluidAudio
+      - sdk: Collaboration.framework
     scheme: {}
     info:
       path: Knobler/Info.plist
@@ -29,6 +30,9 @@ targets:
         NSCameraUsageDescription: Knobler mostra sua câmera no notch como espelho antes de reuniões.
         NSMicrophoneUsageDescription: Knobler grava sua voz enquanto você segura a tecla de ditado, para transcrever onde o cursor estiver.
         NSBluetoothAlwaysUsageDescription: Knobler mostra o nível de bateria dos seus AirPods no notch quando eles conectam.
+        NSLocalNetworkUsageDescription: Knobler troca mensagens com outros Macs na sua rede local.
+        NSBonjourServices:
+          - _knobler._tcp
         CFBundleIconFile: AppIcon
     settings:
       base:

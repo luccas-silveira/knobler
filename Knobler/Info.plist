@@ -30,10 +30,16 @@
 	<string>Knobler lê o áudio do Spotify para animar o visualizador no notch, como no iPhone.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Knobler mostra o nível de bateria dos seus AirPods no notch quando eles conectam.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_knobler._tcp</string>
+	</array>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>Knobler mostra a contagem regressiva do próximo evento no notch.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Knobler mostra sua câmera no notch como espelho antes de reuniões.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Knobler troca mensagens com outros Macs na sua rede local.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Knobler grava sua voz enquanto você segura a tecla de ditado, para transcrever onde o cursor estiver.</string>
 </dict>

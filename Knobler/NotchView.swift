@@ -89,6 +89,14 @@ struct NotchView: View {
                     .padding(.top, topInset)
                     // notificação desce do notch, como no iPhone
                     .transition(.blurReplace.combined(with: .move(edge: .top)))
+            case .message:
+                if let incoming = vm.incoming {
+                    IncomingMessageView(vm: vm, incoming: incoming)
+                        .frame(width: 360 - 40)
+                        .padding(.top, topInset)
+                        .padding(.bottom, 12)
+                        .transition(.blurReplace.combined(with: .move(edge: .top)))
+                }
             case .question:
                 questionCard
                     // pergunta desce do notch, como as notificações
@@ -172,6 +180,11 @@ struct NotchView: View {
                 height: vm.notchSize.height
             )
         case .music:
+            if vm.tab == .messages {
+                // aba Mensagens tem altura própria (conversa: cabeçalho + histórico
+                // rolável até 160 + campo); a lista de online cabe no mesmo espaço.
+                return CGSize(width: expandedSize.width, height: topInset + 300)
+            }
             let hasShelf = !shelf.items.isEmpty
             let hasPomodoro = vm.pomodoro != nil
             // Pomodoro ativo suprime música e placeholder
@@ -190,6 +203,9 @@ struct NotchView: View {
             return CGSize(width: expandedSize.width, height: height)
         case .notification:
             return CGSize(width: notificationWidth, height: topInset + 56)
+        case .message:
+            let tall = vm.incoming?.allowReply == true
+            return CGSize(width: 360, height: topInset + (tall ? 108 : 72))
         case .airpods:
             return CGSize(width: 320, height: topInset + 64)
         case .question:
@@ -529,6 +545,38 @@ struct NotchView: View {
 
     @ViewBuilder
     private var expandedContent: some View {
+        VStack(spacing: 8) {
+            tabBar
+            if vm.tab == .messages {
+                MessagesView(vm: vm)
+            } else {
+                musicContent
+            }
+        }
+    }
+
+    private var tabBar: some View {
+        HStack(spacing: 6) {
+            tabButton("Música", .music, "music.note")
+            tabButton("Mensagens", .messages, "bubble.left.and.bubble.right")
+            Spacer()
+        }
+        .foregroundStyle(.white)
+    }
+
+    private func tabButton(_ title: String, _ tab: NotchViewModel.NotchTab,
+                           _ icon: String) -> some View {
+        Button { vm.tab = tab } label: {
+            Label(title, systemImage: icon)
+                .font(.caption.weight(.medium))
+                .padding(.horizontal, 8).padding(.vertical, 4)
+                .background(Capsule().fill(.white.opacity(vm.tab == tab ? 0.22 : 0.08)))
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var musicContent: some View {
         VStack(spacing: 10) {
             // Pomodoro ativo toma o topo do card; a música some enquanto ele roda
             if let p = vm.pomodoro {

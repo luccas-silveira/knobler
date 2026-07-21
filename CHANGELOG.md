@@ -7,6 +7,10 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 ## [Unreleased]
 
 ### Added
+- **Mensagens LAN**: descubra outros Macs com Knobler na mesma rede e mande recados
+  que aparecem no notch da pessoa, com nome e foto. Aba Mensagens no notch aberto,
+  recado com ou sem resposta, histórico das últimas 20 conversas por pessoa.
+  Identidade (nome/foto) configurável, pré-preenchida com a da conta do macOS.
 - **Webhooks configuráveis (mapeamento por perfil)**: cada fonte externa (GitHub,
   Stripe, n8n…) vira um perfil com link próprio; manda um webhook de teste e um
   editor lado-a-lado mapeia os campos da notificação a partir do payload capturado
