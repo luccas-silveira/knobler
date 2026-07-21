@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-21
+
 ### Added
 - **Foto e GIF nas Mensagens LAN**: botão de anexo no compositor manda uma imagem
   (JPEG/PNG/GIF) pro outro Mac; ela aparece no card que desce do notch e no balão
