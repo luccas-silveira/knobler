@@ -17,7 +17,10 @@ swiftc -O -o build/snapshot \
   Knobler/WebhookKeychainStore.swift \
   Knobler/WebhookClient.swift \
   Knobler/WebhookSettingsView.swift \
+  Knobler/ProfilesListView.swift \
+  Knobler/MappingEditorView.swift \
   Knobler/AppSettings.swift \
+  Knobler/IdentitySettingsView.swift \
   Knobler/Reminders.swift \
   Knobler/RemindersView.swift \
   Knobler/Descanso.swift \
@@ -25,5 +28,11 @@ swiftc -O -o build/snapshot \
   Knobler/Shelf.swift \
   Knobler/ShelfThumbnailDragView.swift \
   Knobler/Mirror.swift \
+  Knobler/Peer.swift \
+  Knobler/Wire.swift \
+  Knobler/LANMessaging.swift \
+  Knobler/MessageStore.swift \
+  Knobler/MessagesView.swift \
+  Knobler/IncomingMessageView.swift \
   tools/main.swift
 ./build/snapshot Snapshots

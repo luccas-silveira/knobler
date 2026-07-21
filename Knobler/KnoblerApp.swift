@@ -46,6 +46,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let micMonitor = MicMonitor()
     private let apiServer = NotchAPIServer()
     let webhookClient = WebhookClient()
+    let messageStore = MessageStore()
+    let lanMessaging = LANMessaging()
+    private var lanCancellables = Set<AnyCancellable>()
     private let dictation = DictationController()
     private let calendar = CalendarCountdown()
     private let pomodoro = Pomodoro()
@@ -188,6 +191,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         setupSwipeGestures()
 
+        // Mensagens LAN: perfil próprio + recebimento (card em todas as telas, como notificação)
+        lanMessaging.profileProvider = { AppSettings.shared.myProfile() }
+        lanMessaging.onIncoming = { [weak self] msg, profile in
+            guard let self else { return }
+            let name = profile?.name ?? self.messageStore.name(for: msg.peerID) ?? "?"
+            self.messageStore.rememberName(name, for: msg.peerID)
+            self.messageStore.append(msg)
+            self.notches.values.forEach {
+                $0.viewModel.showIncoming(.init(peerID: msg.peerID, name: name,
+                                                text: msg.text, allowReply: msg.allowReply))
+            }
+            if let peer = self.lanMessaging.peer(withID: msg.peerID) {
+                self.lanMessaging.fetchProfile(from: peer) { prof in
+                    if let jpeg = prof?.avatarJPEG { self.messageStore.cacheAvatar(jpeg, for: msg.peerID) }
+                }
+            }
+        }
+
         // API local: scripts publicam cards no notch (diferencial do Knobler)
         apiServer.onNotification = { [weak self] notification in
             self?.notches.values.forEach { $0.viewModel.enqueue(notification) }
@@ -321,6 +342,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             status["dictation"] = self?.dictation.diagnostics ?? [:]
             status["ask"] = self?.apiServer.askDiagnostics ?? [:]
+            status["lanMessaging"] = self?.lanMessaging.diagnostics ?? [:]
             return status
         }
         apiCancellable = AppSettings.shared.objectWillChange
@@ -488,7 +510,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 )
                 panel.contentView = NSHostingView(
                     rootView: NotchView(
-                        vm: viewModel, media: media, levels: audioLevels, shelf: shelf))
+                        vm: viewModel, media: media, levels: audioLevels, shelf: shelf)
+                        .environmentObject(lanMessaging)
+                        .environmentObject(messageStore)
+                        .environmentObject(AppSettings.shared))
                 notch = ScreenNotch(window: panel, viewModel: viewModel)
                 notches[id] = notch
 
@@ -509,10 +534,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 viewModel.onPomodoroReset = { [weak self] in self?.pomodoro.reset() }
                 viewModel.onPomodoroStartNext = { [weak self] in self?.pomodoro.startNext() }
                 viewModel.onPomodoroSettings = { [weak self] in self?.openSettings() }
-                // janela só aceita teclado enquanto o card existe — CRÍTICO
-                // reverter, senão o notch rouba foco pra sempre
+
+                // resposta rápida do card → envia, grava o outgoing e some em todas as telas
+                viewModel.onSendReply = { [weak self] peerID, text in
+                    guard let self, let peer = self.lanMessaging.peer(withID: peerID) else { return }
+                    self.lanMessaging.send(text, to: peer, allowReply: true) { ok in
+                        self.messageStore.append(PeerMessage(id: UUID().uuidString, peerID: peerID,
+                            incoming: false, text: text, allowReply: true, at: Date(), delivered: ok))
+                    }
+                    self.notches.values.forEach { $0.viewModel.dismissIncoming() }
+                }
+                // Rede Local: liga o Bonjour quando o usuário abre a aba Mensagens
+                // (app ativo → prompt num momento sensato). start() é idempotente.
+                viewModel.$tab
+                    .filter { $0 == .messages }
+                    .sink { [weak self] _ in self?.lanMessaging.start() }
+                    .store(in: &lanCancellables)
+
+                // janela só aceita teclado enquanto o card existe OU a pessoa está
+                // respondendo/mexendo em Mensagens — CRÍTICO reverter, senão o notch
+                // rouba foco pra sempre (NotchWindow não expõe viewModel, então o
+                // "active" já cobre ask + mensagens num único publisher).
                 viewModel.$ask
                     .map { $0 != nil }
+                    .combineLatest(
+                        viewModel.$incoming.map { $0?.allowReply == true },
+                        viewModel.$tab, viewModel.$expanded)
+                    .map { asking, replyable, tab, expanded in
+                        asking || replyable || (tab == .messages && expanded)
+                    }
                     .removeDuplicates()
                     .sink { [weak panel] active in
                         panel?.allowsKeyboard = active
@@ -641,6 +691,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         ScreenshotPreviewSuppressor.restore()
         // fecha o socket de push e libera os recursos do relay
         webhookClient.shutdown()
+        // grava o histórico de mensagens e desliga o Bonjour da Rede Local
+        messageStore.flush()
+        lanMessaging.stop()
     }
 
     private var settingsWindow: NSWindow?
