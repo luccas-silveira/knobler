@@ -1,3 +1,67 @@
+# 🏁 SESSÃO 2026-07-21 (tarde) — Now playing universal — **v0.6.0 no ar**
+
+O card de música deixou de ser refém do AppleScript: agora mostra e controla
+**qualquer** fonte de mídia do macOS (YouTube no navegador, podcasts, IINA…),
+via [mediaremote-adapter](https://github.com/ungive/mediaremote-adapter) v0.7.6
+vendorado — o framework é carregado pelo `/usr/bin/perl` (binário da Apple com
+o entitlement do MediaRemote), contornando o bloqueio do 15.4+. Decisão do
+usuário: **fonte única**, sem fallback AppleScript (trade-off consciente).
+
+## O que foi feito
+
+- **`Vendor/`**: framework universal (arm64+x86_64) compilado localmente da tag
+  pinada v0.7.6 (cmake) + `mediaremote-adapter.pl` + `PROVENANCE.md`. No
+  `project.yml`: framework como **embed sem link** (`codeSign: true` — Xcode
+  assina o nested, distribuição resolvida) e o `.pl` como resource.
+- **`MediaRemoteSource.swift`** (novo): `Process` com
+  `perl adapter.pl <fw> stream --debounce=100`, parser do modo diff (merge;
+  chave presente com null remove, ausente preserva), relança com backoff,
+  health check `test` no launch — adapter quebrado → card vazio, sem crash.
+  Self-check assert-based (`-D MEDIAREMOTE_SELFCHECK`, `-parse-as-library`).
+- **`MediaController`** reescrito por dentro, casca intacta (NotchView/harness
+  não mudaram): sai AppleScript/DistributedNotificationCenter/download de capa;
+  capa vem em base64 no stream; posição extrapola com `playbackRate`; campos
+  novos com default em `PlaybackState`: `rate`, `shuffleAvailable`.
+- **UI**: shuffle apagado (`.disabled` + opacity 0.2) quando a fonte não
+  reporta `shuffleMode` (navegador); barra mostra `–:––` sem duração (live).
+- **Limpeza**: `NSAppleEventsUsageDescription` removido; descrição do tap de
+  áudio generalizada; `MediaRemoteSource.swift` na lista do `snapshot.sh`.
+- Docs: spec + research + plano em `docs/superpowers/` (pegadinhas das issues
+  #23/#28/#38 do adapter documentadas no research).
+
+## Validação
+
+- Self-check do parser ok; `./tools/snapshot.sh` + leitura dos PNGs (layout do
+  card idêntico); `xcodebuild` Debug verde; app reinstalado em `/Applications`.
+- **E2E real**: API local reportou `player: com.google.Chrome` (mídia de
+  navegador — o motor antigo diria `none`); com Spotify tocando,
+  `com.spotify.client`; `send 2` via adapter pausou o Spotify (comandos ok).
+- **v0.6.0 publicada**: `release.sh minor` (dry-run antes) → GitHub Release +
+  cask do tap bumpado. Master pushed.
+
+## Achados que valem lembrar
+
+- **Arquivo novo exige `xcodegen generate`** antes do `xcodebuild` — o build
+  falhou com "cannot find MediaRemoteSource" porque o `.xcodeproj` (artefato)
+  não conhecia o arquivo. O `snapshot.sh` compila por lista própria e passou.
+- O clone do adapter tem o `.pl` em `bin/`, não na raiz.
+- Releases do adapter **não têm binário** — build local via cmake
+  (`-DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"` pra universal).
+- `brew install cmake` foi necessário (não tinha na máquina).
+
+## Pendências e followups
+
+- **P1 (herdado da v0.5.0) — swipe no trackpad segue não testado** com gesto
+  real (snapshot não exercita `scrollWheel`).
+- Conferir a olho o card com YouTube tocando (capa/controles no notch real) —
+  E2E foi via API, não visual.
+- Issue #38 do adapter (race no startup do stream) não contornada — evento
+  perdido logo após o launch se corrige no próximo payload completo.
+- `graphify-out/` **não** regenerado (um módulo novo só; regenerar quando
+  acumular mais estrutura).
+
+---
+
 # 🏁 SESSÃO 2026-07-21 (meio-dia) — Card de música enxugado — **v0.5.0 no ar**
 
 O usuário abriu o notch, olhou e disse: "tá carregada". Estava mesmo — 5 faixas
