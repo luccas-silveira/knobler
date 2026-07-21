@@ -6,6 +6,13 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- **Anexo por link nas Mensagens LAN**: botão 🔗 no composer transforma o campo
+  de mensagem em campo de URL; o app baixa a imagem/GIF (https, link direto,
+  timeout 15 s), valida pelos bytes mágicos e anexa pelo pipeline existente —
+  o fio não muda e o destinatário nunca toca a URL.
+  (`MessagesView.swift`, `MessageMedia.swift`.)
+
 ## [0.6.0] - 2026-07-21
 
 ### Changed

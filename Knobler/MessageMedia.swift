@@ -20,7 +20,12 @@ enum MessageMedia {
     /// Lê o arquivo e devolve o par pronto pro fio. `nil` = não é imagem
     /// suportada ou não coube nem depois de recomprimir.
     static func prepare(_ url: URL) -> (Data, MediaKind)? {
-        guard let raw = try? Data(contentsOf: url), let kind = MediaKind.detect(raw) else { return nil }
+        (try? Data(contentsOf: url)).flatMap(prepare)
+    }
+
+    /// Mesmo pipeline, a partir de bytes já em memória (download por link).
+    static func prepare(_ raw: Data) -> (Data, MediaKind)? {
+        guard let kind = MediaKind.detect(raw) else { return nil }
         // GIF passa cru se couber; senão reamostra os quadros (mantém a animação).
         if kind == .gif {
             if raw.count <= Frame.maxMedia { return (raw, .gif) }
@@ -105,6 +110,25 @@ enum MessageMedia {
     /// desenha (IncomingMessageView) precisam do mesmo número.
     static func cardHeight(_ url: URL, width: CGFloat = 344, cap: CGFloat = 190) -> CGFloat {
         min(width / aspect(url), cap)
+    }
+
+    /// Baixa uma imagem por link direto (https só — o ATS bloqueia http de
+    /// qualquer jeito) e devolve o par pronto pro fio. `nil` = URL inválida,
+    /// rede falhou ou os bytes não são imagem suportada.
+    static func fetch(_ link: String, completion: @escaping ((Data, MediaKind)?) -> Void) {
+        guard let url = URL(string: link.trimmingCharacters(in: .whitespacesAndNewlines)),
+              url.scheme == "https" else {
+            DispatchQueue.main.async { completion(nil) }
+            return
+        }
+        // ponytail: sem cap de download além do timeout — prepare() descarta o
+        // que não couber; se alguém colar link de 500 MB, o timeout de 15 s corta.
+        let task = URLSession.shared.dataTask(with: URLRequest(url: url, timeoutInterval: 15)) { data, _, _ in
+            // callback já vem fora da main — GIF grande recomprime aqui mesmo
+            let prepared = data.flatMap { prepare($0) }
+            DispatchQueue.main.async { completion(prepared) }
+        }
+        task.resume()
     }
 
     /// Painel de escolha de arquivo (o notch não tem menu próprio pra isso).

@@ -16,6 +16,10 @@ struct MessagesView: View {
     // card de entrada) consiga abrir a conversa certa. Aqui é só leitura/escrita.
     @State private var draft = ""
     @State private var allowReply = true
+    // Modo link: o campo de mensagem vira campo de URL (draft fica guardado).
+    @State private var urlMode = false
+    @State private var urlDraft = ""
+    @State private var downloading = false
 
     var body: some View {
         Group {
@@ -110,20 +114,34 @@ struct MessagesView: View {
 
     private func composer(peer: Peer?) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            if vm.pendingAttachment != nil || vm.attachmentFailed { attachmentBar }
+            if vm.pendingAttachment != nil || vm.attachmentFailed || downloading { attachmentBar }
             HStack(spacing: 6) {
                 Toggle("", isOn: $allowReply).labelsHidden().toggleStyle(.switch).scaleEffect(0.7)
                     .help("Permite resposta")
                 Button(action: pickAttachment) { Image(systemName: "photo") }
                     .buttonStyle(.plain).help("Anexar foto ou GIF")
-                TextField("Mensagem…", text: $draft)
-                    .textFieldStyle(.plain).font(.footnote)
-                    .padding(.horizontal, 8).padding(.vertical, 5)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(.white.opacity(0.08)))
-                    .onSubmit { sendDraft(to: peer) }
+                Button(action: toggleURLMode) {
+                    Image(systemName: urlMode ? "link.circle.fill" : "link")
+                }
+                .buttonStyle(.plain).help("Anexar imagem ou GIF por link")
+                if urlMode {
+                    TextField("Cole o link da imagem…", text: $urlDraft)
+                        .textFieldStyle(.plain).font(.footnote)
+                        .padding(.horizontal, 8).padding(.vertical, 5)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(.white.opacity(0.08)))
+                        .onSubmit(fetchFromLink)
+                        .onExitCommand(perform: toggleURLMode)
+                } else {
+                    TextField("Mensagem…", text: $draft)
+                        .textFieldStyle(.plain).font(.footnote)
+                        .padding(.horizontal, 8).padding(.vertical, 5)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(.white.opacity(0.08)))
+                        .onSubmit { sendDraft(to: peer) }
+                }
                 Button { sendDraft(to: peer) } label: { Image(systemName: "paperplane.fill") }
                     .buttonStyle(.plain)
-                    .disabled(peer == nil || (vm.pendingAttachment == nil &&
+                    .disabled(peer == nil || urlMode || downloading ||
+                        (vm.pendingAttachment == nil &&
                         draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
             }
         }
@@ -131,13 +149,16 @@ struct MessagesView: View {
 
     private var attachmentBar: some View {
         HStack(spacing: 6) {
-            if let a = vm.pendingAttachment {
+            if downloading {
+                ProgressView().controlSize(.small)
+                Text("Baixando…").font(.caption2)
+            } else if let a = vm.pendingAttachment {
                 Image(systemName: a.kind == .gif ? "photo.stack" : "photo")
                 Text("\(a.kind.ext.uppercased()) · \(a.data.count / 1024) KB").font(.caption2)
                 Button { vm.pendingAttachment = nil } label: { Image(systemName: "xmark.circle.fill") }
                     .buttonStyle(.plain)
             } else {
-                Text("Não deu pra anexar (formato ou tamanho).").font(.caption2)
+                Text("Não deu pra anexar (link, formato ou tamanho).").font(.caption2)
                     .foregroundStyle(.orange)
             }
             Spacer(minLength: 0)
@@ -167,6 +188,25 @@ struct MessagesView: View {
             // o painel de arquivos tira o mouse do notch: reabre na conversa
             vm.tab = .messages
             vm.setExpandedDirect(true)
+        }
+    }
+
+    private func toggleURLMode() {
+        urlMode.toggle()
+        if !urlMode { urlDraft = "" }
+        vm.attachmentFailed = false
+    }
+
+    private func fetchFromLink() {
+        let link = urlDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !link.isEmpty, !downloading else { return }
+        downloading = true
+        vm.attachmentFailed = false
+        MessageMedia.fetch(link) { picked in
+            downloading = false
+            vm.pendingAttachment = picked.map { .init(data: $0.0, kind: $0.1) }
+            vm.attachmentFailed = picked == nil
+            if picked != nil { urlMode = false; urlDraft = "" }
         }
     }
 
