@@ -42,6 +42,16 @@ final class LANMessaging: ObservableObject {
 
     func peer(withID id: String) -> Peer? { peers.first { $0.id == id } }
 
+    /// Re-anuncia com o perfil atual (usuário mudou nome/foto nos Ajustes) —
+    /// só se já estamos anunciando. O nome novo aparece na lista dos outros
+    /// sem precisar reiniciar o app.
+    func refreshIdentity() {
+        guard listener != nil else { return }
+        listener?.cancel()
+        listener = nil
+        startListener()
+    }
+
     var diagnostics: [String: Any] {
         ["peers": peers.count, "permissionDenied": permissionDenied]
     }

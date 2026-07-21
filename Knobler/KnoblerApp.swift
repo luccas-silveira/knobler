@@ -208,6 +208,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 }
             }
         }
+        // trocar nome/foto nos Ajustes re-anuncia o Bonjour (nome novo na lista dos outros)
+        AppSettings.shared.$displayName
+            .dropFirst()
+            .sink { [weak self] _ in self?.lanMessaging.refreshIdentity() }
+            .store(in: &lanCancellables)
 
         // API local: scripts publicam cards no notch (diferencial do Knobler)
         apiServer.onNotification = { [weak self] notification in
