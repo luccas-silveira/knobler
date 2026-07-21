@@ -16,6 +16,13 @@ final class LANMessaging: ObservableObject {
     private static let timeout: TimeInterval = 20
 
     @Published private(set) var peers: [Peer] = []
+
+    /// Usado pelo harness de renderização offline (tools/main.swift) — evita
+    /// subir Bonjour real.
+    func injectPreview(peers: [Peer]) {
+        self.peers = peers
+    }
+
     /// Rede Local negada pelo usuário (kDNSServiceErr_PolicyDenied -65570).
     @Published private(set) var permissionDenied = false
 
