@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.8.4] - 2026-07-22
+
 ### Fixed
 - **Ditado parava de funcionar a cada release, de vez**: o `release.sh`
   re-assinava o app ad-hoc (`codesign --sign -`). Sem identidade estável o TCC
