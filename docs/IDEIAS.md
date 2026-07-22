@@ -14,6 +14,8 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 
 - **Gestos customizáveis no notch**: Permitir que swipes à esquerda/direita façam coisas diferentes em cada estado (close, voltar, skip track, etc.).
 
+- **Nota rápida no notch**: Sticky note temporário que fica no notch — abre/recolhe com mouse over, auto-delete após 15 min de inatividade (configurável). Totalmente efêmero, sem persistência.
+
 ---
 
 ## Mídia & Spotify
