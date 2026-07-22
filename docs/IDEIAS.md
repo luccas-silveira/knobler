@@ -16,6 +16,8 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 
 - **Nota rápida no notch**: Sticky note temporário que fica no notch — abre/recolhe com mouse over, auto-delete após 15 min de inatividade (configurável). Totalmente efêmero, sem persistência.
 
+- **Melhorar UI das perguntas do Claude**: Perguntas e respostas do Claude não aparecem inteiras no notch — truncam ou ficam cortadas. Melhorar a layout pra que conteúdo longo seja acessível (scroll, expansão, etc.).
+
 ---
 
 ## Mídia & Spotify
