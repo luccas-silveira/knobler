@@ -102,6 +102,8 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 
 - **WhatsApp Web**: Enviar mensagens via WhatsApp direto do notch (parse da URL, login headless).
 
+- **AirDrop nativo**: O app intercepta notificações do AirDrop impedindo o recebimento. Precisamos integrar corretamente com AirDrop — mostrar solicitações/transferências na interface do notch e deixar o sistema operar normalmente.
+
 ---
 
 ## Câmera & Mirror
