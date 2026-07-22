@@ -112,11 +112,23 @@ xcodebuild -project Knobler.xcodeproj -scheme Knobler -configuration Release \
 APP="build/dd/Build/Products/Release/Knobler.app"
 [ -d "$APP" ] || { echo "app não encontrado: $APP" >&2; exit 1; }
 
-echo "==> re-assinando ad-hoc (removendo profile Apple Development)"
+# Assinatura ad-hoc não tem identidade estável: o TCC ancora a permissão de
+# Acessibilidade no cdhash e a revoga a cada release, matando o ditado em
+# silêncio. Com o cert local fixo (tools/make-signing-cert.sh) o csreq casa
+# entre builds. Sem o cert, cai pra ad-hoc e avisa.
+SIGN_ID="${KNOBLER_SIGN_IDENTITY:-Knobler Local Signing}"
+if security find-identity -v -p codesigning | grep -qF "$SIGN_ID"; then
+  echo "==> re-assinando com \"$SIGN_ID\" (removendo profile Apple Development)"
+else
+  echo "==> AVISO: identidade \"$SIGN_ID\" não encontrada — assinando ad-hoc." >&2
+  echo "    A Acessibilidade vai cair de novo neste update." >&2
+  echo "    Rode ./tools/make-signing-cert.sh para resolver de vez." >&2
+  SIGN_ID="-"
+fi
 # ponytail: --deep re-sign resolve nested (FluidAudio); se um framework aninhado
 # reclamar, assinar de dentro pra fora antes do bundle externo.
 rm -f "$APP/Contents/embedded.provisionprofile"
-codesign --force --deep --sign - "$APP"
+codesign --force --deep --sign "$SIGN_ID" "$APP"
 codesign --verify --strict --verbose=2 "$APP"
 
 ZIP="build/Knobler-$VER.zip"

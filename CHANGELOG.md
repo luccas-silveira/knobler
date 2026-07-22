@@ -6,6 +6,18 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Fixed
+- **Ditado parava de funcionar a cada release, de vez**: o `release.sh`
+  re-assinava o app ad-hoc (`codesign --sign -`). Sem identidade estável o TCC
+  ancora a permissão de Acessibilidade no `cdhash`, então toda versão nova
+  invalidava a concessão (`tccd: Failed to match existing code requirement`) —
+  o `CGEventTap` não era criado e a ⌥ direita nunca chegava ao ditado. Agora o
+  release assina com um certificado local fixo, criado uma vez por
+  `tools/make-signing-cert.sh`; o `csreq` gravado pelo TCC passa a casar entre
+  builds. Sem o certificado, o release ainda sai (ad-hoc) mas avisa. Quem já
+  acumulou concessões stale limpa com
+  `tccutil reset Accessibility com.zoi.knobler` e reconcede uma última vez.
+
 ## [0.8.3] - 2026-07-22
 
 ### Added
