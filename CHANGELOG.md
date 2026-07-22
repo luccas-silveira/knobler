@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.8.3] - 2026-07-22
+
 ### Added
 - **Escolha da câmera do espelho**: uma setinha no canto do preview abre a lista
   das entradas de vídeo da máquina (embutida, USB, OBS Virtual Camera, Câmera de
