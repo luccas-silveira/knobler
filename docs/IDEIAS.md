@@ -18,6 +18,8 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 
 - **Melhorar UI das perguntas do Claude**: Perguntas e respostas do Claude não aparecem inteiras no notch — truncam ou ficam cortadas. Melhorar a layout pra que conteúdo longo seja acessível (scroll, expansão, etc.).
 
+- **Preview de links**: Arrastar URL pro notch e mostrar preview (título, favicon, descrição). Notch se expande mostrando o site navegável dentro com opção de abrir no navegador.
+
 ---
 
 ## Mídia & Spotify
