@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-07-22
+
 ### Fixed
 - **Ditado morria em silêncio depois de um update**: o release é assinado
   ad-hoc, então o TCC ancora a permissão de Acessibilidade no cdhash e a
