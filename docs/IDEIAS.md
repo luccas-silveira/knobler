@@ -90,6 +90,8 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 
 - **Estatísticas e analytics**: Endpoint `/stats` que retorna minutos dictados, pomodoros completados, msgs enviadas — useful pra dashboard pessoal.
 
+- **Canal de notificações do desenvolvedor**: Rota endpoint que permite o time enviar notificações pro usuário (novas features, updates críticos, avisos). Notificação aparece no notch e fica persistida; user pode marcar como read/dismiss.
+
 ---
 
 ## Integrações Externas
@@ -139,6 +141,8 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 - **Dicas de hotkeys**: Mostrar dicas inline quando o user abre notch pela primeira vez (⌥ direita pra ditado, etc.).
 
 - **Modo tutorial**: Guiar o user pelos principais recursos com tooltips e highlights — educacional pra novos.
+
+- **Verificação e atualização automática**: Buscar updates periodicamente (ex: a cada 24h) e notificar user. Opcionalmente, instalar automaticamente em background com restart silencioso.
 
 ---
 
