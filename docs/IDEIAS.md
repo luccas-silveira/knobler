@@ -68,6 +68,8 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 
 - **Busca nas mensagens**: Endpoint `/messages/search?q=texto` pra encontrar conversa antiga.
 
+- **Lista de transmissão**: Selecionar múltiplas pessoas e enviar a mesma mensagem pra todas de uma vez (tipo broadcast/group message).
+
 ---
 
 ## Webhooks & Automação
