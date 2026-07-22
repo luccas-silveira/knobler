@@ -42,6 +42,14 @@ final class AppSettings: ObservableObject {
     @Published var mirrorBeforeMeetings: Bool {
         didSet { UserDefaults.standard.set(mirrorBeforeMeetings, forKey: "mirrorBeforeMeetings") }
     }
+    /// `uniqueID` da câmera do espelho; "" = automática (embutida primeiro).
+    /// Guardamos o ID e não o índice: a lista muda quando um USB entra/sai.
+    @Published var mirrorDeviceID: String {
+        didSet {
+            UserDefaults.standard.set(mirrorDeviceID, forKey: "mirrorDeviceID")
+            MirrorController.shared.switchDevice()
+        }
+    }
     @Published var micIndicator: Bool {
         didSet { UserDefaults.standard.set(micIndicator, forKey: "micIndicator") }
     }
@@ -157,6 +165,7 @@ final class AppSettings: ObservableObject {
         localAPI = flag("localAPI")
         calendarCountdown = flag("calendarCountdown")
         mirrorBeforeMeetings = flag("mirrorBeforeMeetings")
+        mirrorDeviceID = defaults.string(forKey: "mirrorDeviceID") ?? ""  // "" = automática
         micIndicator = flag("micIndicator")
         airpodsNotch = flag("airpodsNotch")
         dictation = flag("dictation")

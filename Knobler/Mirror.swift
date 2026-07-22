@@ -41,10 +41,36 @@ final class MirrorController {
         DispatchQueue.global(qos: .userInitiated).async { session.stopRunning() }
     }
 
-    /// A default(for:) pode devolver uma capturadora USB sem sinal —
-    /// prefere a câmera embutida (FaceTime HD).
+    /// Troca a câmera com o espelho já aberto. Sem sessão viva não faz nada —
+    /// o próximo acquire() já pega a nova.
+    func switchDevice() {
+        guard let session else { return }
+        guard let device = Self.preferredDevice(),
+              let input = try? AVCaptureDeviceInput(device: device) else { return }
+        session.beginConfiguration()
+        session.inputs.forEach { session.removeInput($0) }
+        if session.canAddInput(input) { session.addInput(input) }
+        session.commitConfiguration()
+    }
+
+    /// Câmeras oferecidas no Picker dos Ajustes (embutida, USB, Continuity…).
+    static func availableDevices() -> [AVCaptureDevice] {
+        AVCaptureDevice.DiscoverySession(
+            deviceTypes: [.builtInWideAngleCamera, .external, .continuityCamera, .deskViewCamera],
+            mediaType: .video, position: .unspecified
+        ).devices
+    }
+
+    /// A escolhida nos Ajustes; se ela sumiu (USB desconectado) ou está em
+    /// "automática", a default(for:) pode devolver uma capturadora sem sinal —
+    /// então prefere a embutida (FaceTime HD).
     private static func preferredDevice() -> AVCaptureDevice? {
-        AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .unspecified)
+        let chosen = AppSettings.shared.mirrorDeviceID
+        if !chosen.isEmpty,
+           let device = availableDevices().first(where: { $0.uniqueID == chosen }) {
+            return device
+        }
+        return AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .unspecified)
             ?? AVCaptureDevice.default(for: .video)
     }
 

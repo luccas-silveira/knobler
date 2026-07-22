@@ -12,6 +12,7 @@ struct NotchView: View {
     // inteiro em cada monitor — só o AudioBarsView (folha) observa
     let levels: SystemAudioLevels
     @ObservedObject var shelf: ShelfStore
+    @ObservedObject private var settings = AppSettings.shared
     /// false no harness de snapshot: onDrop cria uma NSView que o ImageRenderer
     /// não renderiza (vira placeholder amarelo). No app fica sempre true.
     var dropTargetsEnabled = true
@@ -631,6 +632,33 @@ struct NotchView: View {
                 .buttonStyle(.plain)
                 .padding(8)
             }
+            .overlay(alignment: .topLeading) { cameraPicker }
+    }
+
+    /// Setinha sobre o preview: troca a entrada de vídeo sem sair do notch.
+    /// Só aparece com mais de uma câmera na máquina — com uma só não há escolha.
+    @ViewBuilder
+    private var cameraPicker: some View {
+        let devices = MirrorController.availableDevices()
+        if devices.count > 1 {
+            Menu {
+                Picker("", selection: $settings.mirrorDeviceID) {
+                    Text("Automática").tag("")
+                    ForEach(devices, id: \.uniqueID) { device in
+                        Text(device.localizedName).tag(device.uniqueID)
+                    }
+                }
+                .pickerStyle(.inline)
+            } label: {
+                Image(systemName: "chevron.down.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.white.opacity(0.7), .black.opacity(0.45))
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .frame(width: 22)
+            .padding(8)
+        }
     }
 
     /// Botão de ligar o espelho; negada a permissão, abre os ajustes de câmera.

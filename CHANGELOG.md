@@ -6,6 +6,16 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- **Escolha da câmera do espelho**: uma setinha no canto do preview abre a lista
+  das entradas de vídeo da máquina (embutida, USB, OBS Virtual Camera, Câmera de
+  Continuidade, Desk View) — antes o espelho sempre pegava a FaceTime HD. A
+  setinha só aparece quando há mais de uma câmera. Em "Automática" o
+  comportamento é o de sempre. A escolha é guardada pelo
+  `uniqueID` do device (índice quebraria quando um USB entra/sai) e cai de volta
+  pra embutida se a câmera escolhida sumir. Trocar com o espelho aberto reponta
+  a sessão na hora, sem fechar o notch.
+
 ## [0.8.2] - 2026-07-22
 
 ### Fixed
