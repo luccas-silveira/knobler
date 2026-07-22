@@ -1,3 +1,74 @@
+# 🏁 SESSÃO 2026-07-22 — Ditado ressuscitado + câmera do espelho — **v0.8.2 e v0.8.3 no ar**
+
+Duas releases patch. A primeira é um bug de permissão que matava o ditado em
+silêncio; a segunda deixa o espelho escolher qual câmera mostra.
+
+## O que foi feito
+
+### v0.8.2 — ditado morria em silêncio depois de update
+
+- **Diagnóstico** (pelo `GET /status` do app rodando): `axTrusted: false`,
+  `tapExists: false` — o ditado em si estava sadio (`modelReady: true`). Sem
+  Acessibilidade o `CGEventTap` (`VolumeHUD.swift:136`) nem é criado, então o
+  `flagsChanged` da ⌥ direita nunca chega ao `rightOptionChanged`. Zero pílula,
+  zero log.
+- **Causa raiz**: `tools/release.sh:119` faz `codesign --force --deep --sign -`.
+  Em ad-hoc o TCC ancora a concessão no **cdhash**, então **todo update revoga a
+  Acessibilidade**. A máquina tinha **3 entradas stale** acumuladas (o
+  `tccutil reset Accessibility com.zoi.knobler` respondeu 3×) — a UI mostrava o
+  app marcado e nada valia.
+- **Fix** (`Dictation.swift:200`): no `start()`, se `!AXIsProcessTrusted()`,
+  dispara o prompt do sistema e mostra a pílula "Ditado precisa de
+  Acessibilidade". A falha deixou de ser silenciosa.
+
+### v0.8.3 — escolher a entrada de vídeo do espelho
+
+- `AppSettings.mirrorDeviceID` (uniqueID; `""` = automática), `didSet` chama
+  `MirrorController.switchDevice()`.
+- `Mirror.swift`: `availableDevices()` (embutida, externa, Continuity, Desk
+  View), `switchDevice()` repontando a sessão viva via `beginConfiguration`, e
+  `preferredDevice()` respeitando a escolha com fallback pra embutida.
+- **UI no notch, não nos Ajustes** (o Picker chegou a ir pro painel Geral e foi
+  removido a pedido): `NotchView.cameraPicker` — `Menu` com
+  `chevron.down.circle.fill` no canto superior esquerdo do preview, oposto ao X.
+  Só renderiza com `devices.count > 1`.
+
+## Validação
+
+- `xcodebuild` Debug verde nas duas; `tools/snapshot.sh` verde no fim.
+- **Ditado: confirmado no ar** — após o reset do TCC e reconceder,
+  `axTrusted: true` no `/status` e o usuário confirmou.
+- **Seleção de câmera: E2E real** contra `cameraDevice` do `/status`, com as 3
+  câmeras da máquina (FaceTime HD, OBS Virtual Camera, EOS Webcam Utility):
+  cada ID selecionado passou a ser a câmera usada, e ID inexistente caiu pro
+  fallback da embutida.
+- v0.8.2 e v0.8.3 publicadas (GitHub Release + cask do tap bumpado).
+- `/Applications/Knobler.app` roda este código (compilado antes do bump, então
+  reporta 0.8.2 — código idêntico ao 0.8.3).
+
+## Pendências e followups
+
+- **P0 — a setinha do espelho nunca foi clicada.** Dois riscos abertos, cada um
+  com plano B pronto: (a) o notch é `NSPanel` non-activating
+  (`canBecomeKey == false`, `NotchWindow.swift:44`) e o `NSMenu` pode não abrir;
+  (b) `NotchViewModel:30` tem `didSet { if !expanded { mirrorOn = false } }` e
+  sair com o mouse fecha o notch — se o tracking disparar com o menu aberto, o
+  espelho fecha embaixo dele. Plano B único pros dois: trocar o `Menu`
+  declarativo por `NSMenu.popUp` manual (bloqueante, dá o gancho pra segurar
+  `setExpandedDirect(true)` enquanto está aberto).
+- **`switchDevice()` com o espelho já aberto** não foi testado ao vivo —
+  `defaults write` externo não dispara o `didSet`, só a UI dispara. O caminho a
+  frio (escolher e depois abrir) está provado.
+- **Assinatura ad-hoc**: a Acessibilidade vai cair a cada release enquanto
+  `release.sh:119` assinar com `-`. Decisão desta sessão foi manter ad-hoc e só
+  avisar. Quando cansar: cert persistente ancora a permissão na identidade.
+- Binário de DerivedData leva `cameraAuth: denied` do TCC sem nem mostrar prompt
+  — testar UI de câmera exige o app instalado em `/Applications`.
+- P1 herdado: swipe no trackpad segue sem teste com gesto real; E2E de link de
+  GIF nas Mensagens segue pendente.
+
+---
+
 # 🏁 SESSÃO 2026-07-21 (tarde 2) — Anexo por link nas Mensagens — **v0.7.0 no ar**
 
 Envio de imagem/GIF por link no composer das Mensagens LAN. Design fechado via
