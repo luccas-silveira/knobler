@@ -9,6 +9,7 @@
 //
 
 import AppKit
+import ApplicationServices
 import AVFoundation
 import FluidAudio
 
@@ -213,6 +214,17 @@ final class DictationController {
     /// o primeiro ditado não pode esperar 600MB de download.
     func start() {
         guard AppSettings.shared.dictation else { return }
+        // Sem Acessibilidade o CGEventTap nem é criado, então o flagsChanged da
+        // ⌥ direita nunca chega aqui — o ditado morre 100% silencioso. Como o
+        // release é assinado ad-hoc, o TCC ancora a permissão no cdhash e a
+        // revoga a CADA update. Avisa e leva o usuário pro painel.
+        if !AXIsProcessTrusted() {
+            let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
+            _ = AXIsProcessTrustedWithOptions(options as CFDictionary)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                self?.flash(.error("Ditado precisa de Acessibilidade"))
+            }
+        }
         AVCaptureDevice.requestAccess(for: .audio) { _ in }
         prepareLocalEngine()
         #if DEBUG

@@ -6,6 +6,16 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Fixed
+- **Ditado morria em silêncio depois de um update**: o release é assinado
+  ad-hoc, então o TCC ancora a permissão de Acessibilidade no cdhash e a
+  revoga a cada versão nova. Sem Acessibilidade o `CGEventTap` nem é criado
+  e o `flagsChanged` da ⌥ direita nunca chega ao ditado — nenhuma pílula,
+  nenhum log. Agora o app detecta isso no launch, dispara o prompt do sistema
+  e mostra a pílula "Ditado precisa de Acessibilidade". Reconceder em Ajustes
+  › Privacidade e Segurança › Acessibilidade volta a valer na hora (o
+  `checkTapHealth` recria o tap sozinho, sem reiniciar o app).
+
 ### Added
 - **Documentação de usuário** (`docs/*.md`): um arquivo por feature (Now
   Playing, HUDs, Notificações, Countdown de Calendário, Ditado, Ask,
