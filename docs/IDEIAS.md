@@ -132,6 +132,8 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 
 - **Conversão de arquivos nativa**: Arrastar arquivo pro notch e convertê-lo pra outro formato (JPEG → PNG, Markdown → PDF, etc.). Suporte a múltiplos formatos (imagens, documentos, vídeos) com preview da conversão.
 
+- **Color Picker nativo**: Selecionar qualquer cor da tela e copiar em múltiplos formatos (HEX, RGB, SwiftUI, CSS). Útil pra designers/desenvolvedores pegarem cores de qualquer aplicativo.
+
 ---
 
 ## Acessibilidade & UX
