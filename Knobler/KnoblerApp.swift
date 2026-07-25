@@ -21,7 +21,8 @@ enum KnoblerMain {
         // do installTap funciona no binário compilado.
         if CommandLine.arguments.contains("--selfcheck") {
             let ok = MicRecorder.exceptionGuardWorks()
-            print(ok ? "selfcheck: exception guard OK" : "selfcheck: FALHOU")
+                && DictationController._clipboardSelfCheck()
+            print(ok ? "selfcheck: dictation OK" : "selfcheck: FALHOU")
             exit(ok ? 0 : 1)
         }
         let app = NSApplication.shared

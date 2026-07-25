@@ -335,7 +335,7 @@ final class DictationController {
                     self.onState?(nil)
                     let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
                     if !trimmed.isEmpty, self.transcriptSink?(trimmed) != true {
-                        Self.insert(trimmed)
+                        Self.insert(trimmed, expectedPID: nil)
                     }
                 }
             } catch {
@@ -371,25 +371,85 @@ final class DictationController {
 
     // MARK: - Inserção no cursor
 
+    static func _clipboardSelfCheck() -> Bool {
+        let pasteboard = NSPasteboard(name: .init("knobler.dictation.selfcheck"))
+        let customType = NSPasteboard.PasteboardType("com.zoi.knobler.selfcheck")
+        let original = Data([0x01, 0x02, 0x03])
+
+        pasteboard.clearContents()
+        let item = NSPasteboardItem()
+        item.setData(original, forType: customType)
+        pasteboard.writeObjects([item])
+
+        _ = insert(
+            "temporário",
+            expectedPID: nil,
+            pasteboard: pasteboard,
+            restoreDelay: 0,
+            postPaste: {})
+        RunLoop.main.run(until: Date().addingTimeInterval(0.02))
+        guard pasteboard.data(forType: customType) == original else { return false }
+
+        _ = insert(
+            "temporário",
+            expectedPID: nil,
+            pasteboard: pasteboard,
+            restoreDelay: 0.02,
+            postPaste: {})
+        pasteboard.clearContents()
+        pasteboard.setString("copiado depois", forType: .string)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.04))
+        return pasteboard.string(forType: .string) == "copiado depois"
+    }
+
     /// Pasteboard + ⌘V sintético: único método robusto com acentos/IME.
-    /// O clipboard anterior volta 0,5s depois do paste.
-    private static func insert(_ text: String) {
-        let pasteboard = NSPasteboard.general
-        let saved = pasteboard.string(forType: .string)
+    @discardableResult
+    private static func insert(
+        _ text: String,
+        expectedPID: pid_t?,
+        pasteboard: NSPasteboard = .general,
+        restoreDelay: TimeInterval = 0.5,
+        postPaste: () -> Void = postCommandV
+    ) -> Bool {
+        if let expectedPID,
+           NSWorkspace.shared.frontmostApplication?.processIdentifier != expectedPID {
+            pasteboard.clearContents()
+            pasteboard.setString(text, forType: .string)
+            return false
+        }
+
+        let savedItems: [NSPasteboardItem] = pasteboard.pasteboardItems?.map { source in
+            let copy = NSPasteboardItem()
+            for type in source.types {
+                if let data = source.data(forType: type) {
+                    copy.setData(data, forType: type)
+                }
+            }
+            return copy
+        } ?? []
+
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
+        let temporaryChangeCount = pasteboard.changeCount
+        postPaste()
 
-        let source = CGEventSource(stateID: .combinedSessionState)
-        let vDown = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true)!
-        vDown.flags = .maskCommand
-        let vUp = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false)!
-        vUp.flags = .maskCommand
-        vDown.post(tap: .cghidEventTap)
-        vUp.post(tap: .cghidEventTap)
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + restoreDelay) { [pasteboard, savedItems, temporaryChangeCount] in
+            guard pasteboard.changeCount == temporaryChangeCount else { return }
             pasteboard.clearContents()
-            if let saved { pasteboard.setString(saved, forType: .string) }
+            if !savedItems.isEmpty {
+                pasteboard.writeObjects(savedItems)
+            }
         }
+        return true
+    }
+
+    private static func postCommandV() {
+        let source = CGEventSource(stateID: .combinedSessionState)
+        let down = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true)!
+        let up = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false)!
+        down.flags = .maskCommand
+        up.flags = .maskCommand
+        down.post(tap: .cghidEventTap)
+        up.post(tap: .cghidEventTap)
     }
 }
