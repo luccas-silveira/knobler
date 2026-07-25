@@ -20,8 +20,8 @@ struct NotchView: View {
     var onKeyboardEligibilityChanged: ((Bool) -> Void)?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// Ask é prioridade visual, mas sua fonte de verdade vive no store
-    /// compartilhado; o VM continua cuidando dos demais modos.
+    /// A prioridade Ask é derivada do store compartilhado; o VM fornece apenas
+    /// o modo dos demais subsistemas visuais.
     private var mode: NotchViewModel.Mode {
         askStore.state.active == nil ? vm.mode : .question
     }
@@ -163,10 +163,8 @@ struct NotchView: View {
             } else if mode == .message {
                 vm.holdIncoming(inside)
             } else if !inside || mode != .question {
-                // hover no card de pergunta é pra clicar em opção, não pra
-                // expandir: setHover(true) aqui armava expanded invisível e o
-                // card de música abria sozinho depois da resposta. A saída
-                // (inside=false) continua passando pra desarmar estado antigo.
+                // O card de pergunta usa hover para preview e clique; não deixe
+                // esse movimento alterar o estado de expansão da música.
                 vm.setHover(inside)
             }
         }

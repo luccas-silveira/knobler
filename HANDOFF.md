@@ -4,6 +4,81 @@
 - A compilação final de `tools/askcheck.swift` aguarda a Fase 2, que adicionará
   `AskModels.swift` e `AskFeature.swift`.
 
+# 🏁 SESSÃO 2026-07-24 — piloto de arquitetura modular Ask (Fases 1–6)
+
+## Resultado
+
+O piloto `AskFeature` foi concluído sem alterar o contrato HTTP, o hook, a
+prioridade visual, a UX do card ou o comportamento multi-monitor. O domínio de
+perguntas agora tem uma única fonte de verdade em `AskStore`, compartilhada
+por todas as janelas; `NotchViewModel` não mantém mais fila, paginação,
+seleção, respostas ou callbacks de Ask.
+
+## Fases e commits
+
+- **Fase 1 — caracterização:** self-check determinístico e invariantes do
+  comportamento atual — `e629172a`.
+- **Fase 2 — domínio:** `AskModels`, `AskState`, `AskAction`, `AskEffect` e
+  `AskReducer` puros; validação de ações inválidas — `aa336b8`.
+- **Fase 3 — runtime:** `AskStore` `@Observable`/`@MainActor` com dependências
+  explícitas para resolve/cancel — `f951de4`.
+- **Fase 4 — composição:** integração com `NotchAPIServer`, guards de geração,
+  primeira resposta vence e limpeza segura do lifecycle — `7388aa1`.
+- **Fase 5 — UI:** `AskCardView` e `NotchView` consumindo o store único;
+  fan-out e bridge por `NotchViewModel` removidos — `55dc6ee`.
+- **Fase 6 — limpeza/documentação:** este registro e a atualização do spec;
+  nenhum commit criado nesta fase.
+
+## Decisões
+
+- Manter o reducer próprio (`State`/`Action`/`Effect`/`Store`) e não adicionar
+  TCA: o piloto cobre o fluxo necessário com pouca infraestrutura e deixa a
+  migração futura possível caso a escala justifique.
+- Adotar Observation somente no novo store; os demais `ObservableObject` não
+  foram migrados mecanicamente.
+- Manter `NotchAPIServer` como dono do protocolo HTTP, polling, TTL e da regra
+  de primeira resposta. O store recebe eventos e executa dependências, mas não
+  duplica `pendingAsks`.
+- Manter o `askLocalAPICancellable`: ele é o guard de lifecycle que invalida
+  callbacks entregues antes de desligar/religar a API. Não é uma assinatura
+  órfã removível.
+
+## Validações
+
+Resultados finais da Fase 6:
+
+- guards `rg`: **passou**; não há `askQueue`, callbacks legados ou métodos Ask
+  do `NotchViewModel` em `Knobler`;
+- `xcodegen generate`: **passou**;
+- self-check recompilado: **passou** — `ask feature self-check ok`;
+- `Knobler --selfcheck`: **passou** — `selfcheck: exception guard OK`;
+- build Debug: **passou** — `** BUILD SUCCEEDED **`;
+- `tools/snapshot.sh`: **passou** — 41 cenários declarados em
+  `tools/main.swift`, incluindo os quatro Ask. O diretório `Snapshots/`
+  também contém PNGs históricos e auxiliares, que não representam cenários
+  adicionais declarados pelo harness;
+- `relay npm test`: **passou** — 43/43, sem falhas e sem EPERM nesta execução.
+  Essa é a suíte do relay e não constitui E2E do protocolo Ask;
+- hook `tools/claude-hook/knobler-ask.sh`: **sem alterações** (`git diff HEAD`
+  limpo para o arquivo).
+
+## Limitações e próximos passos
+
+- A validação de relay já conhecida passou **43/43** quando executada com
+  permissão elevada; no sandbox, os testes podem falhar exclusivamente por
+  `listen EPERM` ao abrir `127.0.0.1`.
+- Os E2E adicionais previstos no plano não foram executados nesta rodada:
+  hook real, `GET /status` antes/durante/depois de uma pergunta, dois
+  monitores, timeout do hook e encerramento/reabertura do app com pergunta
+  pendente.
+- Ainda não há test target Swift; o self-check e os snapshots continuam sendo
+  harnesses standalone.
+- O piloto não cria Swift Package e não migra Notification, Activity, Music,
+  Messaging, Dictation ou settings.
+- Próximos pilotos sugeridos pelo spec: NotificationFeature, ActivityFeature,
+  MessagingFeature, DictationFeature e MusicFeature, cada um com plano e
+  validação próprios. Só depois avaliar `KnoblerCore`/packages ou TCA.
+
 # 🏁 SESSÃO 2026-07-22 — Ditado ressuscitado + câmera do espelho — **v0.8.2 e v0.8.3 no ar**
 
 Duas releases patch. A primeira é um bug de permissão que matava o ditado em

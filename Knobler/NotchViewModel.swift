@@ -92,9 +92,9 @@ final class NotchViewModel: ObservableObject {
         case closed, music, notification, hud, dictation, question, pomodoro, airpods, message
     }
 
-    /// Prioridade local: mensagem > ditado > notificação > HUD > AirPods(card)
-    /// > música (hover) > pomodoro > fechado. Ask é aplicado pelo NotchView,
-    /// porque seu estado compartilhado vive no AskStore.
+    /// Prioridade dos modos próprios: mensagem > ditado > notificação > HUD
+    /// > AirPods(card) > música (hover) > pomodoro > fechado. Ask é derivado
+    /// pelo NotchView a partir do AskStore compartilhado.
     var mode: Mode {
         if incoming != nil { return .message }
         if dictation != nil { return .dictation }

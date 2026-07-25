@@ -63,6 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let screenshots = ScreenshotWatcher()
     private var screenshotPeekWork: DispatchWorkItem?
     private var apiCancellable: AnyCancellable?
+    // Observa apenas o ciclo de vida da API para invalidar callbacks Ask obsoletos.
     private var askLocalAPICancellable: AnyCancellable?
     private var askPresentationGeneration: UInt64 = 0
     /// Evita reabrir o espelho a cada tick se o usuário fechou antes da call.
@@ -454,9 +455,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    /// Invalida Tasks de apresentação já entregues quando a API local é
-    /// desligada e ligada novamente. `removeDuplicates` garante que a geração
-    /// só avance quando o valor realmente muda; a emissão inicial é ignorada.
+    /// Invalida callbacks Ask já entregues quando a API local é desligada ou
+    /// ligada novamente. O subscription é mantido separado do observador geral
+    /// de settings porque só mudanças reais em `localAPI` devem avançar a geração.
     private func observeAskLifecycle() {
         askLocalAPICancellable = AppSettings.shared.$localAPI
             .removeDuplicates()

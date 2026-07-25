@@ -5,8 +5,6 @@
 //  Estado e transições puras da feature AskUserQuestion.
 //
 
-import Foundation
-
 struct AskState: Equatable {
     var active: AskRequest?
     var queue: [AskRequest] = []
@@ -27,9 +25,7 @@ enum AskAction: Equatable {
     case setText(String)
     case appendText(String)
     case cancelActive
-    /// Compatibilidade temporária para o card legado da Fase 4.
     case resolve(id: String, answers: [String: AskAnswer])
-    /// Compatibilidade temporária para o card legado da Fase 4.
     case cancel(id: String)
     case clear(id: String)
     case externalDismiss(id: String)

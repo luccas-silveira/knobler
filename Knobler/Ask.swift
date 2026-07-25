@@ -7,7 +7,6 @@
 //  hook devolve a resposta ao Claude. Modelo espelha o payload da tool.
 //
 
-import Foundation
 import SwiftUI
 
 // MARK: - Card no notch

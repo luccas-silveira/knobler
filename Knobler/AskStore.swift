@@ -5,7 +5,6 @@
 //  Runtime observável da feature AskUserQuestion.
 //
 
-import Foundation
 import Observation
 
 @MainActor
