@@ -634,7 +634,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func peekShelf() {
         let busy = notches.values.contains {
             $0.viewModel.dictation != nil
-        } || askStore?.state.active != nil
+        } || askStore?.state.active != nil || agentRequestStore?.state.active != nil
         guard !busy else { return }
 
         notches.values.forEach { $0.viewModel.setExpandedDirect(true) }

@@ -49,6 +49,8 @@ struct Scenario {
     let agentRequest: AgentRequest?
     let agentRequestExpanded: Bool
     let resolveAgentRequest: (AgentRequestAction, AgentRequestResponder)?
+    let nobResolutionAttempt: AgentRequestAction?
+    let expectedAgentResult: AgentRequestResult?
     let frameHeight: CGFloat
 
     init(
@@ -57,6 +59,8 @@ struct Scenario {
         agentRequest: AgentRequest? = nil,
         agentRequestExpanded: Bool = false,
         resolveAgentRequest: (AgentRequestAction, AgentRequestResponder)? = nil,
+        nobResolutionAttempt: AgentRequestAction? = nil,
+        expectedAgentResult: AgentRequestResult? = nil,
         frameHeight: CGFloat = 240,
         configure: @escaping @MainActor (NotchViewModel, MediaController, AskStore) -> Void
     ) {
@@ -65,6 +69,8 @@ struct Scenario {
         self.agentRequest = agentRequest
         self.agentRequestExpanded = agentRequestExpanded
         self.resolveAgentRequest = resolveAgentRequest
+        self.nobResolutionAttempt = nobResolutionAttempt
+        self.expectedAgentResult = expectedAgentResult
         self.frameHeight = frameHeight
         self.configure = configure
     }
@@ -274,7 +280,9 @@ let scenarios: [Scenario] = [
             title: "Corrida de resolução", summary: "A resposta externa chegou primeiro.",
             source: .cli, actions: [.allow, .deny]
         ),
-        resolveAgentRequest: (.deny, .terminal)
+        resolveAgentRequest: (.deny, .terminal),
+        nobResolutionAttempt: .allow,
+        expectedAgentResult: AgentRequestResult(action: .deny, responder: .terminal)
     ) { _, _, _ in },
     Scenario(name: "pomodoro-focus", realNotch: true) { vm, _, _ in
         vm.pomodoro = PomodoroState(phase: .focus, runState: .running, remaining: 23 * 60 + 14, completedFocus: 1, cyclesUntilLong: 4)
@@ -361,6 +369,13 @@ for scenario in scenarios {
         agentRequestStore.send(.enqueue(request))
         if let result = scenario.resolveAgentRequest {
             agentRequestStore.send(.resolve(id: request.id, action: result.0, responder: result.1))
+        }
+        if let action = scenario.nobResolutionAttempt {
+            agentRequestStore.resolve(id: request.id, action: action)
+        }
+        if let expected = scenario.expectedAgentResult {
+            precondition(agentRequestStore.state.active == nil)
+            precondition(agentRequestStore.state.results[request.id] == expected)
         }
     }
 

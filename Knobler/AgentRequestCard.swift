@@ -53,7 +53,7 @@ struct AgentRequestCard: View {
                 ForEach(request.actions.indices, id: \.self) { index in
                     let action = request.actions[index]
                     Button(actionLabel(action)) {
-                        store.send(.resolve(id: request.id, action: action, responder: .nob))
+                        store.resolve(id: request.id, action: action)
                     }
                     .buttonStyle(.plain)
                     .font(.caption.weight(.semibold))
@@ -87,7 +87,7 @@ struct AgentRequestCard: View {
                 .foregroundStyle(.white.opacity(0.48))
                 .lineLimit(1)
             Button {
-                store.send(.dismiss(id: request.id))
+                store.dismiss(id: request.id)
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .foregroundStyle(.white.opacity(0.5))

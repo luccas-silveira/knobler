@@ -32,4 +32,16 @@ final class AgentRequestStore: ObservableObject {
             }
         }
     }
+
+    /// A API é a autoridade da corrida. O estado local só muda quando o
+    /// callback `onAgentRequestResolved` devolve o vencedor.
+    func resolve(id: String, action: AgentRequestAction) {
+        let resolveRemote = resolveRemote
+        Task { await resolveRemote(id, action) }
+    }
+
+    func dismiss(id: String) {
+        let dismissRemote = dismissRemote
+        Task { await dismissRemote(id) }
+    }
 }
