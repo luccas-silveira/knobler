@@ -49,14 +49,6 @@ final class NotchViewModel: ObservableObject {
     @Published var airpods: AirPodsBattery?
     /// Card transitório de AirPods (connect / bateria baixa), auto-some.
     @Published var airpodsCard = false
-    /// Pergunta do Claude Code em exibição (card interativo).
-    @Published var ask: AskRequest?
-    /// Página corrente do card (chamada com N perguntas).
-    @Published var askPage = 0
-    /// Texto livre do card — vive aqui (e não em @State) pra receber o
-    /// ditado por fan-out do AppDelegate.
-    @Published var askText = ""
-
     /// Aba do notch aberto: música (default) ou mensagens LAN.
     enum NotchTab: Equatable { case music, messages }
     @Published var tab: NotchTab = .music
@@ -100,9 +92,10 @@ final class NotchViewModel: ObservableObject {
         case closed, music, notification, hud, dictation, question, pomodoro, airpods, message
     }
 
-    /// Prioridade: pergunta > mensagem > ditado > notificação > HUD > AirPods(card) > música (hover) > pomodoro > fechado.
+    /// Prioridade local: mensagem > ditado > notificação > HUD > AirPods(card)
+    /// > música (hover) > pomodoro > fechado. Ask é aplicado pelo NotchView,
+    /// porque seu estado compartilhado vive no AskStore.
     var mode: Mode {
-        if ask != nil { return .question }
         if incoming != nil { return .message }
         if dictation != nil { return .dictation }
         if activeNotification != nil { return .notification }
@@ -128,9 +121,6 @@ final class NotchViewModel: ObservableObject {
     private let hudDuration: TimeInterval = 1.5
     private var pendingWork: DispatchWorkItem?
     private var queue: [NotchNotification] = []
-    private var askQueue: [AskRequest] = []
-    private var askPromotionWork: DispatchWorkItem?
-    private var askPromotionID: String?
     private var dismissWork: DispatchWorkItem?
     private var hudWork: DispatchWorkItem?
 
@@ -317,13 +307,6 @@ final class NotchViewModel: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: work)
     }
 
-    // MARK: - Perguntas do Claude Code
-
-    /// Fiação do AppDelegate: resposta/cancelamento voltam pro servidor
-    /// e sincronizam os outros monitores (primeira resposta vence).
-    var onAskAnswered: ((String, [String: AskAnswer]) -> Void)?
-    var onAskCancelled: ((String) -> Void)?
-
     /// Controles do card do Pomodoro (view → engine no AppDelegate).
     var onPomodoroPause: (() -> Void)?
     var onPomodoroResume: (() -> Void)?
@@ -332,71 +315,4 @@ final class NotchViewModel: ObservableObject {
     var onPomodoroStartNext: (() -> Void)?
     var onPomodoroSettings: (() -> Void)?
 
-    func enqueueAsk(_ request: AskRequest) {
-        if ask == nil {
-            askPage = 0
-            askText = ""
-            ask = request
-        } else if ask?.id != request.id,
-                  !askQueue.contains(where: { $0.id == request.id }) {
-            askQueue.append(request)
-        }
-    }
-
-    /// Encerra o ask (respondido/cancelado em qualquer monitor) e promove
-    /// o próximo da fila FIFO.
-    func clearAsk(id: String) {
-        if askPromotionID == id {
-            askPromotionWork?.cancel()
-            askPromotionWork = nil
-            askPromotionID = nil
-        }
-        askQueue.removeAll { $0.id == id }
-        guard ask?.id == id else { return }
-        ask = nil
-        askPage = 0
-        askText = ""
-        if !askQueue.isEmpty {
-            let next = askQueue.removeFirst()
-            // respiro pra animação de fechar/abrir ler bem (padrão das notificações)
-            let work = DispatchWorkItem { [weak self] in
-                guard let self else { return }
-                self.askPromotionWork = nil
-                self.askPromotionID = nil
-                self.enqueueAsk(next)
-            }
-            askPromotionWork = work
-            askPromotionID = next.id
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: work)
-        }
-    }
-
-    /// Limpa toda a apresentação Ask sem promover a fila.
-    ///
-    /// Este caminho é exclusivo da ponte temporária de compatibilidade usada
-    /// ao desligar a API. O `clearAsk(id:)` normal mantém sua promoção atrasada
-    /// para que a UI possa animar a troca entre perguntas.
-    func clearAllAsks() {
-        askPromotionWork?.cancel()
-        askPromotionWork = nil
-        askPromotionID = nil
-        askQueue.removeAll()
-        ask = nil
-        askPage = 0
-        askText = ""
-    }
-
-    /// Chamado pelo card na última página com TODAS as respostas acumuladas.
-    func answerAsk(_ answers: [String: AskAnswer]) {
-        guard let current = ask else { return }
-        onAskAnswered?(current.id, answers)
-        clearAsk(id: current.id)
-    }
-
-    /// ✕ do card: pergunta volta pro terminal do Claude Code.
-    func cancelActiveAsk() {
-        guard let current = ask else { return }
-        onAskCancelled?(current.id)
-        clearAsk(id: current.id)
-    }
 }

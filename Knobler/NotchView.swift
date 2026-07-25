@@ -7,6 +7,7 @@ import SwiftUI
 
 struct NotchView: View {
     @ObservedObject var vm: NotchViewModel
+    let askStore: AskStore
     @ObservedObject var media: MediaController
     // NÃO observado aqui: os níveis publicam a 30Hz e re-renderizariam o notch
     // inteiro em cada monitor — só o AudioBarsView (folha) observa
@@ -16,13 +17,30 @@ struct NotchView: View {
     /// false no harness de snapshot: onDrop cria uma NSView que o ImageRenderer
     /// não renderiza (vira placeholder amarelo). No app fica sempre true.
     var dropTargetsEnabled = true
+    var onKeyboardEligibilityChanged: ((Bool) -> Void)?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Ask é prioridade visual, mas sua fonte de verdade vive no store
+    /// compartilhado; o VM continua cuidando dos demais modos.
+    private var mode: NotchViewModel.Mode {
+        askStore.state.active == nil ? vm.mode : .question
+    }
+
+    private var keyboardAllowed: Bool {
+        askStore.state.active != nil
+            || vm.incoming?.allowReply == true
+            || (vm.tab == .messages && vm.expanded)
+    }
+
+    private func notifyKeyboardEligibility() {
+        onKeyboardEligibilityChanged?(keyboardAllowed)
+    }
 
     /// Abrir tem leve overshoot (assinatura do Dynamic Island); fechar é seco.
     /// Reduced Motion vira fade rápido.
     private var morphAnimation: Animation {
         if reduceMotion { return .easeOut(duration: 0.15) }
-        let opening = vm.mode != .closed || vm.peeking
+        let opening = mode != .closed || vm.peeking
         return opening
             ? .spring(response: 0.42, dampingFraction: 0.76)
             : .spring(response: 0.30, dampingFraction: 0.95)
@@ -50,8 +68,8 @@ struct NotchView: View {
     }
 
     private var notch: some View {
-        let compact = vm.mode == .closed || vm.mode == .hud
-            || vm.mode == .dictation || vm.mode == .pomodoro
+        let compact = mode == .closed || mode == .hud
+            || mode == .dictation || mode == .pomodoro
         // raios menores no compacto: as curvas de canto decepavam a capa/barras
         let shape = NotchShape(
             topCornerRadius: compact ? 6 : 14,
@@ -60,7 +78,7 @@ struct NotchView: View {
         return ZStack(alignment: .top) {
             shape.fill(Color.black)
 
-            switch vm.mode {
+            switch mode {
             case .closed:
                 if wingsVisible || vm.activity != nil || vm.micInUse {
                     closedWings
@@ -117,14 +135,14 @@ struct NotchView: View {
         .mask(shape)
         // aberto, o notch "flutua" sobre o wallpaper; fechado, some na moldura
         .shadow(
-            color: .black.opacity(vm.mode == .closed ? 0 : 0.35),
+            color: .black.opacity(mode == .closed ? 0 : 0.35),
             radius: 12, y: 5
         )
         .frame(width: currentSize.width, height: currentSize.height)
         // folga invisível de hover ao redor do card aberto: jitter na borda
         // não fecha; e o hit-test cobre o retângulo todo, não só o desenhado
-        .padding(.horizontal, vm.mode == .music ? 16 : 0)
-        .padding(.bottom, vm.mode == .music ? 16 : 0)
+        .padding(.horizontal, mode == .music ? 16 : 0)
+        .padding(.bottom, mode == .music ? 16 : 0)
         .contentShape(Rectangle())
     }
 
@@ -140,11 +158,11 @@ struct NotchView: View {
             }
         }
         .onHover { inside in
-            if vm.mode == .notification {
+            if mode == .notification {
                 vm.holdNotification(inside)
-            } else if vm.mode == .message {
+            } else if mode == .message {
                 vm.holdIncoming(inside)
-            } else if !inside || vm.mode != .question {
+            } else if !inside || mode != .question {
                 // hover no card de pergunta é pra clicar em opção, não pra
                 // expandir: setHover(true) aqui armava expanded invisível e o
                 // card de música abria sozinho depois da resposta. A saída
@@ -152,11 +170,16 @@ struct NotchView: View {
                 vm.setHover(inside)
             }
         }
-        .animation(morphAnimation, value: vm.mode)
+        .animation(morphAnimation, value: mode)
         .animation(morphAnimation, value: wingsVisible)
         .animation(morphAnimation, value: vm.micInUse)
-        .animation(morphAnimation, value: vm.ask)
-        .animation(morphAnimation, value: vm.askPage)
+        .animation(morphAnimation, value: askStore.state.active?.id)
+        .animation(morphAnimation, value: askStore.state.page)
+        .onAppear { notifyKeyboardEligibility() }
+        .onChange(of: askStore.state.active?.id) { _, _ in notifyKeyboardEligibility() }
+        .onChange(of: vm.incoming?.allowReply) { _, _ in notifyKeyboardEligibility() }
+        .onChange(of: vm.tab) { _, _ in notifyKeyboardEligibility() }
+        .onChange(of: vm.expanded) { _, _ in notifyKeyboardEligibility() }
     }
 
     /// Faixa morta no topo dos cards: só existe onde tem câmera de verdade.
@@ -166,7 +189,7 @@ struct NotchView: View {
 
     private var currentSize: CGSize {
         // notch real: asas ao redor da câmera; externo: o conteúdo dita o tamanho
-        switch vm.mode {
+        switch mode {
         case .closed:
             let hasContent = wingsVisible || vm.activity != nil || vm.micInUse
             if vm.hasRealNotch {
@@ -215,10 +238,10 @@ struct NotchView: View {
         case .airpods:
             return CGSize(width: 320, height: topInset + 64)
         case .question:
-            guard let ask = vm.ask else {
+            guard let ask = askStore.state.active else {
                 return CGSize(width: 460, height: topInset + 120)
             }
-            let question = ask.questions[min(vm.askPage, ask.questions.count - 1)]
+            let question = ask.questions[min(askStore.state.page, ask.questions.count - 1)]
             let hasPreview = question.options.contains { $0.preview != nil }
             // título+chip (46) + opções (48 cada) + rodapé com campo de texto (44)
             var height = topInset + 46 + CGFloat(question.options.count) * 48 + 44
@@ -449,8 +472,8 @@ struct NotchView: View {
 
     @ViewBuilder
     private var questionCard: some View {
-        if let ask = vm.ask {
-            AskCardView(vm: vm, ask: ask)
+        if askStore.state.active != nil {
+            AskCardView(vm: vm, askStore: askStore)
                 .frame(width: currentSize.width - 40)
                 .padding(.top, topInset + 6)
                 .padding(.bottom, 12)

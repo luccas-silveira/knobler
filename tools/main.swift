@@ -45,7 +45,7 @@ func fakeState(playing: Bool = true) -> MediaController.PlaybackState {
 struct Scenario {
     let name: String
     let realNotch: Bool
-    let configure: (NotchViewModel, MediaController) -> Void
+    let configure: @MainActor (NotchViewModel, MediaController, AskStore) -> Void
 }
 
 // prateleira do cenário corrente (recriada por cenário no loop)
@@ -61,103 +61,103 @@ func fakeShelfFiles() -> [URL] {
 }
 
 let scenarios: [Scenario] = [
-    Scenario(name: "closed-idle", realNotch: true) { _, _ in },
-    Scenario(name: "closed-music", realNotch: true) { _, media in
+    Scenario(name: "closed-idle", realNotch: true) { _, _, _ in },
+    Scenario(name: "closed-music", realNotch: true) { _, media, _ in
         media.injectPreview(state: fakeState(), artwork: fakeArtwork())
     },
-    Scenario(name: "closed-music-external", realNotch: false) { _, media in
+    Scenario(name: "closed-music-external", realNotch: false) { _, media, _ in
         media.injectPreview(state: fakeState(), artwork: fakeArtwork())
     },
     // pausado: escondida (deve parecer ilha vazia, não miniatura)
-    Scenario(name: "closed-paused-hidden", realNotch: false) { vm, media in
+    Scenario(name: "closed-paused-hidden", realNotch: false) { vm, media, _ in
         media.injectPreview(state: fakeState(playing: false), artwork: fakeArtwork())
         vm.musicPaused = true
     },
     // pausado + hover: espiada (asinhas com pontinhos)
-    Scenario(name: "closed-paused-peek", realNotch: true) { vm, media in
+    Scenario(name: "closed-paused-peek", realNotch: true) { vm, media, _ in
         media.injectPreview(state: fakeState(playing: false), artwork: fakeArtwork())
         vm.musicPaused = true
         vm.peeking = true
     },
-    Scenario(name: "hud-volume", realNotch: true) { vm, _ in
+    Scenario(name: "hud-volume", realNotch: true) { vm, _, _ in
         vm.hud = .init(level: 0.6, muted: false)
     },
-    Scenario(name: "hud-muted", realNotch: true) { vm, _ in
+    Scenario(name: "hud-muted", realNotch: true) { vm, _, _ in
         vm.hud = .init(level: 0, muted: true)
     },
-    Scenario(name: "hud-volume-external", realNotch: false) { vm, _ in
+    Scenario(name: "hud-volume-external", realNotch: false) { vm, _, _ in
         vm.hud = .init(level: 0.6, muted: false)
     },
-    Scenario(name: "hud-brightness", realNotch: true) { vm, _ in
+    Scenario(name: "hud-brightness", realNotch: true) { vm, _, _ in
         vm.hud = .init(kind: .brightness, level: 0.75)
     },
-    Scenario(name: "hud-battery-charging", realNotch: true) { vm, _ in
+    Scenario(name: "hud-battery-charging", realNotch: true) { vm, _, _ in
         vm.hud = .init(kind: .battery, level: 0.74, charging: true)
     },
-    Scenario(name: "hud-battery-low", realNotch: true) { vm, _ in
+    Scenario(name: "hud-battery-low", realNotch: true) { vm, _, _ in
         vm.hud = .init(kind: .battery, level: 0.18, charging: false)
     },
-    Scenario(name: "music-expanded", realNotch: true) { vm, media in
+    Scenario(name: "music-expanded", realNotch: true) { vm, media, _ in
         media.injectPreview(state: fakeState(), artwork: fakeArtwork())
         vm.expanded = true
     },
-    Scenario(name: "music-expanded-paused", realNotch: true) { vm, media in
+    Scenario(name: "music-expanded-paused", realNotch: true) { vm, media, _ in
         media.injectPreview(state: fakeState(playing: false), artwork: fakeArtwork())
         vm.expanded = true
     },
     // prateleira de arquivos no card expandido (com música junto)
-    Scenario(name: "expanded-shelf", realNotch: true) { vm, media in
+    Scenario(name: "expanded-shelf", realNotch: true) { vm, media, _ in
         media.injectPreview(state: fakeState(), artwork: fakeArtwork())
         fakeShelfFiles().forEach { currentShelf.add($0) }
         vm.expanded = true
     },
-    Scenario(name: "expanded-shelf-only", realNotch: true) { vm, _ in
+    Scenario(name: "expanded-shelf-only", realNotch: true) { vm, _, _ in
         fakeShelfFiles().forEach { currentShelf.add($0) }
         vm.expanded = true
     },
     // atividade da API: anel na asinha (fechado) e linha no card (aberto)
-    Scenario(name: "closed-activity", realNotch: false) { vm, _ in
+    Scenario(name: "closed-activity", realNotch: false) { vm, _, _ in
         vm.activity = NotchActivity(
             id: "deploy", title: "Deploy zoi-studio", detail: "rsync…",
             progress: 0.42, updatedAt: Date())
     },
-    Scenario(name: "closed-activity-music", realNotch: true) { vm, media in
+    Scenario(name: "closed-activity-music", realNotch: true) { vm, media, _ in
         media.injectPreview(state: fakeState(), artwork: fakeArtwork())
         vm.activity = NotchActivity(
             id: "deploy", title: "Deploy zoi-studio", detail: "rsync…",
             progress: 0.42, updatedAt: Date())
     },
-    Scenario(name: "expanded-activity-music", realNotch: true) { vm, media in
+    Scenario(name: "expanded-activity-music", realNotch: true) { vm, media, _ in
         media.injectPreview(state: fakeState(), artwork: fakeArtwork())
         vm.activity = NotchActivity(
             id: "deploy", title: "Deploy zoi-studio", detail: "rsync pra produção",
             progress: 0.42, updatedAt: Date())
         vm.expanded = true
     },
-    Scenario(name: "expanded-activity-only", realNotch: true) { vm, _ in
+    Scenario(name: "expanded-activity-only", realNotch: true) { vm, _, _ in
         vm.activity = NotchActivity(
             id: "build", title: "Compilando Knobler", detail: "xcodebuild",
             progress: nil, updatedAt: Date())
         vm.expanded = true
     },
-    Scenario(name: "notification", realNotch: true) { vm, _ in
+    Scenario(name: "notification", realNotch: true) { vm, _, _ in
         vm.activeNotification = NotchNotification(
             appName: "Finder",
             title: "Backup concluído",
             body: "O Time Machine terminou o backup de hoje às 14:32."
         )
     },
-    Scenario(name: "dictation-recording", realNotch: true) { vm, _ in
+    Scenario(name: "dictation-recording", realNotch: true) { vm, _, _ in
         vm.dictation = .recording(level: 0.6)
     },
-    Scenario(name: "dictation-transcribing", realNotch: true) { vm, _ in
+    Scenario(name: "dictation-transcribing", realNotch: true) { vm, _, _ in
         vm.dictation = .transcribing
     },
-    Scenario(name: "dictation-error", realNotch: false) { vm, _ in
+    Scenario(name: "dictation-error", realNotch: false) { vm, _, _ in
         vm.dictation = .error("Sem acesso ao microfone")
     },
-    Scenario(name: "ask-simple", realNotch: true) { vm, _ in
-        vm.ask = AskRequest(id: "s1", questions: [
+    Scenario(name: "ask-simple", realNotch: true) { _, _, askStore in
+        askStore.send(.enqueue(AskRequest(id: "s1", questions: [
             AskQuestion(
                 question: "Qual abordagem seguir?", header: "Abordagem",
                 multiSelect: false,
@@ -169,10 +169,10 @@ let scenarios: [Scenario] = [
                               description: "Tool dedicada configurada por projeto",
                               preview: nil),
                 ])
-        ], receivedAt: Date())
+        ], receivedAt: Date(timeIntervalSince1970: 1_000))))
     },
-    Scenario(name: "ask-multiselect", realNotch: true) { vm, _ in
-        vm.ask = AskRequest(id: "s2", questions: [
+    Scenario(name: "ask-multiselect", realNotch: true) { _, _, askStore in
+        askStore.send(.enqueue(AskRequest(id: "s2", questions: [
             AskQuestion(
                 question: "Quais checagens rodar?", header: "Validação",
                 multiSelect: true,
@@ -181,10 +181,10 @@ let scenarios: [Scenario] = [
                     AskOption(label: "Snapshots", description: "harness visual", preview: nil),
                     AskOption(label: "E2E manual", description: "roteiro no app real", preview: nil),
                 ])
-        ], receivedAt: Date())
+        ], receivedAt: Date(timeIntervalSince1970: 1_000))))
     },
-    Scenario(name: "ask-preview", realNotch: true) { vm, _ in
-        vm.ask = AskRequest(id: "s3", questions: [
+    Scenario(name: "ask-preview", realNotch: true) { _, _, askStore in
+        askStore.send(.enqueue(AskRequest(id: "s3", questions: [
             AskQuestion(
                 question: "Qual layout do card?", header: "Layout",
                 multiSelect: false,
@@ -196,10 +196,10 @@ let scenarios: [Scenario] = [
                               description: "preview embaixo",
                               preview: "+----------------------+\n|        opções        |\n+----------------------+\n|       preview        |\n+----------------------+"),
                 ])
-        ], receivedAt: Date())
+        ], receivedAt: Date(timeIntervalSince1970: 1_000))))
     },
-    Scenario(name: "ask-paged", realNotch: true) { vm, _ in
-        vm.ask = AskRequest(id: "s4", questions: [
+    Scenario(name: "ask-paged", realNotch: true) { _, _, askStore in
+        let request = AskRequest(id: "s4", questions: [
             AskQuestion(question: "Pergunta um?", header: "Um", multiSelect: false,
                         options: [AskOption(label: "A", description: "", preview: nil)]),
             AskQuestion(question: "Pergunta dois de três?", header: "Dois", multiSelect: false,
@@ -209,64 +209,66 @@ let scenarios: [Scenario] = [
                         ]),
             AskQuestion(question: "Pergunta três?", header: "Três", multiSelect: false,
                         options: [AskOption(label: "B", description: "", preview: nil)]),
-        ], receivedAt: Date())
-        vm.askPage = 1
+        ], receivedAt: Date(timeIntervalSince1970: 1_000))
+        askStore.send(.enqueue(request))
+        // O cenário permanece na página 1 por uma transição de domínio real.
+        askStore.send(.submit(labels: ["A"], text: nil))
     },
-    Scenario(name: "pomodoro-focus", realNotch: true) { vm, _ in
+    Scenario(name: "pomodoro-focus", realNotch: true) { vm, _, _ in
         vm.pomodoro = PomodoroState(phase: .focus, runState: .running, remaining: 23 * 60 + 14, completedFocus: 1, cyclesUntilLong: 4)
     },
-    Scenario(name: "pomodoro-break", realNotch: true) { vm, _ in
+    Scenario(name: "pomodoro-break", realNotch: true) { vm, _, _ in
         vm.pomodoro = PomodoroState(phase: .shortBreak, runState: .running, remaining: 4 * 60 + 32, completedFocus: 1, cyclesUntilLong: 4)
     },
-    Scenario(name: "pomodoro-paused", realNotch: true) { vm, _ in
+    Scenario(name: "pomodoro-paused", realNotch: true) { vm, _, _ in
         vm.pomodoro = PomodoroState(phase: .focus, runState: .paused, remaining: 12 * 60 + 3, completedFocus: 1, cyclesUntilLong: 4)
     },
-    Scenario(name: "pomodoro-waiting", realNotch: false) { vm, _ in
+    Scenario(name: "pomodoro-waiting", realNotch: false) { vm, _, _ in
         vm.pomodoro = PomodoroState(phase: .shortBreak, runState: .waiting, remaining: 5 * 60, completedFocus: 1, cyclesUntilLong: 4)
     },
     // pausa longa em espera NO NOTCH REAL: o rótulo mais comprido não pode
     // escorregar sob a câmera (asa esquerda ~85pt)
-    Scenario(name: "pomodoro-waiting-long", realNotch: true) { vm, _ in
+    Scenario(name: "pomodoro-waiting-long", realNotch: true) { vm, _, _ in
         vm.pomodoro = PomodoroState(phase: .longBreak, runState: .waiting, remaining: 15 * 60, completedFocus: 4, cyclesUntilLong: 4)
     },
     // card expandido (hover): foco/pausado/espera + confirmar que a música some
-    Scenario(name: "pomodoro-card-focus", realNotch: true) { vm, _ in
+    Scenario(name: "pomodoro-card-focus", realNotch: true) { vm, _, _ in
         vm.pomodoro = PomodoroState(phase: .focus, runState: .running, remaining: 23 * 60 + 14, completedFocus: 1, cyclesUntilLong: 4)
         vm.expanded = true
     },
-    Scenario(name: "pomodoro-card-paused", realNotch: true) { vm, _ in
+    Scenario(name: "pomodoro-card-paused", realNotch: true) { vm, _, _ in
         vm.pomodoro = PomodoroState(phase: .focus, runState: .paused, remaining: 12 * 60 + 3, completedFocus: 1, cyclesUntilLong: 4)
         vm.expanded = true
     },
-    Scenario(name: "pomodoro-card-waiting", realNotch: true) { vm, _ in
+    Scenario(name: "pomodoro-card-waiting", realNotch: true) { vm, _, _ in
         vm.pomodoro = PomodoroState(phase: .shortBreak, runState: .waiting, remaining: 5 * 60, completedFocus: 1, cyclesUntilLong: 4)
         vm.expanded = true
     },
-    Scenario(name: "pomodoro-card-with-music", realNotch: true) { vm, media in
+    Scenario(name: "pomodoro-card-with-music", realNotch: true) { vm, media, _ in
         media.injectPreview(state: fakeState(), artwork: fakeArtwork())
         vm.pomodoro = PomodoroState(phase: .focus, runState: .running, remaining: 23 * 60 + 14, completedFocus: 1, cyclesUntilLong: 4)
         vm.expanded = true
     },
     // AirPods: card de conexão (transitório), faixa junto da música,
     // card dedicado sem música, e aviso de bateria baixa.
-    Scenario(name: "airpods-connect", realNotch: true) { vm, _ in
+    Scenario(name: "airpods-connect", realNotch: true) { vm, _, _ in
         vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 90, right: 89, case_: 31)
         vm.airpodsCard = true
     },
-    Scenario(name: "airpods-connect-external", realNotch: false) { vm, _ in
+    Scenario(name: "airpods-connect-external", realNotch: false) { vm, _, _ in
         vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 90, right: 89, case_: 31)
         vm.airpodsCard = true
     },
-    Scenario(name: "airpods-strip-music", realNotch: true) { vm, media in
+    Scenario(name: "airpods-strip-music", realNotch: true) { vm, media, _ in
         media.injectPreview(state: fakeState(), artwork: fakeArtwork())
         vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 90, right: 89, case_: 31)
         vm.expanded = true
     },
-    Scenario(name: "airpods-card-nomusic", realNotch: true) { vm, _ in
+    Scenario(name: "airpods-card-nomusic", realNotch: true) { vm, _, _ in
         vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 90, right: 89, case_: 31)
         vm.expanded = true
     },
-    Scenario(name: "airpods-low", realNotch: false) { vm, _ in
+    Scenario(name: "airpods-low", realNotch: false) { vm, _, _ in
         vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 8, right: 74, case_: nil)
         vm.airpodsCard = true
     },
@@ -280,12 +282,16 @@ for scenario in scenarios {
     currentShelf.clear()
     let vm = NotchViewModel()
     let media = MediaController()
+    let askStore = AskStore(dependencies: .init(
+        resolve: { _, _ in },
+        cancel: { _ in }
+    ))
     media.injectPreview(state: nil, artwork: nil)
     vm.hasRealNotch = scenario.realNotch
     vm.notchSize = scenario.realNotch
         ? CGSize(width: 200, height: 32)
         : CGSize(width: 190, height: 30)
-    scenario.configure(vm, media)
+    scenario.configure(vm, media, askStore)
 
     // wallpaper claro atrás: revela a silhueta e as bordas da forma
     let view = ZStack(alignment: .top) {
@@ -295,7 +301,7 @@ for scenario in scenarios {
             startPoint: .topLeading, endPoint: .bottomTrailing
         )
         NotchView(
-            vm: vm, media: media, levels: SystemAudioLevels(),
+            vm: vm, askStore: askStore, media: media, levels: SystemAudioLevels(),
             shelf: currentShelf, dropTargetsEnabled: false)
     }
     .frame(width: 560, height: 240)
@@ -324,6 +330,10 @@ for scenario in scenarios {
 ) {
     let vm = NotchViewModel()
     let media = MediaController()
+    let askStore = AskStore(dependencies: .init(
+        resolve: { _, _ in },
+        cancel: { _ in }
+    ))
     media.injectPreview(state: nil, artwork: nil)
     let lan = LANMessaging()
     let store = MessageStore()
@@ -339,7 +349,7 @@ for scenario in scenarios {
                      Color(red: 0.90, green: 0.86, blue: 0.80)],
             startPoint: .topLeading, endPoint: .bottomTrailing
         )
-        NotchView(vm: vm, media: media, levels: SystemAudioLevels(),
+    NotchView(vm: vm, askStore: askStore, media: media, levels: SystemAudioLevels(),
                   shelf: currentShelf, dropTargetsEnabled: false)
             .environmentObject(lan)
             .environmentObject(store)

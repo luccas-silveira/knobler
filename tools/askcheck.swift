@@ -20,6 +20,7 @@ struct AskCheck {
         testNewQuestionStartsAtZero()
         testMultiSelectTogglesLabels()
         testAppendText()
+        testSetText()
         testTextWinsLabels()
         testInvalidSubmissionsAreNoOp()
         testPagedSubmissionPreservesPreviousAnswers()
@@ -150,6 +151,18 @@ struct AskCheck {
         var emptyState = AskState()
         send(.appendText("fora"), to: &emptyState)
         check(emptyState.text.isEmpty, "appendText sem pergunta ativa é no-op")
+    }
+
+    private static func testSetText() {
+        var state = AskState()
+        send(.setText("edição corrente"), to: &state)
+        check(state.text.isEmpty, "setText sem pergunta ativa é no-op")
+
+        send(.enqueue(request(id: "set-text")), to: &state)
+        send(.setText("primeira versão"), to: &state)
+        check(state.text == "primeira versão", "setText substitui o texto do campo")
+        send(.setText("segunda versão"), to: &state)
+        check(state.text == "segunda versão", "setText atualiza o texto do campo")
     }
 
     private static func testTextWinsLabels() {

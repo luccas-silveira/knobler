@@ -16,43 +16,51 @@ import SwiftUI
 /// 1/N, preview ASCII em split e texto livre (teclado ou ditado).
 struct AskCardView: View {
     @ObservedObject var vm: NotchViewModel
-    let ask: AskRequest
+    let askStore: AskStore
 
-    /// Labels marcados na página corrente (multi-select).
-    @State private var selected: Set<String> = []
-    /// Respostas acumuladas das páginas anteriores (pergunta → resposta).
-    @State private var answers: [String: AskAnswer] = [:]
     @State private var hovered: String?
     @FocusState private var textFocused: Bool
 
-    private var page: Int { min(vm.askPage, ask.questions.count - 1) }
-    private var question: AskQuestion { ask.questions[page] }
-    private var hasPreview: Bool { question.options.contains { $0.preview != nil } }
+    private var ask: AskRequest? { askStore.state.active }
+    private var page: Int {
+        guard let ask else { return 0 }
+        return min(askStore.state.page, ask.questions.count - 1)
+    }
+    private var question: AskQuestion? {
+        guard let ask, ask.questions.indices.contains(page) else { return nil }
+        return ask.questions[page]
+    }
+    private var hasPreview: Bool { question?.options.contains { $0.preview != nil } == true }
+
     /// Preview exibido: opção sob o mouse; sem hover, a primeira com preview.
     private var previewText: String? {
-        question.options.first { $0.label == hovered }?.preview
-            ?? question.options.compactMap(\.preview).first
+        question?.options.first { $0.label == hovered }?.preview
+            ?? question?.options.compactMap(\.preview).first
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            header
-            if hasPreview {
-                HStack(alignment: .top, spacing: 10) {
-                    optionList.frame(width: 250)
-                    preview
+        Group {
+            if let question {
+                VStack(alignment: .leading, spacing: 8) {
+                    header(question: question)
+                    if hasPreview {
+                        HStack(alignment: .top, spacing: 10) {
+                            optionList(question: question).frame(width: 250)
+                            preview
+                        }
+                    } else {
+                        optionList(question: question)
+                    }
+                    footer(question: question)
                 }
-            } else {
-                optionList
             }
-            footer
         }
         .foregroundStyle(.white)
         // Esc (com o campo focado) = mesmo intent do ✕: pergunta vai pro terminal
-        .onExitCommand { vm.cancelActiveAsk() }
+        .onExitCommand { askStore.send(.cancelActive) }
     }
 
-    private var header: some View {
+    private func header(question: AskQuestion) -> some View {
         HStack(spacing: 8) {
             if !question.header.isEmpty {
                 Text(question.header)
@@ -65,19 +73,19 @@ struct AskCardView: View {
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(2)
             Spacer(minLength: 0)
-            if let source = ask.source, !source.isEmpty {
+            if let source = ask?.source, !source.isEmpty {
                 // quem pergunta: pasta do projeto da sessão do Claude Code
                 Text("◐ \(source)")
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(.white.opacity(0.45))
                     .lineLimit(1)
             }
-            if ask.questions.count > 1 {
+            if let ask, ask.questions.count > 1 {
                 Text("\(page + 1)/\(ask.questions.count)")
                     .font(.caption2)
                     .foregroundStyle(.white.opacity(0.5))
             }
-            Button { vm.cancelActiveAsk() } label: {
+            Button { askStore.send(.cancelActive) } label: {
                 Image(systemName: "xmark.circle.fill")
                     .foregroundStyle(.white.opacity(0.5))
             }
@@ -86,41 +94,37 @@ struct AskCardView: View {
         }
     }
 
-    private var optionList: some View {
+    private func optionList(question: AskQuestion) -> some View {
         VStack(spacing: 4) {
             ForEach(question.options, id: \.label) { option in
-                optionRow(option)
+                optionRow(option, question: question)
             }
             if question.multiSelect {
-                Button { submitPage(labels: Array(selected)) } label: {
+                Button { submitPage(labels: Array(askStore.state.selected)) } label: {
                     Text("Confirmar")
                         .font(.footnote.weight(.semibold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 6)
                         .background(RoundedRectangle(cornerRadius: 8)
-                            .fill(.white.opacity(selected.isEmpty ? 0.08 : 0.25)))
+                            .fill(.white.opacity(askStore.state.selected.isEmpty ? 0.08 : 0.25)))
                 }
                 .buttonStyle(.plain)
-                .disabled(selected.isEmpty)
+                .disabled(askStore.state.selected.isEmpty)
             }
         }
     }
 
-    private func optionRow(_ option: AskOption) -> some View {
+    private func optionRow(_ option: AskOption, question: AskQuestion) -> some View {
         Button {
             if question.multiSelect {
-                if selected.contains(option.label) {
-                    selected.remove(option.label)
-                } else {
-                    selected.insert(option.label)
-                }
+                askStore.send(.toggle(label: option.label))
             } else {
                 submitPage(labels: [option.label])
             }
         } label: {
             HStack(spacing: 8) {
                 if question.multiSelect {
-                    Image(systemName: selected.contains(option.label)
+                    Image(systemName: askStore.state.selected.contains(option.label)
                         ? "checkmark.square.fill" : "square")
                         .font(.footnote)
                 }
@@ -162,7 +166,7 @@ struct AskCardView: View {
         .background(RoundedRectangle(cornerRadius: 8).fill(.white.opacity(0.06)))
     }
 
-    private var footer: some View {
+    private func footer(question: AskQuestion) -> some View {
         HStack(spacing: 8) {
             if case .recording(let level) = vm.dictation {
                 // ditado ativo alimenta este campo: nível DENTRO do card
@@ -170,14 +174,14 @@ struct AskCardView: View {
                 Capsule().fill(.white)
                     .frame(width: max(4, 40 * CGFloat(level)), height: 4)
             }
-            TextField("Outra resposta… (Enter envia; ⌥ direita dita)", text: $vm.askText)
+            TextField("Outra resposta… (Enter envia; ⌥ direita dita)", text: textBinding)
                 .textFieldStyle(.plain)
                 .font(.footnote)
                 .focused($textFocused)
                 .onSubmit {
-                    let text = vm.askText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let text = askStore.state.text.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !text.isEmpty else { return }
-                    submitPage(labels: question.multiSelect ? Array(selected) : [],
+                    submitPage(labels: question.multiSelect ? Array(askStore.state.selected) : [],
                                text: text)
                 }
                 .padding(.horizontal, 8)
@@ -186,16 +190,16 @@ struct AskCardView: View {
         }
     }
 
-    /// Grava a resposta da página; última página envia tudo de uma vez.
+    private var textBinding: Binding<String> {
+        Binding(
+            get: { askStore.state.text },
+            set: { askStore.send(.setText($0)) }
+        )
+    }
+
+    /// A transição de página e a resposta final são responsabilidade do reducer.
     private func submitPage(labels: [String], text: String? = nil) {
-        answers[question.question] = AskAnswer(labels: labels, text: text)
-        vm.askText = ""
-        selected = []
+        askStore.send(.submit(labels: labels, text: text))
         hovered = nil
-        if page + 1 < ask.questions.count {
-            vm.askPage += 1
-        } else {
-            vm.answerAsk(answers)
-        }
     }
 }

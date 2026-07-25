@@ -47,8 +47,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let bluetooth = BluetoothMonitor()
     private let micMonitor = MicMonitor()
     private let apiServer = NotchAPIServer()
-    // Única fonte de estado da feature Ask; a UI legada ainda recebe uma ponte
-    // de apresentação até a migração prevista para a Fase 5.
+    // Única fonte de estado da feature Ask, compartilhada por todas as telas.
     private var askStore: AskStore?
     let webhookClient = WebhookClient()
     let messageStore = MessageStore()
@@ -66,7 +65,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var apiCancellable: AnyCancellable?
     private var askLocalAPICancellable: AnyCancellable?
     private var askPresentationGeneration: UInt64 = 0
-    private var askKeyCancellables = Set<AnyCancellable>()
     /// Evita reabrir o espelho a cada tick se o usuário fechou antes da call.
     private var mirrorAutoOpened = false
 
@@ -123,12 +121,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // ditado durante uma pergunta alimenta o campo do card, não o app ativo
         dictation.transcriptSink = { [weak self] text in
             guard let self else { return false }
-            let asking = self.notches.values.filter { $0.viewModel.ask != nil }
-            guard !asking.isEmpty else { return false }
-            asking.forEach {
-                let vm = $0.viewModel
-                vm.askText = vm.askText.isEmpty ? text : vm.askText + " " + text
-            }
+            guard self.askStore?.state.active != nil else { return false }
+            self.askStore?.send(.appendText(text))
             return true
         }
 
@@ -349,9 +343,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             status.merge(MirrorController.shared.diagnostics) { _, new in new }
             status["micInUse"] = self?.micMonitor.isRunning ?? false
             status["notches"] = (self?.notches ?? [:]).map { id, notch in
-                [
+                let mode: NotchViewModel.Mode = self?.askStore?.state.active != nil
+                    ? .question : notch.viewModel.mode
+                return [
                     "display": Int(id),
-                    "mode": "\(notch.viewModel.mode)",
+                    "mode": "\(mode)",
                     "hasNotification": notch.viewModel.activeNotification != nil,
                     "visible": notch.window.isVisible,
                     "frame": "\(notch.window.frame)",
@@ -432,9 +428,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             )
         )
 
-        // Perguntas do Claude Code: o store recebe o evento HTTP. Enquanto
-        // AskCardView ainda lê NotchViewModel, esta ponte apenas espelha a
-        // apresentação por monitor; ela será removida na Fase 5.
+        // Perguntas do Claude Code entram uma única vez no store compartilhado.
         apiServer.onAsk = { [weak self] request in
             guard let self else { return }
             let generation = self.askPresentationGeneration
@@ -445,7 +439,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 else { return }
                 NSSound(named: "Pop")?.play()  // uma vez, na chegada
                 self.askStore?.send(.enqueue(request))
-                self.notches.values.forEach { $0.viewModel.enqueueAsk(request) }
             }
         }
         apiServer.onAskDismiss = { [weak self] id in
@@ -457,7 +450,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                       AppSettings.shared.localAPI
                 else { return }
                 self.askStore?.send(.externalDismiss(id: id))
-                self.notches.values.forEach { $0.viewModel.clearAsk(id: id) }
             }
         }
     }
@@ -475,16 +467,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     /// O servidor limpa seus pendingAsks ao parar, mas não emite dismiss.
-    /// Esta ponte temporária de compatibilidade mantém a apresentação legada
-    /// coerente sem criar uma nova operação HTTP nem alterar o protocolo. Ela
-    /// será removida quando a UI for migrada para o AskStore na Fase 5.
+    /// Limpa somente o store compartilhado, sem fan-out por monitor.
     private func clearAskPresentation() {
         guard let askStore else { return }
         let ids = ([askStore.state.active?.id] + askStore.state.queue.map(\.id)).compactMap { $0 }
         for id in ids {
             askStore.send(.externalDismiss(id: id))
         }
-        notches.values.forEach { $0.viewModel.clearAllAsks() }
     }
 
     /// Liga/desliga o tap conforme o estado atual — idempotente, barato.
@@ -570,8 +559,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// renova o timer; mouse em cima segura: o fechamento pula quem está sob o cursor.
     private func peekShelf() {
         let busy = notches.values.contains {
-            $0.viewModel.ask != nil || $0.viewModel.dictation != nil
-        }
+            $0.viewModel.dictation != nil
+        } || askStore?.state.active != nil
         guard !busy else { return }
 
         notches.values.forEach { $0.viewModel.setExpandedDirect(true) }
@@ -600,6 +589,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // ponytail: janela sempre no tamanho expandido máximo; o SwiftUI desenha só o
     // necessário. Redimensionar NSWindow durante animação é fonte de jank.
     private func placeWindows() {
+        guard let askStore else { return }
         var seen = Set<CGDirectDisplayID>()
 
         for screen in NSScreen.screens {
@@ -619,31 +609,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 )
                 panel.contentView = NSHostingView(
                     rootView: NotchView(
-                        vm: viewModel, media: media, levels: audioLevels, shelf: shelf)
+                        vm: viewModel, askStore: askStore,
+                        media: media, levels: audioLevels, shelf: shelf,
+                        onKeyboardEligibilityChanged: { [weak panel] active in
+                            panel?.allowsKeyboard = active
+                            if !active, panel?.isKeyWindow == true { panel?.resignKey() }
+                        })
                         .environmentObject(lanMessaging)
                         .environmentObject(messageStore)
                         .environmentObject(AppSettings.shared))
                 notch = ScreenNotch(window: panel, viewModel: viewModel)
                 notches[id] = notch
 
-                // Ponte temporária de apresentação: até a Fase 5 o card ainda
-                // responde pelo VM. O comando passa pelo store, que produz o
-                // efeito de resolve/cancel; os VMs só são limpos para manter
-                // todas as janelas legadas visualmente sincronizadas.
-                viewModel.onAskAnswered = { [weak self] id, answers in
-                    Task { @MainActor [weak self] in
-                        guard let self else { return }
-                        self.askStore?.send(.resolve(id: id, answers: answers))
-                        self.notches.values.forEach { $0.viewModel.clearAsk(id: id) }
-                    }
-                }
-                viewModel.onAskCancelled = { [weak self] id in
-                    Task { @MainActor [weak self] in
-                        guard let self else { return }
-                        self.askStore?.send(.cancel(id: id))
-                        self.notches.values.forEach { $0.viewModel.clearAsk(id: id) }
-                    }
-                }
                 // controles do card do Pomodoro → engine (onState reprograma todas as vms)
                 viewModel.onPomodoroPause = { [weak self] in self?.pomodoro.pause() }
                 viewModel.onPomodoroResume = { [weak self] in self?.pomodoro.resume() }
@@ -674,24 +651,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     .sink { [weak self] _ in self?.lanMessaging.start() }
                     .store(in: &lanCancellables)
 
-                // janela só aceita teclado enquanto o card existe OU a pessoa está
-                // respondendo/mexendo em Mensagens — CRÍTICO reverter, senão o notch
-                // rouba foco pra sempre (NotchWindow não expõe viewModel, então o
-                // "active" já cobre ask + mensagens num único publisher).
-                viewModel.$ask
-                    .map { $0 != nil }
-                    .combineLatest(
-                        viewModel.$incoming.map { $0?.allowReply == true },
-                        viewModel.$tab, viewModel.$expanded)
-                    .map { asking, replyable, tab, expanded in
-                        asking || replyable || (tab == .messages && expanded)
-                    }
-                    .removeDuplicates()
-                    .sink { [weak panel] active in
-                        panel?.allowsKeyboard = active
-                        if !active, panel?.isKeyWindow == true { panel?.resignKey() }
-                    }
-                    .store(in: &askKeyCancellables)
             }
 
             notch.viewModel.notchSize = Self.notchSize(of: screen)

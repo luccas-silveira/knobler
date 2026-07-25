@@ -12,6 +12,7 @@ swiftc -O -o build/snapshot \
   Knobler/Ask.swift \
   Knobler/AskModels.swift \
   Knobler/AskFeature.swift \
+  Knobler/AskStore.swift \
   Knobler/MediaController.swift \
   Knobler/MediaRemoteSource.swift \
   Knobler/AudioLevelTap.swift \

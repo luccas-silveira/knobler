@@ -24,6 +24,7 @@ enum AskAction: Equatable {
     case enqueue(AskRequest)
     case toggle(label: String)
     case submit(labels: [String], text: String?)
+    case setText(String)
     case appendText(String)
     case cancelActive
     /// Compatibilidade temporária para o card legado da Fase 4.
@@ -116,6 +117,11 @@ enum AskReducer {
         case .appendText(let appended):
             guard state.active != nil, !appended.isEmpty else { return [] }
             state.text = state.text.isEmpty ? appended : state.text + " " + appended
+            return []
+
+        case .setText(let text):
+            guard state.active != nil else { return [] }
+            state.text = text
             return []
 
         case .cancelActive:
