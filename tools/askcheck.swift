@@ -31,7 +31,7 @@ struct AskCheck {
         testNextRequestIsPromoted()
         testExternalDismiss()
 
-        print("ask feature self-check ok")
+        print("askcheck: OK")
     }
 
     // MARK: - Helpers
@@ -142,15 +142,17 @@ struct AskCheck {
 
     private static func testAppendText() {
         var state = AskState()
-        send(.enqueue(request(id: "append", questions: [question("Texto")])), to: &state)
+        send(.enqueue(request(id: "req-1", questions: [question("Texto")])), to: &state)
 
-        send(.appendText("primeiro"), to: &state)
-        send(.appendText("segundo"), to: &state)
-        check(state.text == "primeiro segundo", "appendText concatena trechos com espaço")
+        send(.appendText(id: "req-1", text: "primeiro"), to: &state)
+        send(.appendText(id: "req-1", text: "segundo"), to: &state)
+        assert(state.text == "primeiro segundo")
+        send(.appendText(id: "outra", text: "não entra"), to: &state)
+        assert(state.text == "primeiro segundo")
 
         var emptyState = AskState()
-        send(.appendText("fora"), to: &emptyState)
-        check(emptyState.text.isEmpty, "appendText sem pergunta ativa é no-op")
+        send(.appendText(id: "req-1", text: "fora"), to: &emptyState)
+        assert(emptyState.text.isEmpty)
     }
 
     private static func testSetText() {

@@ -200,13 +200,18 @@ final class MicRecorder {
 
 // MARK: - Controller
 
+enum DictationDestination: Equatable {
+    case ask(id: String)
+    case application(pid: pid_t)
+}
+
 final class DictationController {
     /// nil = pílula some. Chamado sempre na main queue.
     var onState: ((DictationPhase?) -> Void)?
 
-    /// Desvio da transcrição: retorna true se alguém consumiu o texto
-    /// (card de pergunta na tela) — aí NÃO cola no app ativo.
-    var transcriptSink: ((String) -> Bool)?
+    var destinationProvider: (() -> DictationDestination?)?
+    /// Retorna true se o destino Ask capturado ainda consumiu o texto.
+    var transcriptSink: ((String, DictationDestination) -> Bool)?
 
     private let recorder = MicRecorder()
     private let parakeet = ParakeetEngine()
@@ -215,6 +220,7 @@ final class DictationController {
     private var transcribing = false
     private var preparing = false
     private var recordingEngine: (any TranscriptionEngine)?
+    private var recordingDestination: DictationDestination?
     private var flashWorkItem: DispatchWorkItem?
     private var flashGeneration: UInt64 = 0
     private(set) var modelReady = false
@@ -337,10 +343,12 @@ final class DictationController {
         case .deepgram(let apiKey):
             recordingEngine = DeepgramEngine(apiKey: apiKey)
         }
+        recordingDestination = destinationProvider?()
         do {
             try recorder.start()
         } catch {
             recordingEngine = nil
+            recordingDestination = nil
             flash(.error("Sem acesso ao microfone"))
             return
         }
@@ -364,6 +372,7 @@ final class DictationController {
         guard recording else { return }
         recording = false
         recordingEngine = nil
+        recordingDestination = nil
         _ = recorder.stop()
         removeKeyMonitor()
         setState(nil)
@@ -372,6 +381,8 @@ final class DictationController {
     private func finish() {
         guard recording else { return }
         recording = false
+        let destination = recordingDestination
+        recordingDestination = nil
         removeKeyMonitor()
         let samples = recorder.stop()
         // toque acidental: menos de 0,5s de áudio não vira transcrição
@@ -400,8 +411,20 @@ final class DictationController {
                     self.transcribing = false
                     self.setState(nil)
                     let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !trimmed.isEmpty, self.transcriptSink?(trimmed) != true {
-                        Self.insert(trimmed, expectedPID: nil)
+                    guard !trimmed.isEmpty else { return }
+                    switch destination {
+                    case .some(.ask(let id)):
+                        if self.transcriptSink?(trimmed, .ask(id: id)) != true {
+                            Self.copy(trimmed)
+                            self.flash(.error("Pergunta mudou — texto copiado"))
+                        }
+                    case .some(.application(let pid)):
+                        if !Self.insert(trimmed, expectedPID: pid) {
+                            self.flash(.error("App mudou — texto copiado"))
+                        }
+                    case .none:
+                        Self.copy(trimmed)
+                        self.flash(.error("Sem destino — texto copiado"))
                     }
                 }
             } catch {
@@ -442,6 +465,11 @@ final class DictationController {
     }
 
     // MARK: - Inserção no cursor
+
+    private static func copy(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
 
     static func _clipboardSelfCheck() -> Bool {
         let pasteboard = NSPasteboard(name: .init("knobler.dictation.selfcheck"))

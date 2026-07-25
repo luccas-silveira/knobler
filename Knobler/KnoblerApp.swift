@@ -117,16 +117,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         dictation.onState = { [weak self] phase in
             self?.notches.values.forEach { $0.viewModel.dictation = phase }
         }
+        dictation.destinationProvider = { [weak self] in
+            if let id = self?.askStore?.state.active?.id {
+                return .ask(id: id)
+            }
+            guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier else {
+                return nil
+            }
+            return .application(pid: pid)
+        }
         volumeHUD.onRightOption = { [weak self] pressed in
             self?.dictation.rightOptionChanged(pressed)
         }
         dictation.start()
 
-        // ditado durante uma pergunta alimenta o campo do card, não o app ativo
-        dictation.transcriptSink = { [weak self] text in
-            guard let self else { return false }
-            guard self.askStore?.state.active != nil else { return false }
-            self.askStore?.send(.appendText(text))
+        dictation.transcriptSink = { [weak self] text, destination in
+            guard case .ask(let id) = destination,
+                  self?.askStore?.state.active?.id == id else {
+                return false
+            }
+            self?.askStore?.send(.appendText(id: id, text: text))
             return true
         }
 

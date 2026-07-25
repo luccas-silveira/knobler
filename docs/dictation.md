@@ -19,6 +19,10 @@ transcript bruto: tira fillers e falsos começos, arruma pontuação, acento e
 capitalização — sem inventar conteúdo. Se a formatação falhar por qualquer
 motivo, cai de volta pro transcript bruto (nunca perde o ditado).
 
+O Knobler fixa o destino quando a gravação começa. Se você trocar de aplicativo
+ou se a pergunta ativa mudar antes do fim da transcrição, ele não cola no lugar
+errado: deixa o texto no clipboard e mostra “texto copiado” no notch.
+
 ## Como usar
 
 - Segure ⌥ direita, fale, solte — o texto aparece onde o cursor estiver.
