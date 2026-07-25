@@ -258,8 +258,12 @@ final class DictationController {
     }
 
     func rightOptionChanged(_ pressed: Bool) {
-        guard AppSettings.shared.dictation else { return }
-        if pressed { begin() } else { finish() }
+        if pressed {
+            guard AppSettings.shared.dictation else { return }
+            begin()
+        } else if recording {
+            finish()
+        }
     }
 
     var diagnostics: [String: Any] {
