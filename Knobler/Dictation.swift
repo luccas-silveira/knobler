@@ -15,7 +15,7 @@ import FluidAudio
 
 // MARK: - Engines
 
-protocol TranscriptionEngine {
+protocol TranscriptionEngine: Sendable {
     func transcribe(_ samples: [Float]) async throws -> String
 }
 
@@ -50,7 +50,7 @@ actor ParakeetEngine: TranscriptionEngine {
 }
 
 /// Deepgram nova-3 (pre-recorded). PCM cru linear16/16kHz — sem container WAV.
-struct DeepgramEngine: TranscriptionEngine {
+struct DeepgramEngine: TranscriptionEngine, Sendable {
     let apiKey: String
 
     func transcribe(_ samples: [Float]) async throws -> String {
@@ -214,6 +214,7 @@ enum DictationDestination: Equatable {
     case application(pid: pid_t)
 }
 
+@MainActor
 final class DictationController {
     /// nil = pílula some. Chamado sempre na main queue.
     var onState: ((DictationPhase?) -> Void)?
@@ -305,12 +306,10 @@ final class DictationController {
         guard !preparing, !modelReady else { return }
         preparing = true
         Task { [weak self] in
-            try? await self?.parakeet.prepare()
-            let ready = await self?.parakeet.ready ?? false
-            DispatchQueue.main.async {
-                self?.modelReady = ready
-                self?.preparing = false
-            }
+            guard let self else { return }
+            try? await parakeet.prepare()
+            modelReady = await parakeet.ready
+            preparing = false
         }
     }
 
@@ -363,7 +362,7 @@ final class DictationController {
         }
         recording = true
         recorder.onLevel = { [weak self] level in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 guard self?.recording == true else { return }
                 self?.setState(.recording(level: level))
             }
@@ -416,32 +415,28 @@ final class DictationController {
                 if !raw.isEmpty, AppSettings.shared.formatTranscript {
                     text = (try? await self.formatter().format(raw)) ?? raw
                 }
-                DispatchQueue.main.async {
-                    self.transcribing = false
-                    self.setState(nil)
-                    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !trimmed.isEmpty else { return }
-                    switch destination {
-                    case .some(.ask(let id)):
-                        if self.transcriptSink?(trimmed, .ask(id: id)) != true {
-                            Self.copy(trimmed)
-                            self.flash(.error("Pergunta mudou — texto copiado"))
-                        }
-                    case .some(.application(let pid)):
-                        if !Self.insert(trimmed, expectedPID: pid) {
-                            self.flash(.error("App mudou — texto copiado"))
-                        }
-                    case .none:
+                self.transcribing = false
+                self.setState(nil)
+                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else { return }
+                switch destination {
+                case .some(.ask(let id)):
+                    if self.transcriptSink?(trimmed, .ask(id: id)) != true {
                         Self.copy(trimmed)
-                        self.flash(.error("Sem destino — texto copiado"))
+                        self.flash(.error("Pergunta mudou — texto copiado"))
                     }
+                case .some(.application(let pid)):
+                    if !Self.insert(trimmed, expectedPID: pid) {
+                        self.flash(.error("App mudou — texto copiado"))
+                    }
+                case .none:
+                    Self.copy(trimmed)
+                    self.flash(.error("Sem destino — texto copiado"))
                 }
             } catch {
                 NSLog("knobler ditado: %@", error.localizedDescription)
-                DispatchQueue.main.async {
-                    self.transcribing = false
-                    self.flash(.error("Falha na transcrição"))
-                }
+                self.transcribing = false
+                self.flash(.error("Falha na transcrição"))
             }
         }
     }
@@ -518,7 +513,7 @@ final class DictationController {
         expectedPID: pid_t?,
         pasteboard: NSPasteboard = .general,
         restoreDelay: TimeInterval = 0.5,
-        postPaste: () -> Void = postCommandV
+        postPaste: @MainActor () -> Void = postCommandV
     ) -> Bool {
         if let expectedPID,
            NSWorkspace.shared.frontmostApplication?.processIdentifier != expectedPID {
