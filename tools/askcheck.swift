@@ -19,20 +19,28 @@ struct AskCheck {
         testEnqueueAndFIFO()
         testNewQuestionStartsAtZero()
         testMultiSelectTogglesLabels()
+        testAppendText()
         testTextWinsLabels()
+        testInvalidSubmissionsAreNoOp()
         testPagedSubmissionPreservesPreviousAnswers()
         testLastPageResolvesAllAnswers()
         testCancellationIsIdempotent()
         testClearRemovesActiveOrQueuedRequest()
         testNextRequestIsPromoted()
+        testExternalDismiss()
 
         print("ask feature self-check ok")
     }
 
     // MARK: - Helpers
 
+    @discardableResult
     private static func send(_ action: AskAction, to state: inout AskState) -> [AskEffect] {
         AskReducer.reduce(state: &state, action: action)
+    }
+
+    private static func check(_ condition: @autoclosure () -> Bool, _ message: String) {
+        precondition(condition(), message)
     }
 
     private static func option(_ label: String) -> AskOption {
@@ -41,7 +49,7 @@ struct AskCheck {
 
     private static func request(
         id: String,
-        questions: [AskQuestion] = [],
+        questions: [AskQuestion] = [question("Pergunta")],
         source: String? = nil
     ) -> AskRequest {
         AskRequest(
@@ -77,14 +85,14 @@ struct AskCheck {
         send(.enqueue(second), to: &state)
         send(.enqueue(third), to: &state)
 
-        assert(state.active?.id == "first", "a primeira pergunta recebida fica ativa")
-        assert(state.queue.map(\.id) == ["second", "third"], "as perguntas seguintes entram em FIFO")
+        check(state.active?.id == "first", "a primeira pergunta recebida fica ativa")
+        check(state.queue.map(\.id) == ["second", "third"], "as perguntas seguintes entram em FIFO")
 
         // A mesma ID não pode duplicar nem a pergunta ativa nem a fila.
         send(.enqueue(first), to: &state)
         send(.enqueue(second), to: &state)
-        assert(state.active?.id == "first", "ID ativa duplicada não troca a pergunta")
-        assert(state.queue.map(\.id) == ["second", "third"], "ID enfileirada duplicada não cria cópia")
+        check(state.active?.id == "first", "ID ativa duplicada não troca a pergunta")
+        check(state.queue.map(\.id) == ["second", "third"], "ID enfileirada duplicada não cria cópia")
     }
 
     private static func testNewQuestionStartsAtZero() {
@@ -97,11 +105,11 @@ struct AskCheck {
         let incoming = request(id: "fresh", questions: [question("Nova")])
         send(.enqueue(incoming), to: &state)
 
-        assert(state.active == incoming, "a nova pergunta vira ativa")
-        assert(state.page == 0, "pergunta nova começa na página zero")
-        assert(state.selected.isEmpty, "promoção limpa a seleção anterior")
-        assert(state.answers.isEmpty, "promoção limpa as respostas anteriores")
-        assert(state.text.isEmpty, "promoção limpa o texto anterior")
+        check(state.active == incoming, "a nova pergunta vira ativa")
+        check(state.page == 0, "pergunta nova começa na página zero")
+        check(state.selected.isEmpty, "promoção limpa a seleção anterior")
+        check(state.answers.isEmpty, "promoção limpa as respostas anteriores")
+        check(state.text.isEmpty, "promoção limpa o texto anterior")
     }
 
     // MARK: - Invariantes de seleção e submissão
@@ -115,19 +123,32 @@ struct AskCheck {
         send(.enqueue(multi), to: &state)
 
         send(.toggle(label: "A"), to: &state)
-        assert(state.selected == ["A"], "multi-select adiciona o label")
+        check(state.selected == ["A"], "multi-select adiciona o label")
 
         send(.toggle(label: "B"), to: &state)
-        assert(state.selected == ["A", "B"], "multi-select permite vários labels")
+        check(state.selected == ["A", "B"], "multi-select permite vários labels")
 
         send(.toggle(label: "A"), to: &state)
-        assert(state.selected == ["B"], "multi-select alterna o label selecionado")
+        check(state.selected == ["B"], "multi-select alterna o label selecionado")
 
         // Uma pergunta simples não aceita toggle como se fosse multi-select.
         var singleState = AskState()
         send(.enqueue(request(id: "single", questions: [question("Escolha uma")])), to: &singleState)
         send(.toggle(label: "A"), to: &singleState)
-        assert(singleState.selected.isEmpty, "toggle não seleciona uma pergunta simples")
+        check(singleState.selected.isEmpty, "toggle não seleciona uma pergunta simples")
+    }
+
+    private static func testAppendText() {
+        var state = AskState()
+        send(.enqueue(request(id: "append", questions: [question("Texto")])), to: &state)
+
+        send(.appendText("primeiro"), to: &state)
+        send(.appendText("segundo"), to: &state)
+        check(state.text == "primeiro segundo", "appendText concatena trechos com espaço")
+
+        var emptyState = AskState()
+        send(.appendText("fora"), to: &emptyState)
+        check(emptyState.text.isEmpty, "appendText sem pergunta ativa é no-op")
     }
 
     private static func testTextWinsLabels() {
@@ -136,13 +157,59 @@ struct AskCheck {
         send(.enqueue(request(id: "text", questions: [question(title, multiSelect: true)])), to: &state)
 
         let effects = send(.submit(labels: ["A"], text: "Resposta digitada"), to: &state)
-        assert(effects.count == 1, "submissão textual produz um resolve")
+        check(effects.count == 1, "submissão textual produz um resolve")
         guard case .resolve(_, let answers) = effects[0] else {
-            assertionFailure("submissão textual deve produzir AskEffect.resolve")
-            return
+            preconditionFailure("submissão textual deve produzir AskEffect.resolve")
         }
-        assert(answers[title] == AskAnswer(labels: [], text: "Resposta digitada"),
-               "texto livre vence labels quando o card envia texto")
+        check(answers[title] == AskAnswer(labels: [], text: "Resposta digitada"),
+              "texto livre vence labels quando o card envia texto")
+
+        // Texto vazio não vence labels; nesse caso a resposta continua sendo
+        // a seleção válida feita no card.
+        var emptyTextState = AskState()
+        send(.enqueue(request(id: "empty-text", questions: [question("Labels")])), to: &emptyTextState)
+        let labelEffects = send(.submit(labels: ["A"], text: "   "), to: &emptyTextState)
+        check(labelEffects == [.resolve(id: "empty-text", answers: [
+            "Labels": AskAnswer(labels: ["A"], text: nil)
+        ])], "texto vazio não substitui labels válidos")
+    }
+
+    private static func testInvalidSubmissionsAreNoOp() {
+        let cases: [(String, [String], String?)] = [
+            ("resposta sem labels nem texto", [], nil),
+            ("texto vazio sem labels", [], ""),
+            ("texto em branco sem labels", [], " \n\t"),
+            ("label inexistente", ["desconhecida"], nil),
+            ("mais de um label em pergunta simples", ["A", "B"], nil),
+            ("mais de um label em pergunta simples com texto", ["A", "B"], "Resposta")
+        ]
+
+        for (description, labels, text) in cases {
+            var state = AskState()
+            send(.enqueue(request(id: "invalid", questions: [question("Inválida")])), to: &state)
+            let before = state
+
+            let effects = send(.submit(labels: labels, text: text), to: &state)
+            check(effects.isEmpty, "\(description) não produz efeitos")
+            check(state == before, "\(description) é no-op e preserva o estado")
+        }
+
+        // A mesma validação vale quando o texto está presente: labels
+        // desconhecidos continuam inválidos, mesmo que texto vença labels
+        // válidos.
+        var invalidWithText = AskState()
+        send(.enqueue(request(id: "invalid-text", questions: [question("Inválida com texto")])), to: &invalidWithText)
+        let before = invalidWithText
+        let effects = send(.submit(labels: ["desconhecida"], text: "Resposta"), to: &invalidWithText)
+        check(effects.isEmpty && invalidWithText == before,
+              "label inexistente mantém no-op mesmo com texto")
+
+        var multiState = AskState()
+        send(.enqueue(request(id: "multi-invalid", questions: [question("Multi inválida", multiSelect: true)])), to: &multiState)
+        let multiBefore = multiState
+        let multiEffects = send(.submit(labels: ["A", "desconhecida"], text: "Resposta"), to: &multiState)
+        check(multiEffects.isEmpty && multiState == multiBefore,
+              "label inexistente é no-op também em multi-select")
     }
 
     private static func testPagedSubmissionPreservesPreviousAnswers() {
@@ -156,12 +223,12 @@ struct AskCheck {
         send(.enqueue(paged), to: &state)
 
         let firstEffects = send(.submit(labels: ["A"], text: nil), to: &state)
-        assert(firstEffects.isEmpty, "página intermediária ainda não resolve o Ask")
-        assert(state.page == 1, "submissão intermediária avança uma página")
-        assert(state.answers[firstTitle] == AskAnswer(labels: ["A"], text: nil),
-               "submissão intermediária preserva a resposta anterior")
-        assert(state.selected.isEmpty && state.text.isEmpty,
-               "submissão intermediária limpa apenas o input corrente")
+        check(firstEffects.isEmpty, "página intermediária ainda não resolve o Ask")
+        check(state.page == 1, "submissão intermediária avança uma página")
+        check(state.answers[firstTitle] == AskAnswer(labels: ["A"], text: nil),
+              "submissão intermediária preserva a resposta anterior")
+        check(state.selected.isEmpty && state.text.isEmpty,
+              "submissão intermediária limpa apenas o input corrente")
     }
 
     private static func testLastPageResolvesAllAnswers() {
@@ -180,12 +247,12 @@ struct AskCheck {
             firstTitle: AskAnswer(labels: ["A"], text: nil),
             secondTitle: AskAnswer(labels: ["B"], text: nil)
         ]
-        assert(effects == [.resolve(id: "resolve-all", answers: expected)],
-               "última página produz todas as respostas")
-        assert(state.active == nil, "resolve limpa a pergunta ativa")
+        check(effects == [.resolve(id: "resolve-all", answers: expected)],
+              "última página produz todas as respostas")
+        check(state.active == nil, "resolve limpa a pergunta ativa")
 
         let repeated = send(.submit(labels: ["B"], text: nil), to: &state)
-        assert(repeated.isEmpty, "resposta repetida depois de resolve é no-op")
+        check(repeated.isEmpty, "resposta repetida depois de resolve é no-op")
     }
 
     // MARK: - Invariantes de conclusão e limpeza
@@ -195,15 +262,15 @@ struct AskCheck {
         send(.enqueue(request(id: "cancel", questions: [question("Cancelar")])), to: &state)
 
         let first = send(.cancelActive, to: &state)
-        assert(first == [.cancel(id: "cancel")], "cancelamento emite um único efeito cancel")
-        assert(state.active == nil, "cancelamento limpa a pergunta ativa")
+        check(first == [.cancel(id: "cancel")], "cancelamento emite um único efeito cancel")
+        check(state.active == nil, "cancelamento limpa a pergunta ativa")
 
         let second = send(.cancelActive, to: &state)
-        assert(second.isEmpty, "cancelamento repetido é no-op")
+        check(second.isEmpty, "cancelamento repetido é no-op")
 
         // Uma submissão depois de concluir também não pode emitir resposta de novo.
         let repeatedSubmit = send(.submit(labels: ["A"], text: nil), to: &state)
-        assert(repeatedSubmit.isEmpty, "resposta repetida sem pergunta ativa é no-op")
+        check(repeatedSubmit.isEmpty, "resposta repetida sem pergunta ativa é no-op")
     }
 
     private static func testClearRemovesActiveOrQueuedRequest() {
@@ -216,13 +283,13 @@ struct AskCheck {
         send(.enqueue(remaining), to: &state)
 
         let queuedClearEffects = send(.clear(id: "queued"), to: &state)
-        assert(queuedClearEffects.isEmpty, "clear de pergunta enfileirada não emite efeito")
-        assert(state.queue.map(\.id) == ["remaining"], "clear remove uma pergunta enfileirada")
+        check(queuedClearEffects.isEmpty, "clear de pergunta enfileirada não emite efeito")
+        check(state.queue.map(\.id) == ["remaining"], "clear remove uma pergunta enfileirada")
 
         let activeClearEffects = send(.clear(id: "active"), to: &state)
-        assert(activeClearEffects.isEmpty, "clear da pergunta ativa não emite efeito")
-        assert(state.active?.id == "remaining", "clear remove a ativa e promove a próxima")
-        assert(state.queue.isEmpty, "a fila fica vazia após promover a única pendente")
+        check(activeClearEffects.isEmpty, "clear da pergunta ativa não emite efeito")
+        check(state.active?.id == "remaining", "clear remove a ativa e promove a próxima")
+        check(state.queue.isEmpty, "a fila fica vazia após promover a única pendente")
     }
 
     private static func testNextRequestIsPromoted() {
@@ -232,9 +299,33 @@ struct AskCheck {
         send(.enqueue(first), to: &state)
         send(.enqueue(second), to: &state)
 
+        state.page = 3
+        state.selected = ["resíduo"]
+        state.answers = ["antiga": AskAnswer(labels: ["A"], text: nil)]
+        state.text = "texto residual"
+
         let effects = send(.cancelActive, to: &state)
-        assert(effects == [.cancel(id: "one")], "conclusão da ativa emite o efeito correto")
-        assert(state.active?.id == "two", "a próxima pergunta é promovida após concluir a atual")
-        assert(state.page == 0, "a pergunta promovida começa na página zero")
+        check(effects == [.cancel(id: "one")], "conclusão da ativa emite o efeito correto")
+        check(state.active?.id == "two", "a próxima pergunta é promovida após concluir a atual")
+        check(state.page == 0, "a pergunta promovida começa na página zero")
+        check(state.selected.isEmpty, "promoção limpa a seleção residual")
+        check(state.answers.isEmpty, "promoção limpa as respostas residuais")
+        check(state.text.isEmpty, "promoção limpa o texto residual")
+    }
+
+    private static func testExternalDismiss() {
+        var state = AskState()
+        send(.enqueue(request(id: "active")), to: &state)
+        send(.enqueue(request(id: "queued")), to: &state)
+
+        let activeEffects = send(.externalDismiss(id: "active"), to: &state)
+        check(activeEffects.isEmpty, "dismiss externo não emite efeito")
+        check(state.active?.id == "queued", "dismiss externo promove a próxima pergunta")
+
+        send(.externalDismiss(id: "queued"), to: &state)
+        check(state.active == nil && state.queue.isEmpty,
+              "dismiss externo remove a pergunta ativa")
+        check(send(.externalDismiss(id: "missing"), to: &state).isEmpty,
+              "dismiss externo de ID inexistente é no-op")
     }
 }

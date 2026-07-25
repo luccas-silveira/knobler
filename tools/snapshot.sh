@@ -10,6 +10,8 @@ swiftc -O -o build/snapshot \
   Knobler/AirPodsBattery.swift \
   Knobler/Pomodoro.swift \
   Knobler/Ask.swift \
+  Knobler/AskModels.swift \
+  Knobler/AskFeature.swift \
   Knobler/MediaController.swift \
   Knobler/MediaRemoteSource.swift \
   Knobler/AudioLevelTap.swift \
