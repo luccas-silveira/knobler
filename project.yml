@@ -11,6 +11,7 @@ targets:
     type: application
     platform: macOS
     sources:
+      # Includes AgentRequestModels.swift and AgentRequestStore.swift.
       - Knobler
       # script que o MediaRemoteSource roda via /usr/bin/perl (now playing universal)
       - path: Vendor/mediaremote-adapter.pl
