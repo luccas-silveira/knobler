@@ -22,6 +22,7 @@ enum KnoblerMain {
         if CommandLine.arguments.contains("--selfcheck") {
             let ok = MicRecorder.exceptionGuardWorks()
                 && DictationController._clipboardSelfCheck()
+                && DictationController._flashSelfCheck()
             print(ok ? "selfcheck: dictation OK" : "selfcheck: FALHOU")
             exit(ok ? 0 : 1)
         }

@@ -208,7 +208,18 @@ final class DictationController {
     private var recording = false
     private var transcribing = false
     private var preparing = false
+    private var flashWorkItem: DispatchWorkItem?
     private(set) var modelReady = false
+
+    static func _flashSelfCheck() -> Bool {
+        let controller = DictationController()
+        var states: [DictationPhase?] = []
+        controller.onState = { states.append($0) }
+        controller.flash(.preparing, duration: 0.01)
+        controller.setState(.recording(level: 0))
+        RunLoop.main.run(until: Date().addingTimeInterval(0.03))
+        return states.last! == .recording(level: 0)
+    }
 
     /// Pré-aquece o modelo local e dispara o prompt de microfone no launch —
     /// o primeiro ditado não pode esperar 600MB de download.
@@ -293,10 +304,10 @@ final class DictationController {
         recorder.onLevel = { [weak self] level in
             DispatchQueue.main.async {
                 guard self?.recording == true else { return }
-                self?.onState?(.recording(level: level))
+                self?.setState(.recording(level: level))
             }
         }
-        onState?(.recording(level: 0))
+        setState(.recording(level: 0))
         // outra tecla durante o hold = combo ⌥+tecla de verdade → cancela e
         // deixa o evento passar; Esc (53) também cai aqui
         keyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) {
@@ -310,7 +321,7 @@ final class DictationController {
         recording = false
         _ = recorder.stop()
         removeKeyMonitor()
-        onState?(nil)
+        setState(nil)
     }
 
     private func finish() {
@@ -320,11 +331,11 @@ final class DictationController {
         let samples = recorder.stop()
         // toque acidental: menos de 0,5s de áudio não vira transcrição
         guard samples.count >= Int(MicRecorder.sampleRate / 2) else {
-            onState?(nil)
+            setState(nil)
             return
         }
         transcribing = true
-        onState?(.transcribing)
+        setState(.transcribing)
         Task { [weak self] in
             guard let self else { return }
             do {
@@ -336,7 +347,7 @@ final class DictationController {
                 }
                 DispatchQueue.main.async {
                     self.transcribing = false
-                    self.onState?(nil)
+                    self.setState(nil)
                     let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
                     if !trimmed.isEmpty, self.transcriptSink?(trimmed) != true {
                         Self.insert(trimmed, expectedPID: nil)
@@ -365,12 +376,23 @@ final class DictationController {
         keyMonitor = nil
     }
 
-    /// Pílula de aviso por 2s (erro, modelo baixando).
-    private func flash(_ phase: DictationPhase) {
+    private func setState(_ phase: DictationPhase?) {
+        flashWorkItem?.cancel()
+        flashWorkItem = nil
         onState?(phase)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-            self?.onState?(nil)
+    }
+
+    /// Pílula de aviso por 2s (erro, modelo baixando).
+    private func flash(_ phase: DictationPhase, duration: TimeInterval = 2) {
+        flashWorkItem?.cancel()
+        onState?(phase)
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.flashWorkItem = nil
+            self.onState?(nil)
         }
+        flashWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: work)
     }
 
     // MARK: - Inserção no cursor
