@@ -8,6 +8,7 @@ import SwiftUI
 struct NotchView: View {
     @ObservedObject var vm: NotchViewModel
     let askStore: AskStore
+    @ObservedObject var agentRequestStore: AgentRequestStore
     @ObservedObject var media: MediaController
     // NÃO observado aqui: os níveis publicam a 30Hz e re-renderizariam o notch
     // inteiro em cada monitor — só o AudioBarsView (folha) observa
@@ -17,17 +18,21 @@ struct NotchView: View {
     /// false no harness de snapshot: onDrop cria uma NSView que o ImageRenderer
     /// não renderiza (vira placeholder amarelo). No app fica sempre true.
     var dropTargetsEnabled = true
+    /// Só o harness usa isso para capturar o estado expandido sem automação.
+    var agentRequestInitiallyExpanded = false
     var onKeyboardEligibilityChanged: ((Bool) -> Void)?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var agentRequestExpanded = false
 
     /// A prioridade Ask é derivada do store compartilhado; o VM fornece apenas
     /// o modo dos demais subsistemas visuais.
     private var mode: NotchViewModel.Mode {
-        askStore.state.active == nil ? vm.mode : .question
+        askStore.state.active == nil && agentRequestStore.state.active == nil ? vm.mode : .question
     }
 
     private var keyboardAllowed: Bool {
         askStore.state.active != nil
+            || agentRequestStore.state.active != nil
             || vm.incoming?.allowReply == true
             || (vm.tab == .messages && vm.expanded)
     }
@@ -172,9 +177,17 @@ struct NotchView: View {
         .animation(morphAnimation, value: wingsVisible)
         .animation(morphAnimation, value: vm.micInUse)
         .animation(morphAnimation, value: askStore.state.active?.id)
+        .animation(morphAnimation, value: agentRequestStore.state.active?.id)
         .animation(morphAnimation, value: askStore.state.page)
-        .onAppear { notifyKeyboardEligibility() }
+        .onAppear {
+            agentRequestExpanded = agentRequestInitiallyExpanded
+            notifyKeyboardEligibility()
+        }
         .onChange(of: askStore.state.active?.id) { _, _ in notifyKeyboardEligibility() }
+        .onChange(of: agentRequestStore.state.active?.id) { _, _ in
+            agentRequestExpanded = false
+            notifyKeyboardEligibility()
+        }
         .onChange(of: vm.incoming?.allowReply) { _, _ in notifyKeyboardEligibility() }
         .onChange(of: vm.tab) { _, _ in notifyKeyboardEligibility() }
         .onChange(of: vm.expanded) { _, _ in notifyKeyboardEligibility() }
@@ -236,6 +249,11 @@ struct NotchView: View {
         case .airpods:
             return CGSize(width: 320, height: topInset + 64)
         case .question:
+            if let request = agentRequestStore.state.active, askStore.state.active == nil {
+                let detailsHeight: CGFloat = agentRequestExpanded && request.details?.isEmpty == false
+                    ? 144 : 0
+                return CGSize(width: 460, height: topInset + 116 + detailsHeight)
+            }
             guard let ask = askStore.state.active else {
                 return CGSize(width: 460, height: topInset + 120)
             }
@@ -475,6 +493,17 @@ struct NotchView: View {
                 .frame(width: currentSize.width - 40)
                 .padding(.top, topInset + 6)
                 .padding(.bottom, 12)
+        } else if let request = agentRequestStore.state.active {
+            AgentRequestCard(
+                request: request, store: agentRequestStore,
+                expanded: $agentRequestExpanded,
+                // ImageRenderer não desenha Text selecionável no harness.
+                detailsSelectable: dropTargetsEnabled
+            )
+            .frame(width: currentSize.width - 40)
+            .padding(.top, topInset + 6)
+            .padding(.bottom, 12)
+            .id(request.id)
         }
     }
 

@@ -362,6 +362,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             status["micInUse"] = self?.micMonitor.isRunning ?? false
             status["notches"] = (self?.notches ?? [:]).map { id, notch in
                 let mode: NotchViewModel.Mode = self?.askStore?.state.active != nil
+                    || self?.agentRequestStore?.state.active != nil
                     ? .question : notch.viewModel.mode
                 return [
                     "display": Int(id),
@@ -662,7 +663,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // ponytail: janela sempre no tamanho expandido máximo; o SwiftUI desenha só o
     // necessário. Redimensionar NSWindow durante animação é fonte de jank.
     private func placeWindows() {
-        guard let askStore else { return }
+        guard let askStore, let agentRequestStore else { return }
         var seen = Set<CGDirectDisplayID>()
 
         for screen in NSScreen.screens {
@@ -682,7 +683,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 )
                 panel.contentView = NSHostingView(
                     rootView: NotchView(
-                        vm: viewModel, askStore: askStore,
+                        vm: viewModel, askStore: askStore, agentRequestStore: agentRequestStore,
                         media: media, levels: audioLevels, shelf: shelf,
                         onKeyboardEligibilityChanged: { [weak panel] active in
                             panel?.allowsKeyboard = active

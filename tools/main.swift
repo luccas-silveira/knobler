@@ -46,6 +46,28 @@ struct Scenario {
     let name: String
     let realNotch: Bool
     let configure: @MainActor (NotchViewModel, MediaController, AskStore) -> Void
+    let agentRequest: AgentRequest?
+    let agentRequestExpanded: Bool
+    let resolveAgentRequest: (AgentRequestAction, AgentRequestResponder)?
+    let frameHeight: CGFloat
+
+    init(
+        name: String,
+        realNotch: Bool,
+        agentRequest: AgentRequest? = nil,
+        agentRequestExpanded: Bool = false,
+        resolveAgentRequest: (AgentRequestAction, AgentRequestResponder)? = nil,
+        frameHeight: CGFloat = 240,
+        configure: @escaping @MainActor (NotchViewModel, MediaController, AskStore) -> Void
+    ) {
+        self.name = name
+        self.realNotch = realNotch
+        self.agentRequest = agentRequest
+        self.agentRequestExpanded = agentRequestExpanded
+        self.resolveAgentRequest = resolveAgentRequest
+        self.frameHeight = frameHeight
+        self.configure = configure
+    }
 }
 
 // prateleira do cenário corrente (recriada por cenário no loop)
@@ -214,6 +236,46 @@ let scenarios: [Scenario] = [
         // O cenário permanece na página 1 por uma transição de domínio real.
         askStore.send(.submit(labels: ["A"], text: nil))
     },
+    Scenario(
+        name: "agent-permission-compact", realNotch: true,
+        agentRequest: AgentRequest(
+            id: "permission-compact", agent: .claude, kind: .permission,
+            title: "Permissão de comando",
+            summary: "Executar git status para conferir as alterações locais antes de preparar a revisão.",
+            details: "command: git status --short\ncwd: /Users/luccassilveira/Desktop/Projetos/knobler",
+            source: .terminal, actions: [.allow, .deny]
+        )
+    ) { _, _, _ in },
+    Scenario(
+        name: "agent-permission-expanded", realNotch: true,
+        agentRequest: AgentRequest(
+            id: "permission-expanded", agent: .codex, kind: .permission,
+            title: "Aplicar alteração de arquivo",
+            summary: "O agente quer atualizar o painel do notch com o card de aprovação.",
+            details: "path: Knobler/NotchView.swift\n--- a/Knobler/NotchView.swift\n+++ b/Knobler/NotchView.swift\n+ AgentRequestCard(request: request)",
+            source: .cli, actions: [.allow, .allowForSession, .deny]
+        ),
+        agentRequestExpanded: true,
+        frameHeight: 360
+    ) { _, _, _ in },
+    Scenario(
+        name: "agent-question", realNotch: true,
+        agentRequest: AgentRequest(
+            id: "question", agent: .claude, kind: .question,
+            title: "Escolha uma abordagem",
+            summary: "Como o agente deve continuar com a integração?",
+            source: .ide, actions: [.option("Manter o fluxo atual"), .option("Usar a ponte local")]
+        )
+    ) { _, _, _ in },
+    Scenario(
+        name: "agent-request-race", realNotch: true,
+        agentRequest: AgentRequest(
+            id: "race", agent: .codex, kind: .permission,
+            title: "Corrida de resolução", summary: "A resposta externa chegou primeiro.",
+            source: .cli, actions: [.allow, .deny]
+        ),
+        resolveAgentRequest: (.deny, .terminal)
+    ) { _, _, _ in },
     Scenario(name: "pomodoro-focus", realNotch: true) { vm, _, _ in
         vm.pomodoro = PomodoroState(phase: .focus, runState: .running, remaining: 23 * 60 + 14, completedFocus: 1, cyclesUntilLong: 4)
     },
@@ -286,12 +348,21 @@ for scenario in scenarios {
         resolve: { _, _ in },
         cancel: { _ in }
     ))
+    let agentRequestStore = AgentRequestStore(
+        resolveRemote: { _, _ in }, dismissRemote: { _ in }
+    )
     media.injectPreview(state: nil, artwork: nil)
     vm.hasRealNotch = scenario.realNotch
     vm.notchSize = scenario.realNotch
         ? CGSize(width: 200, height: 32)
         : CGSize(width: 190, height: 30)
     scenario.configure(vm, media, askStore)
+    if let request = scenario.agentRequest {
+        agentRequestStore.send(.enqueue(request))
+        if let result = scenario.resolveAgentRequest {
+            agentRequestStore.send(.resolve(id: request.id, action: result.0, responder: result.1))
+        }
+    }
 
     // wallpaper claro atrás: revela a silhueta e as bordas da forma
     let view = ZStack(alignment: .top) {
@@ -301,10 +372,12 @@ for scenario in scenarios {
             startPoint: .topLeading, endPoint: .bottomTrailing
         )
         NotchView(
-            vm: vm, askStore: askStore, media: media, levels: SystemAudioLevels(),
-            shelf: currentShelf, dropTargetsEnabled: false)
+            vm: vm, askStore: askStore, agentRequestStore: agentRequestStore,
+            media: media, levels: SystemAudioLevels(), shelf: currentShelf,
+            dropTargetsEnabled: false,
+            agentRequestInitiallyExpanded: scenario.agentRequestExpanded)
     }
-    .frame(width: 560, height: 240)
+    .frame(width: 560, height: scenario.frameHeight)
 
     let renderer = ImageRenderer(content: view)
     renderer.scale = 2
@@ -334,6 +407,9 @@ for scenario in scenarios {
         resolve: { _, _ in },
         cancel: { _ in }
     ))
+    let agentRequestStore = AgentRequestStore(
+        resolveRemote: { _, _ in }, dismissRemote: { _ in }
+    )
     media.injectPreview(state: nil, artwork: nil)
     let lan = LANMessaging()
     let store = MessageStore()
@@ -349,8 +425,10 @@ for scenario in scenarios {
                      Color(red: 0.90, green: 0.86, blue: 0.80)],
             startPoint: .topLeading, endPoint: .bottomTrailing
         )
-    NotchView(vm: vm, askStore: askStore, media: media, levels: SystemAudioLevels(),
-                  shelf: currentShelf, dropTargetsEnabled: false)
+    NotchView(
+        vm: vm, askStore: askStore, agentRequestStore: agentRequestStore,
+        media: media, levels: SystemAudioLevels(), shelf: currentShelf,
+        dropTargetsEnabled: false)
             .environmentObject(lan)
             .environmentObject(store)
     }
