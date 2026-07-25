@@ -142,7 +142,12 @@ final class MicRecorder {
             }
         }
         engine.prepare()
-        try engine.start()
+        do {
+            try engine.start()
+        } catch {
+            cleanup()
+            throw error
+        }
     }
 
     /// Prova que o shim ObjC captura NSException (determinístico, independe do
@@ -187,10 +192,14 @@ final class MicRecorder {
         onLevel?(min(1, rms * 12))
     }
 
-    func stop() -> [Float] {
+    private func cleanup() {
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
         converter = nil
+    }
+
+    func stop() -> [Float] {
+        cleanup()
         samplesLock.lock()
         let captured = samples
         samplesLock.unlock()
