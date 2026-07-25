@@ -5,6 +5,7 @@
 #   knobler activity <id> <progress 0-100 | -> "Título" ["detalhe"]   (- = indeterminado)
 #   knobler done <id>
 #   knobler ask "Pergunta?" "Opção A" "Opção B" [...]   (espera e imprime a resposta)
+#   knobler agent-request publish '<json>' | wait <id> | resolve <id> <action> [value]
 #
 # Sai com erro silencioso-legível se o app não estiver rodando — seguro pra
 # usar em scripts de deploy sem quebrá-los (use `|| true` se preferir).
@@ -18,6 +19,23 @@ post() { # $1=path $2=json
         || { echo "knobler: API indisponível (Knobler aberto? Ajustes → API local)" >&2; exit 1; }
 }
 esc() { python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$1"; }
+agent_token() {
+    local token_file="${KNOBLER_AGENT_REQUEST_TOKEN:-$HOME/Library/Application Support/Knobler/agent-request-token}"
+    [ -r "$token_file" ] || { echo "knobler: token de solicitações indisponível (Knobler aberto?)" >&2; exit 1; }
+    AGENT_TOKEN="$(<"$token_file")"
+    [ -n "$AGENT_TOKEN" ] || { echo "knobler: token de solicitações inválido" >&2; exit 1; }
+}
+agent_request() { # $1=method $2=path [$3=json]
+    local method="$1" path="$2" body="${3:-}"
+    agent_token
+    if [ -n "$body" ]; then
+        curl -sf -m 2 -X "$method" -H "Authorization: Bearer $AGENT_TOKEN" \
+            --data-binary "$body" "http://127.0.0.1:$PORT$path"
+    else
+        curl -sf -m 2 -X "$method" -H "Authorization: Bearer $AGENT_TOKEN" \
+            "http://127.0.0.1:$PORT$path"
+    fi
+}
 
 case "$cmd" in
 notify)
@@ -56,8 +74,54 @@ print(json.dumps([{"label": a, "description": ""} for a in sys.argv[1:]]))' "$@"
         sleep 0.3
     done
     ;;
+agent-request)
+    subcommand="${1:-}"
+    shift 2>/dev/null || true
+    case "$subcommand" in
+    publish)
+        payload="${1:?uso: knobler agent-request publish '<json>'}"
+        agent_request POST /agent-requests "$payload" >/dev/null \
+            || { echo "knobler: não publicou a solicitação" >&2; exit 1; }
+        ;;
+    wait)
+        id="${1:?uso: knobler agent-request wait <id>}"
+        while :; do
+            state="$(agent_request GET "/agent-requests/$id")" \
+                || { echo "knobler: API caiu no meio" >&2; exit 1; }
+            case "$state" in
+            *'"state":"resolved"'* | *'"state":"dismissed"'* | *'"state":"expired"'*)
+                echo "$state"
+                exit 0
+                ;;
+            esac
+            sleep 0.3
+        done
+        ;;
+    resolve)
+        id="${1:?uso: knobler agent-request resolve <id> <action> [value]}"
+        action="${2:?falta action}"
+        value="${3:-}"
+        case "$action" in
+        allow|allowForSession|deny|cancel)
+            [ -z "$value" ] || { echo "knobler: $action não aceita value" >&2; exit 2; }
+            payload="{\"action\":$(esc "$action")}" ;;
+        option|text)
+            [ -n "$value" ] || { echo "knobler: $action precisa de value" >&2; exit 2; }
+            payload="{\"action\":$(esc "$action"),\"value\":$(esc "$value")}" ;;
+        *)
+            echo "knobler: action inválida" >&2; exit 2 ;;
+        esac
+        agent_request POST "/agent-requests/$id/resolve" "$payload" >/dev/null \
+            || { echo "knobler: não resolveu a solicitação" >&2; exit 1; }
+        ;;
+    *)
+        echo "uso: knobler agent-request publish '<json>' | wait <id> | resolve <id> <action> [value]" >&2
+        exit 2
+        ;;
+    esac
+    ;;
 *)
-    sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
     exit 2
     ;;
 esac

@@ -5,6 +5,7 @@
 
 import AppKit
 import Combine
+import Security
 import SwiftUI
 
 @main
@@ -49,9 +50,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let battery = BatteryMonitor()
     private let bluetooth = BluetoothMonitor()
     private let micMonitor = MicMonitor()
-    private let apiServer = NotchAPIServer()
+    private let agentRequestToken = AppDelegate.makeAgentRequestToken()
+    private lazy var apiServer = NotchAPIServer(agentRequestToken: agentRequestToken)
     // Única fonte de estado da feature Ask, compartilhada por todas as telas.
     private var askStore: AskStore?
+    private var agentRequestStore: AgentRequestStore?
     let webhookClient = WebhookClient()
     let messageStore = MessageStore()
     let lanMessaging = LANMessaging()
@@ -95,6 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         configureAskFeature()
+        configureAgentRequestFeature()
         observeAskLifecycle()
 
         setupStatusItem()
@@ -369,6 +373,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             status["dictation"] = self?.dictation.diagnostics ?? [:]
             status["ask"] = self?.apiServer.askDiagnostics ?? [:]
+            status["agentRequests"] = self?.apiServer.agentRequestDiagnostics ?? [:]
             status["lanMessaging"] = self?.lanMessaging.diagnostics ?? [:]
             return status
         }
@@ -465,6 +470,60 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 else { return }
                 self.askStore?.send(.externalDismiss(id: id))
             }
+        }
+    }
+
+    /// Cria o segredo da sessão antes de o listener aceitar conexões. Ele não
+    /// vai para defaults, logs ou saída do CLI; adaptadores locais leem o arquivo.
+    private static func makeAgentRequestToken() -> String? {
+        var bytes = [UInt8](repeating: 0, count: 32)
+        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
+            NSLog("knobler api: não gerou token de solicitações")
+            return nil
+        }
+        let token = Data(bytes).base64EncodedString()
+        do {
+            let manager = FileManager.default
+            let support = try manager.url(
+                for: .applicationSupportDirectory, in: .userDomainMask,
+                appropriateFor: nil, create: true
+            ).appendingPathComponent("Knobler", isDirectory: true)
+            try manager.createDirectory(
+                at: support, withIntermediateDirectories: true,
+                attributes: [.posixPermissions: 0o700]
+            )
+            let tokenURL = support.appendingPathComponent("agent-request-token")
+            try Data(token.utf8).write(to: tokenURL, options: .atomic)
+            try manager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: tokenURL.path)
+            return token
+        } catch {
+            NSLog("knobler api: não gravou token de solicitações: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    /// Espelha o domínio autenticado no store compartilhado. O servidor é a
+    /// autoridade para a corrida; o reducer só apresenta o vencedor.
+    private func configureAgentRequestFeature() {
+        guard agentRequestStore == nil else { return }
+        let server = apiServer
+        agentRequestStore = AgentRequestStore(
+            resolveRemote: { [weak server] id, action in
+                _ = server?.resolveAgentRequest(id: id, action: action, responder: .nob)
+            },
+            dismissRemote: { [weak server] id in
+                _ = server?.dismissAgentRequest(id: id, responder: .nob)
+            }
+        )
+        apiServer.onAgentRequest = { [weak self] request in
+            guard AppSettings.shared.localAPI else { return }
+            self?.agentRequestStore?.send(.enqueue(request))
+        }
+        apiServer.onAgentRequestResolved = { [weak self] id, action, responder in
+            self?.agentRequestStore?.send(.resolve(id: id, action: action, responder: responder))
+        }
+        apiServer.onAgentRequestExpired = { [weak self] id in
+            self?.agentRequestStore?.send(.expire(id: id))
         }
     }
 
