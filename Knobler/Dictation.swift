@@ -223,6 +223,15 @@ final class DictationController {
         return states == [.preparing, .recording(level: 0)]
     }
 
+    static func _enginePolicySelfCheck() -> Bool {
+        Self.shouldPrepareLocalEngine(cloud: false)
+            && !Self.shouldPrepareLocalEngine(cloud: true)
+    }
+
+    static func shouldPrepareLocalEngine(cloud: Bool) -> Bool {
+        !cloud
+    }
+
     /// Pré-aquece o modelo local e dispara o prompt de microfone no launch —
     /// o primeiro ditado não pode esperar 600MB de download.
     func start() {
@@ -239,7 +248,9 @@ final class DictationController {
             }
         }
         AVCaptureDevice.requestAccess(for: .audio) { _ in }
-        prepareLocalEngine()
+        if Self.shouldPrepareLocalEngine(cloud: AppSettings.shared.dictationCloud) {
+            prepareLocalEngine()
+        }
         #if DEBUG
         TranscriptFormatter._selfCheck()
         assert(MicRecorder.exceptionGuardWorks(), "shim ObjC não captura NSException")
