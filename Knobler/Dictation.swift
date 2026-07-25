@@ -209,6 +209,7 @@ final class DictationController {
     private var transcribing = false
     private var preparing = false
     private var flashWorkItem: DispatchWorkItem?
+    private var flashGeneration: UInt64 = 0
     private(set) var modelReady = false
 
     static func _flashSelfCheck() -> Bool {
@@ -380,16 +381,18 @@ final class DictationController {
     private func setState(_ phase: DictationPhase?) {
         flashWorkItem?.cancel()
         flashWorkItem = nil
+        flashGeneration &+= 1
         onState?(phase)
     }
 
     /// Pílula de aviso por 2s (erro, modelo baixando).
     private func flash(_ phase: DictationPhase, duration: TimeInterval = 2) {
         flashWorkItem?.cancel()
+        flashGeneration &+= 1
+        let generation = flashGeneration
         onState?(phase)
-        var work: DispatchWorkItem!
-        work = DispatchWorkItem { [weak self] in
-            guard !work.isCancelled, let self, self.flashWorkItem === work else { return }
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, self.flashGeneration == generation else { return }
             self.flashWorkItem = nil
             self.onState?(nil)
         }
