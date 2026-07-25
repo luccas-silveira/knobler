@@ -23,7 +23,7 @@ enum AskAction: Equatable {
     case toggle(label: String)
     case submit(labels: [String], text: String?)
     case setText(String)
-    case appendText(String)
+    case appendText(id: String, text: String)
     case cancelActive
     case resolve(id: String, answers: [String: AskAnswer])
     case cancel(id: String)
@@ -110,8 +110,8 @@ enum AskReducer {
             finishActive(in: &state)
             return [.resolve(id: id, answers: answers)]
 
-        case .appendText(let appended):
-            guard state.active != nil, !appended.isEmpty else { return [] }
+        case .appendText(let id, let appended):
+            guard state.active?.id == id, !appended.isEmpty else { return [] }
             state.text = state.text.isEmpty ? appended : state.text + " " + appended
             return []
 

@@ -15,8 +15,14 @@ import FluidAudio
 
 // MARK: - Engines
 
-protocol TranscriptionEngine {
+protocol TranscriptionEngine: Sendable {
     func transcribe(_ samples: [Float]) async throws -> String
+}
+
+enum TranscriptionSelection: Equatable {
+    case local
+    case deepgram(apiKey: String)
+    case missingDeepgramKey
 }
 
 /// Parakeet TDT v3 (multilíngue) em CoreML no Neural Engine.
@@ -44,7 +50,7 @@ actor ParakeetEngine: TranscriptionEngine {
 }
 
 /// Deepgram nova-3 (pre-recorded). PCM cru linear16/16kHz — sem container WAV.
-struct DeepgramEngine: TranscriptionEngine {
+struct DeepgramEngine: TranscriptionEngine, Sendable {
     let apiKey: String
 
     func transcribe(_ samples: [Float]) async throws -> String {
@@ -136,7 +142,12 @@ final class MicRecorder {
             }
         }
         engine.prepare()
-        try engine.start()
+        do {
+            try engine.start()
+        } catch {
+            cleanup()
+            throw error
+        }
     }
 
     /// Prova que o shim ObjC captura NSException (determinístico, independe do
@@ -181,10 +192,14 @@ final class MicRecorder {
         onLevel?(min(1, rms * 12))
     }
 
-    func stop() -> [Float] {
+    private func cleanup() {
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
         converter = nil
+    }
+
+    func stop() -> [Float] {
+        cleanup()
         samplesLock.lock()
         let captured = samples
         samplesLock.unlock()
@@ -194,13 +209,19 @@ final class MicRecorder {
 
 // MARK: - Controller
 
+enum DictationDestination: Equatable {
+    case ask(id: String)
+    case application(pid: pid_t)
+}
+
+@MainActor
 final class DictationController {
     /// nil = pílula some. Chamado sempre na main queue.
     var onState: ((DictationPhase?) -> Void)?
 
-    /// Desvio da transcrição: retorna true se alguém consumiu o texto
-    /// (card de pergunta na tela) — aí NÃO cola no app ativo.
-    var transcriptSink: ((String) -> Bool)?
+    var destinationProvider: (() -> DictationDestination?)?
+    /// Retorna true se o destino Ask capturado ainda consumiu o texto.
+    var transcriptSink: ((String, DictationDestination) -> Bool)?
 
     private let recorder = MicRecorder()
     private let parakeet = ParakeetEngine()
@@ -208,7 +229,42 @@ final class DictationController {
     private var recording = false
     private var transcribing = false
     private var preparing = false
+    private var recordingEngine: (any TranscriptionEngine)?
+    private var recordingDestination: DictationDestination?
+    private var flashWorkItem: DispatchWorkItem?
+    private var flashGeneration: UInt64 = 0
     private(set) var modelReady = false
+
+    static func _flashSelfCheck() -> Bool {
+        let controller = DictationController()
+        var states: [DictationPhase?] = []
+        controller.onState = { states.append($0) }
+        controller.flash(.preparing, duration: 60)
+        guard let work = controller.flashWorkItem else { return false }
+        controller.setState(.recording(level: 0))
+        work.perform()
+        return states == [.preparing, .recording(level: 0)]
+    }
+
+    static func _enginePolicySelfCheck() -> Bool {
+        guard shouldPrepareLocalEngine(cloud: false),
+              !shouldPrepareLocalEngine(cloud: true),
+              transcriptionSelection(cloud: false, key: "") == .local,
+              transcriptionSelection(cloud: true, key: "  ") == .missingDeepgramKey,
+              transcriptionSelection(cloud: true, key: "abc") == .deepgram(apiKey: "abc")
+        else { return false }
+        return true
+    }
+
+    static func shouldPrepareLocalEngine(cloud: Bool) -> Bool {
+        !cloud
+    }
+
+    static func transcriptionSelection(cloud: Bool, key: String) -> TranscriptionSelection {
+        guard cloud else { return .local }
+        let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? .missingDeepgramKey : .deepgram(apiKey: trimmed)
+    }
 
     /// Pré-aquece o modelo local e dispara o prompt de microfone no launch —
     /// o primeiro ditado não pode esperar 600MB de download.
@@ -226,7 +282,9 @@ final class DictationController {
             }
         }
         AVCaptureDevice.requestAccess(for: .audio) { _ in }
-        prepareLocalEngine()
+        if Self.shouldPrepareLocalEngine(cloud: AppSettings.shared.dictationCloud) {
+            prepareLocalEngine()
+        }
         #if DEBUG
         TranscriptFormatter._selfCheck()
         assert(MicRecorder.exceptionGuardWorks(), "shim ObjC não captura NSException")
@@ -248,18 +306,20 @@ final class DictationController {
         guard !preparing, !modelReady else { return }
         preparing = true
         Task { [weak self] in
-            try? await self?.parakeet.prepare()
-            let ready = await self?.parakeet.ready ?? false
-            DispatchQueue.main.async {
-                self?.modelReady = ready
-                self?.preparing = false
-            }
+            guard let self else { return }
+            try? await parakeet.prepare()
+            modelReady = await parakeet.ready
+            preparing = false
         }
     }
 
     func rightOptionChanged(_ pressed: Bool) {
-        guard AppSettings.shared.dictation else { return }
-        if pressed { begin() } else { finish() }
+        if pressed {
+            guard AppSettings.shared.dictation else { return }
+            begin()
+        } else if recording {
+            finish()
+        }
     }
 
     var diagnostics: [String: Any] {
@@ -274,25 +334,40 @@ final class DictationController {
 
     private func begin() {
         guard !recording, !transcribing else { return }
-        if !AppSettings.shared.dictationCloud, !modelReady {
-            prepareLocalEngine()
-            flash(.preparing)
+        switch Self.transcriptionSelection(
+            cloud: AppSettings.shared.dictationCloud,
+            key: DeepgramKeyStore.load()
+        ) {
+        case .missingDeepgramKey:
+            flash(.error("Configure a chave do Deepgram"))
             return
+        case .local:
+            guard modelReady else {
+                prepareLocalEngine()
+                flash(.preparing)
+                return
+            }
+            recordingEngine = parakeet
+        case .deepgram(let apiKey):
+            recordingEngine = DeepgramEngine(apiKey: apiKey)
         }
+        recordingDestination = destinationProvider?()
         do {
             try recorder.start()
         } catch {
+            recordingEngine = nil
+            recordingDestination = nil
             flash(.error("Sem acesso ao microfone"))
             return
         }
         recording = true
         recorder.onLevel = { [weak self] level in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 guard self?.recording == true else { return }
-                self?.onState?(.recording(level: level))
+                self?.setState(.recording(level: level))
             }
         }
-        onState?(.recording(level: 0))
+        setState(.recording(level: 0))
         // outra tecla durante o hold = combo ⌥+tecla de verdade → cancela e
         // deixa o evento passar; Esc (53) também cai aqui
         keyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) {
@@ -304,56 +379,66 @@ final class DictationController {
     private func cancel() {
         guard recording else { return }
         recording = false
+        recordingEngine = nil
+        recordingDestination = nil
         _ = recorder.stop()
         removeKeyMonitor()
-        onState?(nil)
+        setState(nil)
     }
 
     private func finish() {
         guard recording else { return }
         recording = false
+        let destination = recordingDestination
+        recordingDestination = nil
         removeKeyMonitor()
         let samples = recorder.stop()
         // toque acidental: menos de 0,5s de áudio não vira transcrição
         guard samples.count >= Int(MicRecorder.sampleRate / 2) else {
-            onState?(nil)
+            recordingEngine = nil
+            setState(nil)
             return
         }
+        guard let engine = recordingEngine else {
+            setState(nil)
+            return
+        }
+        recordingEngine = nil
         transcribing = true
-        onState?(.transcribing)
+        setState(.transcribing)
         Task { [weak self] in
             guard let self else { return }
             do {
-                var text = try await self.activeEngine().transcribe(samples)
+                var text = try await engine.transcribe(samples)
                 // Formatação por IA local: falha/timeout → mantém o cru (nunca perde o ditado).
                 let raw = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !raw.isEmpty, AppSettings.shared.formatTranscript {
                     text = (try? await self.formatter().format(raw)) ?? raw
                 }
-                DispatchQueue.main.async {
-                    self.transcribing = false
-                    self.onState?(nil)
-                    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !trimmed.isEmpty, self.transcriptSink?(trimmed) != true {
-                        Self.insert(trimmed)
+                self.transcribing = false
+                self.setState(nil)
+                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else { return }
+                switch destination {
+                case .some(.ask(let id)):
+                    if self.transcriptSink?(trimmed, .ask(id: id)) != true {
+                        Self.copy(trimmed)
+                        self.flash(.error("Pergunta mudou — texto copiado"))
                     }
+                case .some(.application(let pid)):
+                    if !Self.insert(trimmed, expectedPID: pid) {
+                        self.flash(.error("App mudou — texto copiado"))
+                    }
+                case .none:
+                    Self.copy(trimmed)
+                    self.flash(.error("Sem destino — texto copiado"))
                 }
             } catch {
                 NSLog("knobler ditado: %@", error.localizedDescription)
-                DispatchQueue.main.async {
-                    self.transcribing = false
-                    self.flash(.error("Falha na transcrição"))
-                }
+                self.transcribing = false
+                self.flash(.error("Falha na transcrição"))
             }
         }
-    }
-
-    private func activeEngine() -> TranscriptionEngine {
-        if AppSettings.shared.dictationCloud {
-            let key = DeepgramKeyStore.load()
-            if !key.isEmpty { return DeepgramEngine(apiKey: key) }
-        }
-        return parakeet
     }
 
     private func removeKeyMonitor() {
@@ -361,35 +446,114 @@ final class DictationController {
         keyMonitor = nil
     }
 
-    /// Pílula de aviso por 2s (erro, modelo baixando).
-    private func flash(_ phase: DictationPhase) {
+    private func setState(_ phase: DictationPhase?) {
+        flashWorkItem?.cancel()
+        flashWorkItem = nil
+        flashGeneration &+= 1
         onState?(phase)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-            self?.onState?(nil)
+    }
+
+    /// Pílula de aviso por 2s (erro, modelo baixando).
+    private func flash(_ phase: DictationPhase, duration: TimeInterval = 2) {
+        flashWorkItem?.cancel()
+        flashGeneration &+= 1
+        let generation = flashGeneration
+        onState?(phase)
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, self.flashGeneration == generation else { return }
+            self.flashWorkItem = nil
+            self.onState?(nil)
         }
+        flashWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: work)
     }
 
     // MARK: - Inserção no cursor
 
+    private static func copy(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+
+    static func _clipboardSelfCheck() -> Bool {
+        let pasteboard = NSPasteboard(name: .init("knobler.dictation.selfcheck"))
+        let customType = NSPasteboard.PasteboardType("com.zoi.knobler.selfcheck")
+        let original = Data([0x01, 0x02, 0x03])
+
+        pasteboard.clearContents()
+        let item = NSPasteboardItem()
+        item.setData(original, forType: customType)
+        pasteboard.writeObjects([item])
+
+        _ = insert(
+            "temporário",
+            expectedPID: nil,
+            pasteboard: pasteboard,
+            restoreDelay: 0,
+            postPaste: {})
+        RunLoop.main.run(until: Date().addingTimeInterval(0.02))
+        guard pasteboard.data(forType: customType) == original else { return false }
+
+        _ = insert(
+            "temporário",
+            expectedPID: nil,
+            pasteboard: pasteboard,
+            restoreDelay: 0.02,
+            postPaste: {})
+        pasteboard.clearContents()
+        pasteboard.setString("copiado depois", forType: .string)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.04))
+        return pasteboard.string(forType: .string) == "copiado depois"
+    }
+
     /// Pasteboard + ⌘V sintético: único método robusto com acentos/IME.
-    /// O clipboard anterior volta 0,5s depois do paste.
-    private static func insert(_ text: String) {
-        let pasteboard = NSPasteboard.general
-        let saved = pasteboard.string(forType: .string)
+    @discardableResult
+    private static func insert(
+        _ text: String,
+        expectedPID: pid_t?,
+        pasteboard: NSPasteboard = .general,
+        restoreDelay: TimeInterval = 0.5,
+        postPaste: @MainActor () -> Void = postCommandV
+    ) -> Bool {
+        if let expectedPID,
+           NSWorkspace.shared.frontmostApplication?.processIdentifier != expectedPID {
+            pasteboard.clearContents()
+            pasteboard.setString(text, forType: .string)
+            return false
+        }
+
+        let savedItems: [NSPasteboardItem] = pasteboard.pasteboardItems?.map { source in
+            let copy = NSPasteboardItem()
+            for type in source.types {
+                if let data = source.data(forType: type) {
+                    copy.setData(data, forType: type)
+                }
+            }
+            return copy
+        } ?? []
+
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
+        let temporaryChangeCount = pasteboard.changeCount
+        postPaste()
 
-        let source = CGEventSource(stateID: .combinedSessionState)
-        let vDown = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true)!
-        vDown.flags = .maskCommand
-        let vUp = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false)!
-        vUp.flags = .maskCommand
-        vDown.post(tap: .cghidEventTap)
-        vUp.post(tap: .cghidEventTap)
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + restoreDelay) { [pasteboard, savedItems, temporaryChangeCount] in
+            guard pasteboard.changeCount == temporaryChangeCount else { return }
             pasteboard.clearContents()
-            if let saved { pasteboard.setString(saved, forType: .string) }
+            if !savedItems.isEmpty {
+                pasteboard.writeObjects(savedItems)
+            }
         }
+        return true
+    }
+
+    private static func postCommandV() {
+        let source = CGEventSource(stateID: .combinedSessionState)
+        let down = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true)!
+        let up = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false)!
+        down.flags = .maskCommand
+        up.flags = .maskCommand
+        down.post(tap: .cghidEventTap)
+        up.post(tap: .cghidEventTap)
     }
 }
