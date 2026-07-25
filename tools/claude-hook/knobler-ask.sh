@@ -6,9 +6,11 @@
 # Knobler fechado, ✕ no card ou timeout → sai sem output e a pergunta
 # aparece no terminal como sempre. Nunca falha a sessão: exit 0 em tudo.
 set -uo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$ROOT/knobler-hook-common.sh" || exit 0
 PORT="${KNOBLER_PORT:-4477}"
 INPUT="$(cat)"
-ID="ask-$$-$(date +%s)"
+ID="$(knobler_hook_id ask "")"
 
 # source = pasta do projeto da sessão (basename do cwd) — identifica no card
 # QUEM está perguntando quando há várias sessões abertas
@@ -18,9 +20,8 @@ PAYLOAD="$(printf '%s' "$INPUT" | jq -c --arg id "$ID" \
 # Knobler fora do ar → curl falha em ms → fluxo normal do terminal
 curl -sf -m 1 -X POST "localhost:$PORT/ask" -d "$PAYLOAD" >/dev/null 2>&1 || exit 0
 
-DEADLINE=$(( $(date +%s) + 570 ))  # < timeout de 600s do hook, folga pro cancel
-while [ "$(date +%s)" -lt "$DEADLINE" ]; do
-    STATE="$(curl -sf -m 2 "localhost:$PORT/ask/$ID" 2>/dev/null)" || exit 0
+DEADLINE="$(knobler_hook_deadline 570)"  # < timeout de 600s do hook, folga pro cancel
+if STATE="$(knobler_hook_poll "localhost:$PORT/ask/$ID" "$DEADLINE")"; then
     if [ "$(printf '%s' "$STATE" | jq -r '.cancelled // false')" = "true" ]; then
         exit 0  # ✕ no card → pergunta vai pro terminal
     fi
@@ -44,8 +45,7 @@ while [ "$(date +%s)" -lt "$DEADLINE" ]; do
         }'
         exit 0
     fi
-    sleep 0.3
-done
+fi
 # timeout: remove o card órfão e devolve ao terminal
 curl -sf -m 1 -X POST "localhost:$PORT/ask/$ID/cancel" >/dev/null 2>&1 || true
 exit 0
