@@ -215,10 +215,11 @@ final class DictationController {
         let controller = DictationController()
         var states: [DictationPhase?] = []
         controller.onState = { states.append($0) }
-        controller.flash(.preparing, duration: 0.01)
+        controller.flash(.preparing, duration: 60)
+        guard let work = controller.flashWorkItem else { return false }
         controller.setState(.recording(level: 0))
-        RunLoop.main.run(until: Date().addingTimeInterval(0.03))
-        return states.last! == .recording(level: 0)
+        work.perform()
+        return states == [.preparing, .recording(level: 0)]
     }
 
     /// Pré-aquece o modelo local e dispara o prompt de microfone no launch —
@@ -386,8 +387,9 @@ final class DictationController {
     private func flash(_ phase: DictationPhase, duration: TimeInterval = 2) {
         flashWorkItem?.cancel()
         onState?(phase)
-        let work = DispatchWorkItem { [weak self] in
-            guard let self else { return }
+        var work: DispatchWorkItem!
+        work = DispatchWorkItem { [weak self] in
+            guard !work.isCancelled, let self, self.flashWorkItem === work else { return }
             self.flashWorkItem = nil
             self.onState?(nil)
         }
