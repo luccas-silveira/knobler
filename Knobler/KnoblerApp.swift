@@ -45,6 +45,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let bluetooth = BluetoothMonitor()
     private let micMonitor = MicMonitor()
     private let apiServer = NotchAPIServer()
+    // Instância única provisória; a composição com API e views acontece nas fases seguintes.
+    private var askStore: AskStore?
     let webhookClient = WebhookClient()
     let messageStore = MessageStore()
     let lanMessaging = LANMessaging()
@@ -85,6 +87,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private static let simulatedNotchSize = CGSize(width: 190, height: 30)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // AskStore é isolado na Main Actor; a criação permanece única e não bloqueia o launch.
+        Task { @MainActor [weak self] in
+            guard let self, self.askStore == nil else { return }
+            self.askStore = AskStore(
+                dependencies: .init(
+                    resolve: { _, _ in },
+                    cancel: { _ in }
+                )
+            )
+        }
+
         setupStatusItem()
         placeWindows()
 
