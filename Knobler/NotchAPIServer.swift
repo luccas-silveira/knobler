@@ -480,9 +480,18 @@ final class NotchAPIServer {
         guard let headers = request.range(of: "\r\n\r\n").map({ String(request[..<$0.lowerBound]) }) else {
             return false
         }
-        return headers.range(
-            of: "Authorization: Bearer \(token)", options: .caseInsensitive
-        ) != nil
+        let authorization = headers.components(separatedBy: "\r\n").compactMap { line -> String? in
+            let parts = line.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
+            guard parts.count == 2,
+                  parts[0].trimmingCharacters(in: .whitespaces).lowercased() == "authorization"
+            else { return nil }
+            return parts[1].trimmingCharacters(in: .whitespaces)
+        }
+        guard authorization.count == 1 else { return false }
+        let credential = authorization[0].split(whereSeparator: \.isWhitespace)
+        return credential.count == 2
+            && credential[0].lowercased() == "bearer"
+            && String(credential[1]) == token
     }
 
     private static func agentRequestBodyIsTooLarge(_ request: String) -> Bool {
