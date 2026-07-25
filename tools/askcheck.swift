@@ -25,6 +25,7 @@ struct AskCheck {
         testPagedSubmissionPreservesPreviousAnswers()
         testLastPageResolvesAllAnswers()
         testCancellationIsIdempotent()
+        testLegacyCompletionActions()
         testClearRemovesActiveOrQueuedRequest()
         testNextRequestIsPromoted()
         testExternalDismiss()
@@ -271,6 +272,38 @@ struct AskCheck {
         // Uma submissão depois de concluir também não pode emitir resposta de novo.
         let repeatedSubmit = send(.submit(labels: ["A"], text: nil), to: &state)
         check(repeatedSubmit.isEmpty, "resposta repetida sem pergunta ativa é no-op")
+    }
+
+    private static func testLegacyCompletionActions() {
+        let answer = AskAnswer(labels: ["A"], text: nil)
+        var resolvedState = AskState()
+        send(.enqueue(request(id: "legacy-resolve")), to: &resolvedState)
+
+        let resolveEffects = send(.resolve(id: "legacy-resolve", answers: [
+            "Pergunta": answer
+        ]), to: &resolvedState)
+        check(resolveEffects == [.resolve(id: "legacy-resolve", answers: [
+            "Pergunta": answer
+        ])], "resposta do card legado passa pelo efeito do store")
+        check(resolvedState.active == nil, "resolve legado limpa a pergunta ativa")
+        check(send(.resolve(id: "legacy-resolve", answers: ["Pergunta": answer]), to: &resolvedState).isEmpty,
+              "resolve legado repetido é no-op")
+
+        var cancelledState = AskState()
+        send(.enqueue(request(id: "legacy-cancel")), to: &cancelledState)
+        check(send(.cancel(id: "legacy-cancel"), to: &cancelledState) == [.cancel(id: "legacy-cancel")],
+              "cancelamento do card legado passa pelo efeito do store")
+        check(cancelledState.active == nil, "cancelamento legado limpa a pergunta ativa")
+        check(send(.cancel(id: "legacy-cancel"), to: &cancelledState).isEmpty,
+              "cancelamento legado repetido é no-op")
+
+        var queuedState = AskState()
+        send(.enqueue(request(id: "active")), to: &queuedState)
+        send(.enqueue(request(id: "queued")), to: &queuedState)
+        check(send(.cancel(id: "queued"), to: &queuedState).isEmpty,
+              "cancelamento legado de ID enfileirada não afeta a ativa")
+        check(queuedState.active?.id == "active" && queuedState.queue.count == 1,
+              "cancelamento legado inválido preserva a fila")
     }
 
     private static func testClearRemovesActiveOrQueuedRequest() {

@@ -26,6 +26,10 @@ enum AskAction: Equatable {
     case submit(labels: [String], text: String?)
     case appendText(String)
     case cancelActive
+    /// Compatibilidade temporária para o card legado da Fase 4.
+    case resolve(id: String, answers: [String: AskAnswer])
+    /// Compatibilidade temporária para o card legado da Fase 4.
+    case cancel(id: String)
     case clear(id: String)
     case externalDismiss(id: String)
 }
@@ -117,6 +121,16 @@ enum AskReducer {
         case .cancelActive:
             guard let active = state.active else { return [] }
             let id = active.id
+            finishActive(in: &state)
+            return [.cancel(id: id)]
+
+        case .resolve(let id, let answers):
+            guard state.active?.id == id, !answers.isEmpty else { return [] }
+            finishActive(in: &state)
+            return [.resolve(id: id, answers: answers)]
+
+        case .cancel(let id):
+            guard state.active?.id == id else { return [] }
             finishActive(in: &state)
             return [.cancel(id: id)]
 

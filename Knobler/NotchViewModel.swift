@@ -129,6 +129,8 @@ final class NotchViewModel: ObservableObject {
     private var pendingWork: DispatchWorkItem?
     private var queue: [NotchNotification] = []
     private var askQueue: [AskRequest] = []
+    private var askPromotionWork: DispatchWorkItem?
+    private var askPromotionID: String?
     private var dismissWork: DispatchWorkItem?
     private var hudWork: DispatchWorkItem?
 
@@ -344,6 +346,11 @@ final class NotchViewModel: ObservableObject {
     /// Encerra o ask (respondido/cancelado em qualquer monitor) e promove
     /// o próximo da fila FIFO.
     func clearAsk(id: String) {
+        if askPromotionID == id {
+            askPromotionWork?.cancel()
+            askPromotionWork = nil
+            askPromotionID = nil
+        }
         askQueue.removeAll { $0.id == id }
         guard ask?.id == id else { return }
         ask = nil
@@ -352,10 +359,31 @@ final class NotchViewModel: ObservableObject {
         if !askQueue.isEmpty {
             let next = askQueue.removeFirst()
             // respiro pra animação de fechar/abrir ler bem (padrão das notificações)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
-                self?.enqueueAsk(next)
+            let work = DispatchWorkItem { [weak self] in
+                guard let self else { return }
+                self.askPromotionWork = nil
+                self.askPromotionID = nil
+                self.enqueueAsk(next)
             }
+            askPromotionWork = work
+            askPromotionID = next.id
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: work)
         }
+    }
+
+    /// Limpa toda a apresentação Ask sem promover a fila.
+    ///
+    /// Este caminho é exclusivo da ponte temporária de compatibilidade usada
+    /// ao desligar a API. O `clearAsk(id:)` normal mantém sua promoção atrasada
+    /// para que a UI possa animar a troca entre perguntas.
+    func clearAllAsks() {
+        askPromotionWork?.cancel()
+        askPromotionWork = nil
+        askPromotionID = nil
+        askQueue.removeAll()
+        ask = nil
+        askPage = 0
+        askText = ""
     }
 
     /// Chamado pelo card na última página com TODAS as respostas acumuladas.

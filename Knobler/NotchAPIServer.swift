@@ -41,6 +41,8 @@ final class NotchAPIServer {
     }
     /// Respostas ficam retidas até a 1ª leitura do hook (ou TTL).
     private var pendingAsks: [String: PendingAsk] = [:]
+    /// Invalida callbacks de Ask já agendados quando o listener é desligado.
+    private var askGeneration: UInt64 = 0
     private static let askTTL: TimeInterval = 15 * 60
     private var expiryTimer: Timer?
     private static let activityTTL: TimeInterval = 30 * 60
@@ -66,6 +68,7 @@ final class NotchAPIServer {
     }
 
     func stop() {
+        askGeneration &+= 1
         listener?.cancel()
         listener = nil
         expiryTimer?.invalidate()
@@ -99,9 +102,11 @@ final class NotchAPIServer {
     }
 
     /// ✕ no card: o hook lê cancelled e deixa a pergunta cair no terminal.
-    func cancelAsk(id: String) {
-        guard case .pending = pendingAsks[id]?.state else { return }
+    @discardableResult
+    func cancelAsk(id: String) -> Bool {
+        guard case .pending = pendingAsks[id]?.state else { return false }
         pendingAsks[id] = PendingAsk(state: .cancelled, updatedAt: Date())
+        return true
     }
 
     var askDiagnostics: [String: Any] {
@@ -215,7 +220,14 @@ final class NotchAPIServer {
             let source = (json["source"] as? String).flatMap { $0.isEmpty ? nil : $0 }
             let ask = AskRequest(
                 id: id, questions: questions, receivedAt: Date(), source: source)
-            DispatchQueue.main.async { [weak self] in self?.onAsk?(ask) }
+            let generation = askGeneration
+            DispatchQueue.main.async { [weak self] in
+                guard let self,
+                      self.askGeneration == generation,
+                      case .pending = self.pendingAsks[id]?.state
+                else { return }
+                self.onAsk?(ask)
+            }
             return Self.ok
         }
 
@@ -250,8 +262,13 @@ final class NotchAPIServer {
         if request.hasPrefix("POST /ask/"),
            request.prefix(while: { $0 != "\r" }).contains("/cancel") {
             let id = String(request.dropFirst("POST /ask/".count).prefix { $0 != "/" })
-            pendingAsks[id] = nil
-            DispatchQueue.main.async { [weak self] in self?.onAskDismiss?(id) }
+            if cancelAsk(id: id) {
+                let generation = askGeneration
+                DispatchQueue.main.async { [weak self] in
+                    guard let self, self.askGeneration == generation else { return }
+                    self.onAskDismiss?(id)
+                }
+            }
             return Self.ok
         }
 

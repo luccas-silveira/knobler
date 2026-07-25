@@ -8,6 +8,7 @@ import Combine
 import SwiftUI
 
 @main
+@MainActor
 enum KnoblerMain {
     static let delegate = AppDelegate()
 
@@ -29,6 +30,7 @@ enum KnoblerMain {
     }
 }
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private struct ScreenNotch {
         let window: NotchWindow
@@ -45,7 +47,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let bluetooth = BluetoothMonitor()
     private let micMonitor = MicMonitor()
     private let apiServer = NotchAPIServer()
-    // Instância única provisória; a composição com API e views acontece nas fases seguintes.
+    // Única fonte de estado da feature Ask; a UI legada ainda recebe uma ponte
+    // de apresentação até a migração prevista para a Fase 5.
     private var askStore: AskStore?
     let webhookClient = WebhookClient()
     let messageStore = MessageStore()
@@ -61,6 +64,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let screenshots = ScreenshotWatcher()
     private var screenshotPeekWork: DispatchWorkItem?
     private var apiCancellable: AnyCancellable?
+    private var askLocalAPICancellable: AnyCancellable?
+    private var askPresentationGeneration: UInt64 = 0
     private var askKeyCancellables = Set<AnyCancellable>()
     /// Evita reabrir o espelho a cada tick se o usuário fechou antes da call.
     private var mirrorAutoOpened = false
@@ -87,16 +92,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private static let simulatedNotchSize = CGSize(width: 190, height: 30)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // AskStore é isolado na Main Actor; a criação permanece única e não bloqueia o launch.
-        Task { @MainActor [weak self] in
-            guard let self, self.askStore == nil else { return }
-            self.askStore = AskStore(
-                dependencies: .init(
-                    resolve: { _, _ in },
-                    cancel: { _ in }
-                )
-            )
-        }
+        configureAskFeature()
+        observeAskLifecycle()
 
         setupStatusItem()
         placeWindows()
@@ -345,15 +342,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         }
 
-        // perguntas do Claude Code: card em TODAS as telas; primeira resposta vence
-        apiServer.onAsk = { [weak self] request in
-            NSSound(named: "Pop")?.play()  // uma vez, na chegada — sem lembretes
-            self?.notches.values.forEach { $0.viewModel.enqueueAsk(request) }
-        }
-        apiServer.onAskDismiss = { [weak self] id in
-            self?.notches.values.forEach { $0.viewModel.clearAsk(id: id) }
-        }
-
         apiServer.statusProvider = { [weak self] in
             var status = self?.volumeHUD.diagnostics ?? [:]
             status["visualizerTapped"] = self?.tappedBundleID ?? "none"
@@ -381,6 +369,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     if AppSettings.shared.localAPI {
                         self?.apiServer.start()
                     } else {
+                        self?.clearAskPresentation()
                         self?.apiServer.stop()
                     }
                     if AppSettings.shared.webhookNotifications {
@@ -420,6 +409,82 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 .flatMap { SettingsPane(rawValue: String($0)) }
             showSettings(pane: pane)
         }
+    }
+
+    /// Compõe o domínio Ask com o gateway HTTP antes que o listener possa
+    /// receber requisições. O store e os callbacks são registrados de forma
+    /// síncrona na Main Actor, antes de qualquer chamada a apiServer.start();
+    /// as closures capturam o servidor fracamente para não formar ciclo.
+    private func configureAskFeature() {
+        guard askStore == nil else { return }
+
+        let server = apiServer
+        askStore = AskStore(
+            dependencies: .init(
+                // O servidor mantém API síncrona e o adaptador async apenas
+                // atende ao contrato de efeitos do AskStore.
+                resolve: { [weak server] id, answers in
+                    server?.resolveAsk(id: id, answers: answers)
+                },
+                cancel: { [weak server] id in
+                    _ = server?.cancelAsk(id: id)
+                }
+            )
+        )
+
+        // Perguntas do Claude Code: o store recebe o evento HTTP. Enquanto
+        // AskCardView ainda lê NotchViewModel, esta ponte apenas espelha a
+        // apresentação por monitor; ela será removida na Fase 5.
+        apiServer.onAsk = { [weak self] request in
+            guard let self else { return }
+            let generation = self.askPresentationGeneration
+            Task { @MainActor [weak self] in
+                guard let self,
+                      self.askPresentationGeneration == generation,
+                      AppSettings.shared.localAPI
+                else { return }
+                NSSound(named: "Pop")?.play()  // uma vez, na chegada
+                self.askStore?.send(.enqueue(request))
+                self.notches.values.forEach { $0.viewModel.enqueueAsk(request) }
+            }
+        }
+        apiServer.onAskDismiss = { [weak self] id in
+            guard let self else { return }
+            let generation = self.askPresentationGeneration
+            Task { @MainActor [weak self] in
+                guard let self,
+                      self.askPresentationGeneration == generation,
+                      AppSettings.shared.localAPI
+                else { return }
+                self.askStore?.send(.externalDismiss(id: id))
+                self.notches.values.forEach { $0.viewModel.clearAsk(id: id) }
+            }
+        }
+    }
+
+    /// Invalida Tasks de apresentação já entregues quando a API local é
+    /// desligada e ligada novamente. `removeDuplicates` garante que a geração
+    /// só avance quando o valor realmente muda; a emissão inicial é ignorada.
+    private func observeAskLifecycle() {
+        askLocalAPICancellable = AppSettings.shared.$localAPI
+            .removeDuplicates()
+            .dropFirst()
+            .sink { @MainActor [weak self] _ in
+                self?.askPresentationGeneration &+= 1
+            }
+    }
+
+    /// O servidor limpa seus pendingAsks ao parar, mas não emite dismiss.
+    /// Esta ponte temporária de compatibilidade mantém a apresentação legada
+    /// coerente sem criar uma nova operação HTTP nem alterar o protocolo. Ela
+    /// será removida quando a UI for migrada para o AskStore na Fase 5.
+    private func clearAskPresentation() {
+        guard let askStore else { return }
+        let ids = ([askStore.state.active?.id] + askStore.state.queue.map(\.id)).compactMap { $0 }
+        for id in ids {
+            askStore.send(.externalDismiss(id: id))
+        }
+        notches.values.forEach { $0.viewModel.clearAllAsks() }
     }
 
     /// Liga/desliga o tap conforme o estado atual — idempotente, barato.
@@ -561,15 +626,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 notch = ScreenNotch(window: panel, viewModel: viewModel)
                 notches[id] = notch
 
-                // resposta/cancelamento de QUALQUER monitor volta pro servidor
-                // e limpa os demais (primeira resposta vence)
+                // Ponte temporária de apresentação: até a Fase 5 o card ainda
+                // responde pelo VM. O comando passa pelo store, que produz o
+                // efeito de resolve/cancel; os VMs só são limpos para manter
+                // todas as janelas legadas visualmente sincronizadas.
                 viewModel.onAskAnswered = { [weak self] id, answers in
-                    self?.apiServer.resolveAsk(id: id, answers: answers)
-                    self?.notches.values.forEach { $0.viewModel.clearAsk(id: id) }
+                    Task { @MainActor [weak self] in
+                        guard let self else { return }
+                        self.askStore?.send(.resolve(id: id, answers: answers))
+                        self.notches.values.forEach { $0.viewModel.clearAsk(id: id) }
+                    }
                 }
                 viewModel.onAskCancelled = { [weak self] id in
-                    self?.apiServer.cancelAsk(id: id)
-                    self?.notches.values.forEach { $0.viewModel.clearAsk(id: id) }
+                    Task { @MainActor [weak self] in
+                        guard let self else { return }
+                        self.askStore?.send(.cancel(id: id))
+                        self.notches.values.forEach { $0.viewModel.clearAsk(id: id) }
+                    }
                 }
                 // controles do card do Pomodoro → engine (onState reprograma todas as vms)
                 viewModel.onPomodoroPause = { [weak self] in self?.pomodoro.pause() }
