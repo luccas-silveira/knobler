@@ -129,3 +129,14 @@ emitiu `remoteControl/status/changed` com estado `disabled`.
 Isso confirma o handshake e o transporte local. Não foi disparado um comando
 real para fabricar um prompt de aprovação nesta fase; a criação de uma thread
 com execução teria efeitos externos e fica para um harness isolado no plano.
+
+### Limitação validada pelo spike
+
+Na versão instalada (`codex-cli 0.145.0`), o `initialize` experimental é
+suficiente para detectar `platformOs`, `platformFamily` e `userAgent`, mas não
+existe uma entrada RPC para injetar um pedido de aprovação. O spike usa uma
+fixture estática para validar a resposta `accept`, sem criar thread, turno ou
+comando. Portanto, ele valida apenas handshake e formato; a ponte definitiva
+continua condicionada aos três pedidos de aprovação realmente emitidos pelo
+`app-server` em uma sessão controlada e deve ser revalidada após atualizar o
+Codex.

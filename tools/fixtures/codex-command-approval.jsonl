@@ -1,0 +1,2 @@
+{"jsonrpc":"2.0","id":7,"method":"item/commandExecution/requestApproval","params":{"threadId":"thread-fixture","turnId":"turn-fixture","itemId":"item-fixture","command":"printf fixture","cwd":"/tmp","reason":"fixture","availableApprovalDecisions":["accept","decline","cancel"]}}
+{"jsonrpc":"2.0","id":7,"result":{"decision":"accept"}}
