@@ -19,6 +19,12 @@ protocol TranscriptionEngine {
     func transcribe(_ samples: [Float]) async throws -> String
 }
 
+enum TranscriptionSelection: Equatable {
+    case local
+    case deepgram(apiKey: String)
+    case missingDeepgramKey
+}
+
 /// Parakeet TDT v3 (multilíngue) em CoreML no Neural Engine.
 /// Modelo (~600MB) baixado do HuggingFace no primeiro prepare().
 actor ParakeetEngine: TranscriptionEngine {
@@ -208,6 +214,7 @@ final class DictationController {
     private var recording = false
     private var transcribing = false
     private var preparing = false
+    private var recordingEngine: (any TranscriptionEngine)?
     private var flashWorkItem: DispatchWorkItem?
     private var flashGeneration: UInt64 = 0
     private(set) var modelReady = false
@@ -224,12 +231,23 @@ final class DictationController {
     }
 
     static func _enginePolicySelfCheck() -> Bool {
-        Self.shouldPrepareLocalEngine(cloud: false)
-            && !Self.shouldPrepareLocalEngine(cloud: true)
+        guard shouldPrepareLocalEngine(cloud: false),
+              !shouldPrepareLocalEngine(cloud: true),
+              transcriptionSelection(cloud: false, key: "") == .local,
+              transcriptionSelection(cloud: true, key: "  ") == .missingDeepgramKey,
+              transcriptionSelection(cloud: true, key: "abc") == .deepgram(apiKey: "abc")
+        else { return false }
+        return true
     }
 
     static func shouldPrepareLocalEngine(cloud: Bool) -> Bool {
         !cloud
+    }
+
+    static func transcriptionSelection(cloud: Bool, key: String) -> TranscriptionSelection {
+        guard cloud else { return .local }
+        let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? .missingDeepgramKey : .deepgram(apiKey: trimmed)
     }
 
     /// Pré-aquece o modelo local e dispara o prompt de microfone no launch —
@@ -302,14 +320,27 @@ final class DictationController {
 
     private func begin() {
         guard !recording, !transcribing else { return }
-        if !AppSettings.shared.dictationCloud, !modelReady {
-            prepareLocalEngine()
-            flash(.preparing)
+        switch Self.transcriptionSelection(
+            cloud: AppSettings.shared.dictationCloud,
+            key: DeepgramKeyStore.load()
+        ) {
+        case .missingDeepgramKey:
+            flash(.error("Configure a chave do Deepgram"))
             return
+        case .local:
+            guard modelReady else {
+                prepareLocalEngine()
+                flash(.preparing)
+                return
+            }
+            recordingEngine = parakeet
+        case .deepgram(let apiKey):
+            recordingEngine = DeepgramEngine(apiKey: apiKey)
         }
         do {
             try recorder.start()
         } catch {
+            recordingEngine = nil
             flash(.error("Sem acesso ao microfone"))
             return
         }
@@ -332,6 +363,7 @@ final class DictationController {
     private func cancel() {
         guard recording else { return }
         recording = false
+        recordingEngine = nil
         _ = recorder.stop()
         removeKeyMonitor()
         setState(nil)
@@ -344,15 +376,21 @@ final class DictationController {
         let samples = recorder.stop()
         // toque acidental: menos de 0,5s de áudio não vira transcrição
         guard samples.count >= Int(MicRecorder.sampleRate / 2) else {
+            recordingEngine = nil
             setState(nil)
             return
         }
+        guard let engine = recordingEngine else {
+            setState(nil)
+            return
+        }
+        recordingEngine = nil
         transcribing = true
         setState(.transcribing)
         Task { [weak self] in
             guard let self else { return }
             do {
-                var text = try await self.activeEngine().transcribe(samples)
+                var text = try await engine.transcribe(samples)
                 // Formatação por IA local: falha/timeout → mantém o cru (nunca perde o ditado).
                 let raw = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !raw.isEmpty, AppSettings.shared.formatTranscript {
@@ -374,14 +412,6 @@ final class DictationController {
                 }
             }
         }
-    }
-
-    private func activeEngine() -> TranscriptionEngine {
-        if AppSettings.shared.dictationCloud {
-            let key = DeepgramKeyStore.load()
-            if !key.isEmpty { return DeepgramEngine(apiKey: key) }
-        }
-        return parakeet
     }
 
     private func removeKeyMonitor() {
