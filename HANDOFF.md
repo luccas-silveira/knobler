@@ -1,3 +1,9 @@
+# 🧪 BASELINE — Fase 1 da arquitetura Ask (2026-07-24)
+
+- Build Debug e snapshots baseline passaram.
+- A compilação final de `tools/askcheck.swift` aguarda a Fase 2, que adicionará
+  `AskModels.swift` e `AskFeature.swift`.
+
 # 🏁 SESSÃO 2026-07-22 — Ditado ressuscitado + câmera do espelho — **v0.8.2 e v0.8.3 no ar**
 
 Duas releases patch. A primeira é um bug de permissão que matava o ditado em
