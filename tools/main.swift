@@ -49,8 +49,7 @@ struct Scenario {
     let agentRequest: AgentRequest?
     let agentRequestExpanded: Bool
     let resolveAgentRequest: (AgentRequestAction, AgentRequestResponder)?
-    let nobResolutionAttempt: AgentRequestAction?
-    let expectedAgentResult: AgentRequestResult?
+    let terminalFirstRace: Bool
     let frameHeight: CGFloat
 
     init(
@@ -59,8 +58,7 @@ struct Scenario {
         agentRequest: AgentRequest? = nil,
         agentRequestExpanded: Bool = false,
         resolveAgentRequest: (AgentRequestAction, AgentRequestResponder)? = nil,
-        nobResolutionAttempt: AgentRequestAction? = nil,
-        expectedAgentResult: AgentRequestResult? = nil,
+        terminalFirstRace: Bool = false,
         frameHeight: CGFloat = 240,
         configure: @escaping @MainActor (NotchViewModel, MediaController, AskStore) -> Void
     ) {
@@ -69,10 +67,24 @@ struct Scenario {
         self.agentRequest = agentRequest
         self.agentRequestExpanded = agentRequestExpanded
         self.resolveAgentRequest = resolveAgentRequest
-        self.nobResolutionAttempt = nobResolutionAttempt
-        self.expectedAgentResult = expectedAgentResult
+        self.terminalFirstRace = terminalFirstRace
         self.frameHeight = frameHeight
         self.configure = configure
+    }
+}
+
+/// Autoridade mínima da corrida do snapshot: a primeira chamada aceita, as
+/// seguintes apenas registram a tentativa sem poder sobrescrever o vencedor.
+@MainActor
+final class SnapshotAgentArbiter {
+    private(set) var winner: AgentRequestResult?
+    private(set) var attempts: [AgentRequestResponder] = []
+
+    func resolve(action: AgentRequestAction, responder: AgentRequestResponder) -> Bool {
+        attempts.append(responder)
+        guard winner == nil else { return false }
+        winner = AgentRequestResult(action: action, responder: responder)
+        return true
     }
 }
 
@@ -280,9 +292,7 @@ let scenarios: [Scenario] = [
             title: "Corrida de resolução", summary: "A resposta externa chegou primeiro.",
             source: .cli, actions: [.allow, .deny]
         ),
-        resolveAgentRequest: (.deny, .terminal),
-        nobResolutionAttempt: .allow,
-        expectedAgentResult: AgentRequestResult(action: .deny, responder: .terminal)
+        terminalFirstRace: true
     ) { _, _, _ in },
     Scenario(name: "pomodoro-focus", realNotch: true) { vm, _, _ in
         vm.pomodoro = PomodoroState(phase: .focus, runState: .running, remaining: 23 * 60 + 14, completedFocus: 1, cyclesUntilLong: 4)
@@ -356,8 +366,13 @@ for scenario in scenarios {
         resolve: { _, _ in },
         cancel: { _ in }
     ))
+    let arbiter = scenario.terminalFirstRace ? SnapshotAgentArbiter() : nil
     let agentRequestStore = AgentRequestStore(
-        resolveRemote: { _, _ in }, dismissRemote: { _ in }
+        resolveRemote: { _, action in
+            guard let arbiter else { return false }
+            return await MainActor.run { arbiter.resolve(action: action, responder: .nob) }
+        },
+        dismissRemote: { _ in }
     )
     media.injectPreview(state: nil, artwork: nil)
     vm.hasRealNotch = scenario.realNotch
@@ -367,15 +382,23 @@ for scenario in scenarios {
     scenario.configure(vm, media, askStore)
     if let request = scenario.agentRequest {
         agentRequestStore.send(.enqueue(request))
-        if let result = scenario.resolveAgentRequest {
-            agentRequestStore.send(.resolve(id: request.id, action: result.0, responder: result.1))
-        }
-        if let action = scenario.nobResolutionAttempt {
-            agentRequestStore.resolve(id: request.id, action: action)
-        }
-        if let expected = scenario.expectedAgentResult {
+        if scenario.terminalFirstRace, let arbiter {
+            precondition(arbiter.resolve(action: .deny, responder: .terminal))
+            agentRequestStore.send(.resolve(id: request.id, action: .deny, responder: .terminal))
+            var nobAccepted: Bool?
+            Task { @MainActor in
+                nobAccepted = await agentRequestStore.resolve(id: request.id, action: .allow)
+            }
+            let deadline = Date().addingTimeInterval(1)
+            while nobAccepted == nil && RunLoop.current.run(mode: .default, before: deadline) && Date() < deadline {}
+            precondition(nobAccepted == false)
+            precondition(arbiter.attempts == [.terminal, .nob])
+            precondition(arbiter.winner == AgentRequestResult(action: .deny, responder: .terminal))
             precondition(agentRequestStore.state.active == nil)
-            precondition(agentRequestStore.state.results[request.id] == expected)
+            precondition(agentRequestStore.state.results[request.id] == arbiter.winner)
+            print("agent race: terminal deny won; NOB allow rejected")
+        } else if let result = scenario.resolveAgentRequest {
+            agentRequestStore.send(.resolve(id: request.id, action: result.0, responder: result.1))
         }
     }
 
@@ -423,7 +446,7 @@ for scenario in scenarios {
         cancel: { _ in }
     ))
     let agentRequestStore = AgentRequestStore(
-        resolveRemote: { _, _ in }, dismissRemote: { _ in }
+        resolveRemote: { _, _ in false }, dismissRemote: { _ in }
     )
     media.injectPreview(state: nil, artwork: nil)
     let lan = LANMessaging()

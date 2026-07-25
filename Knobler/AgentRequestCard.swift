@@ -53,7 +53,7 @@ struct AgentRequestCard: View {
                 ForEach(request.actions.indices, id: \.self) { index in
                     let action = request.actions[index]
                     Button(actionLabel(action)) {
-                        store.resolve(id: request.id, action: action)
+                        Task { await store.resolve(id: request.id, action: action) }
                     }
                     .buttonStyle(.plain)
                     .font(.caption.weight(.semibold))

@@ -510,7 +510,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let server = apiServer
         agentRequestStore = AgentRequestStore(
             resolveRemote: { [weak server] id, action in
-                _ = server?.resolveAgentRequest(id: id, action: action, responder: .nob)
+                server?.resolveAgentRequest(id: id, action: action, responder: .nob) ?? false
             },
             dismissRemote: { [weak server] id in
                 _ = server?.dismissAgentRequest(id: id, responder: .nob)

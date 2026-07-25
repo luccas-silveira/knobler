@@ -9,11 +9,11 @@ import Combine
 final class AgentRequestStore: ObservableObject {
     @Published private(set) var state = AgentRequestState()
 
-    let resolveRemote: @Sendable (String, AgentRequestAction) async -> Void
+    let resolveRemote: @Sendable (String, AgentRequestAction) async -> Bool
     let dismissRemote: @Sendable (String) async -> Void
 
     init(
-        resolveRemote: @escaping @Sendable (String, AgentRequestAction) async -> Void = { _, _ in },
+        resolveRemote: @escaping @Sendable (String, AgentRequestAction) async -> Bool = { _, _ in false },
         dismissRemote: @escaping @Sendable (String) async -> Void = { _ in }
     ) {
         self.resolveRemote = resolveRemote
@@ -35,9 +35,8 @@ final class AgentRequestStore: ObservableObject {
 
     /// A API é a autoridade da corrida. O estado local só muda quando o
     /// callback `onAgentRequestResolved` devolve o vencedor.
-    func resolve(id: String, action: AgentRequestAction) {
-        let resolveRemote = resolveRemote
-        Task { await resolveRemote(id, action) }
+    func resolve(id: String, action: AgentRequestAction) async -> Bool {
+        await resolveRemote(id, action)
     }
 
     func dismiss(id: String) {
