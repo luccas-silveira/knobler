@@ -211,11 +211,15 @@ final class NotchAPIServer {
             let headerData = buffer[..<headerRange.lowerBound]
             let header = String(data: headerData, encoding: .utf8) ?? ""
             let bodyLength = Self.contentLength(in: header) ?? 0
-            let requiredBytes = headerRange.upperBound + bodyLength
-            guard requiredBytes <= Self.maxRequestBytes else {
+            guard bodyLength >= 0 else {
+                self.send(Self.badRequest("Content-Length inválido"), on: connection)
+                return
+            }
+            guard bodyLength <= Self.maxRequestBytes - headerRange.upperBound else {
                 self.send(Self.payloadTooLarge, on: connection)
                 return
             }
+            let requiredBytes = headerRange.upperBound + bodyLength
             guard buffer.count >= requiredBytes || isComplete else {
                 self.receiveRequest(on: connection, buffer: buffer)
                 return
@@ -403,13 +407,11 @@ final class NotchAPIServer {
     private func respondToAgentRequest(_ route: AgentRequestRoute, json: [String: Any]?) -> String {
         switch route {
         case .publish:
-            guard let json,
-                  let request = Self.decodeAgentRequest(json),
-                  pendingAgentRequests[request.id] == nil
-            else {
-                // Uma republicação é inofensiva; não duplica card nem apaga resultado.
-                if let id = json?["id"] as? String, pendingAgentRequests[id] != nil { return Self.ok }
+            guard let json, let request = Self.decodeAgentRequest(json) else {
                 return Self.badRequest("solicitação de agente inválida")
+            }
+            guard pendingAgentRequests[request.id] == nil else {
+                return Self.conflict("solicitação de agente já existe")
             }
             pendingAgentRequests[request.id] = PendingAgentRequest(
                 request: request, result: nil, updatedAt: Date())
@@ -562,6 +564,10 @@ final class NotchAPIServer {
 
     private static func notFound(_ error: String) -> String {
         http(status: "404 Not Found", body: #"{"ok":false,"error":"\#(error)"}"#)
+    }
+
+    private static func conflict(_ error: String) -> String {
+        http(status: "409 Conflict", body: #"{"ok":false,"error":"\#(error)"}"#)
     }
 
     private static func json(status: String, object: [String: Any]) -> String {
