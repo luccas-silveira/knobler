@@ -7,11 +7,16 @@ TMP="$(mktemp -d)"
 trap 'status=$?; kill "${SERVER_PID:-}" 2>/dev/null || true; rm -rf "$TMP"; exit "$status"' EXIT
 TOKEN_FILE="$TMP/token"
 printf '%s' hook-test-token > "$TOKEN_FILE"
+PYTHON="${PYTHON:-/usr/bin/python3}"
+command -v "$PYTHON" >/dev/null || { echo "sem $PYTHON — instale o Command Line Tools" >&2; exit 1; }
 
 start_api() { # $1=agent action $2=payload file
     local action="$1" payload="$2" port_file="$TMP/port"
     rm -f "$port_file"
-    python3 - "$action" "$payload" "$port_file" <<'PY' &
+    # Interpretador fixo: o `python3` do PATH varia (no runner de CI é o 3.14 do
+    # Homebrew) e o servidor não subia lá. O do sistema vem com o Command Line
+    # Tools e é o mesmo em qualquer Mac. Sobrescreva com PYTHON= se precisar.
+    "$PYTHON" - "$action" "$payload" "$port_file" <<'PY' &
 import json, sys, time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
