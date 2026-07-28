@@ -132,6 +132,13 @@ struct NotchView: View {
                     .padding(.bottom, 12)
                     // desce do notch, como as notificações
                     .transition(.blurReplace.combined(with: .move(edge: .top)))
+            case .update:
+                updateNotchCard
+                    .frame(width: 380 - 40)
+                    .padding(.top, topInset)
+                    .padding(.bottom, 12)
+                    // desce do notch, como as notificações
+                    .transition(.blurReplace.combined(with: .move(edge: .top)))
             }
         }
         // recorta o conteúdo com a própria forma do notch — fechando, a informação
@@ -248,6 +255,9 @@ struct NotchView: View {
                           height: topInset + (tall ? 108 : 72) + (media > 0 ? media + 6 : 0))
         case .airpods:
             return CGSize(width: 320, height: topInset + 64)
+        case .update:
+            // título + até 2 linhas de notas; sem folga morta embaixo
+            return CGSize(width: 380, height: topInset + 72)
         case .question:
             if let request = agentRequestStore.state.active, askStore.state.active == nil {
                 let detailsHeight: CGFloat = agentRequestExpanded && request.details?.isEmpty == false
@@ -1029,6 +1039,72 @@ struct NotchView: View {
             Text(level.map { "\($0)%" } ?? "—")
                 .font(.caption.monospacedDigit().weight(.semibold))
                 .foregroundStyle((level ?? 100) <= 10 ? .red : .white)
+        }
+    }
+
+    // MARK: - Atualização disponível
+
+    /// Nome com sufixo `NotchCard` de propósito: `updateCard` já é a flag de
+    /// exibição no view model, e as duas coisas convivem no mesmo escopo aqui.
+    @ViewBuilder
+    private var updateNotchCard: some View {
+        if let state = vm.update {
+            HStack(spacing: 12) {
+                Image(systemName: "arrow.down.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.white)
+                    .frame(width: 30)
+                VStack(alignment: .leading, spacing: 4) {
+                    switch state {
+                    case .available(let release):
+                        Text("Knobler \(release.version) disponível")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                        Text(release.notes.isEmpty
+                             ? "Nova versão pronta pra instalar." : release.notes)
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.7))
+                            .lineLimit(2)
+                    case .installing:
+                        Text("Atualizando…")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                        Text("O Knobler reinicia sozinho ao terminar.")
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.7))
+                    case .failed(let message):
+                        Text("Falha ao atualizar")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.7))
+                            .lineLimit(2)
+                    }
+                }
+                Spacer(minLength: 0)
+                if case .installing = state {
+                    // ActivityRingView e não ProgressView: o indicador do AppKit
+                    // precisa de NSView real e vira o ícone de "proibido" no
+                    // harness de snapshot (ver CLAUDE.md).
+                    ActivityRingView(progress: nil)
+                        .frame(width: 16, height: 16)
+                } else {
+                    HStack(spacing: 6) {
+                        Button("Depois") { vm.onUpdateSkip?() }
+                            .buttonStyle(.plain)
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.6))
+                        Button(vm.updateCanInstall ? "Atualizar" : "Ver release") {
+                            vm.onUpdateInstall?()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 

@@ -49,6 +49,18 @@ final class NotchViewModel: ObservableObject {
     @Published var airpods: AirPodsBattery?
     /// Card transitório de AirPods (connect / bateria baixa), auto-some.
     @Published var airpodsCard = false
+    /// Atualização disponível/instalando. Espelha o Updater; quem empurra é o
+    /// AppDelegate, como faz com AirPods e Pomodoro.
+    @Published var update: UpdateState?
+    /// Card de update em exibição. Sem esta flag o card ficaria permanente: o
+    /// `update` não é transitório como um HUD.
+    @Published var updateCard = false
+    /// Dá pra instalar de dentro do app? false = sem brew e sem asset baixável,
+    /// e o botão do card vira "Ver release" em vez de mentir.
+    @Published var updateCanInstall = true
+    /// Ações do card — o app conecta no Updater.
+    var onUpdateInstall: (() -> Void)?
+    var onUpdateSkip: (() -> Void)?
     /// Aba do notch aberto: música (default) ou mensagens LAN.
     enum NotchTab: Equatable { case music, messages }
     @Published var tab: NotchTab = .music
@@ -90,16 +102,19 @@ final class NotchViewModel: ObservableObject {
 
     enum Mode: Equatable {
         case closed, music, notification, hud, dictation, question, pomodoro, airpods, message
+        case update
     }
 
     /// Prioridade dos modos próprios: mensagem > ditado > notificação > HUD
-    /// > AirPods(card) > música (hover) > pomodoro > fechado. Ask é derivado
-    /// pelo NotchView a partir do AskStore compartilhado.
+    /// > update > AirPods(card) > música (hover) > pomodoro > fechado. Ask é
+    /// derivado pelo NotchView a partir do AskStore compartilhado.
     var mode: Mode {
         if incoming != nil { return .message }
         if dictation != nil { return .dictation }
         if activeNotification != nil { return .notification }
         if hud != nil { return .hud }
+        // update nunca interrompe ditado, notificação ou HUD — só espera
+        if updateCard, update != nil { return .update }
         if airpodsCard { return .airpods }
         if expanded { return .music }
         if pomodoro != nil { return .pomodoro }

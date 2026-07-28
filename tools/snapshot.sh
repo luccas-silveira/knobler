@@ -8,6 +8,7 @@ swiftc -O -o build/snapshot \
   Knobler/NotchView.swift \
   Knobler/NotchViewModel.swift \
   Knobler/AirPodsBattery.swift \
+  Knobler/Updater.swift \
   Knobler/Pomodoro.swift \
   Knobler/Ask.swift \
   Knobler/AskModels.swift \

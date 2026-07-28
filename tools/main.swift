@@ -352,6 +352,19 @@ let scenarios: [Scenario] = [
         vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 8, right: 74, case_: nil)
         vm.airpodsCard = true
     },
+    // Update: card de versão nova e o estado de instalação.
+    Scenario(name: "update-card", realNotch: true) { vm, _, _ in
+        vm.update = .available(Release(
+            version: "0.9.0",
+            notes: "Fixed\nDitado não cai mais a cada release",
+            url: URL(string: "https://github.com/luccas-silveira/knobler/releases/tag/v0.9.0")!,
+            asset: nil))
+        vm.updateCard = true
+    },
+    Scenario(name: "update-installing", realNotch: true) { vm, _, _ in
+        vm.update = .installing
+        vm.updateCard = true
+    },
 ]
 
 MainActor.assumeIsolated {
