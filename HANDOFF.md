@@ -1,3 +1,187 @@
+# 🏁 SESSÃO 2026-07-28 — solicitações de agente no notch (plano fechado)
+
+Plano `docs/superpowers/plans/2026-07-25-agent-requests.md` concluído: Tasks 1–8.
+As 1–5 já estavam commitadas; esta sessão fechou a 5 e fez 6, 7 e 8.
+
+## O que foi feito
+
+| Commit | Entrega |
+|---|---|
+| `7e6682e` | contrato do hook `PermissionRequest` documentado; teste cobre timeout e o payload exato |
+| `6053dc3` | `tools/codex-agent-bridge.mjs` — proxy stdio ↔ `codex app-server`, os três pedidos de aprovação viram card; `docs/agent-requests.md` |
+| `fdc9070` | `tools/codex-integration-check.mjs` — gate de superfícies + seção no troubleshooting |
+| `aecf231` | `tools/agent-requests-e2e.mjs` + entrada `Added` no `[Unreleased]` |
+| `0c30632` | documentação da sessão de 25/07 que estava órfã (índice, arquitetura, desenvolvimento, contribuição, segurança) |
+
+A ponte é proxy: repassa tudo entre cliente e `app-server` menos
+`item/commandExecution|fileChange|permissions/requestApproval`, que viram card.
+Ação → decisão: `allow`→`accept`, `allowForSession`→`acceptForSession`,
+`deny`→`decline`, `cancel`→`cancel`; em permissões, `allow`/`allowForSession`
+devolvem o perfil pedido com `scope` `turn`/`session` e `deny`/`cancel`
+devolvem perfil vazio. Emendas de execpolicy e de política de rede **não** viram
+botão: são regras persistentes.
+
+## Descoberta que limita o escopo do Codex
+
+`codex-cli 0.145.0` expõe os três pedidos (o gate confirma), mas o **daemon** do
+`app-server` — por onde Desktop app e extensão de IDE falariam — exige a
+instalação standalone do instalador oficial:
+
+```
+Error: managed standalone Codex install not found at ~/.codex/packages/standalone/current/codex
+```
+
+Num Codex de Homebrew ele não sobe. Então hoje só espelha a CLI iniciada por
+`tools/knobler codex bridge`; TUI já aberto, app e IDE seguem com aprovação
+nativa. O gate reimprime esse estado a cada execução.
+
+## Validação
+
+Todos verdes nesta sessão:
+
+- `agentrequestcheck` (reducer), `askcheck` (regressão do Ask, **sem alteração**
+  necessária), `agentrequest-api-check` (servidor real: 401/413/400, leitura
+  única, publish duplicado em 409).
+- `bash tools/claude-hook/test.sh`, `node tools/codex-agent-bridge-check.mjs`,
+  `node tools/codex-integration-check.mjs`, `node tools/agent-requests-e2e.mjs`.
+- `xcodebuild -configuration Debug … CODE_SIGNING_ALLOWED=NO` → BUILD SUCCEEDED.
+- **Não verificado**: turno real do Codex e uso da ponte numa sessão de trabalho
+  de verdade. O gate valida handshake, capacidade e fixtures — de propósito não
+  gasta tokens da conta. Turno ao vivo é manual:
+  `codex --ask-for-approval on-request --sandbox read-only "…"`.
+
+## Pendências
+
+- **Nada foi publicado**: a feature está em `[Unreleased]`. Próximo release é
+  **minor** (`./tools/release.sh minor`) — é feature nova, pré-1.0.
+- `AGENTS.md` na raiz é um dump do `claude-mem` (128 linhas de
+  `<claude-mem-context>`), não documentação. Ficou fora do commit; apagar ou
+  reescrever de verdade. `footer-check.png` na raiz também ficou fora.
+- P1/P2 do ditado seguem abertos (via única de instalação e pílula persistente
+  de Acessibilidade) — ver a sessão de 25/07 abaixo.
+- Snapshots dos cards de agente não foram regerados nesta sessão.
+
+---
+
+# 🔧 SESSÃO 2026-07-25 (tarde) — ditado morto de novo: identidade de assinatura
+
+Nenhuma linha de código mudou. O ditado voltou a funcionar reconcedendo
+Acessibilidade; o valor da sessão é a causa raiz, que é **diferente** da que o
+0.8.4 corrigiu.
+
+## Diagnóstico
+
+`GET /status` do app rodando separou as duas metades na primeira consulta:
+
+```
+axTrusted: false   tapExists: false   tapEnabled: false   keyLog: []
+dictation: { enabled: true, modelReady: true, recording: false }
+```
+
+Ditado sadio, canal de entrada morto. Sem Acessibilidade o `CGEventTap`
+(`VolumeHUD.swift:142`) não é criado e o `flagsChanged` da ⌥ direita nunca
+chega ao `rightOptionChanged` — falha 100% silenciosa, como o comentário em
+`Dictation.swift:274-277` já previa.
+
+## Causa raiz — não é a mesma do 0.8.4
+
+O 0.8.4 trocou o `codesign --sign -` do release por um cert local fixo e o
+CHANGELOG deu o assunto por encerrado. Mas a recorrência de hoje aconteceu num
+app **0.8.4 já assinado com identidade estável**. A máquina tem duas
+identidades válidas:
+
+```
+1) Apple Development: luccaspessoal11@gmail.com (J8UFPJ9AZJ)
+2) Knobler Local Signing
+```
+
+`/Applications/Knobler.app` (instalado 09:27 hoje) está assinado com a **(1)**,
+mas `tools/release.sh:119` assina com a **(2)**. Ou seja: a cópia instalada veio
+de um `xcodebuild`, não do `release.sh`. A troca de identidade entre instalações
+invalida o `csreq` que o TCC guardou — `tccutil reset` respondeu **4 entradas
+stale**, e a UI mostrava o app marcado enquanto nada valia.
+
+**O fix do 0.8.4 só segura a permissão se toda instalação passar pelo
+`release.sh`.** Misturar as duas vias derruba a Acessibilidade de novo.
+
+## Conserto aplicado (na máquina, não no repo)
+
+```bash
+tccutil reset Accessibility com.zoi.knobler   # 4 entradas apagadas
+killall Knobler && open -a Knobler            # dispara o prompt do sistema
+```
+
+Reconcedido no painel. O `checkTapHealth` (`VolumeHUD.swift:107`) recriou o tap
+sozinho, **sem** novo relançamento.
+
+## Validação
+
+- `/status` após conceder: `axTrusted: true`, `tapExists: true`,
+  `tapEnabled: true`.
+- Hold real da ⌥ direita observado por polling: `recording: true` capturado —
+  o evento chega ao controller.
+- Ciclo fechou com `recording: false`/`transcribing: false` e **nenhuma** linha
+  `knobler ditado:` no log unificado (o `catch` de `Dictation.swift:437` não
+  disparou).
+- **Não verificado**: se o texto colou no campo e se a transcrição saiu
+  correta. O `/status` prova o ciclo, não o conteúdo.
+
+## Documentação atualizada
+
+- `docs/dictation.md` — a permissão de Acessibilidade era descrita como
+  necessária só pro ⌘V. Corrigido: ela é necessária **antes**, pro event tap.
+  Esse erro é o que fazia o sintoma parecer inexplicável.
+- `docs/troubleshooting.md` — seção "Ditado não inicia" reescrita: tabela de
+  leitura do `/status`, entrada stale que aparece marcada, procedimento de
+  reset, e o `grep Authority` pra conferir a identidade.
+- `docs/development.md` — aviso na instalação local sobre a troca de identidade
+  entre `xcodebuild` e `release.sh`.
+- `CHANGELOG.md` — em `[Unreleased] / Documentation`.
+
+## Pendências
+
+- **P1 — decidir a via única de instalação.** Enquanto `xcodebuild` e
+  `release.sh` assinarem com identidades diferentes, isto reaparece. Opções:
+  apontar o `project.yml` pra `Knobler Local Signing`, ou tratar
+  `ditto` do build Release como não suportado e sempre passar pelo `release.sh`.
+- **P2 — falha ainda é silenciosa demais.** O `start()` mostra a pílula "Ditado
+  precisa de Acessibilidade" por 2s no launch e ela passa despercebida. Proposta
+  não implementada (usuário não decidiu): tornar a pílula persistente enquanto
+  `axTrusted == false && dictation.enabled == true`.
+- O CHANGELOG do 0.8.4 segue afirmando que o problema foi resolvido "de vez".
+  Entrada publicada não se reescreve; a ressalva ficou no `[Unreleased]`.
+
+---
+
+# 🧭 SESSÃO 2026-07-25 — documentação e instalação local
+
+## Estado entregue
+
+- Documentação reorganizada por objetivo em [`docs/index.md`](docs/index.md),
+  seguindo Tutorials/How-to/Reference/Explanation.
+- Criados: `docs/architecture.md`, `docs/development.md`,
+  `docs/troubleshooting.md`, `CONTRIBUTING.md` e `SECURITY.md`.
+- Atualizados: README, API local, Ask e CHANGELOG.
+- Ask documentado com `AskStore` compartilhado, reducer puro, hook global,
+  polling, primeira resposta vencedora e TTLs.
+- Release compilada e instalada em `/Applications/Knobler.app` (0.8.4).
+
+## Validação da sessão
+
+- Release build: passou.
+- `/Applications/Knobler.app/Contents/MacOS/Knobler --selfcheck`: passou.
+- `codesign --verify --deep --strict /Applications/Knobler.app`: passou.
+- Processo do app confirmado ativo após a instalação.
+- Nenhum processo temporário de build ficou ativo.
+
+## Próxima sessão
+
+Começar por `docs/index.md` e `docs/troubleshooting.md`. Ao mudar API,
+permissões, instalação ou ownership de estado, atualizar o documento de
+referência e o `CHANGELOG.md` na mesma mudança.
+
+---
+
 # 🧪 BASELINE — Fase 1 da arquitetura Ask (2026-07-24)
 
 - Build Debug e snapshots baseline passaram.
