@@ -111,6 +111,28 @@ codex --ask-for-approval on-request --sandbox read-only "liste os arquivos daqui
 - Sem interceptação (capability ausente, API fora, timeout), o texto que aparece
   é uma linha em stderr começando com `codex bridge:` — o Codex segue normal.
 
+## Checagens
+
+```bash
+xcrun swiftc -parse-as-library -swift-version 5 \
+  Knobler/AgentRequestModels.swift Knobler/AgentRequestStore.swift \
+  tools/agentrequestcheck.swift -o /tmp/agentrequestcheck && /tmp/agentrequestcheck
+xcrun swiftc tools/agentrequest-api-check.swift -o /tmp/api-check && /tmp/api-check
+bash tools/claude-hook/test.sh
+node tools/codex-agent-bridge-check.mjs
+node tools/codex-integration-check.mjs
+node tools/agent-requests-e2e.mjs
+```
+
+| Garantia | Onde é provada |
+|---|---|
+| Reducer: fila FIFO, resolução idempotente, terminal vence o notch | `agentrequestcheck.swift` |
+| API: `401`, `413`, `400`, resultado de leitura única, publish duplicado em `409` | `agentrequest-api-check.swift` (servidor real) |
+| Hook do Claude: allow/deny, sessão sem gravar em disco, API fora e timeout | `claude-hook/test.sh` |
+| Ponte do Codex: as quatro decisões nos três schemas, fallback, comando não executado | `codex-agent-bridge-check.mjs` |
+| Superfícies e capacidade da versão instalada | `codex-integration-check.mjs` |
+| Adapters ponta a ponta: corrida, API fora, expiração nunca vira allow, metacaracteres inertes, `413`/`400`/`401` | `agent-requests-e2e.mjs` |
+
 ## Segurança
 
 - Transporte em `127.0.0.1`; `/agent-requests` exige `Authorization: Bearer`

@@ -6,6 +6,38 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- **Perguntas e permissões de agente no notch**: além do `AskUserQuestion` que
+  já existia, o Claude Code espelha o hook `PermissionRequest` — ferramenta,
+  detalhes e as ações Permitir / Permitir na sessão / Negar — e o Codex espelha
+  os três pedidos de aprovação do `app-server` (comando, alteração de arquivo e
+  permissões) através de `tools/knobler codex bridge`. O terminal continua
+  funcionando: quem responder primeiro vence e o outro lado vira no-op. O notch
+  só exibe dados e devolve a decisão — não executa comando, não aplica diff e
+  não grava permissão persistente. Sem API, sem token ou sem resposta a tempo,
+  nenhuma decisão sai do notch e o prompt nativo do agente segue valendo.
+  As rotas `/agent-requests` exigem um token efêmero de sessão gravado com modo
+  `0600`. Documentado em [`docs/agent-requests.md`](docs/agent-requests.md).
+
+### Documentation
+- Organizada a documentação por objetivo, com índice, arquitetura,
+  desenvolvimento, troubleshooting, contribuição e segurança/privacidade.
+- Atualizados README, API local, Ask e handoff para refletir o `AskStore`
+  compartilhado, o hook e os checks atuais.
+- **Corrigido o que a doc dizia sobre Acessibilidade no ditado**: `docs/dictation.md`
+  afirmava que a permissão servia só pro ⌘V sintético. Ela é necessária antes
+  disso, pro `CGEventTap` detectar a ⌥ direita — sem ela o ditado não começa,
+  em vez de gravar e não colar.
+- **Troubleshooting do ditado reescrito** com o diagnóstico por `/status`
+  (`axTrusted`, `tapExists`, `tapEnabled`, `keyLog`), o caso da entrada de TCC
+  stale que aparece marcada mas não vale (desmarcar/marcar não resolve) e a
+  confirmação de que o `checkTapHealth` recria o tap sem novo relançamento.
+- **Documentada a causa da recorrência**, que o fix de 0.8.4 não cobre:
+  instalar em `/Applications` um build do `xcodebuild` (assinado
+  `Apple Development: …`) por cima de uma cópia vinda do `tools/release.sh`
+  (assinado `Knobler Local Signing`) troca a identidade e invalida o `csreq`
+  guardado pelo TCC. Registrado em `docs/development.md` e no troubleshooting.
+
 ## [0.8.4] - 2026-07-22
 
 ### Fixed
