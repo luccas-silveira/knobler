@@ -6,6 +6,30 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- **Painel de Permissões nos Ajustes**: novo painel que lista as 7 permissões
+  que o app usa, o estado de cada uma, o que quebra sem ela e um botão que abre
+  o painel certo do Ajustes do Sistema. Antes não havia lugar nenhum pra ver
+  isso. Acessibilidade, Microfone, Câmera e Calendários mostram o estado real;
+  Rede Local, Arquivos e Gravação de Áudio do Sistema não expõem status ao app,
+  então aparecem como "ainda não usada" até o primeiro uso revelar. O aviso
+  **◐⚠** da barra de menus agora abre esse painel em vez do Ajustes do Sistema.
+
+### Changed
+- **Só a Acessibilidade é pedida na abertura**: as outras permissões esperam o
+  primeiro uso real do recurso. O microfone era pedido no launch junto do
+  pré-aquecimento do modelo de ditado — mas baixar o modelo não usa microfone;
+  agora ele é pedido no primeiro ⌥ direito segurado. A Acessibilidade também
+  era pedida duas vezes (ditado e notificações); virou um pedido só, porque sem
+  ela o `CGEventTap` não existe e o gatilho do ditado é invisível — não há
+  "primeiro uso" que dê pra esperar.
+
+### Removed
+- **`NSBluetoothAlwaysUsageDescription`**: linha morta no `Info.plist`. É a
+  descrição do TCC de CoreBluetooth, e o `BluetoothMonitor` lê os AirPods por
+  `IOBluetooth` + `system_profiler` — o app nunca instanciou um `CBCentralManager`,
+  então essa permissão nunca chegou a ser pedida.
+
 ### Fixed
 - **`tools/release.sh` encontra o tap sozinho**: o caminho era fixo em
   `../homebrew-knobler` e abortava quando o clone estava em outro lugar. Agora

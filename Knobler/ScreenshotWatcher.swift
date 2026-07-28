@@ -74,6 +74,13 @@ final class ScreenshotWatcher {
             // ignora o arquivo temporário "." que o screencapture cria antes de gravar
             guard !(path as NSString).lastPathComponent.hasPrefix(".") else { continue }
             let url = URL(fileURLWithPath: path)
+            // Arquivos e Pastas não expõe status: o Spotlight devolve o path
+            // mesmo sem acesso, e só a leitura revela se o TCC deixa. O painel
+            // de Permissões lê esse registro.
+            // ponytail: access(2) basta pro caso comum (Desktop/Documentos);
+            // se aparecer falso-positivo, trocar por uma leitura mapeada.
+            Permission.record(.arquivos,
+                              worked: FileManager.default.isReadableFile(atPath: path))
             DispatchQueue.main.async { [weak self] in
                 self?.onScreenshot?(url)
             }

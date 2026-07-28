@@ -271,17 +271,14 @@ final class DictationController {
     func start() {
         guard AppSettings.shared.dictation else { return }
         // Sem Acessibilidade o CGEventTap nem é criado, então o flagsChanged da
-        // ⌥ direita nunca chega aqui — o ditado morre 100% silencioso. Como o
-        // release é assinado ad-hoc, o TCC ancora a permissão no cdhash e a
-        // revoga a CADA update. Avisa e leva o usuário pro painel.
+        // ⌥ direita nunca chega aqui — o ditado morre 100% silencioso. Quem abre
+        // o diálogo é o Permission.promptAccessibilityOnce() no launch; aqui só
+        // avisamos, pra quem recusou não ficar sem pista.
         if !AXIsProcessTrusted() {
-            let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
-            _ = AXIsProcessTrustedWithOptions(options as CFDictionary)
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
                 self?.flash(.error("Ditado precisa de Acessibilidade"))
             }
         }
-        AVCaptureDevice.requestAccess(for: .audio) { _ in }
         if Self.shouldPrepareLocalEngine(cloud: AppSettings.shared.dictationCloud) {
             prepareLocalEngine()
         }
@@ -334,6 +331,14 @@ final class DictationController {
 
     private func begin() {
         guard !recording, !transcribing else { return }
+        // O microfone é pedido aqui, no primeiro ⌥ segurado — não no launch.
+        // Pré-aquecer o modelo local baixa 600MB e não toca no microfone, então
+        // pedir junto era um prompt grátis na abertura do app.
+        if AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined {
+            AVCaptureDevice.requestAccess(for: .audio) { _ in }
+            flash(.error("Permita o microfone e segure ⌥ de novo"))
+            return
+        }
         switch Self.transcriptionSelection(
             cloud: AppSettings.shared.dictationCloud,
             key: DeepgramKeyStore.load()

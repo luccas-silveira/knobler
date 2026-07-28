@@ -94,7 +94,12 @@ final class LANMessaging: ObservableObject {
         let browser = NWBrowser(
             for: .bonjourWithTXTRecord(type: Self.serviceType, domain: nil), using: params)
         browser.stateUpdateHandler = { [weak self] state in
-            if case let .failed(err) = state { self?.noteError(err) }
+            // Rede Local não expõe status: recusar derruba o browser. Só marcamos
+            // "negada" no .failed — achar peer (updatePeers) é o que prova o "sim".
+            if case let .failed(err) = state {
+                Permission.record(.redeLocal, worked: false)
+                self?.noteError(err)
+            }
         }
         browser.browseResultsChangedHandler = { [weak self] results, _ in
             self?.updatePeers(results)
@@ -116,6 +121,8 @@ final class LANMessaging: ObservableObject {
             let name = txt["name"] ?? id
             found.append(Peer(id: id, name: name, endpoint: r.endpoint))
         }
+        // achar peer é a única prova positiva de que a Rede Local foi liberada
+        if !found.isEmpty { Permission.record(.redeLocal, worked: true) }
         peers = found.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 

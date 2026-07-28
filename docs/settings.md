@@ -32,6 +32,7 @@ da própria feature, linkada abaixo.
   - **Descanso** — ver `docs/descanso.md`.
   - **Notificações externas** — ver `docs/webhooks.md`.
   - **Mensagens** — nome/foto exibidos aos outros; ver `docs/messages.md`.
+  - **Permissões** — estado de cada permissão que o app usa; ver abaixo.
 
 ## Atualizações
 
@@ -57,5 +58,25 @@ toggle **Verificar atualizações automaticamente** desliga a checagem de vez.
 
 ## Permissões
 
-Nenhuma permissão especial própria da janela de Ajustes — cada painel pede a
-permissão da feature que ele controla (ver o doc de cada uma).
+![Painel Permissões](images/settings-permissoes.png)
+
+*Permissões — o que o app usa, o estado de cada uma e o que quebra sem ela.*
+
+O painel **Permissões** lista as sete permissões que o Knobler pode usar, com o
+estado atual de cada uma e o botão **Abrir**, que leva direto ao painel certo do
+Ajustes do Sistema.
+
+O Knobler pede cada permissão **no primeiro uso do recurso**, não na abertura —
+o microfone só quando você segura a ⌥ direita pela primeira vez, a câmera só ao
+abrir o espelho, a rede local só ao abrir a aba Mensagens. Recusar não quebra o
+app: só desliga aquele recurso.
+
+A exceção é a **Acessibilidade**, a única pedida na abertura. Sem ela o
+`CGEventTap` nem chega a ser criado, então a ⌥ direita nunca chega ao app e não
+existe "primeiro uso" que dê pra esperar — o ditado ficaria impossível de
+acionar. É também a permissão que os HUDs de volume e brilho usam.
+
+Três permissões não expõem status ao app — **Rede local**, **Arquivos e pastas**
+e **Gravação de áudio do sistema**. O macOS não oferece API para consultá-las, só
+para usá-las. Elas aparecem como *Ainda não usada* até o recurso rodar uma vez;
+a partir daí o painel mostra o resultado real.

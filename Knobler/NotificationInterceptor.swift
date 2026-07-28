@@ -57,8 +57,8 @@ final class NotificationInterceptor {
     }
 
     func start() {
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
-        _ = AXIsProcessTrustedWithOptions(options as CFDictionary)
+        // quem pede a Acessibilidade é o Permission.promptAccessibilityOnce() no
+        // launch — aqui só esperamos ela chegar (attachIfPossible roda em loop)
 
         // tenta anexar até ter permissão; re-anexa se o Notification Center reiniciar
         attachTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in

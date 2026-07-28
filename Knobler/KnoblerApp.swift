@@ -98,6 +98,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private static let simulatedNotchSize = CGSize(width: 190, height: 30)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Única permissão pedida no launch — as outras esperam o primeiro uso
+        // real da feature (ver Permissions.swift).
+        Permission.promptAccessibilityOnce()
+        #if DEBUG
+        Permission._selfCheck()
+        #endif
         configureAskFeature()
         configureAgentRequestFeature()
         observeAskLifecycle()
@@ -847,9 +853,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem?.button?.title = Self.statusTitle(needsAccessibility: needsAccessibility)
     }
 
+    /// Vai pro painel de Permissões, não direto pro Ajustes do Sistema: lá o
+    /// usuário lê o que quebrou e por quê antes de sair do app.
     @objc private func openAccessibilityPane() {
-        NSWorkspace.shared.open(URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+        showSettings(pane: .permissoes)
     }
 
     // MARK: - Menu (reconstruído por estado do Pomodoro)

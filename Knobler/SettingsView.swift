@@ -15,6 +15,7 @@ import SwiftUI
 
 enum SettingsPane: String, CaseIterable, Identifiable {
     case geral, notch, ditado, pomodoro, lembretes, descanso, webhooks, mensagens
+    case permissoes
     var id: String { rawValue }
 
     var title: String {
@@ -27,6 +28,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .descanso: return "Descanso"
         case .webhooks: return "Notificações externas"
         case .mensagens: return "Mensagens"
+        case .permissoes: return "Permissões"
         }
     }
 
@@ -40,6 +42,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .descanso: return "moon.zzz.fill"
         case .webhooks: return "bell.and.waves.left.and.right.fill"
         case .mensagens: return "bubble.left.and.bubble.right.fill"
+        case .permissoes: return "lock.shield.fill"
         }
     }
 
@@ -53,6 +56,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .descanso: return .indigo
         case .webhooks: return .purple
         case .mensagens: return .green
+        case .permissoes: return .brown
         }
     }
 }
@@ -111,6 +115,7 @@ struct SettingsView: View {
         case .descanso: DescansoTabView()
         case .webhooks: WebhookSettingsView(client: webhookClient)
         case .mensagens: IdentitySettingsView()
+        case .permissoes: PermissionsSettingsPane()
         }
     }
 }
@@ -373,5 +378,78 @@ struct PomodoroSettingsPane: View {
         }
         .formStyle(.grouped)
         .toggleStyle(.switch)
+    }
+}
+
+// MARK: - Permissões
+
+struct PermissionsSettingsPane: View {
+    /// Lido de uma vez e revalidado quando o app volta ao foco — o usuário sai
+    /// pro Ajustes do Sistema, mexe lá e volta esperando ver o novo estado.
+    @State private var statuses: [Permission: PermissionStatus] = [:]
+
+    var body: some View {
+        Form {
+            Section {
+                ForEach(Permission.allCases) { permission in
+                    PermissionRow(
+                        permission: permission,
+                        status: statuses[permission] ?? .naoVerificada)
+                }
+            } footer: {
+                Text("O Knobler pede cada permissão no primeiro uso do recurso, "
+                     + "não na abertura. Recusar só desliga aquele recurso.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .onAppear(perform: reload)
+        .onReceive(NotificationCenter.default.publisher(
+            for: NSApplication.didBecomeActiveNotification)) { _ in reload() }
+    }
+
+    private func reload() {
+        statuses = Dictionary(uniqueKeysWithValues:
+            Permission.allCases.map { ($0, $0.status) })
+    }
+}
+
+private struct PermissionRow: View {
+    let permission: Permission
+    let status: PermissionStatus
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: badge.symbol)
+                .foregroundStyle(badge.tint)
+                .font(.system(size: 13))
+                .frame(width: 16)
+                .padding(.top, 1)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(permission.title)
+                    Text(badge.label)
+                        .font(.caption)
+                        .foregroundStyle(badge.tint)
+                }
+                Text(permission.why)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            Button("Abrir") { NSWorkspace.shared.open(permission.settingsURL) }
+        }
+        .padding(.vertical, 2)
+    }
+
+    private var badge: (symbol: String, label: String, tint: Color) {
+        switch status {
+        case .concedida: return ("checkmark.circle.fill", "Concedida", .green)
+        case .negada: return ("xmark.circle.fill", "Negada", .red)
+        case .naoPedida: return ("circle.dashed", "Não solicitada", .secondary)
+        case .naoVerificada: return ("questionmark.circle", "Ainda não usada", .secondary)
+        }
     }
 }

@@ -72,11 +72,15 @@ final class SystemAudioLevels: ObservableObject {
         description.isPrivate = true
         description.muteBehavior = .unmuted
 
+        // Gravação de áudio do sistema não expõe status de permissão: criar o tap
+        // é o único jeito de descobrir. O painel de Permissões lê esse registro.
         guard AudioHardwareCreateProcessTap(description, &tapID) == noErr,
               tapID != kAudioObjectUnknown else {
             NSLog("knobler tap: AudioHardwareCreateProcessTap falhou (permissão?)")
+            Permission.record(.audioSistema, worked: false)
             return
         }
+        Permission.record(.audioSistema, worked: true)
 
         let aggregate: [String: Any] = [
             kAudioAggregateDeviceNameKey: "Knobler Levels",
