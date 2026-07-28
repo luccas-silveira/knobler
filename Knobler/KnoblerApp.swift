@@ -116,6 +116,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         volumeHUD.onHUD = { [weak self] state in
             self?.notches.values.forEach { $0.viewModel.showHUD(state) }
         }
+        // o health-check do tap já sonda a Acessibilidade a cada 3s: o badge
+        // pega carona em vez de abrir um timer só pra ele
+        volumeHUD.onAXTrust = { [weak self] _ in self?.refreshAccessibilityBadge() }
         volumeHUD.start()
 
         // ditado: pílula em TODAS as telas, como os HUDs
@@ -426,6 +429,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                         self?.bluetooth.stop()
                     }
                     Updater.shared.automatic = AppSettings.shared.checkForUpdates
+                    // o aviso depende do toggle do ditado, não só da permissão
+                    self?.refreshAccessibilityBadge()
                     // indicador de mic é persistente: re-publica quando o toggle muda
                     self?.micMonitor.publish()
                     // OSD nativo suprimido enquanto algum HUD nosso estiver ativo
@@ -820,11 +825,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func setupStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.title = "◐"
+        item.button?.title = Self.statusTitle(needsAccessibility: needsAccessibility)
         let menu = NSMenu()
         menu.delegate = self   // itens do Pomodoro reconstroem a cada abertura
         item.menu = menu
         statusItem = item
+    }
+
+    /// Ditado ligado mas sem Acessibilidade = falha 100% silenciosa: o CGEventTap
+    /// nem é criado, a ⌥ direita nunca chega e nada no app reage. A pílula do
+    /// launch passa despercebida, então o ícone da barra fica marcado até conceder.
+    private var needsAccessibility: Bool {
+        AppSettings.shared.dictation && !AXIsProcessTrusted()
+    }
+
+    static func statusTitle(needsAccessibility: Bool) -> String {
+        needsAccessibility ? "◐⚠" : "◐"
+    }
+
+    private func refreshAccessibilityBadge() {
+        statusItem?.button?.title = Self.statusTitle(needsAccessibility: needsAccessibility)
+    }
+
+    @objc private func openAccessibilityPane() {
+        NSWorkspace.shared.open(URL(
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
     }
 
     // MARK: - Menu (reconstruído por estado do Pomodoro)
@@ -832,6 +857,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         let s = AppSettings.shared
+        if needsAccessibility {
+            let it = menu.addItem(withTitle: "⚠ Ditado precisa de Acessibilidade…",
+                                  action: #selector(openAccessibilityPane), keyEquivalent: "")
+            it.target = self
+            menu.addItem(.separator())
+        }
         switch pomodoro.runState {
         case .idle:
             addPomodoroItem(menu, "▶ Iniciar foco (\(s.pomodoroFocus) min)", #selector(pomStart))

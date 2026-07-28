@@ -7,6 +7,11 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 ## [Unreleased]
 
 ### Added
+- **Aviso de Acessibilidade na barra de menus**: com o ditado ligado e a
+  permissão faltando, o ícone vira **◐⚠** e o menu ganha um item que abre o
+  painel de Acessibilidade. Sem ela o `CGEventTap` nem é criado e a ⌥ direita
+  não chega ao app — a pílula de 2s do launch passava despercebida. A marca some
+  sozinha quando a permissão é concedida.
 - **Aviso de atualização**: o Knobler consulta o GitHub uma vez por dia e mostra
   um card no notch quando sai versão nova — uma vez por versão, e nunca por cima
   de um ditado, notificação ou HUD. O botão **Atualizar** instala na hora e o app
@@ -28,6 +33,14 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   nenhuma decisão sai do notch e o prompt nativo do agente segue valendo.
   As rotas `/agent-requests` exigem um token efêmero de sessão gravado com modo
   `0600`. Documentado em [`docs/agent-requests.md`](docs/agent-requests.md).
+
+### Fixed
+- **Identidade de assinatura unificada**: o `project.yml` assinava com
+  `Apple Development: …` e o `tools/release.sh` com `Knobler Local Signing`.
+  Instalar um build do `xcodebuild` por cima de um release (ou o contrário)
+  trocava a identidade, invalidava o `csreq` guardado pelo TCC e matava o ditado
+  em silêncio. Agora as duas vias usam `Knobler Local Signing` — rode
+  `tools/make-signing-cert.sh` uma vez por máquina antes do primeiro build.
 
 ### Documentation
 - Organizada a documentação por objetivo, com índice, arquitetura,

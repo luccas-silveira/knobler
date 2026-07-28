@@ -51,6 +51,9 @@ final class VolumeHUDController {
     private var runLoopSource: CFRunLoopSource?
     private var healthTimer: Timer?
     private var trustedAtCreation = false
+    /// Avisa quando a Acessibilidade é concedida ou revogada (só na mudança).
+    var onAXTrust: ((Bool) -> Void)?
+    private var lastReportedTrust: Bool?
     /// Ring de últimos eventos de tecla vistos (diagnóstico) — um slot único
     /// era sobrescrito por ruído de mouse antes de conseguirmos ler.
     private var keyLog: [String] = []
@@ -106,6 +109,12 @@ final class VolumeHUDController {
 
     private func checkTapHealth() {
         let trusted = AXIsProcessTrusted()
+        // quem observa (badge da barra de menus) pega carona neste timer —
+        // conceder/revogar Acessibilidade não notifica ninguém no macOS.
+        if trusted != lastReportedTrust {
+            lastReportedTrust = trusted
+            onAXTrust?(trusted)
+        }
         guard let eventTap else {
             if trusted { setupEventTap() }
             return
