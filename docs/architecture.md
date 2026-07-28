@@ -18,7 +18,8 @@ KnoblerMain
        │    ├─ NotificationInterceptor / HUDs / MicMonitor
        │    ├─ CalendarCountdown / Pomodoro / ScheduleEngine
        │    ├─ MirrorController / ScreenshotWatcher / ShelfStore
-       │    └─ LANMessaging / WebhookClient
+       │    ├─ LANMessaging / WebhookClient
+       │    └─ Updater ── GitHub Releases + brew/zip
        └─ uma NotchWindow + NotchViewModel por display
              └─ NotchView e cards SwiftUI
 ```
@@ -40,6 +41,7 @@ regras de domínio novas são implementadas.
 | Mensagens e peers | `MessageStore` / `LANMessaging` | views e janela de entrada |
 | Webhooks | `WebhookClient` + Keychain | Ajustes e notificações |
 | Agenda | `CalendarCountdown`, `ScheduleEngine` | notch e Ajustes |
+| Versão disponível e instalação | `Updater` | card do notch e Ajustes › Geral |
 
 O mesmo estado de Ask é injetado em todas as janelas. Não crie um store por
 monitor: uma resposta ou cancelamento precisa vencer uma única vez, mesmo com

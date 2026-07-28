@@ -1,3 +1,71 @@
+# 🆕 SESSÃO 2026-07-28 (tarde) — aviso e instalação de atualizações
+
+Branch `feat/updater`. Spec `docs/superpowers/specs/2026-07-28-auto-update-design.md`,
+plano `docs/superpowers/plans/2026-07-28-updater.md`, Tasks 1–6 fechadas.
+
+O app não sabia que era velho: atualizar significava lembrar de rodar
+`brew upgrade` na mão. Agora ele consulta o GitHub uma vez por dia, avisa e
+instala com um clique.
+
+## O que foi feito
+
+| Commit | Entrega |
+|---|---|
+| `db96975` | `Knobler/Updater.swift` — `Release`, `UpdateState`, `isNewer`, `stripMarkdown`, `parseRelease` + `tools/updatercheck.swift` |
+| `1eeb5cf` | classe `Updater` (checagem 24h, launch+30s, `skippedVersion`) e `AppSettings.checkForUpdates` |
+| `f13f6ed` | instalação: sonda do brew, caminho brew, caminho direto, relaunch |
+| `cd214e4` | Ajustes › Geral + endurecimento da origem/identidade do download |
+| `75f6d2f` | card no notch (`Mode.update`, `updateNotchCard`, 2 cenários de snapshot) |
+| `a6f8135` | fiação no `AppDelegate`, CHANGELOG, `docs/settings.md`, README |
+
+**Dois instaladores, escolhidos em runtime.** `brew list --cask knobler` responde
+→ `brew upgrade --cask knobler` (mantém o Caskroom em dia); não responde → baixa
+o `.zip` do release, valida e substitui o bundle com `replaceItemAt`. Sem os dois
+caminhos a feature não serviria a quem a pediu: **a máquina do autor não tem o app
+instalado via brew** (sem Caskroom, e `codesign -dv` mostra `TeamIdentifier=7UNDW72N73`,
+Apple Development — cópia manual de build do Xcode).
+
+O relaunch é um `/bin/sh` destacado que espera o PID morrer e roda `open -a`: o
+processo antigo sobrevive à substituição do bundle, então quem reabre tem que ser
+externo.
+
+## Decisões que não estavam no plano
+
+- **`ActivityRingView` no lugar de `ProgressView`** no card: o indicador do AppKit
+  precisa de `NSView` real e vira o ícone de "proibido" no harness de snapshot.
+- **Origem e identidade do download validadas** (achado da revisão de segurança):
+  `codesign --verify --strict` prova integridade, não autoria. Agora exige
+  `https://github.com/luccas-silveira/knobler/releases/download/…` e
+  `CFBundleIdentifier` igual ao atual. A *identidade* de assinatura **não** é
+  comparada de propósito — travaria a transição Apple Development → cert local.
+- **`canInstall` virou propriedade publicada e cacheada**: era computada e rodava
+  `brew list` (~1s) dentro do `body` do SwiftUI, travando a janela a cada redraw.
+
+## Validação
+
+- `updatercheck` (SemVer, strip de markdown, parse) ✅; `snapshot.sh` 51 cenários ✅;
+  `xcodebuild` Debug ✅.
+- Ao vivo, com `MARKETING_VERSION=0.8.0` forçado: a checagem achou 0.8.4, o card
+  desceu sozinho no notch com as notas do release, e com `updateSkippedVersion`
+  gravado ele **não** reaparece.
+- **Não verificado**: o ciclo instalar → substituir bundle → relançar. Rodando de
+  `build/dd`, a guarda `isInApplications` (correta) recusa e mostra "Ver release".
+  Provar exige rodar de `/Applications` e substituir o app instalado.
+
+## Pendências
+
+- **Teste de aceitação do update real**: publicar a próxima release
+  (`./tools/release.sh minor` — é feature nova) e atualizar a partir da anterior.
+- **O primeiro update pelo caminho direto troca a identidade de assinatura**
+  (Apple Development → `Knobler Local Signing`) e vai derrubar a Acessibilidade
+  **uma vez**: reconceder e seguir. Das próximas não acontece mais.
+- `feat/updater` ainda não foi mesclada em `master` nem publicada — a feature está
+  em `[Unreleased]`.
+- `AGENTS.md` e `footer-check.png` na raiz continuam sem rastreamento (herdado da
+  sessão da manhã; ver abaixo).
+
+---
+
 # 🏁 SESSÃO 2026-07-28 — solicitações de agente no notch (plano fechado)
 
 Plano `docs/superpowers/plans/2026-07-25-agent-requests.md` concluído: Tasks 1–8.

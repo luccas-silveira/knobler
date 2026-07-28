@@ -103,6 +103,11 @@ final class Updater: ObservableObject {
     /// nil = nenhuma novidade (ou ainda não checou).
     @Published private(set) var state: UpdateState?
 
+    /// Dá pra instalar de dentro do app, ou só resta abrir a página do release?
+    /// Cacheado de propósito: descobrir isso roda `brew list` (~1s), e a UI lê
+    /// esta propriedade a cada redraw — sondar no `body` travaria a janela.
+    @Published private(set) var canInstall = false
+
     /// Versão que o usuário mandou embora com "Depois". Persistida: o aviso não
     /// volta a incomodar até sair uma versão diferente.
     private(set) var skippedVersion: String? {
@@ -173,10 +178,18 @@ final class Updater: ObservableObject {
                   let release = try? parseRelease(data) else { return }
             UserDefaults.standard.set(Date(), forKey: Self.lastCheckKey)
             guard isNewer(release.version, than: self.installedVersion) else {
-                DispatchQueue.main.async { self.state = nil }
+                DispatchQueue.main.async {
+                    self.state = nil
+                    self.canInstall = false
+                }
                 return
             }
-            DispatchQueue.main.async { self.state = .available(release) }
+            // já estamos fora da main queue: a sonda do brew cabe aqui
+            let installable = self.probeCanInstall(release)
+            DispatchQueue.main.async {
+                self.canInstall = installable
+                self.state = .available(release)
+            }
         }.resume()
     }
 
@@ -217,9 +230,9 @@ extension Updater {
         return release.url
     }
 
-    /// false = não dá pra instalar sozinho; a UI oferece "Ver release".
-    var canInstall: Bool {
-        guard case .available(let release) = state else { return false }
+    /// Descobre se dá pra instalar sozinho. **Chame fora da main queue**: o
+    /// `brew list` daqui leva ~1s. O resultado vira o `canInstall` publicado.
+    func probeCanInstall(_ release: Release) -> Bool {
         if installedViaBrew { return true }
         return release.asset != nil && isInApplications
     }
