@@ -49,7 +49,11 @@ Arquivos: `project.yml`, `Knobler/KnoblerApp.swift`, `Knobler/VolumeHUD.swift`,
   exercitado.
 - ~~`CLAUDE.md` afirmava que o `glassEffect`/Liquid Glass estava em uso~~ —
   corrigido nesta sessão (zero ocorrências no código; o target é macOS 14.2).
-- `graphify-out/` segue sem regenerar (mudança pequena, não justificava o custo).
+- ~~`graphify-out/` sem regenerar~~ — regenerado no fim da sessão: 1943 nós,
+  3787 arestas, 112 comunidades (1689 nós de AST + 409 semânticos, 639k tokens).
+  As 29 imagens de `docs/images/` ficaram de fora da camada semântica — são
+  screenshots de UI já referenciados pelos `.md` e cada uma exigiria um agente de
+  visão próprio. Snapshots também regenerados: 51/51 cenários ok.
 
 ---
 
