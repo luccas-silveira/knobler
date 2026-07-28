@@ -69,6 +69,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let screenshots = ScreenshotWatcher()
     private var screenshotPeekWork: DispatchWorkItem?
     private var apiCancellable: AnyCancellable?
+    private var updaterCancellable: AnyCancellable?
     // Observa apenas o ciclo de vida da API para invalidar callbacks Ask obsoletos.
     private var askLocalAPICancellable: AnyCancellable?
     private var askPresentationGeneration: UInt64 = 0
@@ -179,6 +180,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 $0.viewModel.airpodsCard = false
             }
         }
+
+        // Atualizações: o Updater publica, o notch reflete. O card só abre uma
+        // vez por versão — "Depois" grava a dispensada e o aviso fica só nos Ajustes.
+        Updater.shared.automatic = AppSettings.shared.checkForUpdates
+        updaterCancellable = Updater.shared.$state
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] state in
+                self?.notches.values.forEach { notch in
+                    notch.viewModel.update = state
+                    notch.viewModel.updateCanInstall = Updater.shared.canInstall
+                    switch state {
+                    case .available:
+                        notch.viewModel.updateCard = !Updater.shared.isSkipped
+                    case .installing, .failed:
+                        notch.viewModel.updateCard = true
+                    case .none:
+                        notch.viewModel.updateCard = false
+                    }
+                }
+            }
+        Updater.shared.start()
 
         // pontinho laranja enquanto algum app usa o microfone
         micMonitor.onChange = { [weak self] inUse in
@@ -403,6 +425,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     } else {
                         self?.bluetooth.stop()
                     }
+                    Updater.shared.automatic = AppSettings.shared.checkForUpdates
                     // indicador de mic é persistente: re-publica quando o toggle muda
                     self?.micMonitor.publish()
                     // OSD nativo suprimido enquanto algum HUD nosso estiver ativo
@@ -717,6 +740,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 // fechar o card (X) ou abrir a conversa fecha em TODAS as telas
                 viewModel.onDismissEverywhere = { [weak self] in
                     self?.notches.values.forEach { $0.viewModel.dismissIncoming() }
+                }
+
+                // botões do card de atualização
+                viewModel.onUpdateInstall = {
+                    // Sem brew e sem asset instalável o botão diz "Ver release"
+                    // — e é isso que ele tem que fazer.
+                    if Updater.shared.canInstall {
+                        Updater.shared.install()
+                    } else if let url = Updater.shared.releaseURL {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+                viewModel.onUpdateSkip = { [weak self] in
+                    Updater.shared.skipCurrent()
+                    self?.notches.values.forEach { $0.viewModel.updateCard = false }
                 }
                 // Rede Local: liga o Bonjour quando o usuário abre a aba Mensagens
                 // (app ativo → prompt num momento sensato). start() é idempotente.

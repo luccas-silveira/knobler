@@ -7,6 +7,16 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 ## [Unreleased]
 
 ### Added
+- **Aviso de atualização**: o Knobler consulta o GitHub uma vez por dia e mostra
+  um card no notch quando sai versão nova — uma vez por versão, e nunca por cima
+  de um ditado, notificação ou HUD. O botão **Atualizar** instala na hora e o app
+  reinicia sozinho: `brew upgrade --cask knobler` para quem instalou pelo cask,
+  download direto do `.zip` do release para quem não. Antes de substituir o
+  bundle o app confere a origem do download (host e repo oficiais), a assinatura
+  e o bundle ID do que baixou; se não puder instalar (sem brew, sem `.zip`, ou
+  rodando fora de `/Applications`), o botão vira **Ver release**. Em
+  Ajustes › Geral ficam a versão instalada, o botão de atualizar, o
+  **Verificar agora** e o toggle da checagem automática.
 - **Perguntas e permissões de agente no notch**: além do `AskUserQuestion` que
   já existia, o Claude Code espelha o hook `PermissionRequest` — ferramenta,
   detalhes e as ações Permitir / Permitir na sessão / Negar — e o Codex espelha

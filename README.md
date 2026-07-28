@@ -84,7 +84,10 @@ brew tap luccas-silveira/knobler && brew trust luccas-silveira/knobler && brew i
 
 App assinado ad-hoc (sem Developer ID). O `brew trust` é exigido pelo Homebrew 6+
 em taps de terceiros; o cask tira a quarentena no install, então abre limpo.
-Update: `brew upgrade knobler` · Remover: `brew uninstall --zap knobler`.
+Update: o app avisa sozinho quando sai versão nova (card no notch + Ajustes ›
+Geral) e instala com um clique — pelo `brew upgrade` se veio do cask, baixando o
+zip do release se não. Na mão: `brew upgrade knobler`.
+Remover: `brew uninstall --zap knobler`.
 
 Sem Homebrew: baixe o zip do [Releases](https://github.com/luccas-silveira/knobler/releases)
 e rode `xattr -dr com.apple.quarantine /Applications/Knobler.app` uma vez.
