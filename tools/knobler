@@ -6,6 +6,7 @@
 #   knobler done <id>
 #   knobler ask "Pergunta?" "Opção A" "Opção B" [...]   (espera e imprime a resposta)
 #   knobler agent-request publish '<json>' | wait <id> | resolve <id> <action> [value]
+#   knobler codex bridge | check   (espelha aprovações do Codex app-server)
 #
 # Sai com erro silencioso-legível se o app não estiver rodando — seguro pra
 # usar em scripts de deploy sem quebrá-los (use `|| true` se preferir).
@@ -120,8 +121,21 @@ agent-request)
         ;;
     esac
     ;;
+codex)
+    subcommand="${1:-}"
+    shift 2>/dev/null || true
+    bridge="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/codex-agent-bridge.mjs"
+    case "$subcommand" in
+    bridge) exec node "$bridge" "$@" ;;
+    check) exec node "$bridge" --check ;;
+    *)
+        echo "uso: knobler codex bridge | check" >&2
+        exit 2
+        ;;
+    esac
+    ;;
 *)
-    sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
     exit 2
     ;;
 esac
