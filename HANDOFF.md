@@ -1,7 +1,11 @@
-# 🆕 SESSÃO 2026-07-28 (tarde) — aviso e instalação de atualizações
+# 🆕 SESSÃO 2026-07-28 (tarde) — atualizações no notch + auditoria da documentação
 
-Branch `feat/updater`. Spec `docs/superpowers/specs/2026-07-28-auto-update-design.md`,
-plano `docs/superpowers/plans/2026-07-28-updater.md`, Tasks 1–6 fechadas.
+Duas frentes: a feature de update (Tasks 1–6 do plano) e, depois, uma auditoria
+de documentação que rendeu licença, CI e arrumação de casa. Tudo já mesclado em
+`master`; **nada foi enviado pro `origin`** (11 commits locais).
+
+Spec `docs/superpowers/specs/2026-07-28-auto-update-design.md`,
+plano `docs/superpowers/plans/2026-07-28-updater.md`.
 
 O app não sabia que era velho: atualizar significava lembrar de rodar
 `brew upgrade` na mão. Agora ele consulta o GitHub uma vez por dia, avisa e
@@ -52,17 +56,49 @@ externo.
   `build/dd`, a guarda `isInApplications` (correta) recusa e mostra "Ver release".
   Provar exige rodar de `/Applications` e substituir o app instalado.
 
+---
+
+# Auditoria da documentação (mesma sessão) — `524a4d5`
+
+Medida, não opinada: varredura de links, imagens, órfãos e freshness em todos os
+`.md`. Veredito: a documentação estava **acima da média** (Diátaxis real, template
+uniforme por feature, zero imagem órfã), e o que faltava era do repositório.
+
+| Item | Antes | Depois |
+|---|---|---|
+| Licença | nenhuma, repo público distribuindo binário | `LICENSE` MIT + README + índice |
+| CI | inexistente | `.github/workflows/ci.yml` (build Debug + gates) |
+| Gates | 8 comandos manuais em comentários | `./tools/check.sh`, exit code validado nos dois sentidos |
+| `HANDOFF.md` | 1358 linhas / 27 sessões | 223 linhas + `docs/handoffs/2026-07.md` |
+| Specs | 3 soltas na raiz | todas em `docs/superpowers/specs/` |
+| `AGENTS.md` | dump do claude-mem | instrução curta e versionada |
+
+**Bug de documentação encontrado:** o comando do `wirecheck` em
+`docs/development.md` estava errado — usava `-parse-as-library` num harness
+`main.swift`, que tem código top-level. Quem seguisse o doc nunca rodaria o gate.
+
+**Erro meu, registrado:** afirmei que as 3 SPECs da raiz eram órfãs; a primeira
+varredura não cobria código nem `docs/superpowers/`. Eram citadas por
+`DescansoController.swift` e 3 planos — as 8 referências foram atualizadas junto.
+
+**Não verificado:** se o workflow passa no runner. O build com as flags exatas da
+CI passa local e o YAML é válido, mas a versão de Xcode do `macos-latest` só o
+primeiro push revela — por isso o passo "Ambiente" imprime Xcode e SDK.
+
 ## Pendências
 
+- **Nada foi enviado**: 11 commits em `master` local. `gh` ainda mostra
+  `licenseInfo: null` porque o GitHub só detecta a licença após o push.
 - **Teste de aceitação do update real**: publicar a próxima release
-  (`./tools/release.sh minor` — é feature nova) e atualizar a partir da anterior.
+  (`./tools/release.sh minor` — é feature nova, pré-1.0) e atualizar a partir da
+  anterior. É o único jeito de exercitar substituir bundle → relançar.
 - **O primeiro update pelo caminho direto troca a identidade de assinatura**
   (Apple Development → `Knobler Local Signing`) e vai derrubar a Acessibilidade
-  **uma vez**: reconceder e seguir. Das próximas não acontece mais.
-- `feat/updater` ainda não foi mesclada em `master` nem publicada — a feature está
-  em `[Unreleased]`.
-- `AGENTS.md` e `footer-check.png` na raiz continuam sem rastreamento (herdado da
-  sessão da manhã; ver abaixo).
+  **uma vez**: reconceder e seguir.
+- `CLAUDE.md` diz que o Liquid Glass/`glassEffect` está em uso, mas não há uma
+  ocorrência de `glassEffect` nem de `#available(macOS 26` no código.
+- `footer-check.png` segue solto e sem rastreamento na raiz.
+- `graphify-out/` não foi regenerado (só um arquivo novo de domínio: `Updater.swift`).
 
 ---
 
