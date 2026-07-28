@@ -1,8 +1,8 @@
 # 🆕 SESSÃO 2026-07-28 (tarde) — atualizações no notch + auditoria da documentação
 
 Duas frentes: a feature de update (Tasks 1–6 do plano) e, depois, uma auditoria
-de documentação que rendeu licença, CI e arrumação de casa. Tudo já mesclado em
-`master`; **nada foi enviado pro `origin`** (11 commits locais).
+de documentação que rendeu licença, CI e arrumação de casa. Tudo mesclado em
+`master` e publicado, com a CI verde.
 
 Spec `docs/superpowers/specs/2026-07-28-auto-update-design.md`,
 plano `docs/superpowers/plans/2026-07-28-updater.md`.
@@ -81,14 +81,30 @@ uniforme por feature, zero imagem órfã), e o que faltava era do repositório.
 varredura não cobria código nem `docs/superpowers/`. Eram citadas por
 `DescansoController.swift` e 3 planos — as 8 referências foram atualizadas junto.
 
-**Não verificado:** se o workflow passa no runner. O build com as flags exatas da
-CI passa local e o YAML é válido, mas a versão de Xcode do `macos-latest` só o
-primeiro push revela — por isso o passo "Ambiente" imprime Xcode e SDK.
+**CI verde na quinta tentativa** — e o caminho até lá rendeu mais que o workflow:
+
+1. Build passou de primeira no runner (o risco de SDK não se materializou).
+2. `claude-hook` reprovou por falta de `jq` — existe local via Homebrew, não no
+   runner. Agora a CI instala e o `check.sh` confere `jq`/`node` na entrada.
+3. O próprio `check.sh` atrapalhava: truncava a saída em 15 linhas e engolia o
+   erro. Passou a imprimir tudo e, em gate shell, a re-rodar com `bash -x`.
+4. Com o trace, a causa apareceu: o servidor de teste do hook não subia. A espera
+   era de 20×0,05s = **1 segundo** — folgada numa máquina quente, apertada num
+   runner. Subiu para ~10s, com mensagem quando estoura.
+5. Ainda assim falhava. O runner usa o `python3` 3.14 do Homebrew; o teste passou
+   a fixar `/usr/bin/python3` (Command Line Tools), com `PYTHON=` como escape.
+   **Honestidade:** o mesmo 3.14.6 do brew passa nesta máquina, então a versão
+   sozinha não explica — o que resolveu foi parar de depender do `python3` do
+   PATH. A causa exata no runner segue desconhecida.
+
+Nada disso era bug do produto: eram dois testes com premissas de ambiente
+(ferramenta instalada, máquina rápida) que só a CI expôs.
 
 ## Pendências
 
-- **Nada foi enviado**: 11 commits em `master` local. `gh` ainda mostra
-  `licenseInfo: null` porque o GitHub só detecta a licença após o push.
+- **Publicado**: `master` em dia com o `origin`, CI verde, licença MIT
+  reconhecida pelo GitHub e descrição do repo preenchida. `footer-check.png`
+  apagado.
 - **Teste de aceitação do update real**: publicar a próxima release
   (`./tools/release.sh minor` — é feature nova, pré-1.0) e atualizar a partir da
   anterior. É o único jeito de exercitar substituir bundle → relançar.
@@ -97,7 +113,6 @@ primeiro push revela — por isso o passo "Ambiente" imprime Xcode e SDK.
   **uma vez**: reconceder e seguir.
 - `CLAUDE.md` diz que o Liquid Glass/`glassEffect` está em uso, mas não há uma
   ocorrência de `glassEffect` nem de `#available(macOS 26` no código.
-- `footer-check.png` segue solto e sem rastreamento na raiz.
 - `graphify-out/` não foi regenerado (só um arquivo novo de domínio: `Updater.swift`).
 
 ---
