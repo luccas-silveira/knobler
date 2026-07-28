@@ -21,8 +21,10 @@ jobs:
       - name: Ambiente
         run: xcodebuild -version && xcrun --sdk macosx --show-sdk-version
 
-      - name: XcodeGen
-        run: brew install xcodegen
+      # xcodegen gera o projeto; jq é dependência dos hooks do Claude, exercitados
+      # por tools/claude-hook/test.sh. Nenhum dos dois vem no runner.
+      - name: Ferramentas
+        run: brew install xcodegen jq
 
       # O .xcodeproj é artefato: sempre regenerado a partir do project.yml.
       - name: Gerar o projeto

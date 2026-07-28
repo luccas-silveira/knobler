@@ -24,10 +24,21 @@ run() {
     PASSED=$((PASSED + 1))
   else
     echo "FALHOU"
-    printf '%s\n' "$out" | tail -15 | sed 's/^/      /'
+    # "command not found" some no meio de um heredoc ecoado — puxa pra cima.
+    printf '%s\n' "$out" | grep -iE "command not found|No such file|not installed" \
+      | sort -u | sed 's/^/      ⚠ /'
+    printf '%s\n' "$out" | tail -30 | sed 's/^/      /'
     FAILED+=("$name")
   fi
 }
+
+# Dependências que não vêm no macOS limpo (nem no runner da CI).
+for dep in jq node; do
+  command -v "$dep" >/dev/null || {
+    echo "❌ falta '$dep' — os gates de integração precisam dele (brew install $dep)"
+    exit 1
+  }
+done
 
 # Compila os fontes indicados junto do harness e roda o binário.
 # `main.swift` traz código top-level e por isso NÃO aceita -parse-as-library.

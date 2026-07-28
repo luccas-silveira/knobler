@@ -46,6 +46,10 @@ Cobre: `askcheck`, `updatercheck`, `agentrequestcheck`, `airpodscheck`,
 agente. Sai com código 1 se qualquer um falhar. Ao adicionar um self-check novo,
 inclua-o no script — ele é a lista canônica.
 
+Exige `jq` e `node`, que **não** vêm num macOS limpo (`brew install jq node`) —
+os hooks do Claude e as pontes do Codex dependem deles. O script confere isso na
+entrada e falha com a mensagem certa em vez de estourar no meio de um gate.
+
 Self-check do binário instalado ou compilado (não entra no script: depende de um
 app já construído):
 
