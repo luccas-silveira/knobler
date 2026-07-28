@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-07-28
+
 ### Added
 - **Aviso de Acessibilidade na barra de menus**: com o ditado ligado e a
   permissão faltando, o ícone vira **◐⚠** e o menu ganha um item que abre o
