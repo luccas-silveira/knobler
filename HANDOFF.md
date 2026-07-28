@@ -1,7 +1,8 @@
-# 🆕 SESSÃO 2026-07-28 (noite) — P1 e P2 do ditado fechados
+# 🆕 SESSÃO 2026-07-28 (noite) — P1 e P2 do ditado + release 0.9.0
 
-As duas pendências que sobraram de 25/07: a causa (duas identidades de
-assinatura) e o sintoma (falha silenciosa). Nenhum comportamento novo no notch.
+As duas pendências que sobraram de 25/07 — a causa (duas identidades de
+assinatura) e o sintoma (falha silenciosa) — e, no fim, a publicação da 0.9.0
+com tudo que estava parado em `[Unreleased]`.
 
 ## O que foi feito
 
@@ -37,16 +38,28 @@ Arquivos: `project.yml`, `Knobler/KnoblerApp.swift`, `Knobler/VolumeHUD.swift`,
   instância junto da instalada — mexe em estado global (OSD nativo suprimido,
   prompt de TCC) por um ícone. Fica pro primeiro launch depois de instalar.
 
+## Release 0.9.0 publicada
+
+`./tools/release.sh minor` rodou limpo depois de um `--dry-run` de validação:
+tag `v0.9.0`, commit `5b94c3a` (bump de `project.yml` + `CHANGELOG`), `.app`
+assinado com `Knobler Local Signing` (`satisfies its Designated Requirement`),
+`Knobler-0.9.0.zip` no [release](https://github.com/luccas-silveira/knobler/releases/tag/v0.9.0)
+e cask bumpado no tap (`eba0691`). CI verde em todos os commits da sessão.
+
+**Pegadinha achada na hora:** `tools/release.sh:13` procura o tap em
+`../homebrew-knobler`, mas ele vive em `~/Desktop/Ferramentas/homebrew-knobler`.
+Sem `KNOBLER_TAP_DIR=` na frente do comando o release aborta no guard. Corrigir o
+default (ou documentar) antes do próximo.
+
 ## Pendências
 
-- **Publicado**: `f70f427` (assinatura) e `980f478` (badge) em `master`.
-- A cópia em `/Applications` ainda está assinada `Apple Development` (instalada
-  antes desta unificação): a **próxima** instalação, por qualquer via, derruba a
-  Acessibilidade uma vez. Reconceder e seguir — depois dela, nunca mais.
-- Segue valendo a pendência da sessão anterior: publicar `0.9.0`
-  (`./tools/release.sh minor`) e usar esse release pro teste de aceitação do
-  update real (instalar → substituir bundle → relançar), único caminho nunca
-  exercitado.
+- **Publicado**: `f70f427` (assinatura), `980f478` (badge), `5b94c3a` (v0.9.0).
+- **Teste de aceitação do update real ainda não feito** — agora destravado: a
+  0.9.0 está publicada. Falta instalar em `/Applications` e, na próxima release,
+  exercitar update → substituir bundle → relançar. Essa instalação troca a
+  identidade da cópia atual (ainda `Apple Development`) e derruba a
+  Acessibilidade **uma vez**; o badge `◐⚠` novo é justamente quem avisa. Depois
+  dela, nunca mais.
 - ~~`CLAUDE.md` afirmava que o `glassEffect`/Liquid Glass estava em uso~~ —
   corrigido nesta sessão (zero ocorrências no código; o target é macOS 14.2).
 - ~~`graphify-out/` sem regenerar~~ — regenerado no fim da sessão: 1943 nós,
