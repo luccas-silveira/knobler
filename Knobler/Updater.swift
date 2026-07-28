@@ -298,6 +298,13 @@ extension Updater {
         guard let asset = release.asset else {
             fail("Este release não tem .zip pra baixar."); return false
         }
+        // A URL vem do JSON da API; se esse JSON for adulterado, o download
+        // apontaria pra qualquer lugar. Só aceitamos o host e o repo oficiais.
+        guard asset.scheme == "https",
+              asset.host == "github.com",
+              asset.path.hasPrefix("/luccas-silveira/knobler/releases/download/") else {
+            fail("Origem do download não confere."); return false
+        }
         guard isInApplications else {
             fail("O Knobler não está em /Applications."); return false
         }
@@ -326,13 +333,24 @@ extension Updater {
             fail("O zip não contém Knobler.app."); return false
         }
 
-        // 3. sanidade antes de encostar em /Applications
+        // 3. sanidade antes de encostar em /Applications.
+        // --verify --strict prova só que o bundle é internamente íntegro, não
+        // QUEM assinou. Exigimos também o bundle ID: um zip trocado por outro
+        // app válido (assinado por qualquer um) não passa daqui.
         let verify = run("/usr/bin/codesign", ["--verify", "--strict", newApp.path])
         guard verify.status == 0 else {
             fail("Assinatura inválida no app baixado."); return false
         }
+        // ponytail: não comparamos a *identidade* com a do app atual de propósito
+        // — a transição de Apple Development pro cert local (Knobler Local
+        // Signing) é esperada e travaria o primeiro update. A confiança vem do
+        // canal: HTTPS + host e repo fixos, validados acima.
         let plist = newApp.appendingPathComponent("Contents/Info.plist")
-        let downloaded = NSDictionary(contentsOf: plist)?["CFBundleShortVersionString"] as? String
+        let info = NSDictionary(contentsOf: plist)
+        guard info?["CFBundleIdentifier"] as? String == Bundle.main.bundleIdentifier else {
+            fail("O app baixado não é o Knobler."); return false
+        }
+        let downloaded = info?["CFBundleShortVersionString"] as? String
         guard downloaded == release.version else {
             fail("O app baixado é \(downloaded ?? "?"), esperava \(release.version)."); return false
         }

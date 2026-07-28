@@ -142,10 +142,20 @@ struct SettingToggle: View {
 
 struct GeneralSettingsPane: View {
     @ObservedObject var settings = AppSettings.shared
+    @ObservedObject var updater = Updater.shared
 
     private var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString")
             as? String ?? "—"
+    }
+
+    private var updateSubtitle: String {
+        switch updater.state {
+        case .available(let release): return "Versão \(release.version) disponível"
+        case .installing: return "Atualizando…"
+        case .failed(let message): return message
+        case .none: return "Você está na versão mais recente"
+        }
     }
 
     var body: some View {
@@ -176,8 +186,33 @@ struct GeneralSettingsPane: View {
                     }
                 }
             }
-            Section {
-                LabeledContent("Versão", value: appVersion)
+            Section("Atualizações") {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Versão \(appVersion)")
+                        Text(updateSubtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    switch updater.state {
+                    case .available:
+                        if updater.canInstall {
+                            Button("Atualizar") { updater.install() }
+                                .buttonStyle(.borderedProminent)
+                        } else if let url = updater.releaseURL {
+                            Button("Ver release") { NSWorkspace.shared.open(url) }
+                        }
+                    case .installing:
+                        ProgressView().controlSize(.small)
+                    case .failed, .none:
+                        Button("Verificar agora") { updater.check(force: true) }
+                    }
+                }
+                SettingToggle(
+                    title: "Verificar atualizações automaticamente",
+                    subtitle: "Consulta o GitHub uma vez por dia e avisa no notch.",
+                    isOn: $settings.checkForUpdates)
             }
         }
         .formStyle(.grouped)
