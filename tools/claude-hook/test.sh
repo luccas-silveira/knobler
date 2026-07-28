@@ -38,13 +38,17 @@ with open(port_file, "w") as out:
 server.serve_forever()
 PY
     SERVER_PID=$!
-    for _ in {1..20}; do
+    # ~10s de folga. Eram 20×0.05s = 1s, que basta numa máquina quente mas não
+    # num runner de CI frio: o interpretador leva mais que isso só pra subir, e
+    # o gate reprovava sem dizer por quê.
+    for _ in {1..100}; do
         if [ -s "$port_file" ]; then
             SERVER_PORT="$(<"$port_file")"
             curl -sf -m 1 "http://127.0.0.1:$SERVER_PORT/ready" >/dev/null 2>&1 && return
         fi
-        sleep 0.05
+        sleep 0.1
     done
+    echo "servidor de teste não subiu a tempo" >&2
     return 1
 }
 
