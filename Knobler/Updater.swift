@@ -6,6 +6,7 @@
 //  nem a tela de Ajustes) para que tools/updatercheck.swift o compile isolado.
 //
 
+import AppKit    // NSApp.terminate no relaunch
 import Foundation
 
 /// Uma versão publicada no GitHub Releases.
@@ -92,4 +93,97 @@ func parseRelease(_ data: Data) throws -> Release? {
         url: api.htmlUrl,
         asset: api.assets.first { $0.name.hasSuffix(".zip") }?.browserDownloadUrl
     )
+}
+
+// MARK: - Updater
+
+final class Updater: ObservableObject {
+    static let shared = Updater()
+
+    /// nil = nenhuma novidade (ou ainda não checou).
+    @Published private(set) var state: UpdateState?
+
+    /// Versão que o usuário mandou embora com "Depois". Persistida: o aviso não
+    /// volta a incomodar até sair uma versão diferente.
+    private(set) var skippedVersion: String? {
+        didSet { UserDefaults.standard.set(skippedVersion, forKey: Self.skippedKey) }
+    }
+
+    /// Checagem periódica ligada. Quem manda aqui é o AppDelegate, espelhando
+    /// AppSettings.checkForUpdates — o Updater não conhece as preferências.
+    var automatic = true
+
+    private static let skippedKey = "updateSkippedVersion"
+    private static let lastCheckKey = "updateLastCheck"
+    private static let feed = URL(
+        string: "https://api.github.com/repos/luccas-silveira/knobler/releases/latest")!
+    /// ponytail: 24h fixo. Vira preferência se alguém reclamar.
+    private static let interval: TimeInterval = 24 * 60 * 60
+    /// Folga pro app terminar de subir antes de gastar rede.
+    private static let launchDelay: TimeInterval = 30
+
+    private var timer: Timer?
+
+    private init() {
+        skippedVersion = UserDefaults.standard.string(forKey: Self.skippedKey)
+    }
+
+    /// Versão rodando agora, do Info.plist. "0.0.0" só em build sem MARKETING_VERSION.
+    var installedVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString")
+            as? String ?? "0.0.0"
+    }
+
+    /// true quando existe update disponível mas o usuário já disse "Depois".
+    var isSkipped: Bool {
+        guard case .available(let release) = state else { return false }
+        return release.version == skippedVersion
+    }
+
+    /// Agenda a primeira checagem e o ciclo de 24h. Idempotente.
+    func start() {
+        timer?.invalidate()
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.launchDelay) { [weak self] in
+            self?.check()
+        }
+        let timer = Timer(timeInterval: Self.interval, repeats: true) { [weak self] _ in
+            self?.check()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
+    }
+
+    /// `force` = o usuário clicou "Verificar agora": ignora o toggle e o intervalo.
+    func check(force: Bool = false) {
+        guard force || automatic else { return }
+        if !force, let last = UserDefaults.standard.object(forKey: Self.lastCheckKey) as? Date,
+           Date().timeIntervalSince(last) < Self.interval { return }
+
+        var request = URLRequest(url: Self.feed)
+        request.timeoutInterval = 15
+        // sem esta linha o GitHub responde com um envelope de mídia legado
+        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, _ in
+            guard let self else { return }
+            // Falha de rede e rate limit (403) são silenciosos: não existe update
+            // bom o bastante pra justificar um alerta de erro de rede.
+            guard let data,
+                  let http = response as? HTTPURLResponse, http.statusCode == 200,
+                  let release = try? parseRelease(data) else { return }
+            UserDefaults.standard.set(Date(), forKey: Self.lastCheckKey)
+            guard isNewer(release.version, than: self.installedVersion) else {
+                DispatchQueue.main.async { self.state = nil }
+                return
+            }
+            DispatchQueue.main.async { self.state = .available(release) }
+        }.resume()
+    }
+
+    /// "Depois": some do notch, continua nos Ajustes.
+    func skipCurrent() {
+        guard case .available(let release) = state else { return }
+        skippedVersion = release.version
+        objectWillChange.send()
+    }
 }

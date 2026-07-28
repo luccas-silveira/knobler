@@ -34,6 +34,10 @@ final class AppSettings: ObservableObject {
     @Published var localAPI: Bool {
         didSet { UserDefaults.standard.set(localAPI, forKey: "localAPI") }
     }
+    /// Checagem automática de novas versões (a cada 24h).
+    @Published var checkForUpdates: Bool {
+        didSet { UserDefaults.standard.set(checkForUpdates, forKey: "checkForUpdates") }
+    }
     @Published var calendarCountdown: Bool {
         didSet { UserDefaults.standard.set(calendarCountdown, forKey: "calendarCountdown") }
     }
@@ -163,6 +167,7 @@ final class AppSettings: ObservableObject {
         batteryAlerts = flag("batteryAlerts")
         liveAudioVisualizer = flag("liveAudioVisualizer")
         localAPI = flag("localAPI")
+        checkForUpdates = flag("checkForUpdates")
         calendarCountdown = flag("calendarCountdown")
         mirrorBeforeMeetings = flag("mirrorBeforeMeetings")
         mirrorDeviceID = defaults.string(forKey: "mirrorDeviceID") ?? ""  // "" = automática
