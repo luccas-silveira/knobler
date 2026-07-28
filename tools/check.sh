@@ -27,7 +27,8 @@ run() {
     # "command not found" some no meio de um heredoc ecoado — puxa pra cima.
     printf '%s\n' "$out" | grep -iE "command not found|No such file|not installed" \
       | sort -u | sed 's/^/      ⚠ /'
-    printf '%s\n' "$out" | tail -30 | sed 's/^/      /'
+    # saída inteira: é curta, e truncar já escondeu a causa uma vez
+    printf '%s\n' "$out" | sed 's/^/      /'
     # `test`/`jq -e` sob `set -e` falham em silêncio: sem o trace não dá pra
     # saber QUAL asserção caiu. Re-roda o gate com -x só pra colher isso.
     if [ "$1" = "bash" ] || [ "${1##*/}" = "bash" ]; then

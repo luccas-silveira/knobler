@@ -19,7 +19,11 @@ jobs:
 
       # Diagnóstico: se um build quebrar por SDK, a versão está aqui.
       - name: Ambiente
-        run: xcodebuild -version && xcrun --sdk macosx --show-sdk-version
+        run: |
+          xcodebuild -version
+          xcrun --sdk macosx --show-sdk-version
+          echo "python3: $(command -v python3 || echo AUSENTE) $(python3 --version 2>&1)"
+          echo "node:    $(command -v node || echo AUSENTE) $(node --version 2>&1)"
 
       # xcodegen gera o projeto; jq é dependência dos hooks do Claude, exercitados
       # por tools/claude-hook/test.sh. Nenhum dos dois vem no runner.
