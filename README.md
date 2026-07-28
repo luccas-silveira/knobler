@@ -98,18 +98,16 @@ Automação (Spotify/Music), Calendário, Mic, Bluetooth.
 ## Build
 
 ```bash
+./tools/make-signing-cert.sh      # uma vez por máquina
 xcodegen generate
 xcodebuild -project Knobler.xcodeproj -scheme Knobler -configuration Release build
 ```
 
-Assinatura Apple Development (ajuste `CODE_SIGN_IDENTITY`/`DEVELOPMENT_TEAM` no
-`project.yml`). Permissões pedidas em runtime: Acessibilidade (teclas + notificações),
-Gravação de Áudio do Sistema (visualizador), Automação (Spotify/Music), Calendário.
-
-⚠️ Este build assina com identidade diferente da usada por `tools/release.sh`.
-Instalar um por cima do outro em `/Applications` derruba a Acessibilidade e mata
-o ditado em silêncio — veja
-[Instalação local do build](docs/development.md#instalação-local-do-build).
+Assinatura `Knobler Local Signing` — a mesma que `tools/release.sh` usa, para que
+instalar um build local por cima de um release não derrube a Acessibilidade
+([por quê](docs/development.md#instalação-local-do-build)). Permissões pedidas em
+runtime: Acessibilidade (teclas + notificações), Gravação de Áudio do Sistema
+(visualizador), Automação (Spotify/Music), Calendário.
 
 O passo a passo completo de desenvolvimento e validação está em
 [`docs/development.md`](docs/development.md). Não edite o

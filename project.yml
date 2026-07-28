@@ -52,7 +52,12 @@ targets:
         # override na linha de comando do xcodebuild.
         MARKETING_VERSION: "0.8.4"
         CURRENT_PROJECT_VERSION: "0.8.4"
-        CODE_SIGN_IDENTITY: "Apple Development: luccaspessoal11@gmail.com (J8UFPJ9AZJ)"
+        # MESMA identidade que o tools/release.sh usa. O TCC ancora a permissão
+        # de Acessibilidade no csreq da assinatura: se um build do xcodebuild
+        # (outra identidade) for copiado por cima de uma instalação vinda do
+        # release.sh, a permissão é invalidada e o ditado morre em silêncio.
+        # Criada uma vez por tools/make-signing-cert.sh; a CI não precisa dela
+        # (builda com CODE_SIGNING_ALLOWED=NO).
+        CODE_SIGN_IDENTITY: "Knobler Local Signing"
         CODE_SIGN_STYLE: Manual
-        DEVELOPMENT_TEAM: 7UNDW72N73
         ENABLE_HARDENED_RUNTIME: "NO"

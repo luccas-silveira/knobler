@@ -17,10 +17,18 @@ O `.xcodeproj` é gerado. Nunca edite esse arquivo manualmente; altere
 `project.yml` e rode:
 
 ```bash
+./tools/make-signing-cert.sh      # uma vez por máquina, antes do primeiro build
 xcodegen generate
 xcodebuild -project Knobler.xcodeproj -scheme Knobler \
   -configuration Debug build
 ```
+
+O `project.yml` assina com `Knobler Local Signing` — a **mesma** identidade que
+o `tools/release.sh` usa, para que o TCC não invalide a Acessibilidade quando um
+build local substitui uma instalação de release (veja
+[Instalação local do build](#instalação-local-do-build)). Sem o certificado o
+build falha na assinatura; para só compilar (é o que a CI faz), acrescente
+`CODE_SIGNING_ALLOWED=NO`.
 
 Para um build Release isolado:
 
@@ -110,22 +118,23 @@ open -a /Applications/Knobler.app
 
 Se substituir uma cópia em uso, encerre o app antes.
 
-⚠️ **Instalar um build do `xcodebuild` derruba a Acessibilidade.** O TCC ancora
-a permissão na assinatura do binário: o `xcodebuild` assina com a identidade de
-desenvolvimento do Xcode (`Apple Development: …`), enquanto o `tools/release.sh`
-assina com `Knobler Local Signing`. Sobrescrever uma cópia com a outra troca a
-identidade, o `csreq` guardado pelo TCC deixa de casar e o ditado morre em
-silêncio — a ⌥ direita para de responder porque o `CGEventTap` não é mais
-criado.
+O TCC ancora a permissão de Acessibilidade na assinatura do binário: se a
+identidade mudar entre uma instalação e outra, o `csreq` guardado deixa de casar
+e o ditado morre em silêncio — a ⌥ direita para de responder porque o
+`CGEventTap` não é mais criado. Por isso `project.yml` e `tools/release.sh`
+assinam com a **mesma** identidade (`Knobler Local Signing`): instalar um build
+do `xcodebuild` por cima de um release, ou o contrário, mantém a permissão.
 
-Confira com que identidade a cópia instalada ficou:
+Confira com que identidade a cópia instalada ficou — as duas vias devem imprimir
+`Authority=Knobler Local Signing`:
 
 ```bash
 codesign -dv --verbose=2 /Applications/Knobler.app 2>&1 | grep Authority
 ```
 
-Para manter a permissão estável entre instalações, instale sempre pela mesma
-via. Se a Acessibilidade cair, o procedimento de reset está em
+Se aparecer outra coisa (ex.: `Apple Development: …`, de um build anterior a
+esta unificação), a próxima instalação vai derrubar a Acessibilidade uma vez —
+reconceda e siga. O procedimento de reset está em
 [Troubleshooting](troubleshooting.md#ditado-não-inicia).
 
 ## Release

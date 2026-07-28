@@ -2,8 +2,10 @@
 
 App macOS nativo (AppKit + SwiftUI) que transforma o notch num Dynamic Island:
 mídia do Spotify, ditado, Pomodoro, notificações e uma API HTTP local. Roda como
-agente (`LSUIElement`). Rodando em **macOS 26 Tahoe** → o `glassEffect` / Liquid
-Glass nativo está disponível (guardado por `if #available(macOS 26, *)`).
+agente (`LSUIElement`). O deployment target é **macOS 14.2**; a máquina de
+desenvolvimento roda macOS 26 Tahoe, então o `glassEffect` / Liquid Glass é uma
+opção — mas **não** está em uso hoje (zero ocorrências no código). Usar exige
+guarda `if #available(macOS 26, *)` com fallback pro target.
 
 ## Build & run
 

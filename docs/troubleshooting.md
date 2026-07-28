@@ -102,7 +102,13 @@ Sintoma típico: segurar a ⌥ direita não faz absolutamente nada — sem pílu
 sem erro, sem log. O silêncio total é a assinatura de um problema de
 permissão, não de um problema no ditado.
 
-Comece pelo `/status`, que separa as duas metades do fluxo:
+O primeiro sinal está na barra de menus: com o ditado ligado e sem
+Acessibilidade, o ícone do Knobler vira **◐⚠** e o menu ganha
+**⚠ Ditado precisa de Acessibilidade…**, que abre o painel direto. A marca some
+sozinha assim que a permissão é concedida (a checagem roda a cada 3s).
+
+Para o diagnóstico completo, comece pelo `/status`, que separa as duas metades
+do fluxo:
 
 ```bash
 curl -sS http://127.0.0.1:4477/status | jq '{axTrusted, tapExists, tapEnabled, dictation, keyLog}'
@@ -150,11 +156,12 @@ Os dois precisam ler `true`.
 ### Por que isso volta a acontecer
 
 O TCC casa a concessão contra a assinatura de código do binário. Se a
-assinatura muda, a permissão anterior deixa de valer. Isso acontece quando a
-identidade usada para assinar muda entre uma instalação e outra — por exemplo,
-ao copiar para `/Applications` um build feito por `xcodebuild` (assinado com a
-identidade de desenvolvimento do Xcode) por cima de uma cópia que veio de
-`tools/release.sh` (assinado com `Knobler Local Signing`). Veja
+assinatura muda, a permissão anterior deixa de valer. Isso acontecia quando a
+identidade mudava entre uma instalação e outra — o `xcodebuild` assinava com a
+identidade de desenvolvimento do Xcode e o `tools/release.sh` com
+`Knobler Local Signing`. Hoje as duas vias usam `Knobler Local Signing`, mas
+**uma** troca ainda acontece ao instalar por cima de uma cópia antiga, assinada
+com a identidade anterior. Veja
 [Instalação local do build](development.md#instalação-local-do-build).
 
 Verifique com que identidade a cópia instalada está assinada:
