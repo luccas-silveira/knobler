@@ -1,4 +1,59 @@
-# 🆕 SESSÃO 2026-07-28 (tarde) — atualizações no notch + auditoria da documentação
+# 🆕 SESSÃO 2026-07-28 (noite) — P1 e P2 do ditado fechados
+
+As duas pendências que sobraram de 25/07: a causa (duas identidades de
+assinatura) e o sintoma (falha silenciosa). Nenhum comportamento novo no notch.
+
+## O que foi feito
+
+**P1 — uma identidade só.** `project.yml` assinava com
+`Apple Development: … (J8UFPJ9AZJ)` e o `tools/release.sh` com
+`Knobler Local Signing`. Copiar um build por cima do outro em `/Applications`
+trocava a identidade, invalidava o `csreq` guardado pelo TCC e matava o ditado em
+silêncio. Agora `CODE_SIGN_IDENTITY: "Knobler Local Signing"` no `project.yml`
+(e `DEVELOPMENT_TEAM` removido — cert self-signed não tem team). A CI não
+precisa do cert: builda com `CODE_SIGNING_ALLOWED=NO`.
+
+**P2 — o aviso saiu do notch e foi pra barra de menus.** Com o ditado ligado e
+`AXIsProcessTrusted() == false`, o ícone vira `◐⚠` e o menu ganha
+**⚠ Ditado precisa de Acessibilidade…**, que abre o painel do sistema. A pílula
+de 2s do launch continua, mas deixou de ser o único sinal. Descartada a pílula
+persistente no notch da proposta original: ela cobriria mídia, HUDs e o resto
+enquanto a permissão faltasse.
+
+O badge não abriu timer novo — pegou carona no `checkTapHealth`
+(`VolumeHUD.swift`), que já sondava a Acessibilidade a cada 3s. Ele ganhou
+`onAXTrust`, disparado só na mudança; o `AppDelegate` reavalia o título ali e no
+sink de `AppSettings` (o toggle do ditado também muda a condição).
+
+Arquivos: `project.yml`, `Knobler/KnoblerApp.swift`, `Knobler/VolumeHUD.swift`,
+`CHANGELOG.md`, `README.md`, `docs/development.md`, `docs/troubleshooting.md`.
+
+## Validação
+
+- `xcodebuild` Debug ✅; `codesign -dvv` do produto imprime
+  `Authority=Knobler Local Signing` — o P1 provado no artefato, não no YAML.
+- `./tools/check.sh` → 8/8 ✅ (o gate do Codex segue pulado sem `--com-ambiente`).
+- **Não verificado**: o badge aparecendo de verdade. Exigiria rodar uma segunda
+  instância junto da instalada — mexe em estado global (OSD nativo suprimido,
+  prompt de TCC) por um ícone. Fica pro primeiro launch depois de instalar.
+
+## Pendências
+
+- **Publicado**: `f70f427` (assinatura) e `980f478` (badge) em `master`.
+- A cópia em `/Applications` ainda está assinada `Apple Development` (instalada
+  antes desta unificação): a **próxima** instalação, por qualquer via, derruba a
+  Acessibilidade uma vez. Reconceder e seguir — depois dela, nunca mais.
+- Segue valendo a pendência da sessão anterior: publicar `0.9.0`
+  (`./tools/release.sh minor`) e usar esse release pro teste de aceitação do
+  update real (instalar → substituir bundle → relançar), único caminho nunca
+  exercitado.
+- ~~`CLAUDE.md` afirmava que o `glassEffect`/Liquid Glass estava em uso~~ —
+  corrigido nesta sessão (zero ocorrências no código; o target é macOS 14.2).
+- `graphify-out/` segue sem regenerar (mudança pequena, não justificava o custo).
+
+---
+
+# SESSÃO 2026-07-28 (tarde) — atualizações no notch + auditoria da documentação
 
 Duas frentes: a feature de update (Tasks 1–6 do plano) e, depois, uma auditoria
 de documentação que rendeu licença, CI e arrumação de casa. Tudo mesclado em
