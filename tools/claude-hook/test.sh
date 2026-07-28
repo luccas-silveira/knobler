@@ -8,18 +8,22 @@ trap 'status=$?; kill "${SERVER_PID:-}" 2>/dev/null || true; rm -rf "$TMP"; exit
 TOKEN_FILE="$TMP/token"
 printf '%s' hook-test-token > "$TOKEN_FILE"
 
-start_api() { # $1=agent action
-    local port="$1" action="$2" payload="$3"
-    python3 - "$port" "$action" "$payload" <<'PY' &
-import json, sys
+start_api() { # $1=agent action $2=payload file
+    local action="$1" payload="$2" port_file="$TMP/port"
+    rm -f "$port_file"
+    python3 - "$action" "$payload" "$port_file" <<'PY' &
+import json, sys, time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-port, action, payload = int(sys.argv[1]), sys.argv[2], sys.argv[3]
+action, payload, port_file = sys.argv[1:]
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args): pass
     def do_POST(self):
         if self.path != "/agent-requests" or self.headers.get("Authorization") != "Bearer hook-test-token":
             self.send_error(401); return
+        if action == "timeout":
+            time.sleep(2)
+            return
         size = int(self.headers["Content-Length"])
         with open(payload, "wb") as out:
             out.write(self.rfile.read(size))
@@ -28,30 +32,36 @@ class Handler(BaseHTTPRequestHandler):
         response = {"state": "resolved", "result": {"action": action, "responder": "nob", "state": "resolved"}}
         body = json.dumps(response).encode()
         self.send_response(200); self.end_headers(); self.wfile.write(body)
-HTTPServer(("127.0.0.1", port), Handler).serve_forever()
+server = HTTPServer(("127.0.0.1", 0), Handler)
+with open(port_file, "w") as out:
+    out.write(str(server.server_address[1]))
+server.serve_forever()
 PY
     SERVER_PID=$!
     for _ in {1..20}; do
-        curl -sf -m 1 "http://127.0.0.1:$port/ready" >/dev/null 2>&1 && return
+        if [ -s "$port_file" ]; then
+            SERVER_PORT="$(<"$port_file")"
+            curl -sf -m 1 "http://127.0.0.1:$SERVER_PORT/ready" >/dev/null 2>&1 && return
+        fi
         sleep 0.05
     done
     return 1
 }
 
 run_case() { # $1=action $2=expected JSON
-    local action="$1" expected="$2" port payload output
-    port=$((46000 + RANDOM % 1000))
+    local action="$1" expected="$2" payload output expected_details
     payload="$TMP/$action.json"
-    start_api "$port" "$action" "$payload"
-    output="$(KNOBLER_PORT="$port" KNOBLER_AGENT_REQUEST_TOKEN="$TOKEN_FILE" "$ROOT/knobler-permission.sh" < "$FIXTURE")"
+    start_api "$action" "$payload"
+    output="$(KNOBLER_PORT="$SERVER_PORT" KNOBLER_AGENT_REQUEST_TOKEN="$TOKEN_FILE" "$ROOT/knobler-permission.sh" < "$FIXTURE")"
     kill "$SERVER_PID" 2>/dev/null || true
     wait "$SERVER_PID" 2>/dev/null || true
     unset SERVER_PID
     test "$output" = "$expected"
-    jq -e '
+    expected_details="$(jq -c '{session_id, tool_name, tool_input, permission_suggestions}' "$FIXTURE")"
+    jq -e --argjson details "$expected_details" '
         .agent == "claude" and .kind == "permission" and .source == "terminal"
         and .title == "Bash" and .summary == "Run test suite"
-        and (.details | contains("npm test"))
+        and ((.details | fromjson) == $details)
         and .actions == [{"action":"allow"},{"action":"allowForSession"},{"action":"deny"}]' "$payload" >/dev/null
 }
 
@@ -61,6 +71,14 @@ run_case allowForSession '{"hookSpecificOutput":{"hookEventName":"PermissionRequ
 
 DOWN="$(KNOBLER_PORT=1 KNOBLER_AGENT_REQUEST_TOKEN="$TOKEN_FILE" "$ROOT/knobler-permission.sh" < "$FIXTURE")"
 test -z "$DOWN"
+
+TIMEOUT_PAYLOAD="$TMP/timeout.json"
+start_api timeout "$TIMEOUT_PAYLOAD"
+TIMEOUT="$(KNOBLER_PORT="$SERVER_PORT" KNOBLER_AGENT_REQUEST_TOKEN="$TOKEN_FILE" "$ROOT/knobler-permission.sh" < "$FIXTURE")"
+kill "$SERVER_PID" 2>/dev/null || true
+wait "$SERVER_PID" 2>/dev/null || true
+unset SERVER_PID
+test -z "$TIMEOUT"
 
 HOME="$TMP/home"
 mkdir -p "$HOME/.claude"

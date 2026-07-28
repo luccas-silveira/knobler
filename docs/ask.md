@@ -23,6 +23,15 @@ Claude via o mesmo hook que publicou a pergunta.
   (ver `docs/local-api.md`); o card aparece sozinho.
 - Clique numa opção (ou marque várias, se for múltipla escolha) e confirme.
 
+## Permissões do Claude
+
+O instalador também registra o hook nativo `PermissionRequest`. O pedido mostra
+ferramenta, detalhes e sugestões no NOB, sem executar comandos. **Permitir**
+aprova só a operação atual. **Permitir na sessão** só cria regras em memória
+para a sessão atual; não grava permissões persistentes. Se a API ou o token não
+estiverem disponíveis, o hook não devolve decisão e Claude mantém o prompt
+nativo no terminal.
+
 ## Permissões
 
 Nenhuma permissão especial — só a API local (`127.0.0.1:4477`), que não

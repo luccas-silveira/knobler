@@ -51,6 +51,15 @@ Ligar/desligar a API local: Ajustes → Notch.
 O resultado final é consumido na primeira leitura e a primeira ação válida
 vence.
 
+### Claude `PermissionRequest`
+
+O hook do Claude envia `tool_name`, `tool_input`, `permission_suggestions` e
+`session_id` ao endpoint como dados, sem executar o conteúdo recebido. `allow`
+autoriza apenas a operação atual. `allowForSession` só está disponível quando
+Claude forneceu uma sugestão de allow; o hook muda o destino dessas regras para
+`session`, portanto não escreve configurações persistentes. Em falha ou timeout
+da API, ele sai com sucesso e sem JSON para manter o prompt nativo do Claude.
+
 Essas rotas exigem `Authorization: Bearer <token>`. O token é efêmero por
 sessão, tem 32 bytes aleatórios codificados em base64, e fica em
 `~/Library/Application Support/Knobler/agent-request-token` com modo `0600`.
