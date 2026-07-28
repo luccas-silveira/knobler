@@ -48,13 +48,16 @@ contratos e explicações para entender decisões.
 - [Segurança e privacidade](../SECURITY.md) — trust boundaries, dados e
   reporte responsável.
 - [Versionamento](../VERSIONING.md) — SemVer e processo de release.
+- [Licença](../LICENSE) — MIT.
 - [Proveniência do vendor](../Vendor/PROVENANCE.md) — MediaRemote adapter
   incluído no app.
 
 ## Histórico e decisões
 
 - [Changelog](../CHANGELOG.md) — mudanças por release.
-- [Handoff](../HANDOFF.md) — estado operacional da última sessão.
+- [Handoff](../HANDOFF.md) — estado operacional da última sessão;
+  [sessões anteriores](handoffs/2026-07.md) ficam arquivadas.
+- [Ideias](IDEIAS.md) — backlog do que ainda não virou feature.
 - [Specs e pesquisas](superpowers/specs/) — decisões de design e evidências.
 - [Planos de implementação](superpowers/plans/) — planos históricos; não são
   a fonte atual da arquitetura quando o código já mudou.

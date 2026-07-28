@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: build + self-checks
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Diagnóstico: se um build quebrar por SDK, a versão está aqui.
+      - name: Ambiente
+        run: xcodebuild -version && xcrun --sdk macosx --show-sdk-version
+
+      - name: XcodeGen
+        run: brew install xcodegen
+
+      # O .xcodeproj é artefato: sempre regenerado a partir do project.yml.
+      - name: Gerar o projeto
+        run: xcodegen generate
+
+      # CODE_SIGNING_ALLOWED=NO: o runner não tem o cert local de assinatura,
+      # e a CI valida compilação, não distribuição.
+      - name: Build Debug
+        run: |
+          xcodebuild -project Knobler.xcodeproj -scheme Knobler \
+            -configuration Debug CODE_SIGNING_ALLOWED=NO \
+            -derivedDataPath build/dd build
+
+      # Mesmo script que roda localmente — a lista de gates vive num lugar só.
+      # Sem --com-ambiente: o gate do Codex exige a CLI instalada no runner.
+      - name: Self-checks
+        run: ./tools/check.sh

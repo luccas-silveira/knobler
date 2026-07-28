@@ -8,9 +8,11 @@
 //  5s). O contador é sleep-proof (ancorado num endDate). AppKit — fica fora do
 //  arquivo de modelo (só-Foundation) e do harness de snapshot.
 //
-//  Teto honesto (ver SPEC-descanso.md / Achados): bloqueia Force Quit, Cmd-Tab,
-//  Dock e menu bar; Cmd+Q é tratado à parte no AppDelegate. Spotlight e o Monitor
-//  de Atividade ainda escapam — é empurrão com atrito, não lock de segurança.
+//  Teto honesto (ver a seção Achados em
+//  docs/superpowers/specs/2026-07-19-descanso-design.md): bloqueia Force Quit,
+//  Cmd-Tab, Dock e menu bar; Cmd+Q é tratado à parte no AppDelegate. Spotlight
+//  e o Monitor de Atividade ainda escapam — é empurrão com atrito, não lock de
+//  segurança.
 //
 
 import AppKit

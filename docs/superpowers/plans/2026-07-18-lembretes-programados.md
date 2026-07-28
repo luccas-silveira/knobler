@@ -8,7 +8,7 @@
 
 **Tech Stack:** Swift 5 (compilador 6.3), Foundation, AppKit, SwiftUI, XcodeGen. Zero dependências novas.
 
-**Spec:** `SPEC-reminders.md` (raiz do repo). Achados de pesquisa já verificados com `swift` real estão consolidados lá e replicados aqui onde importam.
+**Spec:** `docs/superpowers/specs/2026-07-18-lembretes-design.md` (raiz do repo). Achados de pesquisa já verificados com `swift` real estão consolidados lá e replicados aqui onde importam.
 
 ## Global Constraints
 

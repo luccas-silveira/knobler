@@ -25,6 +25,9 @@ preferíveis a uma camada nova de abstração.
   webhook no commit.
 - O projeto ainda não possui test target Swift; use self-checks standalone,
   build, snapshots e os testes do relay conforme a área alterada.
+- `./tools/check.sh` roda todos os self-checks de uma vez e é o mesmo comando da
+  CI (`.github/workflows/ci.yml`) — rode antes de abrir PR. Self-check novo
+  precisa entrar nesse script.
 
 ## Commits
 

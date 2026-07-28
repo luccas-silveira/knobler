@@ -124,3 +124,8 @@ O passo a passo completo de desenvolvimento e validação está em
 
 Medido em Release com 3 monitores: ~11% de um core com música tocando
 (visualizador a 20Hz), 0,0% parado, ~22MB de RAM.
+
+## Licença
+
+[MIT](LICENSE). O `Vendor/MediaRemoteAdapter.framework` tem proveniência
+própria — ver [`Vendor/PROVENANCE.md`](Vendor/PROVENANCE.md).

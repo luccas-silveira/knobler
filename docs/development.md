@@ -32,35 +32,38 @@ xcodebuild -project Knobler.xcodeproj -scheme Knobler \
 O app produzido fica em
 `/tmp/knobler-dd/Build/Products/Release/Knobler.app`.
 
-## Checks rápidos
+## Checks
 
-Self-check do domínio Ask:
+Um comando roda todos os self-checks — é exatamente o que a CI executa:
 
 ```bash
-xcrun swiftc -parse-as-library -swift-version 5 \
-  Knobler/AskModels.swift Knobler/AskFeature.swift \
-  tools/askcheck.swift -o /tmp/askcheck
-/tmp/askcheck
+./tools/check.sh                  # gates herméticos (o que a CI roda)
+./tools/check.sh --com-ambiente   # inclui o gate do Codex, que exige a CLI
 ```
 
-Self-check do binário instalado ou compilado:
+Cobre: `askcheck`, `updatercheck`, `agentrequestcheck`, `airpodscheck`,
+`wirecheck`, o hook do Claude, a ponte do Codex e o e2e de solicitações de
+agente. Sai com código 1 se qualquer um falhar. Ao adicionar um self-check novo,
+inclua-o no script — ele é a lista canônica.
+
+Self-check do binário instalado ou compilado (não entra no script: depende de um
+app já construído):
 
 ```bash
 /Applications/Knobler.app/Contents/MacOS/Knobler --selfcheck
 ```
 
-Checks puros adicionais:
+Para rodar um gate isolado, o cabeçalho de cada `tools/*check*.swift` traz a
+linha de compilação. Atenção: harness escrito como `main.swift` (é o caso do
+`wirecheck`) tem código top-level e **não** aceita `-parse-as-library`.
 
-```bash
-xcrun swiftc -parse-as-library -swift-version 5 \
-  Knobler/Wire.swift tools/wirecheck/main.swift -o /tmp/wirecheck
-/tmp/wirecheck
+## CI
 
-xcrun swiftc -parse-as-library -swift-version 5 \
-  Knobler/AirPodsBattery.swift tools/airpods_selfcheck.swift \
-  -o /tmp/airpods-selfcheck
-/tmp/airpods-selfcheck
-```
+`.github/workflows/ci.yml` roda em push para `master`, em pull request e sob
+demanda: gera o projeto com XcodeGen, compila em Debug com
+`CODE_SIGNING_ALLOWED=NO` (o runner não tem o certificado local) e executa
+`./tools/check.sh`. O snapshot visual **não** roda na CI — precisa de sessão
+gráfica e o gate é humano: alguém precisa olhar os PNGs.
 
 ## Validação visual
 
