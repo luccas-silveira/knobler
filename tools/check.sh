@@ -32,7 +32,8 @@ run() {
     # saber QUAL asserção caiu. Re-roda o gate com -x só pra colher isso.
     if [ "$1" = "bash" ] || [ "${1##*/}" = "bash" ]; then
       echo "      --- trace (bash -x) ---"
-      bash -x "${@:2}" 2>&1 | tail -25 | sed 's/^/      /'
+      # só as linhas de comando do trace: heredoc ecoado (sem '+') afogaria o fim.
+      bash -x "${@:2}" 2>&1 | grep '^+' | tail -25 | sed 's/^/      /'
     fi
     FAILED+=("$name")
   fi
