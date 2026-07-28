@@ -34,9 +34,10 @@ Arquivos: `project.yml`, `Knobler/KnoblerApp.swift`, `Knobler/VolumeHUD.swift`,
 - `xcodebuild` Debug ✅; `codesign -dvv` do produto imprime
   `Authority=Knobler Local Signing` — o P1 provado no artefato, não no YAML.
 - `./tools/check.sh` → 8/8 ✅ (o gate do Codex segue pulado sem `--com-ambiente`).
-- **Não verificado**: o badge aparecendo de verdade. Exigiria rodar uma segunda
-  instância junto da instalada — mexe em estado global (OSD nativo suprimido,
-  prompt de TCC) por um ícone. Fica pro primeiro launch depois de instalar.
+- **Badge verificado ao vivo** (no fim da sessão): instalar a 0.9.0 trocou a
+  identidade da cópia de `/Applications`, o TCC invalidou a Acessibilidade e o
+  ícone da barra virou `◐⚠` — screenshot da barra de menus confirma, com
+  `GET /status` lendo `axTrusted: false, tapExists: false`.
 
 ## Release 0.9.0 publicada
 
@@ -46,20 +47,41 @@ assinado com `Knobler Local Signing` (`satisfies its Designated Requirement`),
 `Knobler-0.9.0.zip` no [release](https://github.com/luccas-silveira/knobler/releases/tag/v0.9.0)
 e cask bumpado no tap (`eba0691`). CI verde em todos os commits da sessão.
 
-**Pegadinha achada na hora:** `tools/release.sh:13` procura o tap em
-`../homebrew-knobler`, mas ele vive em `~/Desktop/Ferramentas/homebrew-knobler`.
-Sem `KNOBLER_TAP_DIR=` na frente do comando o release aborta no guard. Corrigir o
-default (ou documentar) antes do próximo.
+**Pegadinha achada na hora, já corrigida** (`680e638`): o caminho do tap era fixo
+em `../homebrew-knobler` e o clone está em `~/Desktop/Ferramentas/homebrew-knobler`
+— o release só passou com `KNOBLER_TAP_DIR=` na frente. Agora o script procura ao
+lado do repo e no tap do `brew`, e dá `pull --ff-only` antes de bumpar: existem
+**dois clones** do tap nesta máquina e o atrasado falharia no push com o cask já
+editado. Os dois estão sincronizados em `0.9.0` agora.
+
+## Instalação da 0.9.0 (feita)
+
+Escolhida a via **Homebrew** em vez do `ditto`: `brew install --cask knobler`,
+depois de mover a cópia 0.8.4 pra fora de `/Applications` (o brew recusa
+sobrescrever app não gerenciado). Confirmado: `Authority=Knobler Local Signing`,
+`CFBundleShortVersionString 0.9.0`, `brew list --cask knobler` responde. O sha256
+do zip publicado foi baixado e conferido contra o cask — batem.
+
+Consequência prevista e observada: o TCC invalidou a Acessibilidade na troca de
+identidade. **Falta reconceder no painel** (aberto na sessão, mas o clique é
+manual). Depois disso o `checkTapHealth` recria o tap sozinho e o badge some.
+
+Efeito colateral útil: com o app gerenciado pelo brew, o updater passa a usar o
+caminho `brew upgrade --cask knobler`. O caminho direto (baixar `.zip` → validar
+→ `replaceItemAt` → relançar) **continua sem nunca ter sido exercitado**.
 
 ## Pendências
 
-- **Publicado**: `f70f427` (assinatura), `980f478` (badge), `5b94c3a` (v0.9.0).
-- **Teste de aceitação do update real ainda não feito** — agora destravado: a
-  0.9.0 está publicada. Falta instalar em `/Applications` e, na próxima release,
-  exercitar update → substituir bundle → relançar. Essa instalação troca a
-  identidade da cópia atual (ainda `Apple Development`) e derruba a
-  Acessibilidade **uma vez**; o badge `◐⚠` novo é justamente quem avisa. Depois
-  dela, nunca mais.
+- **Publicado**: `f70f427` (assinatura), `980f478` (badge), `5b94c3a` (v0.9.0),
+  `680e638` (tap do release).
+- **Reconceder a Acessibilidade** — pendência de clique humano, não de código.
+  Enquanto não fizer, o ditado não inicia (e o `◐⚠` fica na barra avisando).
+- **Teste de aceitação do update real**: na próxima release, o app deve avisar
+  sozinho e atualizar por `brew upgrade --cask knobler`. O caminho direto
+  (`.zip` → `replaceItemAt` → relançar) segue sem cobertura — para exercitá-lo
+  seria preciso uma instalação fora do brew.
+- A partir de agora as duas vias assinam igual, então instalar por cima **não**
+  derruba mais a Acessibilidade. Esta foi a última vez.
 - ~~`CLAUDE.md` afirmava que o `glassEffect`/Liquid Glass estava em uso~~ —
   corrigido nesta sessão (zero ocorrências no código; o target é macOS 14.2).
 - ~~`graphify-out/` sem regenerar~~ — regenerado no fim da sessão: 1943 nós,
