@@ -42,6 +42,19 @@ Dynamic Island para o notch do Mac — nativo, Swift/SwiftUI, macOS 14.2+.
 
 Configuração de tudo isso numa janela de Ajustes única. → [detalhes](docs/settings.md)
 
+## Documentação
+
+- [Índice da documentação](docs/index.md) — mapa por objetivo: começar,
+  usar, desenvolver e manter.
+- [Arquitetura](docs/architecture.md) — ownership de estado, composição e
+  fluxo AskUserQuestion.
+- [Desenvolvimento](docs/development.md) — build, self-checks, snapshots,
+  relay e release.
+- [Troubleshooting](docs/troubleshooting.md) — permissões, API local, ditado,
+  Ask, câmera e webhooks.
+- [Segurança e privacidade](SECURITY.md) — trust boundaries, dados e reporte.
+- [Contribuição](CONTRIBUTING.md) — fluxo para mudanças no repositório.
+
 ## API local
 
 ```bash
@@ -89,6 +102,15 @@ xcodebuild -project Knobler.xcodeproj -scheme Knobler -configuration Release bui
 Assinatura Apple Development (ajuste `CODE_SIGN_IDENTITY`/`DEVELOPMENT_TEAM` no
 `project.yml`). Permissões pedidas em runtime: Acessibilidade (teclas + notificações),
 Gravação de Áudio do Sistema (visualizador), Automação (Spotify/Music), Calendário.
+
+⚠️ Este build assina com identidade diferente da usada por `tools/release.sh`.
+Instalar um por cima do outro em `/Applications` derruba a Acessibilidade e mata
+o ditado em silêncio — veja
+[Instalação local do build](docs/development.md#instalação-local-do-build).
+
+O passo a passo completo de desenvolvimento e validação está em
+[`docs/development.md`](docs/development.md). Não edite o
+`Knobler.xcodeproj` manualmente: ele é gerado pelo XcodeGen.
 
 ## Validação visual
 

@@ -37,4 +37,8 @@ errado: deixa o texto no clipboard e mostra “texto copiado” no notch.
 
 - **Microfone** — *"Knobler grava sua voz enquanto você segura a tecla de
   ditado, para transcrever onde o cursor estiver."*
-- **Acessibilidade** — necessária pro ⌘V sintético colar o texto no app ativo.
+- **Acessibilidade** — necessária **duas vezes**: pro `CGEventTap` detectar que
+  você segurou a ⌥ direita (sem ela o ditado nem começa) e pro ⌘V sintético
+  colar o texto no app ativo. Sem essa permissão o ditado falha em silêncio:
+  nada grava, nada aparece no notch. Veja
+  [Troubleshooting](troubleshooting.md#ditado-não-inicia).
