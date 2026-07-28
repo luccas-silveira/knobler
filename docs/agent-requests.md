@@ -66,12 +66,50 @@ falsa com pedidos gravados em `tools/fixtures/codex-approval-requests.jsonl`,
 confere as respostas das quatro decisões nos três schemas, o fallback com a API
 fora e que o comando da fixture nunca foi executado.
 
+### Superfícies suportadas
+
+Verificado em `codex-cli 0.145.0` por `node tools/codex-integration-check.mjs`:
+
+| Superfície | Espelha no notch? | Como |
+|---|---|---|
+| Cliente app-server iniciado pela ponte | sim | `tools/knobler codex bridge` no lugar de `codex app-server --listen stdio://` |
+| TUI (`codex`) já aberto | não | a sessão não é anexável; aprovação nativa no terminal |
+| Desktop app e extensão de IDE | não | falam com o daemon do `app-server`, não com o stdio da ponte |
+
+O daemon (`codex app-server daemon`, `codex remote-control`) exige a instalação
+standalone do instalador oficial — num Codex de Homebrew ele nem sobe:
+
+```
+Error: managed standalone Codex install not found at ~/.codex/packages/standalone/current/codex
+```
+
+Enquanto for assim, app e IDE ficam com a aprovação nativa e o notch não
+interfere. O gate reporta o estado a cada execução, então basta rodá-lo de novo
+depois de trocar a instalação.
+
+### O que o gate cobre
+
+```bash
+node tools/codex-integration-check.mjs
+```
+
+Versão da CLI, capacidade dos três pedidos, um `initialize` real atravessando a
+ponte sem publicar card (nenhuma aprovação falsa), a troca de aprovação por
+fixture e o estado do daemon. Ele **não** inicia turno: nada de token gasto e
+nenhum comando do agente executado. O turno ao vivo é manual:
+
+```bash
+codex --ask-for-approval on-request --sandbox read-only "liste os arquivos daqui"
+```
+
 ### Limitações
 
-- O protocolo do `app-server` é experimental: revalide com `codex check` depois
-  de atualizar o Codex.
+- O protocolo do `app-server` é experimental: revalide com `knobler codex
+  check` e com o gate depois de atualizar o Codex.
 - Uma sessão já aberta no TUI, no app ou na extensão de IDE **não** é anexada à
   ponte — só o que passa por `knobler codex bridge` é espelhado.
+- Sem interceptação (capability ausente, API fora, timeout), o texto que aparece
+  é uma linha em stderr começando com `codex bridge:` — o Codex segue normal.
 
 ## Segurança
 

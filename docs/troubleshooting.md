@@ -1,0 +1,203 @@
+# Troubleshooting
+
+Comece pelo diagnóstico barato antes de reinstalar:
+
+```bash
+curl -sS http://127.0.0.1:4477/status | jq .
+/Applications/Knobler.app/Contents/MacOS/Knobler --selfcheck
+```
+
+O endpoint `/status` só existe quando a API local está ligada em Ajustes →
+Notch. Os campos variam por integração; normalmente incluem `notches`,
+`player`, `dictation`, `ask`, `micInUse` e `lanMessaging`.
+
+## O app está aberto, mas o notch não aparece
+
+1. Confirme se o processo está ativo:
+
+   ```bash
+   pgrep -fl Knobler
+   ```
+
+2. Encerre e abra a cópia instalada:
+
+   ```bash
+   killall Knobler 2>/dev/null || true
+   open -a /Applications/Knobler.app
+   ```
+
+3. Em monitores externos, confirme que a ilha simulada está posicionada no
+   monitor esperado e que o app não está em modo de tela cheia exclusivo.
+
+## API local indisponível
+
+- Ligue Ajustes → Notch → API local.
+- Confira se outra aplicação ocupou a porta:
+
+  ```bash
+  lsof -nP -iTCP:4477 -sTCP:LISTEN
+  ```
+
+- Teste o endpoint mínimo:
+
+  ```bash
+  curl -i -X POST 127.0.0.1:4477/notify \
+    -H 'Content-Type: application/json' \
+    -d '{"title":"teste"}'
+  ```
+
+O servidor escuta apenas loopback. Para scripts, `tools/knobler` retorna erro
+quando a API está desligada; isso é intencional para que o caller possa decidir
+se deve usar `|| true`.
+
+## Ask não aparece no notch
+
+1. Confirme a API:
+
+   ```bash
+   curl -sS http://127.0.0.1:4477/status | jq '.ask'
+   ```
+
+2. Para Claude Code, instale o hook e inicie uma nova sessão:
+
+   ```bash
+   ./tools/claude-hook/install.sh
+   ```
+
+3. O hook falha aberto: se o Knobler estiver desligado, cancelado ou sem
+   resposta, a pergunta deve continuar no terminal.
+
+4. Perguntas pendentes expiram em 15 minutos. Ao desligar a API, o app limpa a
+   apresentação e invalida callbacks antigos.
+
+Para testar sem Claude Code, use a CLI:
+
+```bash
+./tools/knobler ask "Continuar?" "Sim" "Não"
+```
+
+## Aprovação do Codex não aparece no notch
+
+Rode o gate — ele diz em qual etapa parou:
+
+```bash
+node tools/codex-integration-check.mjs
+```
+
+| Saída | Significado |
+|---|---|
+| `capability: …` | esta versão do Codex não expõe os três pedidos de aprovação |
+| `daemon indisponível (instalação não-standalone)` | app e IDE ficam com aprovação nativa; só a CLI pela ponte espelha |
+| `OK` | a ponte funciona — o pedido veio de uma sessão fora dela |
+
+A causa mais comum do último caso: a sessão foi aberta com `codex` direto. Só o
+que passa por `tools/knobler codex bridge` é espelhado. Uma linha em stderr
+começando com `codex bridge:` explica cada recusa (token ausente, API fora,
+sem resposta a tempo) — em todas elas a aprovação nativa continua valendo, e
+nenhuma decisão é inventada.
+
+## Ditado não inicia
+
+Sintoma típico: segurar a ⌥ direita não faz absolutamente nada — sem pílula,
+sem erro, sem log. O silêncio total é a assinatura de um problema de
+permissão, não de um problema no ditado.
+
+Comece pelo `/status`, que separa as duas metades do fluxo:
+
+```bash
+curl -sS http://127.0.0.1:4477/status | jq '{axTrusted, tapExists, tapEnabled, dictation, keyLog}'
+```
+
+| Leitura | Significado |
+| --- | --- |
+| `axTrusted: false` | Sem Acessibilidade — **é a causa em quase todos os casos** |
+| `tapExists`/`tapEnabled: false` | O `CGEventTap` não existe; nenhuma tecla chega ao app |
+| `keyLog: []` após teclar | Confirma que o tap está morto, não que o ditado está |
+| `dictation.enabled: false` | O recurso está desligado em Ajustes → Ditado |
+| `dictation.modelReady: false` | O Parakeet ainda está baixando ou falhou |
+
+Se `dictation` está `enabled: true` e `modelReady: true` mas `axTrusted` é
+`false`, o ditado está sadio e o problema é só a permissão: sem ela o
+`CGEventTap` (`VolumeHUD.swift:142`) nem é criado, então o `flagsChanged` da
+⌥ direita nunca chega ao `rightOptionChanged`.
+
+### Reconceder a Acessibilidade
+
+A UI pode mostrar o Knobler **marcado** enquanto a concessão não vale nada: o
+TCC ancora a permissão na assinatura do binário e guarda entradas antigas.
+Nesse estado, desmarcar e marcar de novo **não resolve** — é preciso apagar as
+entradas:
+
+```bash
+tccutil reset Accessibility com.zoi.knobler
+killall Knobler; open -a Knobler
+```
+
+Ao reabrir, o app dispara o prompt do sistema (`Dictation.swift:277`). Conceda
+por ele, ou adicione `/Applications/Knobler.app` à lista com o botão **+**
+(remova a entrada antiga com **−** antes, se ainda estiver lá).
+
+Não é preciso reiniciar de novo depois de conceder: o `checkTapHealth`
+(`VolumeHUD.swift:107`) roda em timer, percebe a mudança e recria o tap
+sozinho. Confirme:
+
+```bash
+curl -sS http://127.0.0.1:4477/status | jq '{axTrusted, tapEnabled}'
+```
+
+Os dois precisam ler `true`.
+
+### Por que isso volta a acontecer
+
+O TCC casa a concessão contra a assinatura de código do binário. Se a
+assinatura muda, a permissão anterior deixa de valer. Isso acontece quando a
+identidade usada para assinar muda entre uma instalação e outra — por exemplo,
+ao copiar para `/Applications` um build feito por `xcodebuild` (assinado com a
+identidade de desenvolvimento do Xcode) por cima de uma cópia que veio de
+`tools/release.sh` (assinado com `Knobler Local Signing`). Veja
+[Instalação local do build](development.md#instalação-local-do-build).
+
+Verifique com que identidade a cópia instalada está assinada:
+
+```bash
+codesign -dv --verbose=2 /Applications/Knobler.app 2>&1 | grep Authority
+```
+
+Também confira o Microfone em Ajustes do Sistema → Privacidade e Segurança →
+Microfone. A falta dele é um sintoma diferente: o ditado *começa* e falha com
+a pílula "Sem acesso ao microfone".
+
+## Formatação local da transcrição não funciona
+
+- Confirme que Ollama ou LM Studio está rodando.
+- Confirme endpoint e modelo em Ajustes → Ditado.
+- Desative temporariamente “Formatar transcrição” para separar o problema do
+  motor de transcrição.
+
+A falha do formatter deve devolver o transcript bruto; ela não deve impedir o
+  ditado.
+
+## Câmera ou espelho não aparece
+
+- Dê acesso à Câmera.
+- Abra o espelho e escolha a câmera pelo menu quando houver mais de uma.
+- Se um dispositivo USB sumiu, volte para “Automática”; a preferência usa
+  `uniqueID`, não índice.
+
+## Webhook não entrega notificações
+
+- Ligue o recurso e confirme que o perfil não foi rotacionado ou apagado.
+- Verifique se o processo do relay está disponível e se o token está no
+  Keychain.
+- Use o diagnóstico do app e os logs do processo; não cole tokens em issues.
+
+## Logs úteis
+
+```bash
+log stream --style compact --info \
+  --predicate 'process == "Knobler"'
+```
+
+Para um relatório de bug, inclua versão do app, macOS, feature afetada,
+resultado de `/status`, comando reproduzível e se o problema ocorre em um ou
+em todos os monitores. Remova tokens, nomes, áudio, imagens e textos privados.
