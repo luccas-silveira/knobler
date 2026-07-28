@@ -6,6 +6,13 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Fixed
+- **`tools/release.sh` encontra o tap sozinho**: o caminho era fixo em
+  `../homebrew-knobler` e abortava quando o clone estava em outro lugar. Agora
+  procura ao lado do repo e no tap do `brew`, lista o que tentou quando não acha,
+  e dá `pull --ff-only` antes de bumpar o cask — com mais de um clone na máquina,
+  o clone atrasado só falhava lá no push, com o cask já editado.
+
 ## [0.9.0] - 2026-07-28
 
 ### Added

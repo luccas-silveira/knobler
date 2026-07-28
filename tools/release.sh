@@ -10,7 +10,22 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TAP_DIR="${KNOBLER_TAP_DIR:-$REPO_ROOT/../homebrew-knobler}"
+
+# O clone do tap não fica no mesmo lugar em toda máquina: pode estar ao lado do
+# repo, pode ser o que o `brew tap` clonou. Procura nos dois antes de desistir —
+# KNOBLER_TAP_DIR vence sempre.
+TAP_CANDIDATES="$REPO_ROOT/../homebrew-knobler"
+if BREW_REPO="$(brew --repository 2>/dev/null)"; then
+  TAP_CANDIDATES="$TAP_CANDIDATES
+$BREW_REPO/Library/Taps/luccas-silveira/homebrew-knobler"
+fi
+TAP_DIR="${KNOBLER_TAP_DIR:-}"
+if [ -z "$TAP_DIR" ]; then
+  while IFS= read -r cand; do
+    [ -d "$cand/.git" ] && { TAP_DIR="$cand"; break; }
+  done <<< "$TAP_CANDIDATES"
+fi
+TAP_DIR="${TAP_DIR:-$REPO_ROOT/../homebrew-knobler}"
 CASK="$TAP_DIR/Casks/knobler.rb"
 CHANGELOG="$REPO_ROOT/CHANGELOG.md"
 
@@ -72,8 +87,12 @@ NOTES="$(awk '/^## \[Unreleased\]/{g=1;next} /^## /{if(g)exit} g' "$CHANGELOG" \
 if [ "$DRY" -eq 0 ]; then
   command -v gh >/dev/null || { echo "gh não instalado" >&2; exit 1; }
   gh auth status >/dev/null 2>&1 || { echo "gh não autenticado (gh auth login)" >&2; exit 1; }
-  git -C "$TAP_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1 \
-    || { echo "tap não encontrado em $TAP_DIR. Ajuste KNOBLER_TAP_DIR." >&2; exit 1; }
+  git -C "$TAP_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1 || {
+    echo "tap não encontrado. Caminhos tentados:" >&2
+    printf '  %s\n' $TAP_CANDIDATES >&2
+    echo "Aponte o clone com KNOBLER_TAP_DIR=/caminho/do/homebrew-knobler." >&2
+    exit 1
+  }
   BRANCH="$(git rev-parse --abbrev-ref HEAD)"
   [ "$BRANCH" != "HEAD" ] || { echo "HEAD destacado — faça checkout de um branch (o release commita o bump)." >&2; exit 1; }
   git rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1 \
@@ -163,7 +182,11 @@ else
 fi
 rm -f "$NOTES_FILE"
 
-echo "==> bumpando o cask"
+echo "==> bumpando o cask ($TAP_DIR)"
+# Existe mais de um clone do tap na máquina (o de trabalho e o do `brew tap`);
+# sem isto, bumpar pelo clone atrasado só falha lá no push, com o cask já editado.
+git -C "$TAP_DIR" pull --ff-only --quiet \
+  || { echo "tap fora de sincronia com o origin — resolva em $TAP_DIR antes." >&2; exit 1; }
 # ponytail: sed do BSD/macOS exige o argumento vazio após -i
 sed -i '' -E "s/^  version \".*\"/  version \"$VER\"/" "$CASK"
 sed -i '' -E "s/^  sha256 \".*\"/  sha256 \"$SHA\"/" "$CASK"
