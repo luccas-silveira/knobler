@@ -61,9 +61,12 @@ miniaturas), e `ScrollView`
 (`NSScrollView` por baixo) — sintoma diferente dos outros: não vira o ícone
 de "proibido", o conteúdo simplesmente não aparece (área inteira preta),
 mesmo com `LazyVStack` trocado por `VStack` simples. Confirmado na
-`HistoryListView` (seção de histórico) e na `MessagesView` — por isso essas
-duas seções não entram no harness populadas, só o histórico vazio
-(`foco-historico-vazio.png`, que não usa `ScrollView`). A seção `espelho`
+`HistoryListView` (seção de histórico) e na **thread** da `MessagesView` (a
+conversa aberta) — por isso a seção de histórico não entra populada no harness,
+só vazia (`foco-historico-vazio.png`, que não usa `ScrollView`), e não há
+cenário de conversa aberta. A **lista de peers** da `MessagesView` não usa
+`ScrollView` e renderiza normalmente: `messages-online.png` é gerado pelo
+harness e vale como detector de regressão. A seção `espelho`
 também fica de fora: precisa de câmera real. Ao adicionar
 cenário novo ao harness, desconfie de qualquer subview que envolva um
 desses. Por isso `settings-*.png`

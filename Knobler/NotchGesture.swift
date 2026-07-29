@@ -30,6 +30,29 @@ enum NotchGesture {
     /// tira que responde ao hover mas não ao scroll.
     static let folgaDeHover: CGFloat = 16
 
+    /// Largura desenhada do card aberto. Mora aqui, e não como literal na
+    /// `NotchView`, porque a zona do gesto precisa da MESMA constante — a
+    /// `NotchView` a lê no `expandedSize`.
+    static let larguraDoCard: CGFloat = 430
+
+    /// Largura da zona do gesto com o notch fechado: bem mais larga que o notch
+    /// físico de propósito, pra que dois dedos na moldura ainda acertem.
+    static let larguraFechada: CGFloat = 400
+
+    /// A faixa horizontal que escuta o gesto. Aberta, é a largura do card mais a
+    /// folga de hover dos DOIS lados — mesmo motivo do eixo vertical: zona mais
+    /// estreita que o card deixa uma tira que responde ao hover e não ao scroll.
+    static func zoneWidth(expanded: Bool) -> CGFloat {
+        expanded ? larguraDoCard + 2 * folgaDeHover : larguraFechada
+    }
+
+    /// O cursor está dentro dessa faixa? A zona é centrada no meio da tela,
+    /// como o notch.
+    static func naZonaHorizontal(mouseX: CGFloat, screenMidX: CGFloat,
+                                 expanded: Bool) -> Bool {
+        abs(mouseX - screenMidX) <= zoneWidth(expanded: expanded) / 2
+    }
+
     /// Folga acima e abaixo do notch fechado. Sem ela o alvo seria a moldura
     /// exata — dois dedos sobre o notch nunca acertariam.
     static let folgaDoNotch: CGFloat = 10

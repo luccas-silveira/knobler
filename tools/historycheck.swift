@@ -151,6 +151,26 @@ struct HistoryCheck {
                                     alturaAtual: 202, notchHeight: 32),
                "seção baixa: a zona encolhe junto")
 
+        // eixo horizontal: aberto, a zona tem que cobrir a largura desenhada do
+        // card MAIS a folga de hover dos dois lados — o mesmo modo de falha do
+        // eixo vertical, e por isso derivada das mesmas constantes.
+        let meia = NotchGesture.zoneWidth(expanded: true) / 2
+        assert(NotchGesture.zoneWidth(expanded: true)
+                == NotchGesture.larguraDoCard + 2 * NotchGesture.folgaDeHover,
+               "a zona horizontal do card aberto não cobre a folga de hover")
+        assert(NotchGesture.naZonaHorizontal(mouseX: 500 + meia - 1, screenMidX: 500,
+                                             expanded: true),
+               "a borda do card aberto está na zona")
+        assert(!NotchGesture.naZonaHorizontal(mouseX: 500 + meia + 1, screenMidX: 500,
+                                              expanded: true),
+               "fora da borda do card já é da janela de trás")
+        assert(NotchGesture.naZonaHorizontal(mouseX: 500 - meia + 1, screenMidX: 500,
+                                             expanded: true),
+               "a zona é simétrica em volta do meio da tela")
+        assert(!NotchGesture.naZonaHorizontal(mouseX: 500 + 201, screenMidX: 500,
+                                              expanded: false),
+               "fechado a zona é bem mais estreita que o card")
+
         // altura ainda não publicada: a zona encolhe, mas não vira negativa —
         // o topo continua respondendo em vez de o gesto morrer
         assert(NotchGesture.inZone(mouseY: 995, screenMaxY: topo, expanded: true,

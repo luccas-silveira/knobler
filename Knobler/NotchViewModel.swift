@@ -37,6 +37,10 @@ final class NotchViewModel: ObservableObject {
                 mirrorOn = false
                 // escolha manual vale até fechar; a próxima abertura volta ao automático
                 focusLocked = false
+                // pedido de foco que ninguém consumiu morre aqui: vivo, ele
+                // vazaria pra abertura seguinte e abriria numa seção que o
+                // usuário não pediu — já travada, matando a promoção do card.
+                focoPendente = nil
             }
         }
     }
@@ -176,6 +180,14 @@ final class NotchViewModel: ObservableObject {
     /// painel de arquivos que devolve o anexo). A ordem só existe depois do
     /// `recalcularSecoes`, então o pedido espera aqui em vez de ser sobrescrito
     /// pela promoção da abertura.
+    ///
+    /// Semântica do slot, em três regras:
+    /// 1. só é consumido quando a seção pedida **existe** na ordem — antes
+    ///    disso ele espera, em vez de sumir em silêncio;
+    /// 2. quem pede com o card **já aberto** não passa por aqui: chama `focar`
+    ///    direto, porque o único gatilho de `recalcularSecoes` é a mudança de
+    ///    `expanded` e ela não acontece;
+    /// 3. fechar o card apaga o pedido (ver o `didSet` de `expanded`).
     var focoPendente: NotchSection?
 
     func recalcularSecoes(_ estados: [NotchSectionState], travadaNaNota: Bool) {
@@ -183,18 +195,20 @@ final class NotchViewModel: ObservableObject {
                                            estados: estados,
                                            agora: Date(),
                                            travadaNaNota: travadaNaNota)
-        // a trava da nota vence até a escolha manual anterior
+        // a trava da nota vence até a escolha manual anterior — e descarta o
+        // pedido pendente de propósito: digitar é o compromisso mais forte, e
+        // deixar o pedido vivo faria o foco pular de seção no instante em que o
+        // usuário largasse o teclado.
         if travadaNaNota, secoes.contains(.nota) {
             focus = .nota
             focoPendente = nil
             return
         }
-        if let pedido = focoPendente {
-            focoPendente = nil
-            if secoes.contains(pedido) {
-                focar(pedido)
-                return
-            }
+        // o pedido só é consumido quando a seção pedida de fato entrou na
+        // ordem; sem conteúdo ainda, ele espera o próximo recálculo
+        if let pedido = focoPendente, secoes.contains(pedido) {
+            focar(pedido)
+            return
         }
         guard !focusLocked, let primeira = secoes.first else {
             // o foco travado pode ter perdido o conteúdo enquanto isso
@@ -384,8 +398,23 @@ final class NotchViewModel: ObservableObject {
     func openThread(peerID: String) {
         requestDismissIncoming()
         selectedThreadPeerID = peerID
-        focoPendente = .mensagens
-        setExpandedDirect(true)
+        pedirFoco(.mensagens)
+    }
+
+    /// Pede foco numa seção e garante o card aberto. Com o card **já** aberto o
+    /// slot `focoPendente` não serve: quem o consome é o `recalcularSecoes`
+    /// disparado pelo `onChange(of: expanded)`, e sem mudança de `expanded` o
+    /// pedido ficaria preso até a próxima abertura. Ex.: card aberto por hover
+    /// + mensagem LAN chegando + clique no card.
+    func pedirFoco(_ section: NotchSection) {
+        guard expanded else {
+            focoPendente = section
+            setExpandedDirect(true)
+            return
+        }
+        // seção que ainda não entrou na ordem congelada volta pro slot e espera
+        // o próximo recálculo — some em silêncio se `focar` só desistisse
+        if secoes.contains(section) { focar(section) } else { focoPendente = section }
     }
 
     // MARK: - Notificações

@@ -32,8 +32,10 @@ Seções: `musica`, `atividade`, `shelf`, `pomodoro`, `espelho`, `mensagens`,
 `historico`, `nota`.
 
 - A seção em foco ocupa o card e **declara a própria altura**.
-- As demais viram ícones numa faixa no rodapé, cada uma com um sinal vivo
-  mínimo.
+- **Todas** as seções ativas viram ícones numa faixa no rodapé, cada uma com um
+  sinal vivo mínimo — inclusive a que está em foco, que aparece acesa (0,9 de
+  opacidade) contra as demais apagadas (0,35). É o que dá noção de posição:
+  sem o ícone da própria seção na faixa não dá pra saber onde você está.
 - Clique num ícone troca o foco.
 
 Isso substitui: os `if` empilháveis de `musicContent`, a aritmética de
@@ -96,15 +98,15 @@ abertura já reflete o estado novo.
 Vive no rodapé, no slot hoje ocupado por `pageDots` (`NotchView.swift:809`) —
 já é clicável e já tem o swipe de dois dedos mapeado.
 
-Cada ícone não-focado carrega **um sinal vivo mínimo**, não um rótulo:
+Cada ícone carrega **um sinal vivo mínimo**, não um rótulo:
 
 | Seção      | Sinal |
 |------------|-------|
 | atividade  | anel de progresso fino em volta do ícone (indeterminado = arco girando) |
 | musica     | ponto aceso quando tocando; apagado quando pausada |
-| pomodoro   | anel do ciclo restante |
+| pomodoro   | anel do tempo restante da fase (foco/pausa) |
 | shelf      | contagem de itens |
-| mensagens  | contagem de não-lidas |
+| mensagens  | nenhum por enquanto — não existe contagem de não-lidas no store |
 | historico  | contagem das últimas 24 h |
 | espelho    | ícone sólido (ligado/desligado já é a presença) |
 | nota       | ponto quando há rascunho |

@@ -653,12 +653,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let id = Self.displayID(of: screen)
         guard let vm = notches[id]?.viewModel else { return event }
 
-        // zona do gesto: o notch fechado ou o card aberto. O eixo vertical mora
+        // zona do gesto: o notch fechado ou o card aberto. Os dois eixos moram
         // no NotchGesture, que é testável sem NSEvent — é ele que sabe somar a
         // folga de hover e aguentar a altura ainda não publicada
         let expanded = vm.mode == .music
-        let zoneWidth: CGFloat = expanded ? 460 : 400
-        let inZone = abs(mouse.x - screen.frame.midX) <= zoneWidth / 2
+        let inZone = NotchGesture.naZonaHorizontal(mouseX: mouse.x,
+                                                   screenMidX: screen.frame.midX,
+                                                   expanded: expanded)
             && NotchGesture.inZone(mouseY: mouse.y,
                                    screenMaxY: screen.frame.maxY,
                                    expanded: expanded,
@@ -1062,6 +1063,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // false. Sem pedir o foco aqui, o card abriria no Histórico ou na Música
         // (a nota é a última da ordem padrão) e o painel tomaria a janela-chave
         // sem campo nenhum focado: teclas engolidas em silêncio.
+        //
+        // A ordem destas três linhas é load-bearing: `note.active = true` vira
+        // o `hasNota` que a `AberturaDoCard` capturou, e é esse valor já
+        // atualizado que o `recalcularSecoes` disparado pelo
+        // `onChange(of: expanded)` lê. Ligar a nota DEPOIS de expandir faria o
+        // recálculo rodar sem a seção nota na lista — o pedido de foco esperaria
+        // um recálculo que só o `onChange(of: hasNota)` traria depois.
         vm.focoPendente = .nota
         note.active = true
         vm.setExpandedDirect(true)

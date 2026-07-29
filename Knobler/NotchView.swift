@@ -85,7 +85,7 @@ struct NotchView: View {
         }
     }
 
-    private let expandedSize = CGSize(width: 430, height: 188)
+    private let expandedSize = CGSize(width: NotchGesture.larguraDoCard, height: 188)
     private let notificationWidth: CGFloat = 380
     // asinhas do estado fechado quando tem música tocando (capa + visualizer)
     private let wingWidth: CGFloat = 44
@@ -876,9 +876,39 @@ struct NotchView: View {
                     .frame(width: 3, height: 3)
                     .offset(x: 6, y: -6)
             }
-        case .pomodoro, .espelho, .mensagens:
+        case .pomodoro:
+            if let p = vm.pomodoro, let fatia = Self.fatiaDoCiclo(p, settings: settings) {
+                Circle()
+                    .trim(from: 0, to: fatia)
+                    .stroke(.white.opacity(0.7), lineWidth: 1.5)
+                    .rotationEffect(.degrees(-90))
+                    .frame(width: 14, height: 14)
+            }
+        // espelho: ligado/desligado já é a presença do ícone na faixa.
+        // mensagens: o sinal seria a contagem de não-lidas, que não existe hoje
+        // (o store guarda a conversa, não o "lido") — melhor nada que inventar.
+        case .espelho, .mensagens:
             EmptyView()
         }
+    }
+
+    /// Quanto falta da fase atual do Pomodoro, de 0 a 1 — o anel do ícone.
+    ///
+    /// A duração cheia da fase não vem no `PomodoroState` (só o `remaining`),
+    /// então sai dos Ajustes, que é de onde o próprio `Pomodoro` a lê. Mexer na
+    /// config no meio de uma fase pode dar fração fora da faixa; daí o clamp.
+    /// Parado (idle) não tem ciclo em andamento e não desenha anel.
+    static func fatiaDoCiclo(_ p: PomodoroState, settings: AppSettings) -> CGFloat? {
+        guard p.runState != .idle else { return nil }
+        let minutos: Int
+        switch p.phase {
+        case .focus: minutos = settings.pomodoroFocus
+        case .shortBreak: minutos = settings.pomodoroShortBreak
+        case .longBreak: minutos = settings.pomodoroLongBreak
+        }
+        let total = TimeInterval(minutos) * 60
+        guard total > 0 else { return nil }
+        return CGFloat(min(max(p.remaining / total, 0), 1))
     }
 
     @ViewBuilder

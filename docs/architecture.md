@@ -65,8 +65,10 @@ disputavam foco escrevendo no mesmo `editing`.
 
 O card do notch aberto **não empilha** conteúdo. Ele mostra uma seção de cada
 vez (Música, Atividade, Pomodoro, Prateleira, Espelho, Mensagens, Histórico,
-Nota rápida) e deixa as outras como uma faixa de ícones no rodapé, cada uma com
-um sinal vivo mínimo (anel de progresso, contagem, ponto de "tocando").
+Nota rápida) e resume **todas** as ativas — a em foco inclusive — numa faixa de
+ícones no rodapé, cada um com um sinal vivo mínimo (anel de progresso, contagem,
+ponto de "tocando"). O ícone da seção em foco fica aceso e os outros apagados,
+que é o que dá noção de posição na faixa.
 
 A ordem sai de três camadas, nesta sequência:
 

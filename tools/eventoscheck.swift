@@ -33,6 +33,9 @@ struct EventosCheck {
         testFocarVizinhoCirculaNasDuasDirecoes()
         testFocoTravadoQuePerdeConteudo()
         testTravaDaNotaVenceAEscolhaManual()
+        testPedidoDeFocoComOCardJaAberto()
+        testPedidoDeFocoSemConteudoEspera()
+        testFecharOCardApagaOPedido()
         testPublicarAltura()
         // estes mexem na preferência salva; ficam por último pra não desarrumar
         // a ordem de fábrica que os testes acima assumem.
@@ -237,6 +240,47 @@ struct EventosCheck {
         // sem conteúdo na nota a trava não age
         vm.recalcularSecoes(comConteudo(.musica), travadaNaNota: true)
         assert(vm.focus == .musica, "trava da nota agiu sem a nota na lista")
+    }
+
+    /// O slot `focoPendente` é um pedido de foco feito de fora. Três regras:
+    /// com o card já aberto o pedido é honrado na hora (não existe `onChange`
+    /// de `expanded` pra consumir o slot); um pedido sem conteúdo na lista
+    /// espera em vez de sumir em silêncio; e fechar o card apaga o slot, pra
+    /// que nenhum pedido órfão vaze pra abertura seguinte.
+    static func testPedidoDeFocoComOCardJaAberto() {
+        let vm = NotchViewModel()
+        vm.expanded = true
+        vm.recalcularSecoes(comConteudo(.musica, .mensagens), travadaNaNota: false)
+        assert(vm.focus == .musica, "pré-condição: o card abriu na música")
+        vm.openThread(peerID: "p1")
+        assert(vm.focus == .mensagens,
+               "pedido de foco com o card aberto não foi honrado: \(String(describing: vm.focus))")
+        assert(vm.focoPendente == nil, "o pedido honrado deveria ter esvaziado o slot")
+    }
+
+    static func testPedidoDeFocoSemConteudoEspera() {
+        let vm = NotchViewModel()
+        vm.focoPendente = .mensagens
+        vm.recalcularSecoes(comConteudo(.musica), travadaNaNota: false)
+        assert(vm.focus == .musica, "sem a seção pedida o foco cai no automático")
+        assert(vm.focoPendente == .mensagens,
+               "o pedido foi descartado antes de a seção existir")
+        // a seção aparece: o pedido guardado é consumido
+        vm.recalcularSecoes(comConteudo(.musica, .mensagens), travadaNaNota: false)
+        assert(vm.focus == .mensagens, "o pedido guardado não foi honrado")
+        assert(vm.focoPendente == nil, "o pedido honrado deveria ter esvaziado o slot")
+    }
+
+    static func testFecharOCardApagaOPedido() {
+        let vm = NotchViewModel()
+        vm.expanded = true
+        vm.focoPendente = .mensagens
+        vm.expanded = false
+        assert(vm.focoPendente == nil, "pedido órfão sobreviveu ao fechar o card")
+        vm.expanded = true
+        vm.recalcularSecoes(comConteudo(.musica, .mensagens), travadaNaNota: false)
+        assert(vm.focus == .musica, "o pedido velho roubou a abertura seguinte")
+        assert(!vm.focusLocked, "o pedido velho travou o foco da sessão inteira")
     }
 
     static func testPublicarAltura() {

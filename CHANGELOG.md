@@ -25,6 +25,18 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   `tools/makeicon.swift`, direto do vetor, e o favicon do site (que ainda era
   o padrão do Astro) passou a ser a mesma marca.
 
+### Fixed
+- **Clicar num card de mensagem com o notch já aberto vai pra Mensagens**: o
+  pedido de foco só era atendido quando o card precisava abrir. Com o card já
+  na tela o clique não fazia nada — e o pedido ficava guardado, roubando a
+  abertura seguinte pra uma seção que ninguém tinha pedido e travando o foco
+  até o notch recolher.
+- **O ícone do Pomodoro na faixa ganhou o anel do tempo restante da fase**,
+  como o da atividade já tinha. Antes saía chapado.
+- **O scroll de dois dedos responde nas bordas do card aberto**: a zona do
+  gesto era 2 pt mais estreita que o card, então uma tira de 1 pt de cada lado
+  reagia ao ponteiro mas não à rolagem.
+
 ### Removed
 - **O atalho direto pro histórico saiu**: o puxão longo de dois dedos (a mesma
   passada que abria o card e seguia até ~120 pt) levava ao histórico em um
