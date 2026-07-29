@@ -74,15 +74,18 @@ struct HistoryCheck {
     /// histórico. Como o alvo é função pura do acumulado, recuar os dedos
     /// dentro do mesmo gesto desfaz sem precisar de máquina de estados.
     static func testGesto() {
-        assert(NotchGesture.verticalTarget(accumY: 10) == nil, "ruído não age")
-        assert(NotchGesture.verticalTarget(accumY: -10) == nil, "ruído não age")
-        assert(NotchGesture.verticalTarget(accumY: 30) == .expanded, "30 pt abre o card")
-        assert(NotchGesture.verticalTarget(accumY: 130) == .history, "130 pt vai ao histórico")
+        assert(NotchGesture.verticalTarget(accumY: 10, accumX: 0) == nil, "ruído não age")
+        assert(NotchGesture.verticalTarget(accumY: -10, accumX: 0) == nil, "ruído não age")
+        assert(NotchGesture.verticalTarget(accumY: 30, accumX: 0) == .expanded, "30 pt abre o card")
+        assert(NotchGesture.verticalTarget(accumY: 130, accumX: 0) == .history, "130 pt vai ao histórico")
         // mesmo gesto, dedos recuando: 130 → 30 volta ao card
-        assert(NotchGesture.verticalTarget(accumY: 30) == .expanded, "recuo volta ao card")
-        assert(NotchGesture.verticalTarget(accumY: -30) == .closed, "pra cima fecha")
+        assert(NotchGesture.verticalTarget(accumY: 30, accumX: 0) == .expanded, "recuo volta ao card")
+        assert(NotchGesture.verticalTarget(accumY: -30, accumX: 0) == .closed, "pra cima fecha")
         // limiares exatos: o limite é aberto (>), não fechado (>=)
-        assert(NotchGesture.verticalTarget(accumY: 24) == nil, "24 pt ainda é ruído")
-        assert(NotchGesture.verticalTarget(accumY: 120) == .expanded, "120 pt ainda é card")
+        assert(NotchGesture.verticalTarget(accumY: 24, accumX: 0) == nil, "24 pt ainda é ruído")
+        assert(NotchGesture.verticalTarget(accumY: 120, accumX: 0) == .expanded, "120 pt ainda é card")
+        // guarda de diagonal: swipe quase horizontal não mexe no card
+        assert(NotchGesture.verticalTarget(accumY: 30, accumX: 60) == nil, "diagonal não abre")
+        assert(NotchGesture.verticalTarget(accumY: -30, accumX: 60) == nil, "diagonal não fecha")
     }
 }

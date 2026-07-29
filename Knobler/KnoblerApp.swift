@@ -647,6 +647,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             && mouse.y >= screen.frame.maxY - zoneHeight
         guard inZone else { return event }
 
+        // cortina aberta: o vertical é da lista, pra ela rolar de verdade —
+        // inclusive a inércia, senão o flick para seco quando os dedos saem.
+        // A checagem lê scrollStartedInHistory ANTES do bloco .began abaixo
+        // setá-la, mas isso é seguro: um evento .began nunca é de inércia, e
+        // é sempre o primeiro evento do gesto — quando momentum/.changed
+        // chegam, a flag já foi setada por um .began anterior. Não "corrija"
+        // a ordem: é isso que deixa a inércia da lista passar.
+        if scrollStartedInHistory, abs(event.scrollingDeltaY) >= abs(event.scrollingDeltaX) {
+            return event
+        }
+
         // inércia não conta como gesto; ainda assim é engolida na zona
         guard event.momentumPhase.isEmpty else { return nil }
 
@@ -657,17 +668,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             scrollStartedInHistory = vm.historyOpen
         }
 
-        // cortina aberta: o vertical é da lista, pra ela rolar de verdade
-        if scrollStartedInHistory, abs(event.scrollingDeltaY) >= abs(event.scrollingDeltaX) {
-            return event
-        }
-
         scrollAccumX += event.scrollingDeltaX
         scrollAccumY += event.scrollingDeltaY
 
         // vertical: alvo é função do acumulado, então recuar dentro do mesmo
         // gesto desfaz. Idempotente — aplicar o mesmo alvo duas vezes não custa.
-        if let target = NotchGesture.verticalTarget(accumY: scrollAccumY) {
+        if let target = NotchGesture.verticalTarget(accumY: scrollAccumY, accumX: scrollAccumX) {
             switch target {
             case .closed:
                 vm.historyOpen = false
