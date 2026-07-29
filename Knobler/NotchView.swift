@@ -15,6 +15,7 @@ struct NotchView: View {
     let levels: SystemAudioLevels
     @ObservedObject var shelf: ShelfStore
     @ObservedObject private var settings = AppSettings.shared
+    @ObservedObject private var history = NotificationHistory.shared
     /// false no harness de snapshot: onDrop cria uma NSView que o ImageRenderer
     /// não renderiza (vira placeholder amarelo). No app fica sempre true.
     var dropTargetsEnabled = true
@@ -617,7 +618,9 @@ struct NotchView: View {
     private var expandedContent: some View {
         VStack(spacing: 8) {
             Group {
-                if vm.tab == .messages {
+                if vm.historyOpen {
+                    HistoryListView(history: history)
+                } else if vm.tab == .messages {
                     MessagesView(vm: vm)
                 } else {
                     musicContent
@@ -625,8 +628,16 @@ struct NotchView: View {
             }
             .transition(.blurReplace)
             Spacer(minLength: 0)
-            pageDots
+            if vm.historyOpen { grabber } else { pageDots }
         }
+    }
+
+    /// Alcinha do Dynamic Island: a única dica de que há mais coisa abaixo —
+    /// o puxão longo não se anuncia sozinho.
+    private var grabber: some View {
+        Capsule()
+            .fill(.white.opacity(0.25))
+            .frame(width: 28, height: 3)
     }
 
     /// Único indicador de navegação: a troca de tela é por swipe de dois dedos.
@@ -672,6 +683,9 @@ struct NotchView: View {
             // espelho aberto (ou Pomodoro ativo) toma o lugar da música — volta ao fechar/encerrar
             if !vm.mirrorOn, vm.pomodoro == nil {
                 musicSection
+            }
+            if !history.items.isEmpty {
+                grabber.padding(.top, 2)
             }
         }
         .animation(.easeOut(duration: 0.3), value: vm.activity == nil)
@@ -930,7 +944,7 @@ struct NotchView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    openSourceApp(notification)
+                    Self.openSourceApp(notification)
                     vm.dismissActiveNotification()
                 }
                 if let token = notification.actionToken, !notification.actionTitles.isEmpty {
@@ -964,7 +978,9 @@ struct NotchView: View {
             .frame(width: 32, height: 32)
     }
 
-    private func openSourceApp(_ notification: NotchNotification) {
+    /// Estático e internal: a linha do histórico reusa o mesmo clique. O corpo
+    /// já só usava `Self.` e NSWorkspace, então a promoção não muda nada.
+    static func openSourceApp(_ notification: NotchNotification) {
         // AirDrop revela a pasta de destino — caminho fixo do sistema, nunca uma
         // string vinda de fora (o openURL abaixo aceita payload de webhook)
         if notification.revealsDownloads {

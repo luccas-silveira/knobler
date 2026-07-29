@@ -187,6 +187,21 @@ let scenarios: [Scenario] = [
             body: "O Time Machine terminou o backup de hoje às 14:32."
         )
     },
+    Scenario(name: "expanded-history-empty", realNotch: true) { vm, _, _ in
+        vm.expanded = true
+        vm.historyOpen = true
+    },
+    Scenario(name: "expanded-history", realNotch: true) { vm, _, _ in
+        let h = NotificationHistory.shared
+        h.record(NotchNotification(appName: "Slack", title: "Ana Paula",
+                                   body: "revisei o PR, pode subir"))
+        h.record(NotchNotification(appName: "Knobler", title: "Deploy concluído",
+                                   body: "produção · 2m14s"))
+        h.record(NotchNotification(appName: "Lembretes", title: "Alongar",
+                                   body: "a cada 50 min"))
+        vm.expanded = true
+        vm.historyOpen = true
+    },
     Scenario(name: "dictation-recording", realNotch: true) { vm, _, _ in
         vm.dictation = .recording(level: 0.6)
     },
