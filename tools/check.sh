@@ -66,6 +66,7 @@ swift_check updatercheck      Knobler/Updater.swift tools/updatercheck.swift
 swift_check agentrequestcheck Knobler/AgentRequestModels.swift Knobler/AgentRequestStore.swift tools/agentrequestcheck.swift
 swift_check airpodscheck      Knobler/AirPodsBattery.swift tools/airpods_selfcheck.swift
 swift_check wirecheck         Knobler/Wire.swift tools/wirecheck/main.swift
+swift_check webhookcheck      Knobler/WebhookKeychainStore.swift tools/webhookcheck.swift
 
 echo "== gates de integração =="
 run claude-hook          bash tools/claude-hook/test.sh

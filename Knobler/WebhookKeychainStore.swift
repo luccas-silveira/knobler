@@ -90,6 +90,31 @@ enum WebhookKeychainStore {
         SecItemDelete(query as CFDictionary)
     }
 
+    // MARK: Estado do pareamento
+
+    /// O que o Keychain permite fazer agora. Separar `locked` de `unpaired` é o
+    /// ponto: só o segundo pode registrar de novo.
+    enum PairingState: Equatable {
+        /// Os dois segredos abriram — dá pra publicar o link e conectar.
+        case ready(publishToken: String)
+        /// Os itens existem mas a ACL não bate com a assinatura de quem lê.
+        case locked
+        /// Nunca pareou: primeiro uso.
+        case unpaired
+    }
+
+    /// Decisão pura, sem rede e sem efeito. Os closures existem pro self-check
+    /// injetar um Keychain falso; em produção usam os acessores reais.
+    static func pairingState(
+        load: (Account) -> String? = { WebhookKeychainStore.load($0) },
+        exists: (Account) -> Bool = { WebhookKeychainStore.exists($0) }
+    ) -> PairingState {
+        if let pub = load(.publishToken), load(.deviceSecret) != nil {
+            return .ready(publishToken: pub)
+        }
+        return exists(.publishToken) ? .locked : .unpaired
+    }
+
     // MARK: Token por perfil (o relay só guarda o hash → o app monta o link)
 
     static func saveProfileToken(_ token: String, _ profileId: String) { saveRaw(token, account: "profile:\(profileId)") }

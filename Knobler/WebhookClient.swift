@@ -81,19 +81,20 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     // MARK: Pareamento
 
     private func ensurePairedThenConnect() {
-        if let pub = WebhookKeychainStore.load(.publishToken),
-           WebhookKeychainStore.load(.deviceSecret) != nil {
+        switch WebhookKeychainStore.pairingState() {
+        case .ready(let pub):
             DispatchQueue.main.async { self.credentialsLocked = false }
             publishLink(pub); connect(); return
-        }
-        // Existe no Keychain mas não abriu: a assinatura do app mudou e a ACL do
-        // item não bate mais. NÃO re-registrar — o publishToken é a URL pública
-        // que o usuário já colou no serviço externo, e um registro novo a
-        // invalidaria em silêncio. Melhor parar e deixar ele decidir na UI.
-        if WebhookKeychainStore.exists(.publishToken) {
+        case .locked:
+            // Existe no Keychain mas não abriu: a assinatura do app mudou e a ACL
+            // do item não bate mais. NÃO re-registrar — o publishToken é a URL
+            // pública que o usuário já colou no serviço externo, e um registro
+            // novo a invalidaria em silêncio. Melhor parar e deixar ele decidir.
             log.error("credenciais no Keychain inacessíveis (ACL não bate com a assinatura)")
             DispatchQueue.main.async { self.credentialsLocked = true }
             return
+        case .unpaired:
+            break
         }
         // 1º uso: registra
         var req = URLRequest(url: base.appendingPathComponent("register"))
