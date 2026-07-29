@@ -11,10 +11,13 @@ import Foundation
 enum ScrollTarget: Equatable { case closed, expanded, history }
 
 enum NotchGesture {
-    /// Pausa que separa dois gestos de um mouse de rodinha.
+    /// Pausa que separa dois gestos num mouse de rodinha: eventos a menos de
+    /// 0,3 s um do outro são o MESMO gesto (é assim que o puxão longo acumula);
+    /// parou mais que isso, o próximo evento começa gesto novo.
     ///
-    /// ponytail: teto real é a rodinha. Rolar sem parar por mais de 0,3 s conta
-    /// como um gesto só — que é justamente o puxão longo que abre a cortina.
+    /// ponytail: relógio no lugar de fase. A rodinha não emite `.began` nem
+    /// `.ended`, então não há como saber onde um gesto acaba — rastrear isso
+    /// por dispositivo custaria muito mais e o usuário não notaria a diferença.
     static let gestureGap: TimeInterval = 0.3
 
     /// Um gesto está começando? O acumulador e a flag da cortina zeram aqui, e

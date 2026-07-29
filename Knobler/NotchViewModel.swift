@@ -163,8 +163,9 @@ final class NotchViewModel: ObservableObject {
                 // saiu da área — Esc solta o foco e aí o hover-out volta a
                 // valer. Só na tela dona: uma nota focada no monitor A não
                 // pode congelar o card do monitor B.
-                guard !QuickNote.shared.hosted(by: self.displayID)
-                    || !QuickNote.shared.editing else { return }
+                let digitandoAqui = QuickNote.shared.hosted(by: self.displayID)
+                    && QuickNote.shared.editing
+                guard !digitandoAqui else { return }
                 if self.expanded || self.peeking { self.lastCollapseAt = Date() }
                 self.expanded = false
                 self.peeking = false

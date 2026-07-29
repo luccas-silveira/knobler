@@ -187,9 +187,6 @@ let scenarios: [Scenario] = [
             body: "O Time Machine terminou o backup de hoje às 14:32."
         )
     },
-    // ponytail: só o cenário vazio fica no harness — o populado (ScrollView
-    // com itens) renderiza preto sólido no ImageRenderer offscreen, ver
-    // CLAUDE.md. Um PNG preto é um falso gate, pior que não ter o cenário.
     // card normal COM histórico guardado: é o gate da alcinha de descoberta
     // convivendo com os pontinhos de página no mesmo rodapé.
     Scenario(name: "expanded-history-grabber", realNotch: true) { vm, media, _ in
@@ -198,6 +195,10 @@ let scenarios: [Scenario] = [
             NotchNotification(appName: "Finder", title: "Backup concluído", body: ""))
         vm.expanded = true
     },
+    // ponytail: da cortina, só o cenário vazio fica no harness — o populado
+    // (ScrollView com itens) renderiza preto sólido no ImageRenderer offscreen,
+    // ver CLAUDE.md. Um PNG preto é um falso gate, pior que não ter o cenário.
+    //
     // frameHeight maior que o padrão 240: a cortina tem altura própria
     // (chrome + 260 da lista), e com 240 o PNG cortava a alcinha do rodapé —
     // um gate que não mostra o rodapé não prova que o card coube.
