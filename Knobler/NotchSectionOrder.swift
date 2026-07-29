@@ -50,7 +50,10 @@ enum NotchSectionOrder {
                         estados: [NotchSectionState],
                         agora: Date,
                         travadaNaNota: Bool) -> [NotchSection] {
-        let porSecao = Dictionary(uniqueKeysWithValues: estados.map { ($0.section, $0) })
+        // duplicata em `estados` é bug de quem chama, mas aqui não pode virar
+        // trap: `uniqueKeysWithValues` derruba o app inteiro. A última entrada
+        // vence — é a mais nova que o VM escreveu.
+        let porSecao = Dictionary(estados.map { ($0.section, $0) }, uniquingKeysWith: { $1 })
         // seções fora da `base` (versão salva antiga) entram no fim, senão
         // sumiriam da UI sem ninguém perceber
         let ordemBase = base + padrao.filter { !base.contains($0) }

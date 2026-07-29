@@ -19,6 +19,7 @@ struct SectionOrderCheck {
         testSemConteudoSai()
         testMaisRecentePrimeiro()
         testNotaTravaTudo()
+        testEstadoRepetidoNaoDerruba()
         testSanearDescartaDesconhecida()
         testSanearCompletaFaltantes()
         print("✅ sectionordercheck ok")
@@ -100,6 +101,23 @@ struct SectionOrderCheck {
                       viva(.nota, haSegundos: 600)],
             agora: agora, travadaNaNota: true)
         assert(out.first == .nota, "nota não travou o foco: \(out)")
+    }
+
+    /// Estado repetido não pode derrubar o app: o VM da Task 2 monta esse array
+    /// e uma seção duplicada ali seria uma trap em runtime, não um erro
+    /// recuperável. A última entrada vence — a mais nova é a que o VM acabou de
+    /// escrever.
+    static func testEstadoRepetidoNaoDerruba() {
+        let out = NotchSectionOrder.ordenar(
+            base: [.shelf, .musica, .atividade],
+            estados: [viva(.musica, haSegundos: nil),
+                      viva(.shelf, haSegundos: nil),
+                      // primeiro sem conteúdo, depois viva e recém-promovida:
+                      // se a última não vencesse, `atividade` sumiria da lista
+                      NotchSectionState(section: .atividade, hasContent: false, lastEvent: nil),
+                      viva(.atividade, haSegundos: 3)],
+            agora: agora, travadaNaNota: false)
+        assert(out == [.atividade, .shelf, .musica], "duplicata: última entrada não venceu: \(out)")
     }
 
     /// Chave do UserDefaults com lixo (versão antiga, seção removida) não
