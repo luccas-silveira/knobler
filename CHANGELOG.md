@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-07-29
+
 ### Added
 - **Histórico de notificações (24 h)**: puxe o card do notch pra baixo numa
   passada só — ~24 pt abre o card normal, ~120 pt no mesmo gesto entra na
