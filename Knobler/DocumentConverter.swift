@@ -31,23 +31,32 @@ enum DocumentConverter {
 
     // MARK: - Imagem → PDF
 
-    static func pdf(fromImage url: URL) throws -> URL {
+    /// `directory` nil = ao lado do original. O preview passa uma pasta temporária.
+    static func pdf(fromImage url: URL, in directory: URL? = nil) throws -> URL {
         guard let image = NSImage(contentsOf: url), let page = PDFPage(image: image) else {
             throw Failure.unreadable
         }
         let doc = PDFDocument()
         doc.insert(page, at: 0)
-        let out = FileConverter.uniqueURL(for: url, ext: "pdf")
+        let out = FileConverter.uniqueURL(for: url, ext: "pdf", in: directory)
         guard doc.write(to: out) else { throw Failure.unwritable }
         return out
     }
 
     // MARK: - PDF → PNG
 
-    /// Uma imagem por página, em 2x (fica legível numa tela Retina). Devolve a
-    /// primeira — é ela que volta pro shelf; as outras ficam ao lado no disco.
+    /// Base da rasterização: 2x fica legível numa tela Retina. O preset de
+    /// tamanho multiplica isto (2x / 1x / 0,5x).
+    static let baseRasterScale: CGFloat = 2
+
+    /// Uma imagem por página. Devolve todas, na ordem; quem chama decide o que
+    /// vai pro shelf. `directory` nil = ao lado do original.
     @discardableResult
-    static func pngPages(fromPDF url: URL, scale: CGFloat = 2) throws -> [URL] {
+    static func pngPages(
+        fromPDF url: URL,
+        scale: CGFloat = baseRasterScale,
+        in directory: URL? = nil
+    ) throws -> [URL] {
         guard let doc = PDFDocument(url: url) else { throw Failure.unreadable }
         guard doc.pageCount > 0 else { throw Failure.empty }
         let base = url.deletingPathExtension().lastPathComponent
@@ -74,7 +83,8 @@ enum DocumentConverter {
             // uma página: mantém o nome; várias: sufixo -p1, -p2…
             let name = doc.pageCount == 1 ? base : "\(base)-p\(index + 1)"
             let out = FileConverter.uniqueURL(
-                directory: url.deletingLastPathComponent(), name: name, ext: "png")
+                directory: directory ?? url.deletingLastPathComponent(),
+                name: name, ext: "png")
             guard let dest = CGImageDestinationCreateWithURL(
                 out as CFURL, UTType.png.identifier as CFString, 1, nil)
             else { throw Failure.unwritable }
@@ -88,14 +98,14 @@ enum DocumentConverter {
 
     // MARK: - Markdown → PDF
 
-    static func pdf(fromMarkdown url: URL) throws -> URL {
+    static func pdf(fromMarkdown url: URL, in directory: URL? = nil) throws -> URL {
         guard let text = try? String(contentsOf: url, encoding: .utf8), !text.isEmpty else {
             throw Failure.unreadable
         }
         // baseURL: as imagens do markdown vêm em caminho relativo ao próprio arquivo
         let attributed = styled(markdown: text, baseURL: url.deletingLastPathComponent())
         guard attributed.length > 0 else { throw Failure.empty }
-        let out = FileConverter.uniqueURL(for: url, ext: "pdf")
+        let out = FileConverter.uniqueURL(for: url, ext: "pdf", in: directory)
         try writePDF(attributed, to: out)
         return out
     }

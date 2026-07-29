@@ -16,6 +16,9 @@ final class ShelfStore: ObservableObject {
     @Published private(set) var items: [URL] = [] {
         didSet { UserDefaults.standard.set(items.map(\.path), forKey: Self.storageKey) }
     }
+    /// Conversão esperando confirmação. Um de cada vez: abrir outra descarta a
+    /// anterior, senão duas pastas temporárias ficariam vivas sem dono na tela.
+    @Published var preview: ShelfPreview?
     private static let capacity = 8
     private static let storageKey = "shelfItems"
 
@@ -39,6 +42,29 @@ final class ShelfStore: ObservableObject {
 
     func clear() {
         items.removeAll()
+    }
+
+    /// Abre o preview de uma conversão. Substitui o que estiver aberto.
+    @MainActor
+    func startPreview(_ url: URL, to target: ConversionTarget) {
+        preview?.descartar()
+        preview = ShelfPreview(source: url, target: target)
+    }
+
+    /// Grava o resultado ao lado do original e põe no shelf.
+    @MainActor
+    func confirmPreview() {
+        guard let preview else { return }
+        // só a primeira página volta pro shelf: um PDF de 30 páginas estouraria
+        // a prateleira (capacidade 8) e empurraria tudo pra fora
+        if let first = preview.salvar().first { add(first) }
+        self.preview = nil
+    }
+
+    @MainActor
+    func cancelPreview() {
+        preview?.descartar()
+        preview = nil
     }
 }
 
@@ -79,6 +105,14 @@ struct ShelfRowView: View {
     var vm: NotchViewModel?
 
     var body: some View {
+        if let preview = shelf.preview {
+            ShelfPreviewView(preview: preview, shelf: shelf)
+        } else {
+            grade
+        }
+    }
+
+    private var grade: some View {
         HStack(spacing: 14) {
             ForEach(shelf.items, id: \.self) { url in
                 shelfItem(url)
@@ -118,7 +152,10 @@ struct ShelfRowView: View {
             if !targets.isEmpty {
                 Menu("Converter") {
                     ForEach(targets, id: \.self) { target in
-                        Button(target.label) { convert(url, to: target) }
+                        Button(target.label) {
+                            shelf.startPreview(url, to: target)
+                            vm?.focar(.shelf)
+                        }
                     }
                 }
             }
@@ -141,33 +178,4 @@ struct ShelfRowView: View {
         .transition(.blurReplace)
     }
 
-    /// Converte fora da main e coloca o resultado no shelf — o original fica.
-    /// Vídeo demora, então ocupa a faixa de atividade do notch enquanto roda.
-    /// Falha: beep e log, sem card de erro.
-    private func convert(_ url: URL, to target: ConversionTarget) {
-        // ponytail: a faixa de atividade é um slot só, compartilhado com a API
-        // local — uma conversão longa esconde a atividade que estiver lá.
-        if target.isSlow { showActivity(url, to: target, progress: 0) }
-        FileConverter.convert(url, to: target) { fraction in
-            if target.isSlow { showActivity(url, to: target, progress: fraction) }
-        } completion: { result in
-            if target.isSlow { vm?.activity = nil }
-            switch result {
-            case .success(let out):
-                shelf.add(out)
-            case .failure(let error):
-                NSLog("knobler: conversão falhou (\(url.lastPathComponent)): \(error)")
-                NSSound.beep()
-            }
-        }
-    }
-
-    private func showActivity(_ url: URL, to target: ConversionTarget, progress: Double) {
-        vm?.activity = NotchActivity(
-            id: "conversao",
-            title: "Convertendo para \(target.label)",
-            detail: url.lastPathComponent,
-            progress: progress > 0 ? progress : nil,
-            updatedAt: Date())
-    }
 }

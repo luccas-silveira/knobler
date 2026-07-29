@@ -72,12 +72,15 @@ struct NotchView: View {
     /// Cada seção manda na própria altura. Antes isto era uma soma
     /// combinatória no `currentSize` (`height += hasMusic || hasShelf ? 46 : 60`),
     /// que já tinha causado moldura menor que o conteúdo.
-    static func alturaDaSecao(_ s: NotchSection) -> CGFloat {
+    /// A prateleira é a única seção com duas alturas: a grade de itens é uma
+    /// linha, o preview de conversão empilha presets e botões.
+    static let shelfPreviewHeight: CGFloat = 112
+    static func alturaDaSecao(_ s: NotchSection, preview: Bool = false) -> CGFloat {
         switch s {
         case .musica: return 118
         case .atividade: return 60
         case .pomodoro: return 128
-        case .shelf: return 76
+        case .shelf: return preview ? shelfPreviewHeight : 76
         case .espelho: return 202
         case .mensagens: return 272
         case .historico: return HistoryListView.listHeight + 12
@@ -307,7 +310,9 @@ struct NotchView: View {
             // deste arquivo: o conteúdo sai da moldura, a `.frame` centraliza e a
             // metade de baixo do card cai fora do `.onHover` — mover o mouse pra
             // lá lê como saída e fecha o card.
-            let corpo = vm.focus.map { Self.alturaDaSecao($0) } ?? 118
+            let corpo = vm.focus.map {
+                Self.alturaDaSecao($0, preview: shelf.preview != nil)
+            } ?? 118
             // a nota é modo exclusivo: sem faixa, e sem o espaçamento dela
             let faixa = vm.focus == .nota ? 0 : Self.sectionStripHeight + 8
             let chrome = topInset + 8 + 8 + 14

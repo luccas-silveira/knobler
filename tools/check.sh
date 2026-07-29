@@ -72,6 +72,10 @@ CONVERSAO="Knobler/FileConverter.swift Knobler/ImageConverter.swift Knobler/Docu
 swift_check imageconvertercheck    $CONVERSAO tools/imageconvertercheck.swift
 swift_check documentconvertercheck $CONVERSAO tools/documentconvertercheck.swift
 swift_check sharingcheck          Knobler/Sharing.swift Knobler/NotificationRules.swift tools/sharingcheck.swift
+# o preview arrasta os quatro conversores: ele é justamente o ponto onde os
+# presets de todos eles se encontram.
+swift_check conversionpreviewcheck $CONVERSAO Knobler/ShelfPreview.swift \
+  tools/conversionpreviewcheck.swift
 swift_check historycheck          Knobler/NotchNotification.swift Knobler/NotificationHistory.swift Knobler/NotchGesture.swift tools/historycheck.swift
 swift_check sectionordercheck    Knobler/NotchSectionOrder.swift tools/sectionordercheck.swift
 swift_check quicknotecheck        Knobler/QuickNote.swift tools/quicknotecheck.swift

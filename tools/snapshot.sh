@@ -42,6 +42,8 @@ swiftc -O -o build/snapshot \
   Knobler/Descanso.swift \
   Knobler/DescansoView.swift \
   Knobler/Shelf.swift \
+  Knobler/ShelfPreview.swift \
+  Knobler/ShelfPreviewView.swift \
   Knobler/ImageConverter.swift \
   Knobler/DocumentConverter.swift \
   Knobler/VideoConverter.swift \

@@ -6,6 +6,24 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- **Preview da conversão do shelf**: escolher um destino no menu "Converter" não
+  grava mais nada de imediato. A prateleira entra em modo preview e mostra o que
+  vai sair — miniatura do resultado, tamanho antes/depois e dimensão — com
+  presets de **Qualidade** (Alta/Média/Baixa, em JPEG e HEIC) e **Tamanho**
+  (100%/50%/25%, em imagem, PDF→PNG e vídeo). Trocar um preset reconverte na
+  hora. **Salvar** move pra junto do original; **Descartar** apaga sem deixar
+  rastro. Antes a conversão gravava às cegas: sem ver o resultado, sem escolher
+  qualidade, e com um arquivo pra apagar na mão quando não prestava.
+- PDF com várias páginas agora converte **todas** — o card avisa quantas e
+  Salvar grava o conjunto ao lado do original (só a primeira entra na
+  prateleira, pra não estourar a capacidade de 8 itens).
+
+### Changed
+- Conversão de vídeo perdeu a faixa de atividade do notch: o progresso agora
+  aparece no próprio card do preview. Em 100% ela continua saindo por remux
+  instantâneo; abaixo disso reescala via `AVMutableVideoComposition`.
+
 ## [0.15.0] - 2026-07-29
 
 ### Added

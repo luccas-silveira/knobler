@@ -40,23 +40,56 @@ enum ImageConverter {
         UTType(filenameExtension: url.pathExtension) == type
     }
 
+    /// `directory` nil = ao lado do original (o caminho de sempre). O preview
+    /// passa uma pasta temporária pra não sujar o disco antes de confirmar.
     @discardableResult
-    static func convert(_ url: URL, to type: UTType) throws -> URL {
+    static func convert(
+        _ url: URL, to type: UTType,
+        options: ConversionOptions = .padrao,
+        in directory: URL? = nil
+    ) throws -> URL {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-              let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
+              var image = CGImageSourceCreateImageAtIndex(source, 0, nil)
         else { throw Failure.unreadable }
 
+        if options.scale != .full {
+            image = try resize(image, by: options.scale.factor)
+        }
+
         guard let ext = type.preferredFilenameExtension else { throw Failure.unwritable }
-        let out = FileConverter.uniqueURL(for: url, ext: ext)
+        let out = directory.map {
+            FileConverter.uniqueURL(
+                directory: $0,
+                name: url.deletingPathExtension().lastPathComponent,
+                ext: ext)
+        } ?? FileConverter.uniqueURL(for: url, ext: ext)
 
         guard let dest = CGImageDestinationCreateWithURL(
             out as CFURL, type.identifier as CFString, 1, nil)
         else { throw Failure.unwritable }
-        // 0.9 é o joelho da curva tamanho/qualidade; PNG ignora (lossless)
+        // PNG ignora a compressão (lossless); JPEG/HEIC é onde o preset pesa
         CGImageDestinationAddImage(dest, image, [
-            kCGImageDestinationLossyCompressionQuality: 0.9,
+            kCGImageDestinationLossyCompressionQuality: options.quality.lossyCompression,
         ] as CFDictionary)
         guard CGImageDestinationFinalize(dest) else { throw Failure.unwritable }
         return out
+    }
+
+    /// Redesenha num contexto menor — o ImageIO não reescala na escrita.
+    private static func resize(_ image: CGImage, by factor: CGFloat) throws -> CGImage {
+        let size = ConversionOptions.evenSize(CGSize(
+            width: CGFloat(image.width) * factor,
+            height: CGFloat(image.height) * factor))
+        // o espaço/bitmap do original pode ser exótico (CMYK, 16 bits): força RGBA
+        guard let ctx = CGContext(
+            data: nil, width: Int(size.width), height: Int(size.height),
+            bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+        else { throw Failure.unwritable }
+        ctx.interpolationQuality = .high
+        ctx.draw(image, in: CGRect(origin: .zero, size: size))
+        guard let scaled = ctx.makeImage() else { throw Failure.unwritable }
+        return scaled
     }
 }

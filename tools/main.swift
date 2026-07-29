@@ -7,8 +7,10 @@
 //
 
 import AppKit
+import ImageIO
 import Network
 import SwiftUI
+import UniformTypeIdentifiers
 
 let outputDir = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "Snapshots"
 try? FileManager.default.createDirectory(atPath: outputDir, withIntermediateDirectories: true)
@@ -97,6 +99,42 @@ func fakeShelfFiles() -> [URL] {
         let url = dir.appendingPathComponent(name)
         try? "x".data(using: .utf8)?.write(to: url)
         return url
+    }
+}
+
+/// PNG de verdade (o `fakeShelfFiles` escreve "x", que o ImageIO não abre) —
+/// o preview de conversão precisa de um arquivo que converta pra valer.
+func fakePNGFile(_ size: CGSize = CGSize(width: 480, height: 300)) -> URL {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("snapshot-preview.png")
+    guard let ctx = CGContext(
+        data: nil, width: Int(size.width), height: Int(size.height),
+        bitsPerComponent: 8, bytesPerRow: 0,
+        space: CGColorSpaceCreateDeviceRGB(),
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+    else { return url }
+    ctx.setFillColor(red: 0.20, green: 0.45, blue: 0.85, alpha: 1)
+    ctx.fill(CGRect(origin: .zero, size: size))
+    ctx.setFillColor(red: 0.95, green: 0.75, blue: 0.25, alpha: 1)
+    ctx.fillEllipse(in: CGRect(x: size.width * 0.30, y: size.height * 0.22,
+                               width: size.width * 0.40, height: size.height * 0.56))
+    if let image = ctx.makeImage(),
+       let dest = CGImageDestinationCreateWithURL(
+        url as CFURL, UTType.png.identifier as CFString, 1, nil) {
+        CGImageDestinationAddImage(dest, image, nil)
+        CGImageDestinationFinalize(dest)
+    }
+    return url
+}
+
+/// Gira o runloop até a conversão do preview terminar. O `ImageRenderer` desenha
+/// um instante depois do setup, e sem esperar o card sairia sempre no estado
+/// "convertendo" — o oposto do que este PNG existe pra mostrar.
+@MainActor
+func esperarPreview(_ shelf: ShelfStore, _ segundos: TimeInterval = 5) {
+    let limite = Date().addingTimeInterval(segundos)
+    while shelf.preview?.running != false, Date() < limite {
+        RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.02))
     }
 }
 
@@ -194,6 +232,17 @@ let scenarios: [Scenario] = [
     },
     Scenario(name: "foco-shelf", realNotch: true) { vm, _, _ in
         fakeShelfFiles().forEach { currentShelf.add($0) }
+        vm.expanded = true
+        vm.secoes = [.shelf, .musica]
+        vm.focus = .shelf
+    },
+    // conversão esperando confirmação: é o único estado da prateleira que
+    // desenha miniatura do RESULTADO (não do original) e as duas linhas de preset
+    Scenario(name: "shelf-preview-imagem", realNotch: true) { vm, _, _ in
+        let origem = fakePNGFile()
+        currentShelf.add(origem)
+        currentShelf.startPreview(origem, to: .image(.jpeg))
+        esperarPreview(currentShelf)
         vm.expanded = true
         vm.secoes = [.shelf, .musica]
         vm.focus = .shelf

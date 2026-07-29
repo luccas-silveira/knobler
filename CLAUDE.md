@@ -89,8 +89,8 @@ estado em `Snapshots/*.png` — é o jeito de "ver" a UI sem abrir o app.
 sem mudança nenhuma de código: `closed-music`, `closed-music-external`,
 `foco-atividade-indeterminada` e `update-installing` (visualizador animado,
 barra de progresso). Neles o snapshot é inspeção visual, não detector de
-regressão — não gaste tempo investigando o diff. O harness gera 54 PNGs no
-total; os outros 50 são byte-idênticos entre rodadas.
+regressão — não gaste tempo investigando o diff. O harness gera 55 PNGs no
+total; os outros 51 são byte-idênticos entre rodadas.
 
 ⚠️ **Qualquer view que dependa de um `NSView` real (janela/WindowServer de
 verdade) não renderiza via `ImageRenderer` offscreen** — vira o ícone de

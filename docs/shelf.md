@@ -52,10 +52,33 @@ Os destinos dependem do tipo do arquivo:
 | vídeo | MP4 · MOV |
 | Markdown (`.md`, `.markdown`) | PDF |
 
-O formato atual nunca aparece na lista. O arquivo novo nasce **ao lado do
-original**, com nome livre (`foto-1.png` se `foto.png` já existir), e entra na
-prateleira; o original nunca é tocado. Conversão de vídeo mostra o progresso na
-faixa de atividade do notch — as outras são instantâneas.
+O formato atual nunca aparece na lista.
+
+Escolher um destino **não grava nada ainda**: a prateleira entra em modo preview
+e mostra o resultado — miniatura, tamanho antes/depois e dimensão — com os
+presets ao lado. Só **Salvar** move o arquivo pra junto do original, com nome
+livre (`foto-1.png` se `foto.png` já existir), e o põe na prateleira; o original
+nunca é tocado. **Descartar** apaga tudo e não deixa rastro no disco. Enquanto
+espera, o convertido vive numa pasta temporária.
+
+| Preset | Vale pra | O que muda |
+|---|---|---|
+| Qualidade — Alta / Média / Baixa | JPEG e HEIC | compressão (0,9 / 0,7 / 0,5) |
+| Tamanho — 100% / 50% / 25% | imagem, PDF→PNG e vídeo | dimensão do resultado |
+
+Cada linha só aparece onde muda alguma coisa: PNG e PDF são lossless (sem
+qualidade), PDF de Markdown sai vetorial (sem tamanho). **Vídeo não tem linha de
+qualidade** — o `AVAssetExportSession` não expõe bitrate, e os presets que o
+exporiam carregam teto de resolução próprio, que faria o "50%" mentir.
+
+Trocar um preset reconverte na hora e atualiza os números. Vídeo é o único que
+demora: ele mostra barra de progresso no lugar do tamanho, e trocar de preset no
+meio cancela o export anterior. Em 100% o vídeo sai por remux instantâneo, sem
+recodificar.
+
+PDF com várias páginas converte **todas**, e o card avisa quantas ("+5 pág.").
+Salvar grava todas ao lado do original; só a primeira entra na prateleira, senão
+um PDF de 30 páginas empurraria todo o resto pra fora.
 
 O Markdown é renderizado pelo próprio app (parser do Foundation + TextKit):
 cabeçalhos, negrito/itálico, código, listas, citação, tabela, regra horizontal e

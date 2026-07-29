@@ -46,7 +46,7 @@ escala significa no seu formato:
 | `ImageConverter` | `kCGImageDestinationLossyCompressionQuality` 0,9 / 0,7 / 0,5 | redimensiona o `CGImage` |
 | `DocumentConverter` (PDF→PNG) | ignorada (PNG é lossless) | fator de rasterização 2x / 1x / 0,5x |
 | `DocumentConverter` (Markdown→PDF) | ignorada | ignorada (PDF é vetorial) |
-| `VideoConverter` | presets `HighestQuality` / `MediumQuality` / `LowQuality` | `AVMutableVideoComposition` |
+| `VideoConverter` | **não oferece** (ver abaixo) | `AVMutableVideoComposition` |
 
 `FileConverter.convert` repassa os dois parâmetros. Nenhuma decisão nova entra
 nele: continua só roteando por tipo.
@@ -54,18 +54,33 @@ nele: continua só roteando por tipo.
 O card esconde a linha de escala quando ela não se aplica (Markdown→PDF) e a
 linha de qualidade quando o destino é PNG.
 
-### Escala em vídeo
+### Vídeo: um eixo só, e por quê
 
-`AVAssetExportSession` não aceita resolução arbitrária por preset. Os presets de
-dimensão (`AVAssetExportPreset1280x720` e afins) amarram bitrate junto e
-colidiriam com o eixo de qualidade, então a escala vira um
-`AVMutableVideoComposition` com `renderSize` = `naturalSize × fator` e um
+`AVAssetExportSession` não aceita resolução arbitrária por preset, então a escala
+vira um `AVMutableVideoComposition` com `renderSize` = `naturalSize × fator` e um
 `CGAffineTransform(scaleX:y:)` na instrução da trilha de vídeo.
 
-Duas consequências:
+**O eixo de qualidade não existe em vídeo.** A intenção era mapeá-lo nos presets
+nomeados, mas medindo um 1080x1920 real os dois eixos se multiplicaram:
+
+| Pedido | Saiu |
+|---|---|
+| alta / 100% | 1080x1920 ✓ |
+| alta / 50% | 540x960 ✓ |
+| alta / 25% | 270x480 ✓ |
+| média / 100% | 320x568 ✗ |
+| baixa / 100% | 124x224 ✗ |
+
+`MediumQuality` e `LowQuality` carregam teto de resolução próprio e o aplicam por
+cima do `renderSize` — com eles, o preset de tamanho passaria a mentir. Só o
+`HighestQuality` respeita o `renderSize` na vírgula, e é o único usado. Bitrate
+independente exigiria trocar o export por `AVAssetWriter`/`AVAssetReader`, o que
+não se paga aqui.
+
+Duas outras consequências:
 
 - **Escala < 100% desliga o passthrough.** O remux instantâneo de hoje só existe
-  quando nada é reescrito. Com escala em 100% o comportamento atual fica intacto,
+  quando nada é reescrito. Em 100% o comportamento atual fica intacto,
   passthrough incluso.
 - **`renderSize` ímpar quebra o encoder H.264.** As dimensões são arredondadas
   pra par.
@@ -143,13 +158,14 @@ entrar no harness de snapshot.
   arredondamento par do `renderSize`, escala ignorada onde não se aplica, e o
   ciclo de vida do temporário (reconverter apaga o anterior, descartar apaga o
   diretório, salvar move e não deixa resto).
-- **`tools/snapshot.sh`** — cenários `shelf-preview-imagem` e
-  `shelf-preview-video`. O segundo tem barra de progresso e entra na lista dos
-  não-determinísticos do `CLAUDE.md`. Os arquivos novos entram na lista manual do
-  script.
-- **Manual, no app rodando** — converter uma imagem de verdade, trocar os
-  presets, conferir que o tamanho muda, salvar, e conferir que `/tmp` ficou
-  limpo. Não dá pra automatizar aqui.
+- **`tools/snapshot.sh`** — cenário `shelf-preview-imagem`, determinístico. Os
+  arquivos novos entram na lista manual do script. **Sem** cenário de vídeo: o
+  harness teria de gerar um `.mp4` de verdade (`AVAssetWriter`) só pra fotografar
+  uma barra de progresso, e o PNG cairia na lista dos não-determinísticos —
+  custo alto por um detector de regressão que não detecta.
+- **Headless, com arquivos reais** — o gate cobre imagem ponta a ponta. Vídeo e
+  PDF multipágina foram medidos à parte (um `.mp4` 1080x1920 e um PDF de 6
+  páginas), conferindo dimensão e peso de cada preset.
 
 ## Fora de escopo
 
