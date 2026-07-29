@@ -87,6 +87,23 @@ imagem embutida, paginado em Letter. A imagem sai do caminho relativo ao própri
 caber na largura da página. Coluna de tabela tem largura fixa, dividida em
 partes iguais; o alinhamento (`:---`, `---:`) é respeitado.
 
+## Arrastar texto
+
+Um trecho de texto selecionado, solto no notch, vira um `.txt` nomeado pela
+primeira linha, em `~/Library/Application Support/Knobler/Arrastados/` — é dado
+do app, e você não pediu arquivo novo no seu Desktop. Dali em diante é um item
+normal da prateleira: AirDrop, arrastar pro Finder, converter.
+
+**Link não entra na prateleira**: ele abre o preview no card
+(ver [`link-preview.md`](link-preview.md)). Um `.webloc` que venha do Finder é
+arquivo como outro qualquer, e o menu de contexto dele oferece **Abrir no
+notch**.
+
+Arquivo arrastado do Finder continua entrando como sempre. Ele se anuncia ao
+sistema como arquivo **e** como URL, e a prateleira decide pelo que cada item
+registra — senão o link do Chrome, que se anuncia como promessa de arquivo,
+cairia no caminho errado e sumiria.
+
 ## Enviar por AirDrop
 
 Além do menu de contexto da miniatura, o menu da barra tem **↗ Enviar por

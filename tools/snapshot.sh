@@ -43,6 +43,10 @@ swiftc -O -o build/snapshot \
   Knobler/DescansoView.swift \
   Knobler/Shelf.swift \
   Knobler/ShelfPreview.swift \
+  Knobler/ShelfDrop.swift \
+  Knobler/LinkBrowser.swift \
+  Knobler/LinkPreview.swift \
+  Knobler/LinkPreviewView.swift \
   Knobler/ShelfPreviewView.swift \
   Knobler/ImageConverter.swift \
   Knobler/DocumentConverter.swift \

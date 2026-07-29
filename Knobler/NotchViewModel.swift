@@ -140,7 +140,7 @@ final class NotchViewModel: ObservableObject {
     /// quem chama é a NotchView, que já observa esses stores.
     func estadoDasSecoes(hasMusic: Bool, hasShelf: Bool,
                          hasHistory: Bool, hasMensagens: Bool,
-                         hasNota: Bool) -> [NotchSectionState] {
+                         hasNota: Bool, hasLink: Bool = false) -> [NotchSectionState] {
         let conteudo: [NotchSection: Bool] = [
             .musica: hasMusic,
             .atividade: activity != nil,
@@ -150,6 +150,7 @@ final class NotchViewModel: ObservableObject {
             .mensagens: hasMensagens,
             .historico: hasHistory,
             .nota: hasNota,
+            .link: hasLink,
         ]
         return NotchSection.allCases.map {
             NotchSectionState(section: $0,
@@ -253,6 +254,9 @@ final class NotchViewModel: ObservableObject {
     /// Digitando na nota rápida nesta tela — o compromisso mais forte que o
     /// usuário faz com o notch, e por isso ganha de notificação e HUD.
     var typingNote: Bool { QuickNote.shared.typing(on: displayID) }
+    /// Link aberto nesta tela: segura o card do mesmo jeito que digitar na nota.
+    /// Sem isto a página fecharia assim que o mouse saísse pra ler.
+    var linkAberto: Bool { LinkPreview.shared.hosted(by: displayID) }
 
     /// Prioridade dos modos próprios: mensagem > ditado > nota (digitando) >
     /// notificação > HUD > update > AirPods(card) > música (hover) > pomodoro
@@ -312,7 +316,7 @@ final class NotchViewModel: ObservableObject {
                 // saiu da área — Esc solta o foco e aí o hover-out volta a
                 // valer. Só na tela dona: uma nota focada no monitor A não
                 // pode congelar o card do monitor B.
-                guard !self.typingNote else { return }
+                guard !self.typingNote, !self.linkAberto else { return }
                 if self.expanded || self.peeking { self.lastCollapseAt = Date() }
                 self.expanded = false
                 self.peeking = false

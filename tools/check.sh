@@ -76,6 +76,9 @@ swift_check sharingcheck          Knobler/Sharing.swift Knobler/NotificationRule
 # presets de todos eles se encontram.
 swift_check conversionpreviewcheck $CONVERSAO Knobler/ShelfPreview.swift \
   tools/conversionpreviewcheck.swift
+# arrasta o FileConverter junto: o nome único do arquivo materializado sai de lá.
+swift_check shelfdropcheck        $CONVERSAO Knobler/ShelfDrop.swift \
+  Knobler/LinkBrowser.swift tools/shelfdropcheck.swift
 swift_check historycheck          Knobler/NotchNotification.swift Knobler/NotificationHistory.swift Knobler/NotchGesture.swift tools/historycheck.swift
 swift_check sectionordercheck    Knobler/NotchSectionOrder.swift tools/sectionordercheck.swift
 swift_check quicknotecheck        Knobler/QuickNote.swift tools/quicknotecheck.swift
@@ -84,6 +87,7 @@ swift_check quicknotecheck        Knobler/QuickNote.swift tools/quicknotecheck.s
 swift_check eventoscheck          Knobler/NotchViewModel.swift Knobler/NotchSectionOrder.swift \
   Knobler/Pomodoro.swift Knobler/AirPodsBattery.swift Knobler/NotchNotification.swift \
   Knobler/NotificationHistory.swift Knobler/QuickNote.swift Knobler/Wire.swift \
+  Knobler/LinkPreview.swift Knobler/LinkBrowser.swift \
   Knobler/Updater.swift \
   Knobler/AppSettings.swift Knobler/Descanso.swift Knobler/Mirror.swift \
   Knobler/Reminders.swift Knobler/Peer.swift tools/eventoscheck.swift

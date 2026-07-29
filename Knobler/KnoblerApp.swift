@@ -152,6 +152,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// (mouse de rodinha) ou de gesto que entrou arrastando na zona.
     private var lastScrollAt: TimeInterval = 0
     private var lastScrollInZone = false
+    private var scrollStartedInLink = false
 
     // ilha simulada nos monitores sem notch físico
     private static let simulatedNotchSize = CGSize(width: 190, height: 30)
@@ -736,12 +737,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             scrollStartedInHistory = vm.focus == .historico
                 && !NotificationHistory.shared.items.isEmpty
                 && !QuickNote.shared.hosted(by: id)
+            // a página do link rola sozinha: o vertical é dela, senão a primeira
+            // rolada fecharia o card em cima do que o usuário foi ler
+            scrollStartedInLink = vm.focus == .link && LinkPreview.shared.hosted(by: id)
         }
 
         // histórico em foco: o vertical é da lista, pra ela rolar de verdade —
         // inclusive a inércia, que chega depois dos dedos saírem e por isso
         // não passa pelo reset acima
-        if scrollStartedInHistory, abs(event.scrollingDeltaY) >= abs(event.scrollingDeltaX) {
+        if scrollStartedInHistory || scrollStartedInLink,
+           abs(event.scrollingDeltaY) >= abs(event.scrollingDeltaX) {
             return event
         }
 

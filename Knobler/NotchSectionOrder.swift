@@ -12,7 +12,7 @@ import Foundation
 /// Uma seção do card expandido. O `rawValue` é o que vai pro UserDefaults e
 /// pro `GET /status`, então renomear um caso quebra ordem salva de usuário.
 enum NotchSection: String, CaseIterable {
-    case musica, atividade, pomodoro, shelf, espelho, mensagens, historico, nota
+    case musica, atividade, pomodoro, shelf, espelho, mensagens, historico, nota, link
 
     /// Rótulo em pt-BR pros Ajustes e o `aria` da faixa.
     var titulo: String {
@@ -25,6 +25,7 @@ enum NotchSection: String, CaseIterable {
         case .mensagens: return "Mensagens"
         case .historico: return "Histórico"
         case .nota: return "Nota rápida"
+        case .link: return "Link"
         }
     }
 
@@ -39,6 +40,7 @@ enum NotchSection: String, CaseIterable {
         case .mensagens: return "bubble.left.and.bubble.right.fill"
         case .historico: return "bell.fill"
         case .nota: return "square.and.pencil"
+        case .link: return "globe"
         }
     }
 }
@@ -58,6 +60,7 @@ enum NotchSectionOrder {
     /// Ordem de fábrica, usada quando não há nada salvo nos Ajustes.
     static let padrao: [NotchSection] = [
         .musica, .atividade, .pomodoro, .shelf, .espelho, .mensagens, .historico, .nota,
+        .link,
     ]
 
     /// Quanto tempo um evento continua promovendo a seção dele.

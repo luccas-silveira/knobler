@@ -31,6 +31,16 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   bytes transferidos — limite da plataforma, não simplificação.
 - **↗ Enviar por AirDrop…** no menu da barra, com seletor de arquivo: mandar
   algo não obriga mais a arrastá-lo pra prateleira antes.
+- **Preview de link no card**: arrastar um link do navegador pro notch abre a
+  página **dentro do card**, numa seção nova (Link). Sem janela e sem barra de
+  navegador. A página é renderizada numa viewport de 1280 px CSS e encolhida por
+  zoom, pra manter o layout de desktop em vez de cair no breakpoint mobile; o
+  card fica 16:9 (736×414) e não tem rolagem horizontal. O card não recolhe
+  enquanto o link está aberto e o scroll vertical é da página — as mesmas
+  mecânicas que a nota rápida e o histórico já usavam.
+- **Arrastar texto pro notch**: um trecho selecionado vira um `.txt` nomeado
+  pela primeira linha, em `~/Library/Application Support/Knobler/Arrastados/`,
+  e entra na prateleira como item normal.
 
 ### Changed
 - Conversão de vídeo perdeu a faixa de atividade do notch: o progresso agora

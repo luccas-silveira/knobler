@@ -74,7 +74,7 @@ struct ShelfDropDelegate: DropDelegate {
     let vm: NotchViewModel
 
     func validateDrop(info: DropInfo) -> Bool {
-        info.hasItemsConforming(to: [.fileURL])
+        info.hasItemsConforming(to: [.fileURL, .url, .plainText])
     }
 
     func dropEntered(info: DropInfo) {
@@ -82,19 +82,91 @@ struct ShelfDropDelegate: DropDelegate {
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        let providers = info.itemProviders(for: [.fileURL])
+        let providers = info.itemProviders(for: [.fileURL, .url, .plainText])
         guard !providers.isEmpty else { return false }
         for provider in providers {
-            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier) { item, _ in
-                guard let data = item as? Data,
-                      let url = URL(dataRepresentation: data, relativeTo: nil)
-                else { return }
-                DispatchQueue.main.async { [weak shelf] in
-                    shelf?.add(url)
-                }
-            }
+            carregar(provider)
         }
         return true
+    }
+
+    /// Decide o caminho pelo que ESTE provider registra, não por qual lista
+    /// veio cheia.
+    ///
+    /// O motivo é o Chrome: arrastar um link de lá anuncia
+    /// `com.apple.pasteboard.promised-file-url`, que conforma a `public.file-url`.
+    /// Filtrar por conformidade (`itemProviders(for: [.fileURL])`) pescava o
+    /// link junto, mandava pro caminho de arquivo e o `loadItem` devolvia nada —
+    /// o notch abria e o link sumia sem erro. Por isso a comparação aqui é com
+    /// o identificador **exato**.
+    private func carregar(_ provider: NSItemProvider) {
+        let tipos = provider.registeredTypeIdentifiers
+        if tipos.contains(UTType.fileURL.identifier) {
+            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier) { item, _ in
+                guard let url = Self.url(from: item), url.isFileURL else { return }
+                DispatchQueue.main.async { [weak shelf] in shelf?.add(url) }
+            }
+            return
+        }
+        if tipos.contains(UTType.url.identifier) {
+            provider.loadItem(forTypeIdentifier: UTType.url.identifier) { item, _ in
+                guard let url = Self.url(from: item), LinkBrowser.isWebLink(url) else { return }
+                abrir(url)
+            }
+            return
+        }
+        guard tipos.contains(UTType.plainText.identifier) else { return }
+        provider.loadItem(forTypeIdentifier: UTType.plainText.identifier) { item, _ in
+            guard let texto = Self.texto(from: item),
+                  !texto.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            else { return }
+            // texto que é só uma URL vale mais como link que como .txt
+            if let url = URL(string: texto.trimmingCharacters(in: .whitespacesAndNewlines)),
+               LinkBrowser.isWebLink(url) {
+                abrir(url)
+                return
+            }
+            Self.materializar(shelf) { try ShelfDrop.materializar(texto: texto) }
+        }
+    }
+
+    /// O provider entrega `Data`, `URL` ou `NSURL` conforme a origem do arraste.
+    private static func url(from item: NSSecureCoding?) -> URL? {
+        if let url = item as? URL { return url }
+        if let data = item as? Data {
+            return URL(dataRepresentation: data, relativeTo: nil)
+                ?? String(data: data, encoding: .utf8).flatMap(URL.init(string:))
+        }
+        if let texto = item as? String { return URL(string: texto) }
+        return nil
+    }
+
+    private static func texto(from item: NSSecureCoding?) -> String? {
+        if let texto = item as? String { return texto }
+        if let data = item as? Data { return String(data: data, encoding: .utf8) }
+        return nil
+    }
+
+    /// Link arrastado só abre o preview. **Não** vira item da prateleira: ela é
+    /// pra arquivo que você vai usar depois, e encher de atalho de cada link
+    /// espiado empurraria pra fora o que estava lá (a capacidade é 8).
+    private func abrir(_ url: URL) {
+        DispatchQueue.main.async { [vm] in
+            LinkPreview.shared.abrir(url, on: vm.displayID)
+            vm.setExpandedDirect(true)
+            vm.pedirFoco(.link)
+        }
+    }
+
+    /// Escreve fora da main (é I/O) e entra no shelf na main.
+    private static func materializar(_ shelf: ShelfStore, _ escrever: @escaping () throws -> URL) {
+        do {
+            let url = try escrever()
+            DispatchQueue.main.async { [weak shelf] in shelf?.add(url) }
+        } catch {
+            NSLog("knobler: não deu pra guardar o item arrastado: \(error)")
+            NSSound.beep()
+        }
     }
 }
 
@@ -154,6 +226,14 @@ struct ShelfRowView: View {
             .offset(x: 6, y: -5)
         }
         .contextMenu {
+            if let link = ShelfDrop.link(de: url) {
+                Button("Abrir no notch") {
+                    LinkPreview.shared.abrir(link, on: vm?.displayID)
+                    vm?.focar(.link)
+                }
+                Button("Abrir no navegador") { NSWorkspace.shared.open(link) }
+                Divider()
+            }
             let targets = FileConverter.targets(for: url)
             if !targets.isEmpty {
                 Menu("Converter") {

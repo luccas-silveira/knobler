@@ -97,7 +97,8 @@ verdade) não renderiza via `ImageRenderer` offscreen** — vira o ícone de
 "proibido" no lugar do conteúdo. Casos confirmados até agora:
 `NavigationSplitView`/`HSplitView` (repro isolado), `TextField` (o rodapé do
 `AskCardView` — por isso `ask-simple.png`/`ask-multiselect.png` cortam antes
-da barra do campo de texto), e `NSWorkspace.icon(forFile:)`/`QLThumbnailGenerator`
+da barra do campo de texto), `WKWebView` (a seção Link — o preview de site não tem PNG no harness),
+e `NSWorkspace.icon(forFile:)`/`QLThumbnailGenerator`
 (`ShelfThumbnailDragView` — por isso a imagem da prateleira nos docs
 (`docs/images/expanded-shelf.png`) é capturada no app rodando de verdade: o
 `foco-shelf.png` do harness sai com o ícone de "proibido" no lugar das

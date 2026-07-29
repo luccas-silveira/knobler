@@ -1,0 +1,125 @@
+//
+//  LinkPreview.swift
+//  Knobler
+//
+//  Link arrastado pro notch abre a página DENTRO do card, sem janela e sem
+//  barra de navegador.
+//
+//  Singleton com tela dona, igual à nota rápida e pelo mesmo motivo: existe um
+//  `NotchViewModel` por monitor, e um `WKWebView` por tela significaria N
+//  páginas carregando a mesma coisa — cada uma gastando rede e CPU.
+//
+
+import AppKit
+import Combine
+import WebKit
+
+@MainActor
+final class LinkPreview: ObservableObject {
+    static let shared = LinkPreview()
+
+    /// nil = nenhum link aberto; a seção some da faixa.
+    nonisolated(unsafe) private(set) var urlAtiva: URL?
+    @Published private(set) var url: URL? { didSet { urlAtiva = url } }
+    @Published private(set) var titulo = ""
+    @Published private(set) var carregando = false
+    @Published private(set) var progresso: Double = 0
+
+    /// Tela que mostra o preview — escolhida pelo ponteiro na hora de abrir.
+    /// Sem dono, arrastar um link expandiria todos os monitores.
+    nonisolated(unsafe) private(set) var hostDisplayID: CGDirectDisplayID?
+
+    /// Largura de viewport que o site enxerga, em pixels CSS. É o que decide se
+    /// a página entrega o layout de desktop ou o de celular: o card tem ~736 pt,
+    /// e nessa largura quase todo site cai no breakpoint mobile. Renderizar em
+    /// 1280 e **encolher com zoom** preserva o desenho original.
+    static let larguraCSS: CGFloat = 1280
+
+    /// Um só, reusado entre links: criar `WKWebView` é caro e o processo de
+    /// conteúdo demora a subir.
+    private(set) lazy var webView: WKWebView = {
+        let config = WKWebViewConfiguration()
+        // barra horizontal nunca: o corte é no elemento raiz, então carrossel
+        // interno da página (que rola sozinho) continua funcionando
+        config.userContentController.addUserScript(WKUserScript(
+            source: """
+            (function () {
+              var css = 'html{overflow-x:hidden !important;}';
+              var tag = document.createElement('style');
+              tag.appendChild(document.createTextNode(css));
+              (document.head || document.documentElement).appendChild(tag);
+            })();
+            """,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true))
+
+        let web = WKWebView(frame: .zero, configuration: config)
+        web.allowsBackForwardNavigationGestures = true
+        // fundo escuro combina com o card; sem isto pisca branco a cada página
+        web.setValue(false, forKey: "drawsBackground")
+        observar(web)
+        return web
+    }()
+
+    /// Ajusta o zoom pra que a página se comporte como se a janela tivesse
+    /// `larguraCSS` de largura. Chamado pela view quando o card muda de tamanho.
+    func ajustarZoom(paraLargura largura: CGFloat) {
+        guard largura > 0 else { return }
+        let novo = largura / Self.larguraCSS
+        guard abs(webView.pageZoom - novo) > 0.001 else { return }
+        webView.pageZoom = novo
+    }
+
+    private var observers: [NSKeyValueObservation] = []
+    private init() {}
+
+    /// `nonisolated`: o VM consulta isto de contexto síncrono (o mesmo motivo
+    /// pelo qual `QuickNote.hosted` é barato). Só lê duas propriedades.
+    nonisolated func hosted(by display: CGDirectDisplayID?) -> Bool {
+        urlAtiva != nil && hostDisplayID != nil && hostDisplayID == display
+    }
+
+    /// Abre (ou troca) o link no card da tela indicada.
+    func abrir(_ link: URL, on display: CGDirectDisplayID?) {
+        guard LinkBrowser.isWebLink(link) else { return }
+        hostDisplayID = display
+        url = link
+        titulo = link.host ?? ""
+        webView.load(URLRequest(url: link))
+    }
+
+    func fechar() {
+        url = nil
+        hostDisplayID = nil
+        titulo = ""
+        // about:blank em vez de soltar a webView: para o áudio/vídeo da página
+        // na hora, e o processo de conteúdo fica quente pro próximo link
+        webView.load(URLRequest(url: URL(string: "about:blank")!))
+    }
+
+    func voltar() { webView.goBack() }
+    var podeVoltar: Bool { webView.canGoBack }
+
+    func abrirFora() {
+        guard let atual = webView.url ?? url else { return }
+        NSWorkspace.shared.open(atual)
+        fechar()
+    }
+
+    private func observar(_ web: WKWebView) {
+        observers = [
+            web.observe(\.isLoading, options: [.new]) { [weak self] w, _ in
+                Task { @MainActor in self?.carregando = w.isLoading }
+            },
+            web.observe(\.estimatedProgress, options: [.new]) { [weak self] w, _ in
+                Task { @MainActor in self?.progresso = w.estimatedProgress }
+            },
+            web.observe(\.title, options: [.new]) { [weak self] w, _ in
+                Task { @MainActor in
+                    guard let t = w.title, !t.isEmpty else { return }
+                    self?.titulo = t
+                }
+            },
+        ]
+    }
+}

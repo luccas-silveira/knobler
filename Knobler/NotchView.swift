@@ -17,6 +17,7 @@ struct NotchView: View {
     @ObservedObject private var settings = AppSettings.shared
     @ObservedObject private var history = NotificationHistory.shared
     @ObservedObject private var note = QuickNote.shared
+    @ObservedObject private var linkPreview = LinkPreview.shared
     /// Só pra saber se há conversa (o `hasMensagens` da ordem das seções). O
     /// store não tem singleton: quem injeta é o app (e o harness de snapshot).
     @EnvironmentObject private var messages: MessageStore
@@ -72,6 +73,21 @@ struct NotchView: View {
     /// Cada seção manda na própria altura. Antes isto era uma soma
     /// combinatória no `currentSize` (`height += hasMusic || hasShelf ? 46 : 60`),
     /// que já tinha causado moldura menor que o conteúdo.
+    /// O card do link é mais largo que o resto: uma página de site em 386 pt
+    /// não é leitura, é miniatura.
+    static let linkCardWidth: CGFloat = 780
+    /// Sobra depois das margens internas do card (as mesmas 44 do `.frame`).
+    static var linkContentWidth: CGFloat { linkCardWidth - 44 }
+    /// A página em 16:9, a proporção de tela que o site espera. A altura da
+    /// seção soma o cabeçalho de controles.
+    static var linkWebHeight: CGFloat { (linkContentWidth * 9 / 16).rounded() }
+    static let linkHeaderHeight: CGFloat = 24
+
+    /// Largura do card por seção em foco: só o link foge do padrão.
+    static func larguraDoCard(_ focus: NotchSection?, padrao: CGFloat) -> CGFloat {
+        focus == .link ? linkCardWidth : padrao
+    }
+
     /// A prateleira é a única seção com duas alturas: a grade de itens é uma
     /// linha, o preview de conversão empilha presets e botões.
     static let shelfPreviewHeight: CGFloat = 112
@@ -85,6 +101,7 @@ struct NotchView: View {
         case .mensagens: return 272
         case .historico: return HistoryListView.listHeight + 12
         case .nota: return Self.noteEditorHeight + 20
+        case .link: return linkWebHeight + linkHeaderHeight
         }
     }
 
@@ -150,7 +167,8 @@ struct NotchView: View {
             case .music:
                 expandedContent
                     // largura fixa: o texto não pode refluir enquanto a forma anima
-                    .frame(width: expandedSize.width - 44)
+                    .frame(width: Self.larguraDoCard(vm.focus,
+                                                     padrao: expandedSize.width) - 44)
                     .padding(.top, topInset + 8)
                     .padding(.bottom, 14)
                     // o conteúdo cresce junto com a moldura, ancorado no topo
@@ -219,8 +237,12 @@ struct NotchView: View {
     private var interactiveNotch: some View {
         Group {
             if dropTargetsEnabled {
+                // a lista tem que bater com a do `ShelfDropDelegate.validateDrop`:
+                // o `of:` filtra ANTES do delegate, e um tipo que falte aqui
+                // nunca chega lá (foi assim que link arrastado do navegador
+                // sumia sem erro nenhum)
                 notch.onDrop(
-                    of: [.fileURL],
+                    of: [.fileURL, .url, .plainText],
                     delegate: ShelfDropDelegate(shelf: shelf, vm: vm))
             } else {
                 notch
@@ -276,7 +298,8 @@ struct NotchView: View {
                                  hasShelf: !shelf.items.isEmpty,
                                  hasHistory: !history.items.isEmpty,
                                  hasMensagens: !messages.threads.isEmpty,
-                                 hasNota: noteVisible))
+                                 hasNota: noteVisible,
+                                 hasLink: linkPreview.hosted(by: vm.displayID)))
     }
 
     /// Faixa morta no topo dos cards: só existe onde tem câmera de verdade.
@@ -316,7 +339,9 @@ struct NotchView: View {
             // a nota é modo exclusivo: sem faixa, e sem o espaçamento dela
             let faixa = vm.focus == .nota ? 0 : Self.sectionStripHeight + 8
             let chrome = topInset + 8 + 8 + 14
-            return CGSize(width: expandedSize.width, height: chrome + corpo + faixa)
+            return CGSize(
+                width: Self.larguraDoCard(vm.focus, padrao: expandedSize.width),
+                height: chrome + corpo + faixa)
         case .notification:
             let hasActions = vm.activeNotification?.actionTitles.isEmpty == false
             return CGSize(width: notificationWidth,
@@ -806,6 +831,7 @@ struct NotchView: View {
                 case .mensagens: MessagesView(vm: vm)
                 case .espelho: mirrorSection
                 case .shelf: ShelfRowView(shelf: shelf, vm: vm, onAirDrop: vm.onAirDrop)
+                case .link: LinkPreviewView(preview: linkPreview)
                 case .atividade: if let a = vm.activity { activityRow(a) }
                 case .pomodoro: if let p = vm.pomodoro { pomodoroSection(p) }
                 case .musica, .none: musicSection
@@ -877,6 +903,12 @@ struct NotchView: View {
             contagem(history.items.count)
         case .nota:
             if !note.text.isEmpty {
+                Circle().fill(.white.opacity(0.8))
+                    .frame(width: 3, height: 3)
+                    .offset(x: 6, y: -6)
+            }
+        case .link:
+            if linkPreview.carregando {
                 Circle().fill(.white.opacity(0.8))
                     .frame(width: 3, height: 3)
                     .offset(x: 6, y: -6)
@@ -1544,6 +1576,7 @@ private struct AberturaDoCard: ViewModifier {
     let hasHistory: Bool
     let hasMensagens: Bool
     let hasNota: Bool
+    let hasLink: Bool
 
     func body(content: Content) -> some View {
         content
@@ -1562,6 +1595,8 @@ private struct AberturaDoCard: ViewModifier {
             // aberto (hover + mensagem LAN chegando), e sem isto `.mensagens`
             // não estaria na ordem congelada quando o clique no card pede foco
             .onChange(of: hasMensagens) { _, _ in if vm.expanded { recalcular() } }
+            // e pro link: arrastar uma URL abre o card e a seção nasce junto
+            .onChange(of: hasLink) { _, _ in if vm.expanded { recalcular() } }
             // a altura inicial também precisa sair daqui: quem vive fora do
             // SwiftUI (o monitor de scroll) leria 0 até o card mudar de tamanho
             .onAppear { vm.publicarAltura(altura) }
@@ -1574,7 +1609,8 @@ private struct AberturaDoCard: ViewModifier {
                                hasShelf: hasShelf,
                                hasHistory: hasHistory,
                                hasMensagens: hasMensagens,
-                               hasNota: hasNota),
+                               hasNota: hasNota,
+                               hasLink: hasLink),
             travadaNaNota: vm.typingNote)
     }
 }
