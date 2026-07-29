@@ -626,12 +626,15 @@ struct NotchView: View {
             .font(.system(size: 13))
             .foregroundStyle(.white.opacity(0.92))
             .scrollContentBackground(.hidden)
-            .background(.clear)
             .focused($noteFocused)
             .frame(height: 120)
             .padding(.horizontal, 4)
             .onAppear { noteFocused = true }
             .onChange(of: noteFocused) { _, focused in note.editing = focused }
+            // Esc precisa liberar o foco explicitamente: TextEditor não
+            // garante isso por padrão, e a guarda de hover em
+            // NotchViewModel.setHover depende de note.editing virar false.
+            .onExitCommand { noteFocused = false }
     }
 
     // MARK: - Música expandida
