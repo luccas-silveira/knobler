@@ -83,6 +83,9 @@ struct MessagesView: View {
                     ForEach(store.messages(for: peerID)) { bubble($0) }
                 }
             }
+            // conversa abre na mensagem mais recente, e segue colada nela
+            // quando chega uma nova — sem isso a lista nascia no topo
+            .defaultScrollAnchor(.bottom)
             .frame(maxHeight: 200)
             composer(peer: peer)
         }

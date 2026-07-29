@@ -6,6 +6,12 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Fixed
+- **Conversa abre na mensagem mais recente**: a lista nascia no topo, no
+  histórico mais antigo, e obrigava a rolar até o fim pra ver o que tinha
+  acabado de chegar. Agora abre embaixo e segue colada quando chega mensagem
+  nova.
+
 ## [0.13.1] - 2026-07-29
 
 ### Added
