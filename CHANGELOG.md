@@ -16,6 +16,13 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   Rede Local, Arquivos e Gravação de Áudio do Sistema não expõem status ao app,
   então aparecem como "ainda não usada" até o primeiro uso revelar. O aviso
   **◐⚠** da barra de menus agora abre esse painel em vez do Ajustes do Sistema.
+- **Caminho de notarização no `tools/release.sh`**: com `KNOBLER_NOTARY_PROFILE`
+  apontando pra um perfil do `notarytool`, o release passa a assinar com
+  Developer ID + hardened runtime + timestamp, submeter à Apple, dar `stapler` e
+  re-zipar com o ticket dentro. Sem a variável, o fluxo é exatamente o de antes
+  (certificado local, sem notarização). `tools/knobler.entitlements` destrava só
+  o que o hardened runtime bloquearia: microfone, câmera, calendário e o
+  carregamento do `MediaRemoteAdapter` pelo perl.
 
 ### Changed
 - **O Keychain não pede mais a senha do Mac**: os três segredos do relay de
@@ -40,15 +47,6 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   era pedida duas vezes (ditado e notificações); virou um pedido só, porque sem
   ela o `CGEventTap` não existe e o gatilho do ditado é invisível — não há
   "primeiro uso" que dê pra esperar.
-
-### Added
-- **Caminho de notarização no `tools/release.sh`**: com `KNOBLER_NOTARY_PROFILE`
-  apontando pra um perfil do `notarytool`, o release passa a assinar com
-  Developer ID + hardened runtime + timestamp, submeter à Apple, dar `stapler` e
-  re-zipar com o ticket dentro. Sem a variável, o fluxo é exatamente o de antes
-  (certificado local, sem notarização). `tools/knobler.entitlements` destrava só
-  o que o hardened runtime bloquearia: microfone, câmera, calendário e o
-  carregamento do `MediaRemoteAdapter` pelo perl.
 
 ### Removed
 - **`NSBluetoothAlwaysUsageDescription`**: linha morta no `Info.plist`. É a
