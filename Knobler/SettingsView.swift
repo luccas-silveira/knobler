@@ -232,6 +232,20 @@ struct NotchSettingsPane: View {
 
     var body: some View {
         Form {
+            Section("Ordem das seções do card") {
+                Text("A ordem em repouso. Algo que acabou de acontecer sobe sozinho por alguns segundos.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                List {
+                    ForEach(settings.notchSectionOrder, id: \.self) { s in
+                        Label(s.titulo, systemImage: s.simbolo)
+                    }
+                    .onMove { origem, destino in
+                        settings.notchSectionOrder.move(fromOffsets: origem, toOffset: destino)
+                    }
+                }
+                .frame(height: 220)
+            }
             Section("Cards e avisos") {
                 SettingToggle(
                     title: "Notificações no notch",

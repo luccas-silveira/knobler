@@ -17,6 +17,9 @@ struct NotchView: View {
     @ObservedObject private var settings = AppSettings.shared
     @ObservedObject private var history = NotificationHistory.shared
     @ObservedObject private var note = QuickNote.shared
+    /// Só pra saber se há conversa (o `hasMensagens` da ordem das seções). O
+    /// store não tem singleton: quem injeta é o app (e o harness de snapshot).
+    @EnvironmentObject private var messages: MessageStore
     @FocusState private var noteFocused: Bool
     /// false no harness de snapshot: onDrop cria uma NSView que o ImageRenderer
     /// não renderiza (vira placeholder amarelo). No app fica sempre true.
@@ -43,8 +46,10 @@ struct NotchView: View {
         askStore.state.active != nil
             || agentRequestStore.state.active != nil
             || vm.incoming?.allowReply == true
-            || (vm.tab == .messages && vm.expanded)
-            || (noteVisible && vm.expanded)
+            || (vm.focus == .mensagens && vm.expanded)
+            // o campo da nota só existe na árvore quando ela é a seção em foco —
+            // pedir a janela-chave fora disso engoliria as teclas em silêncio
+            || (noteVisible && vm.expanded && vm.focus == .nota)
     }
 
     private func notifyKeyboardEligibility() {
@@ -64,11 +69,23 @@ struct NotchView: View {
     /// Altura do campo da nota. Mesma regra da `HistoryListView.listHeight`:
     /// o `currentSize` soma ESTA constante, então layout e moldura mudam juntos.
     static let noteEditorHeight: CGFloat = 120
-    /// Alcinha (3 pt) + o respiro dela (2 pt) + o espaçamento da VStack do
-    /// `musicContent` (10 pt): o quanto o card cresce quando há histórico.
-    private static let grabberBlock: CGFloat = 15
+    /// Cada seção manda na própria altura. Antes isto era uma soma
+    /// combinatória no `currentSize` (`height += hasMusic || hasShelf ? 46 : 60`),
+    /// que já tinha causado moldura menor que o conteúdo.
+    static func alturaDaSecao(_ s: NotchSection) -> CGFloat {
+        switch s {
+        case .musica: return 118
+        case .atividade: return 60
+        case .pomodoro: return 128
+        case .shelf: return 76
+        case .espelho: return 202
+        case .mensagens: return 272
+        case .historico: return HistoryListView.listHeight + 12
+        case .nota: return Self.noteEditorHeight + 20
+        }
+    }
 
-    private let expandedSize = CGSize(width: 430, height: 188)
+    private let expandedSize = CGSize(width: NotchGesture.larguraDoCard, height: 188)
     private let notificationWidth: CGFloat = 380
     // asinhas do estado fechado quando tem música tocando (capa + visualizer)
     private let wingWidth: CGFloat = 44
@@ -186,9 +203,12 @@ struct NotchView: View {
         )
         .frame(width: currentSize.width, height: currentSize.height)
         // folga invisível de hover ao redor do card aberto: jitter na borda
-        // não fecha; e o hit-test cobre o retângulo todo, não só o desenhado
-        .padding(.horizontal, mode == .music ? 16 : 0)
-        .padding(.bottom, mode == .music ? 16 : 0)
+        // não fecha; e o hit-test cobre o retângulo todo, não só o desenhado.
+        // A constante vem do NotchGesture porque a zona do scroll soma a MESMA
+        // folga — separar as duas deixaria uma tira que responde ao hover e
+        // não ao gesto.
+        .padding(.horizontal, mode == .music ? NotchGesture.folgaDeHover : 0)
+        .padding(.bottom, mode == .music ? NotchGesture.folgaDeHover : 0)
         .contentShape(Rectangle())
     }
 
@@ -232,7 +252,7 @@ struct NotchView: View {
             notifyKeyboardEligibility()
         }
         .onChange(of: vm.incoming?.allowReply) { _, _ in notifyKeyboardEligibility() }
-        .onChange(of: vm.tab) { _, _ in notifyKeyboardEligibility() }
+        .onChange(of: vm.focus) { _, _ in notifyKeyboardEligibility() }
         .onChange(of: vm.expanded) { _, _ in notifyKeyboardEligibility() }
         .onChange(of: note.active) { _, _ in notifyKeyboardEligibility() }
         // o teclado segue o dono, não só o interruptor
@@ -241,6 +261,19 @@ struct NotchView: View {
         .onChange(of: note.editing) { _, editing in
             if !editing { vm.resumePendingNotifications() }
         }
+        .modifier(CarimboDeEventos(vm: vm,
+                                   faixa: media.state?.title,
+                                   tocando: media.state?.isPlaying,
+                                   itensShelf: shelf.items.count,
+                                   itensHistorico: history.items.count,
+                                   notaVazia: note.text.isEmpty))
+        .modifier(AberturaDoCard(vm: vm,
+                                 altura: currentSize.height,
+                                 hasMusic: hasMusic,
+                                 hasShelf: !shelf.items.isEmpty,
+                                 hasHistory: !history.items.isEmpty,
+                                 hasMensagens: !messages.threads.isEmpty,
+                                 hasNota: noteVisible))
     }
 
     /// Faixa morta no topo dos cards: só existe onde tem câmera de verdade.
@@ -267,44 +300,18 @@ struct NotchView: View {
                 height: vm.notchSize.height
             )
         case .music:
-            // topo (câmera) + pontinhos de página no rodapé, comuns às duas telas
-            let chrome = topInset + 10 + 16
-            // Nota e cortina têm altura própria e vêm ANTES da aritmética de
-            // música/shelf/atividade — é a mesma ordem de precedência do
-            // `expandedContent`. Sem estes dois ramos a moldura sairia ~150 pt
-            // menor que o conteúdo, que a `.frame` centraliza: as linhas mais
-            // novas saem pelo topo da tela e a metade de baixo cai fora do
-            // `.onHover` (mover o mouse pra lá lê como saída e fecha o card).
-            if noteVisible {
-                return CGSize(width: expandedSize.width,
-                              height: chrome + Self.noteEditorHeight + 20)
-            }
-            if vm.historyOpen {
-                return CGSize(width: expandedSize.width,
-                              height: chrome + HistoryListView.listHeight + 12)
-            }
-            if vm.tab == .messages {
-                // aba Mensagens tem altura própria (conversa: cabeçalho + histórico
-                // rolável até 160 + campo); a lista de online cabe no mesmo espaço.
-                return CGSize(width: expandedSize.width, height: chrome + 272)
-            }
-            let hasShelf = !shelf.items.isEmpty
-            let hasPomodoro = vm.pomodoro != nil
-            // Pomodoro ativo suprime música e placeholder
-            let placeholder = !hasMusic && vm.activity == nil && !hasShelf
-                && !vm.mirrorOn && !hasPomodoro
-            var height = chrome
-            if hasPomodoro { height += 128 }  // cabeçalho + timer grande + ciclo + controles
-            if vm.mirrorOn {
-                height += vm.activity != nil || hasShelf ? 190 : 202
-            }
-            if !vm.mirrorOn, !hasPomodoro, hasMusic || placeholder { height += 118 }
-            if vm.activity != nil { height += hasMusic || hasShelf ? 46 : 60 }
-            if hasShelf { height += hasMusic || vm.activity != nil ? 62 : 76 }
-            // alcinha de descoberta que o musicContent acrescenta quando há
-            // histórico pra puxar
-            if !history.items.isEmpty { height += Self.grabberBlock }
-            return CGSize(width: expandedSize.width, height: height)
+            // Parcela por parcela, as MESMAS que o `expandedContent` desenha:
+            // `.padding(.top, topInset + 8)`, a seção em foco, o espaçamento de 8
+            // da VStack, a faixa do rodapé (mais o segundo espaçamento de 8) e
+            // `.padding(.bottom, 14)`. Divergir daqui é o modo de falha clássico
+            // deste arquivo: o conteúdo sai da moldura, a `.frame` centraliza e a
+            // metade de baixo do card cai fora do `.onHover` — mover o mouse pra
+            // lá lê como saída e fecha o card.
+            let corpo = vm.focus.map { Self.alturaDaSecao($0) } ?? 118
+            // a nota é modo exclusivo: sem faixa, e sem o espaçamento dela
+            let faixa = vm.focus == .nota ? 0 : Self.sectionStripHeight + 8
+            let chrome = topInset + 8 + 8 + 14
+            return CGSize(width: expandedSize.width, height: chrome + corpo + faixa)
         case .notification:
             let hasActions = vm.activeNotification?.actionTitles.isEmpty == false
             return CGSize(width: notificationWidth,
@@ -787,90 +794,131 @@ struct NotchView: View {
     private var expandedContent: some View {
         VStack(spacing: 8) {
             Group {
-                if noteVisible {
-                    noteSection
-                } else if vm.historyOpen {
-                    HistoryListView(history: history,
-                                    onOpen: { vm.setExpandedDirect(false) })
-                } else if vm.tab == .messages {
-                    MessagesView(vm: vm)
-                } else {
-                    musicContent
+                switch vm.focus {
+                case .nota: noteSection
+                case .historico: HistoryListView(history: history,
+                                                 onOpen: { vm.setExpandedDirect(false) })
+                case .mensagens: MessagesView(vm: vm)
+                case .espelho: mirrorSection
+                case .shelf: ShelfRowView(shelf: shelf, vm: vm)
+                case .atividade: if let a = vm.activity { activityRow(a) }
+                case .pomodoro: if let p = vm.pomodoro { pomodoroSection(p) }
+                case .musica, .none: musicSection
                 }
             }
             .transition(.blurReplace)
             Spacer(minLength: 0)
-            // nota é modo exclusivo: o campo é o card inteiro, não há aba pra
-            // trocar nem cortina pra puxar. Rodapé vazio em vez dos pontinhos,
-            // que eram clicáveis e mudavam `vm.tab` por baixo da nota — o ponto
-            // de Mensagens acendia numa tela que seguia mostrando o texto.
-            if !noteVisible {
-                if vm.historyOpen { grabber } else { pageDots }
-            }
+            // a nota é modo exclusivo: enquanto o teclado está nos dedos a faixa
+            // não pode oferecer um caminho pra fora do campo
+            if vm.focus != .nota { sectionStrip }
         }
+        .animation(.easeOut(duration: 0.3), value: vm.focus)
     }
 
-    /// Alcinha do Dynamic Island: a única dica de que há mais coisa abaixo —
-    /// o puxão longo não se anuncia sozinho.
-    private var grabber: some View {
-        Capsule()
-            .fill(.white.opacity(0.25))
-            .frame(width: 28, height: 3)
-    }
+    /// Altura da faixa do rodapé. Fixa e não intrínseca de propósito: o maior
+    /// desenho lá dentro é o anel de progresso da atividade (14) mais o padding
+    /// de 4 de cada lado do alvo de clique, e o `currentSize` soma ESTA
+    /// constante. Deixar a faixa medir sozinha era o caminho pra moldura e
+    /// conteúdo divergirem de novo.
+    static let sectionStripHeight: CGFloat = 22
 
-    /// Único indicador de navegação: a troca de tela é por swipe de dois dedos.
-    /// Clicáveis porque o gesto não se anuncia sozinho.
-    private var pageDots: some View {
-        HStack(spacing: 6) {
-            ForEach([NotchViewModel.NotchTab.music, .messages], id: \.self) { tab in
+    /// Rodapé do card: as seções que não estão em foco, cada uma com um sinal
+    /// vivo mínimo. Você perde o detalhe, não o glance.
+    private var sectionStrip: some View {
+        HStack(spacing: 10) {
+            ForEach(vm.secoes, id: \.self) { s in
                 Button {
-                    withAnimation(.easeOut(duration: 0.22)) { vm.tab = tab }
+                    withAnimation(.easeOut(duration: 0.22)) { vm.focar(s) }
                 } label: {
-                    Circle()
-                        .fill(.white.opacity(vm.tab == tab ? 0.75 : 0.25))
-                        .frame(width: 5, height: 5)
-                        // alvo de clique maior que o ponto desenhado
-                        .padding(4)
-                        .contentShape(Rectangle())
+                    ZStack {
+                        Image(systemName: s.simbolo)
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.white.opacity(vm.focus == s ? 0.9 : 0.35))
+                        sinalVivo(s)
+                    }
+                    // alvo de clique maior que o desenho
+                    .padding(4)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(s.titulo)
             }
         }
+        .frame(height: Self.sectionStripHeight)
+    }
+
+    /// O sinal de cada ícone: anel pra progresso, ponto pra "está rolando",
+    /// contagem pra pilha.
+    @ViewBuilder
+    private func sinalVivo(_ s: NotchSection) -> some View {
+        switch s {
+        case .atividade:
+            if let p = vm.activity?.progress {
+                Circle()
+                    .trim(from: 0, to: p)
+                    .stroke(.white.opacity(0.7), lineWidth: 1.5)
+                    .rotationEffect(.degrees(-90))
+                    .frame(width: 14, height: 14)
+            }
+        case .musica:
+            if media.state?.isPlaying == true {
+                Circle().fill(.white.opacity(0.8))
+                    .frame(width: 3, height: 3)
+                    .offset(x: 6, y: -6)
+            }
+        case .shelf:
+            contagem(shelf.items.count)
+        case .historico:
+            contagem(history.items.count)
+        case .nota:
+            if !note.text.isEmpty {
+                Circle().fill(.white.opacity(0.8))
+                    .frame(width: 3, height: 3)
+                    .offset(x: 6, y: -6)
+            }
+        case .pomodoro:
+            if let p = vm.pomodoro, let fatia = Self.fatiaDoCiclo(p, settings: settings) {
+                Circle()
+                    .trim(from: 0, to: fatia)
+                    .stroke(.white.opacity(0.7), lineWidth: 1.5)
+                    .rotationEffect(.degrees(-90))
+                    .frame(width: 14, height: 14)
+            }
+        // espelho: ligado/desligado já é a presença do ícone na faixa.
+        // mensagens: o sinal seria a contagem de não-lidas, que não existe hoje
+        // (o store guarda a conversa, não o "lido") — melhor nada que inventar.
+        case .espelho, .mensagens:
+            EmptyView()
+        }
+    }
+
+    /// Quanto falta da fase atual do Pomodoro, de 0 a 1 — o anel do ícone.
+    ///
+    /// A duração cheia da fase não vem no `PomodoroState` (só o `remaining`),
+    /// então sai dos Ajustes, que é de onde o próprio `Pomodoro` a lê. Mexer na
+    /// config no meio de uma fase pode dar fração fora da faixa; daí o clamp.
+    /// Parado (idle) não tem ciclo em andamento e não desenha anel.
+    static func fatiaDoCiclo(_ p: PomodoroState, settings: AppSettings) -> CGFloat? {
+        guard p.runState != .idle else { return nil }
+        let minutos: Int
+        switch p.phase {
+        case .focus: minutos = settings.pomodoroFocus
+        case .shortBreak: minutos = settings.pomodoroShortBreak
+        case .longBreak: minutos = settings.pomodoroLongBreak
+        }
+        let total = TimeInterval(minutos) * 60
+        guard total > 0 else { return nil }
+        return CGFloat(min(max(p.remaining / total, 0), 1))
     }
 
     @ViewBuilder
-    private var musicContent: some View {
-        VStack(spacing: 10) {
-            // Pomodoro ativo toma o topo do card; a música some enquanto ele roda
-            if let p = vm.pomodoro {
-                pomodoroSection(p)
-                    .transition(.blurReplace)
-            }
-            if vm.mirrorOn {
-                mirrorSection
-                    .transition(.blurReplace)
-            }
-            if !shelf.items.isEmpty {
-                ShelfRowView(shelf: shelf, vm: vm)
-                    .transition(.blurReplace)
-            }
-            if let activity = vm.activity {
-                activityRow(activity)
-                    .transition(.blurReplace)
-            }
-            // espelho aberto (ou Pomodoro ativo) toma o lugar da música — volta ao fechar/encerrar
-            if !vm.mirrorOn, vm.pomodoro == nil {
-                musicSection
-            }
-            if !history.items.isEmpty {
-                grabber.padding(.top, 2)
-            }
+    private func contagem(_ n: Int) -> some View {
+        if n > 0 {
+            Text("\(n)")
+                .font(.system(size: 7, weight: .bold))
+                .foregroundStyle(.white.opacity(0.9))
+                .offset(x: 7, y: -6)
         }
-        .animation(.easeOut(duration: 0.3), value: vm.activity == nil)
-        .animation(.easeOut(duration: 0.3), value: shelf.items)
-        .animation(.easeOut(duration: 0.3), value: vm.mirrorOn)
-        .animation(.easeOut(duration: 0.3), value: vm.pomodoro == nil)
-        .animation(.easeOut(duration: 0.3), value: vm.airpods)
     }
 
     // MARK: - Espelho
@@ -1481,5 +1529,80 @@ private struct RemoteAvatarView: View {
     private func reload() {
         guard iconEmoji == nil else { return }   // emoji fixo: renderiza local, não baixa nada
         if AppSettings.shared.loadRemoteImages { loader.load(iconURL) }
+    }
+}
+
+/// Congela a ordem das seções na abertura do card e publica a altura pra quem
+/// vive fora do SwiftUI (o monitor de scroll). Mesmo motivo do `CarimboDeEventos`
+/// pra ser um modificador à parte: mais `.onChange` inline estoura o
+/// type-checker do `interactiveNotch`.
+private struct AberturaDoCard: ViewModifier {
+    let vm: NotchViewModel
+    let altura: CGFloat
+    let hasMusic: Bool
+    let hasShelf: Bool
+    let hasHistory: Bool
+    let hasMensagens: Bool
+    let hasNota: Bool
+
+    func body(content: Content) -> some View {
+        content
+            // já aberto quando a view nasce (harness de snapshot, janela
+            // recriada por troca de monitor): sem isto a ordem ficaria vazia.
+            // Lista já montada não é recalculada — é como o harness captura
+            // cenários que não dá pra provocar offscreen.
+            .onAppear { if vm.expanded, vm.secoes.isEmpty { recalcular() } }
+            .onChange(of: vm.expanded) { _, aberto in
+                if aberto { recalcular() }
+            }
+            // ligar/desligar a nota com o card JÁ aberto não passa pelo
+            // `expanded`: sem isto a seção nova nunca entraria na ordem congelada
+            .onChange(of: hasNota) { _, _ in if vm.expanded { recalcular() } }
+            // idem pra Mensagens: a PRIMEIRA conversa nasce com o card já
+            // aberto (hover + mensagem LAN chegando), e sem isto `.mensagens`
+            // não estaria na ordem congelada quando o clique no card pede foco
+            .onChange(of: hasMensagens) { _, _ in if vm.expanded { recalcular() } }
+            // a altura inicial também precisa sair daqui: quem vive fora do
+            // SwiftUI (o monitor de scroll) leria 0 até o card mudar de tamanho
+            .onAppear { vm.publicarAltura(altura) }
+            .onChange(of: altura) { _, novo in vm.publicarAltura(novo) }
+    }
+
+    private func recalcular() {
+        vm.recalcularSecoes(
+            vm.estadoDasSecoes(hasMusic: hasMusic,
+                               hasShelf: hasShelf,
+                               hasHistory: hasHistory,
+                               hasMensagens: hasMensagens,
+                               hasNota: hasNota),
+            travadaNaNota: vm.typingNote)
+    }
+}
+
+/// Carimba os eventos de transição das seções que nascem fora do VM (música,
+/// shelf, histórico, nota). Vive num `ViewModifier` próprio — e recebe valores
+/// já extraídos, não os stores — porque o `body` do notch interativo já estoura
+/// o type-checker do Swift quando ganha mais um punhado de `.onChange`.
+///
+/// Nada aqui carimba tique: da música só troca de faixa e play/pause entram (a
+/// posição avança sozinha e promoveria a música pra sempre), e da nota só o
+/// vazio → não-vazio (cada tecla depois disso não recarimba).
+private struct CarimboDeEventos: ViewModifier {
+    let vm: NotchViewModel
+    let faixa: String?
+    let tocando: Bool?
+    let itensShelf: Int
+    let itensHistorico: Int
+    let notaVazia: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: faixa) { _, _ in vm.marcarEvento(.musica) }
+            .onChange(of: tocando) { _, _ in vm.marcarEvento(.musica) }
+            .onChange(of: itensShelf) { _, _ in vm.marcarEvento(.shelf) }
+            .onChange(of: itensHistorico) { _, _ in vm.marcarEvento(.historico) }
+            .onChange(of: notaVazia) { _, vazio in
+                if !vazio { vm.marcarEvento(.nota) }
+            }
     }
 }

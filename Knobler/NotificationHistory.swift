@@ -25,7 +25,7 @@ final class NotificationHistory: ObservableObject {
     /// ponytail: teto duro de linhas. A poda por idade sozinha não segura uma
     /// fonte que emita `webhookID` distinto em rajada — em 24 h a lista cresce
     /// sem limite e o `record` é O(n) por inserção. 300 é muito mais do que
-    /// alguém lê numa cortina de 260 pt; quem precisar de mais precisa de
+    /// alguém lê numa seção de 260 pt; quem precisar de mais precisa de
     /// busca, não de teto maior.
     private let capacidade = 300
 

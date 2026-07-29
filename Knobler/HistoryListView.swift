@@ -2,13 +2,13 @@
 //  HistoryListView.swift
 //  Knobler
 //
-//  A cortina do histórico: o que virou card nas últimas 24 h.
+//  A seção de histórico do card: o que virou card nas últimas 24 h.
 //
 
 import SwiftUI
 
 struct HistoryListView: View {
-    /// Altura da cortina. É a MESMA constante que o `currentSize` da `NotchView`
+    /// Altura da seção de histórico. É a MESMA constante que a `NotchView`
     /// soma pra dimensionar o card — mudar aqui muda o card junto. Se ela virar
     /// duas, o card fica menor que a lista e as linhas de cima somem pra fora
     /// da tela (a `.frame` centraliza o que não cabe).
@@ -16,7 +16,7 @@ struct HistoryListView: View {
 
     @ObservedObject var history: NotificationHistory
     /// Chamado depois de abrir a origem: o card ao vivo se recolhe no clique e
-    /// a linha do histórico faz o mesmo — senão a cortina fica aberta atrás do
+    /// a linha do histórico faz o mesmo — senão o card fica aberto atrás do
     /// app que acabou de vir pra frente.
     var onOpen: () -> Void = {}
 

@@ -3,7 +3,8 @@
 //  Knobler
 //
 //  Card que desce do notch quando chega uma mensagem LAN: foto + nome +
-//  texto e, se permitido, resposta rápida. Clicar abre a conversa na aba.
+//  texto e, se permitido, resposta rápida. Clicar abre a conversa na seção
+//  Mensagens.
 //
 
 import SwiftUI

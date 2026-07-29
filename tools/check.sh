@@ -73,7 +73,16 @@ swift_check imageconvertercheck    $CONVERSAO tools/imageconvertercheck.swift
 swift_check documentconvertercheck $CONVERSAO tools/documentconvertercheck.swift
 swift_check sharingcheck          Knobler/Sharing.swift Knobler/NotificationRules.swift tools/sharingcheck.swift
 swift_check historycheck          Knobler/NotchNotification.swift Knobler/NotificationHistory.swift Knobler/NotchGesture.swift tools/historycheck.swift
+swift_check sectionordercheck    Knobler/NotchSectionOrder.swift tools/sectionordercheck.swift
 swift_check quicknotecheck        Knobler/QuickNote.swift tools/quicknotecheck.swift
+# "tique não carimba": o VM inteiro sobe isolado, e por isso arrasta os tipos
+# que ele cita (Pomodoro, AirPods, notificação, Wire, Updater).
+swift_check eventoscheck          Knobler/NotchViewModel.swift Knobler/NotchSectionOrder.swift \
+  Knobler/Pomodoro.swift Knobler/AirPodsBattery.swift Knobler/NotchNotification.swift \
+  Knobler/NotificationHistory.swift Knobler/QuickNote.swift Knobler/Wire.swift \
+  Knobler/Updater.swift \
+  Knobler/AppSettings.swift Knobler/Descanso.swift Knobler/Mirror.swift \
+  Knobler/Reminders.swift Knobler/Peer.swift tools/eventoscheck.swift
 # Reminders traz o próprio @main atrás de -D (molde do Pomodoro), sem harness.
 run reminderscheck bash -c "xcrun swiftc -parse-as-library -swift-version 5 \
   -D REMINDERS_SELFCHECK Knobler/Reminders.swift -o /tmp/reminderscheck && /tmp/reminderscheck"

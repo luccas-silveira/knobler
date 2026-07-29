@@ -32,9 +32,21 @@ final class NotchViewModel: ObservableObject {
 
     @Published var expanded = false {
         // recolher o notch desliga o espelho — a câmera nunca fica ligada escondida
-        didSet { if !expanded { mirrorOn = false } }
+        didSet {
+            if !expanded {
+                mirrorOn = false
+                // escolha manual vale até fechar; a próxima abertura volta ao automático
+                focusLocked = false
+                // pedido de foco que ninguém consumiu morre aqui: vivo, ele
+                // vazaria pra abertura seguinte e abriria numa seção que o
+                // usuário não pediu — já travada, matando a promoção do card.
+                focoPendente = nil
+            }
+        }
     }
-    @Published var mirrorOn = false
+    @Published var mirrorOn = false {
+        didSet { if mirrorOn != oldValue { marcarEvento(.espelho) } }
+    }
     /// Algum app está capturando o microfone (pontinho laranja no notch).
     @Published var micInUse = false
     /// Música pausada some do notch; hover "espia" (peeking) antes de expandir.
@@ -44,13 +56,29 @@ final class NotchViewModel: ObservableObject {
     /// true = notch físico (câmera no meio); false = ilha simulada em monitor externo
     @Published var hasRealNotch = false
     @Published var activeNotification: NotchNotification?
-    /// Cortina do histórico puxada. Implica `expanded`; fecha junto com ele.
-    @Published var historyOpen = false
     @Published var hud: HUDState?
     @Published var dictation: DictationPhase?
-    @Published var activity: NotchActivity?
+    /// Atividade em curso. Só título/detalhe e o aparecer/sumir promovem — o
+    /// `progress` (e o `updatedAt` que vem junto) anda a cada passo e faria a
+    /// atividade morar no topo pra sempre.
+    @Published var activity: NotchActivity? {
+        didSet {
+            guard activity?.title != oldValue?.title
+                || activity?.detail != oldValue?.detail
+                || (activity == nil) != (oldValue == nil) else { return }
+            marcarEvento(.atividade)
+        }
+    }
     /// Timer Pomodoro em exibição (pílula própria no notch). nil = idle.
-    @Published var pomodoro: PomodoroState?
+    /// Só fase/estado promovem — `remaining` muda a cada segundo e faria o
+    /// Pomodoro morar no topo pra sempre.
+    @Published var pomodoro: PomodoroState? {
+        didSet {
+            guard pomodoro?.phase != oldValue?.phase
+                || pomodoro?.runState != oldValue?.runState else { return }
+            marcarEvento(.pomodoro)
+        }
+    }
     /// AirPods conectados: bateria por componente (nil = desconectado). Alimenta
     /// a faixa junto da música e o card dedicado no hover.
     @Published var airpods: AirPodsBattery?
@@ -68,9 +96,6 @@ final class NotchViewModel: ObservableObject {
     /// Ações do card — o app conecta no Updater.
     var onUpdateInstall: (() -> Void)?
     var onUpdateSkip: (() -> Void)?
-    /// Aba do notch aberto: música (default) ou mensagens LAN.
-    enum NotchTab: Equatable { case music, messages }
-    @Published var tab: NotchTab = .music
 
     /// Mensagem LAN chegando, exibida como card no notch.
     struct IncomingMessage: Equatable {
@@ -91,13 +116,126 @@ final class NotchViewModel: ObservableObject {
     @Published var pendingAttachment: PendingAttachment?
     /// Última escolha falhou (formato/tamanho) — a view mostra o aviso.
     @Published var attachmentFailed = false
-    /// Conversa aberta na aba Mensagens (peerID) — nil = mostra a lista.
+    /// Conversa aberta na seção Mensagens (peerID) — nil = mostra a lista.
     /// Fonte da verdade da seleção (a MessagesView lê/escreve aqui) pra que
     /// `openThread` (clique no card) consiga abrir a conversa certa.
     @Published var selectedThreadPeerID: String?
     /// Resposta rápida do card → app envia (peerID, texto).
     var onSendReply: ((String, String) -> Void)?
     private var incomingWork: DispatchWorkItem?
+
+    // MARK: - Eventos das seções (insumo da hierarquia do card)
+
+    /// Quando cada seção teve o último **evento de transição**. É o insumo da
+    /// promoção; ver a tabela em docs/specs/card-foco.md pra o que conta.
+    /// Não é `@Published`: só é lido no instante em que o card abre.
+    private(set) var eventos: [NotchSection: Date] = [:]
+
+    func marcarEvento(_ section: NotchSection, at date: Date = Date()) {
+        eventos[section] = date
+    }
+
+    /// Retrato das seções pro `NotchSectionOrder`. Os dados que não moram no
+    /// VM (música, shelf, histórico, mensagens, nota) entram por parâmetro:
+    /// quem chama é a NotchView, que já observa esses stores.
+    func estadoDasSecoes(hasMusic: Bool, hasShelf: Bool,
+                         hasHistory: Bool, hasMensagens: Bool,
+                         hasNota: Bool) -> [NotchSectionState] {
+        let conteudo: [NotchSection: Bool] = [
+            .musica: hasMusic,
+            .atividade: activity != nil,
+            .pomodoro: pomodoro != nil,
+            .shelf: hasShelf,
+            .espelho: mirrorOn,
+            .mensagens: hasMensagens,
+            .historico: hasHistory,
+            .nota: hasNota,
+        ]
+        return NotchSection.allCases.map {
+            NotchSectionState(section: $0,
+                              hasContent: conteudo[$0] ?? false,
+                              lastEvent: eventos[$0])
+        }
+    }
+
+    // MARK: - Foco do card aberto
+
+    /// Ordem efetiva do card, congelada no instante da abertura. Recalcular a
+    /// cada mudança faria o conteúdo pular debaixo do cursor e mover o alvo de
+    /// clique da faixa.
+    ///
+    /// `internal` e não `private(set)`: o harness de snapshot monta a lista à
+    /// mão pra capturar cenários que não dá pra provocar offscreen.
+    @Published var secoes: [NotchSection] = []
+    @Published var focus: NotchSection?
+    /// Escolha manual do usuário (clique na faixa ou swipe): nenhuma promoção
+    /// tira o foco até o notch recolher.
+    @Published private(set) var focusLocked = false
+    /// Altura desenhada do notch agora, em QUALQUER modo (fechado, HUD, ditado,
+    /// card aberto) — não só do card. Publicada porque o monitor de scroll roda
+    /// fora do SwiftUI e precisa dela pra delimitar a zona do gesto.
+    @Published private(set) var alturaAtual: CGFloat = 0
+
+    /// Foco pedido de fora ANTES de o card abrir (clique no card de mensagem, o
+    /// painel de arquivos que devolve o anexo). A ordem só existe depois do
+    /// `recalcularSecoes`, então o pedido espera aqui em vez de ser sobrescrito
+    /// pela promoção da abertura.
+    ///
+    /// Semântica do slot, em três regras:
+    /// 1. só é consumido quando a seção pedida **existe** na ordem — antes
+    ///    disso ele espera, em vez de sumir em silêncio;
+    /// 2. quem pede com o card **já aberto** não passa por aqui: chama `focar`
+    ///    direto, porque o único gatilho de `recalcularSecoes` é a mudança de
+    ///    `expanded` e ela não acontece;
+    /// 3. fechar o card apaga o pedido (ver o `didSet` de `expanded`).
+    var focoPendente: NotchSection?
+
+    func recalcularSecoes(_ estados: [NotchSectionState], travadaNaNota: Bool) {
+        secoes = NotchSectionOrder.ordenar(base: AppSettings.shared.notchSectionOrder,
+                                           estados: estados,
+                                           agora: Date(),
+                                           travadaNaNota: travadaNaNota)
+        // a trava da nota vence até a escolha manual anterior — e descarta o
+        // pedido pendente de propósito: digitar é o compromisso mais forte, e
+        // deixar o pedido vivo faria o foco pular de seção no instante em que o
+        // usuário largasse o teclado.
+        if travadaNaNota, secoes.contains(.nota) {
+            focus = .nota
+            focoPendente = nil
+            return
+        }
+        // o pedido só é consumido quando a seção pedida de fato entrou na
+        // ordem; sem conteúdo ainda, ele espera o próximo recálculo
+        if let pedido = focoPendente, secoes.contains(pedido) {
+            focar(pedido)
+            return
+        }
+        guard !focusLocked, let primeira = secoes.first else {
+            // o foco travado pode ter perdido o conteúdo enquanto isso
+            if let f = focus, !secoes.contains(f) { focus = secoes.first; focusLocked = false }
+            return
+        }
+        focus = primeira
+    }
+
+    func focar(_ section: NotchSection) {
+        guard secoes.contains(section) else { return }
+        focoPendente = nil
+        focus = section
+        focusLocked = true
+    }
+
+    /// Swipe horizontal no card: anda um passo na faixa e trava, igual ao clique.
+    func focarVizinho(avancando: Bool) {
+        guard let atual = focus, let i = secoes.firstIndex(of: atual), secoes.count > 1 else { return }
+        let destino = (i + (avancando ? 1 : -1) + secoes.count) % secoes.count
+        focar(secoes[destino])
+    }
+
+    func publicarAltura(_ h: CGFloat) {
+        guard abs(h - alturaAtual) > 0.5 else { return }
+        alturaAtual = h
+    }
 
     struct HUDState: Equatable {
         enum Kind: Equatable { case volume, brightness, battery }
@@ -178,7 +316,6 @@ final class NotchViewModel: ObservableObject {
                 if self.expanded || self.peeking { self.lastCollapseAt = Date() }
                 self.expanded = false
                 self.peeking = false
-                self.historyOpen = false
             }
             pendingWork = work
             DispatchQueue.main.asyncAfter(deadline: .now() + closeDelay, execute: work)
@@ -216,8 +353,6 @@ final class NotchViewModel: ObservableObject {
     func setExpandedDirect(_ value: Bool) {
         pendingWork?.cancel()
         expanded = value
-        // a cortina só existe dentro do card aberto — fechar leva ela junto
-        if !value { historyOpen = false }
     }
 
     // MARK: - Mensagens LAN
@@ -226,6 +361,7 @@ final class NotchViewModel: ObservableObject {
     /// permitida demora mais (dá tempo de ler e digitar), mas some.
     func showIncoming(_ m: IncomingMessage) {
         incoming = m
+        marcarEvento(.mensagens)
         scheduleIncomingDismiss()
     }
 
@@ -258,12 +394,27 @@ final class NotchViewModel: ObservableObject {
         if let onDismissEverywhere { onDismissEverywhere() } else { dismissIncoming() }
     }
 
-    /// Abre a conversa daquele peer na aba Mensagens.
+    /// Abre a conversa daquele peer na seção Mensagens.
     func openThread(peerID: String) {
         requestDismissIncoming()
         selectedThreadPeerID = peerID
-        tab = .messages
-        setExpandedDirect(true)
+        pedirFoco(.mensagens)
+    }
+
+    /// Pede foco numa seção e garante o card aberto. Com o card **já** aberto o
+    /// slot `focoPendente` não serve: quem o consome é o `recalcularSecoes`
+    /// disparado pelo `onChange(of: expanded)`, e sem mudança de `expanded` o
+    /// pedido ficaria preso até a próxima abertura. Ex.: card aberto por hover
+    /// + mensagem LAN chegando + clique no card.
+    func pedirFoco(_ section: NotchSection) {
+        guard expanded else {
+            focoPendente = section
+            setExpandedDirect(true)
+            return
+        }
+        // seção que ainda não entrou na ordem congelada volta pro slot e espera
+        // o próximo recálculo — some em silêncio se `focar` só desistisse
+        if secoes.contains(section) { focar(section) } else { focoPendente = section }
     }
 
     // MARK: - Notificações

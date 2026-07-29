@@ -107,8 +107,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var scrollAccumX: CGFloat = 0
     private var scrollAccumY: CGFloat = 0
     private var scrollActed = false
-    /// Gesto que COMEÇOU com uma lista rolável na cortina rola a lista, não age
-    /// no notch. Sem isso, o mesmo puxão que abre o histórico seguiria rolando.
+    /// Gesto que COMEÇOU com uma lista rolável no card rola a lista, não age
+    /// no notch. Sem isso, o mesmo puxão seguiria trocando a seção em foco.
     private var scrollStartedInHistory = false
     /// Timestamp e zona do último evento de scroll — é com eles que
     /// `NotchGesture.isGestureStart` reconhece começo de gesto sem `.began`
@@ -428,6 +428,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 return [
                     "display": Int(id),
                     "mode": "\(mode)",
+                    // qual seção o card está mostrando — dá pra um script
+                    // perguntar o que o notch tem na cara agora
+                    "focus": notch.viewModel.focus?.rawValue ?? "",
                     "hasNotification": notch.viewModel.activeNotification != nil,
                     "visible": notch.window.isVisible,
                     "frame": "\(notch.window.frame)",
@@ -650,23 +653,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let id = Self.displayID(of: screen)
         guard let vm = notches[id]?.viewModel else { return event }
 
-        // zona do gesto: o notch fechado, o card aberto, ou o card com a cortina
+        // zona do gesto: o notch fechado ou o card aberto. Os dois eixos moram
+        // no NotchGesture, que é testável sem NSEvent — é ele que sabe somar a
+        // folga de hover e aguentar a altura ainda não publicada
         let expanded = vm.mode == .music
-        let zoneWidth: CGFloat = expanded ? 460 : 400
-        // ⚠️ os 200 do card aberto são carga: o card da nota mede
-        // `topInset + NotchView.noteEditorHeight + 46`, que num notch de 32 pt
-        // dá 198 pt — sobra de 2 pt. Num notch mais alto que ~34 pt (ou com o
-        // `noteEditorHeight` maior) a tira de baixo do card fica FORA da zona e
-        // o scroll ali deixa de ser reconhecido. Só afeta o scroll: o hover usa
-        // o frame do painel, que é o certo.
-        //
-        // ponytail: tabela de números literais em vez de derivar do
-        // `currentSize` da view. É pré-existente e deliberado — o monitor roda
-        // fora do SwiftUI e não tem como ler o tamanho renderizado sem
-        // pendurar um observador por notch.
-        let zoneHeight: CGFloat = vm.historyOpen ? 420 : (expanded ? 200 : vm.notchSize.height + 10)
-        let inZone = abs(mouse.x - screen.frame.midX) <= zoneWidth / 2
-            && mouse.y >= screen.frame.maxY - zoneHeight
+        let inZone = NotchGesture.naZonaHorizontal(mouseX: mouse.x,
+                                                   screenMidX: screen.frame.midX,
+                                                   expanded: expanded)
+            && NotchGesture.inZone(mouseY: mouse.y,
+                                   screenMaxY: screen.frame.maxY,
+                                   expanded: expanded,
+                                   alturaAtual: vm.alturaAtual,
+                                   notchHeight: vm.notchSize.height)
         guard inZone else {
             // um gesto que entra arrastando na zona precisa saber que o evento
             // anterior estava fora — é o que o faz contar como gesto novo
@@ -675,7 +673,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         // o reset vem antes de tudo: um gesto que começa precisa resincronizar
-        // o próprio estado mesmo que a cortina tenha fechado por fora (o
+        // o próprio estado mesmo que o card tenha fechado por fora (o
         // setHover fecha sozinho quando o mouse sai), senão a flag velha
         // engole o gesto novo inteiro
         let novoGesto = NotchGesture.isGestureStart(
@@ -692,15 +690,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             scrollAccumY = 0
             scrollActed = false
             // handoff só quando há de fato uma lista rolável na tela: com a
-            // nota ligada ou com o histórico vazio a cortina não tem
-            // ScrollView nenhuma, e entregar o eixo vertical a ela mataria o
-            // gesto — sem abrir, sem fechar, sem histórico
-            scrollStartedInHistory = vm.historyOpen
+            // nota ligada ou com o histórico vazio a seção não tem ScrollView
+            // nenhuma, e entregar o eixo vertical a ela mataria o gesto — sem
+            // abrir e sem fechar
+            scrollStartedInHistory = vm.focus == .historico
                 && !NotificationHistory.shared.items.isEmpty
                 && !QuickNote.shared.hosted(by: id)
         }
 
-        // cortina aberta: o vertical é da lista, pra ela rolar de verdade —
+        // histórico em foco: o vertical é da lista, pra ela rolar de verdade —
         // inclusive a inércia, que chega depois dos dedos saírem e por isso
         // não passa pelo reset acima
         if scrollStartedInHistory, abs(event.scrollingDeltaY) >= abs(event.scrollingDeltaX) {
@@ -718,32 +716,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let target = NotchGesture.verticalTarget(accumY: scrollAccumY, accumX: scrollAccumX) {
             switch target {
             case .closed:
-                vm.historyOpen = false
                 vm.setExpandedDirect(false)
             case .expanded:
-                vm.historyOpen = false
                 vm.setExpandedDirect(true)
-            case .history:
-                vm.setExpandedDirect(true)
-                // nota e cortina são exclusivas: com a nota ligada nesta tela o
-                // card é dela, e abrir a cortina por baixo deixaria o rodapé,
-                // o zoneHeight e o handoff de scroll falando de uma lista que
-                // não está na árvore de views
-                vm.historyOpen = !QuickNote.shared.hosted(by: id)
             }
-        } else if !scrollActed, !vm.historyOpen, abs(scrollAccumX) > 50 {
-            // com a cortina aberta o horizontal fica de fora: trocar de aba por
-            // baixo do histórico largaria o usuário em Mensagens no hover-out,
-            // sem ele ter visto nada acontecer
+        } else if !scrollActed, abs(scrollAccumX) > 50 {
             scrollActed = true
             if expanded {
-                // card aberto: horizontal navega entre as telas (Música/Mensagens).
-                // Com a nota nesta tela o eixo fica de fora: o campo é o card
-                // inteiro, e mexer em `tab` por baixo dele deixaria o usuário
-                // numa aba que ele não viu escolher, aparecendo só no hover-out.
-                if !QuickNote.shared.hosted(by: id) {
+                // card aberto: horizontal anda um passo na faixa de seções.
+                // Com a nota em foco o eixo fica de fora: o campo é o card
+                // inteiro, e trocar a seção por baixo dele tiraria o teclado do
+                // usuário sem ele ver.
+                if vm.focus != .nota {
                     withAnimation(.easeOut(duration: 0.22)) {
-                        vm.tab = scrollAccumX < 0 ? .messages : .music
+                        vm.focarVizinho(avancando: scrollAccumX < 0)
                     }
                 }
             } else if media.state != nil {
@@ -877,10 +863,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     Updater.shared.skipCurrent()
                     self?.notches.values.forEach { $0.viewModel.updateCard = false }
                 }
-                // Rede Local: liga o Bonjour quando o usuário abre a aba Mensagens
+                // Rede Local: liga o Bonjour quando Mensagens entra em foco no card
                 // (app ativo → prompt num momento sensato). start() é idempotente.
-                viewModel.$tab
-                    .filter { $0 == .messages }
+                viewModel.$focus
+                    .filter { $0 == .mensagens }
                     .sink { [weak self] _ in self?.lanMessaging.start() }
                     .store(in: &lanCancellables)
 
@@ -1072,9 +1058,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             ?? NSScreen.main
         guard let screen, let vm = notches[Self.displayID(of: screen)]?.viewModel else { return }
         note.hostDisplayID = Self.displayID(of: screen)
+        // A trava do `recalcularSecoes` é `typingNote` (= hospedada E editando), e
+        // neste instante o `TextEditor` ainda nem entrou na árvore — `editing` é
+        // false. Sem pedir o foco aqui, o card abriria no Histórico ou na Música
+        // (a nota é a última da ordem padrão) e o painel tomaria a janela-chave
+        // sem campo nenhum focado: teclas engolidas em silêncio.
+        //
+        // A ordem destas três linhas é load-bearing: `note.active = true` vira
+        // o `hasNota` que a `AberturaDoCard` capturou, e é esse valor já
+        // atualizado que o `recalcularSecoes` disparado pelo
+        // `onChange(of: expanded)` lê. Ligar a nota DEPOIS de expandir faria o
+        // recálculo rodar sem a seção nota na lista — o pedido de foco esperaria
+        // um recálculo que só o `onChange(of: hasNota)` traria depois.
+        vm.focoPendente = .nota
         note.active = true
-        // nota e cortina são exclusivas: o card é de uma coisa só
-        vm.historyOpen = false
         vm.setExpandedDirect(true)
     }
 

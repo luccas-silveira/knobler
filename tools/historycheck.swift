@@ -19,6 +19,7 @@ struct HistoryCheck {
         testMesmoIDUmaVez()
         testTetoDeLinhas()
         testGesto()
+        testZonaDoGesto()
         testInicioDeGesto()
         print("✅ historycheck ok")
     }
@@ -85,16 +86,22 @@ struct HistoryCheck {
         assert(h.items.last?.title == "100", "quem cai é o mais antigo")
     }
 
-    /// Puxão longo numa passada só: 24 pt abre o card, 120 pt segue pro
-    /// histórico. Como o alvo é função pura do acumulado, recuar os dedos
-    /// dentro do mesmo gesto desfaz sem precisar de máquina de estados.
+    /// Puxão pra baixo numa passada só: 24 pt abre o card e é só isso — o
+    /// histórico virou uma seção da faixa, então não há mais degrau de 120 pt.
+    /// Como o alvo é função pura do acumulado, recuar os dedos dentro do mesmo
+    /// gesto desfaz sem precisar de máquina de estados.
     static func testGesto() {
         assert(NotchGesture.verticalTarget(accumY: 10, accumX: 0) == nil, "ruído não age")
         assert(NotchGesture.verticalTarget(accumY: -10, accumX: 0) == nil, "ruído não age")
         assert(NotchGesture.verticalTarget(accumY: 30, accumX: 0) == .expanded, "30 pt abre o card")
-        assert(NotchGesture.verticalTarget(accumY: 130, accumX: 0) == .history, "130 pt vai ao histórico")
-        // mesmo gesto, dedos recuando: 130 → 30 volta ao card
-        assert(NotchGesture.verticalTarget(accumY: 30, accumX: 0) == .expanded, "recuo volta ao card")
+        assert(NotchGesture.verticalTarget(accumY: 25, accumX: 0) == .expanded, "25 pt já abre")
+        // a cortina do histórico foi aposentada: o histórico virou uma seção
+        // como as outras, e um segundo caminho pra ele seria redundante
+        assert(NotchGesture.verticalTarget(accumY: 130, accumX: 0) == .expanded,
+               "puxão longo não é mais cortina")
+        // puxão gigante também: não há mais degrau nenhum acima do card
+        assert(NotchGesture.verticalTarget(accumY: 900, accumX: 0) == .expanded,
+               "puxão gigante continua sendo só o card")
         assert(NotchGesture.verticalTarget(accumY: -30, accumX: 0) == .closed, "pra cima fecha")
         // limiares exatos: o limite é aberto (>), não fechado (>=)
         assert(NotchGesture.verticalTarget(accumY: 24, accumX: 0) == nil, "24 pt ainda é ruído")
@@ -102,6 +109,73 @@ struct HistoryCheck {
         // guarda de diagonal: swipe quase horizontal não mexe no card
         assert(NotchGesture.verticalTarget(accumY: 30, accumX: 60) == nil, "diagonal não abre")
         assert(NotchGesture.verticalTarget(accumY: -30, accumX: 60) == nil, "diagonal não fecha")
+    }
+
+    /// A zona vertical do gesto. É o que decide se o scroll sobre aquele ponto
+    /// da tela é do notch ou da janela de trás, e por isso um erro aqui não
+    /// aparece como bug de gesto: aparece como "o scroll simplesmente não
+    /// responde nessa tira". Os números vêm de um notch de 32 pt.
+    static func testZonaDoGesto() {
+        let topo: CGFloat = 1000 // screen.frame.maxY
+
+        // card fechado: a zona é o notch mais 10 pt de folga
+        assert(NotchGesture.inZone(mouseY: 995, screenMaxY: topo, expanded: false,
+                                   alturaAtual: 32, notchHeight: 32),
+               "dentro do notch fechado")
+        assert(NotchGesture.inZone(mouseY: 959, screenMaxY: topo, expanded: false,
+                                   alturaAtual: 32, notchHeight: 32),
+               "os 10 pt de folga do notch fechado contam")
+        assert(!NotchGesture.inZone(mouseY: 957, screenMaxY: topo, expanded: false,
+                                    alturaAtual: 32, notchHeight: 32),
+               "abaixo do notch + folga já é da janela de trás")
+
+        // card aberto: a zona tem que cobrir a folga de hover, senão a tira
+        // final responde ao hover mas não ao scroll — foi o bug desta task
+        assert(NotchGesture.inZone(mouseY: topo - 272, screenMaxY: topo, expanded: true,
+                                   alturaAtual: 272, notchHeight: 32),
+               "a base desenhada do card está na zona")
+        assert(NotchGesture.inZone(mouseY: topo - 272 - NotchGesture.folgaDeHover + 1,
+                                   screenMaxY: topo, expanded: true,
+                                   alturaAtual: 272, notchHeight: 32),
+               "a folga de hover do card também está na zona")
+        assert(!NotchGesture.inZone(mouseY: topo - 272 - NotchGesture.folgaDeHover - 1,
+                                    screenMaxY: topo, expanded: true,
+                                    alturaAtual: 272, notchHeight: 32),
+               "abaixo da folga o card acabou")
+
+        // a altura vem do VM, então cada seção move a zona junto
+        assert(NotchGesture.inZone(mouseY: topo - 260, screenMaxY: topo, expanded: true,
+                                   alturaAtual: 272, notchHeight: 32),
+               "seção alta: a zona acompanha")
+        assert(!NotchGesture.inZone(mouseY: topo - 260, screenMaxY: topo, expanded: true,
+                                    alturaAtual: 202, notchHeight: 32),
+               "seção baixa: a zona encolhe junto")
+
+        // eixo horizontal: aberto, a zona tem que cobrir a largura desenhada do
+        // card MAIS a folga de hover dos dois lados — o mesmo modo de falha do
+        // eixo vertical, e por isso derivada das mesmas constantes.
+        let meia = NotchGesture.zoneWidth(expanded: true) / 2
+        assert(NotchGesture.zoneWidth(expanded: true)
+                == NotchGesture.larguraDoCard + 2 * NotchGesture.folgaDeHover,
+               "a zona horizontal do card aberto não cobre a folga de hover")
+        assert(NotchGesture.naZonaHorizontal(mouseX: 500 + meia - 1, screenMidX: 500,
+                                             expanded: true),
+               "a borda do card aberto está na zona")
+        assert(!NotchGesture.naZonaHorizontal(mouseX: 500 + meia + 1, screenMidX: 500,
+                                              expanded: true),
+               "fora da borda do card já é da janela de trás")
+        assert(NotchGesture.naZonaHorizontal(mouseX: 500 - meia + 1, screenMidX: 500,
+                                             expanded: true),
+               "a zona é simétrica em volta do meio da tela")
+        assert(!NotchGesture.naZonaHorizontal(mouseX: 500 + 201, screenMidX: 500,
+                                              expanded: false),
+               "fechado a zona é bem mais estreita que o card")
+
+        // altura ainda não publicada: a zona encolhe, mas não vira negativa —
+        // o topo continua respondendo em vez de o gesto morrer
+        assert(NotchGesture.inZone(mouseY: 995, screenMaxY: topo, expanded: true,
+                                   alturaAtual: 0, notchHeight: 32),
+               "altura zero não degenera a zona")
     }
 
     /// Reconhecer o começo do gesto é o que zera o acumulador e a flag da

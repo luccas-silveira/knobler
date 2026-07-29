@@ -7,12 +7,43 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 ## [Unreleased]
 
 ### Changed
+- **Card do notch mostra uma coisa de cada vez**: em vez de empilhar música,
+  atividade, prateleira e Pomodoro numa ordem fixa, o card agora mostra uma
+  seção em foco e deixa as outras como ícones no rodapé, cada uma com um sinal
+  vivo (anel de progresso, contagem, ponto de tocando). A ordem em repouso é
+  sua — arrastável nos Ajustes › Notch — e o que acabou de acontecer sobe
+  sozinho por alguns segundos. Clicar num ícone (ou deslizar na horizontal)
+  trava o foco até o notch recolher. A cortina do histórico e as abas saíram:
+  histórico e Mensagens viraram seções como as outras.
+- **`GET /status` diz qual seção o card está mostrando**: cada entrada de
+  `notches` ganhou o campo `focus` (`musica`, `atividade`, `pomodoro`, `shelf`,
+  `espelho`, `mensagens`, `historico`, `nota`, ou vazio).
 - **Ícone do app e da barra viraram a marca do site**: a silhueta do notch
   (mesma geometria de `NotchShape`) substitui o ícone antigo e o caractere
   `◐` que fazia as vezes de ícone na barra de menus. O da barra é template —
   acompanha claro/escuro e o realce do menu aberto. O `.icns` é gerado por
   `tools/makeicon.swift`, direto do vetor, e o favicon do site (que ainda era
   o padrão do Astro) passou a ser a mesma marca.
+
+### Fixed
+- **Clicar num card de mensagem com o notch já aberto vai pra Mensagens**: o
+  pedido de foco só era atendido quando o card precisava abrir. Com o card já
+  na tela o clique não fazia nada — e o pedido ficava guardado, roubando a
+  abertura seguinte pra uma seção que ninguém tinha pedido e travando o foco
+  até o notch recolher.
+- **O ícone do Pomodoro na faixa ganhou o anel do tempo restante da fase**,
+  como o da atividade já tinha. Antes saía chapado.
+- **O scroll de dois dedos responde nas bordas do card aberto**: a zona do
+  gesto era 2 pt mais estreita que o card, então uma tira de 1 pt de cada lado
+  reagia ao ponteiro mas não à rolagem.
+
+### Removed
+- **O atalho direto pro histórico saiu**: o puxão longo de dois dedos (a mesma
+  passada que abria o card e seguia até ~120 pt) levava ao histórico em um
+  gesto só. Com a cortina aposentada, chegar lá custa um passo a mais — abrir o
+  card e clicar no sino da faixa, ou deslizar na horizontal até ele. É perda de
+  conveniência assumida: o histórico virou uma seção como as outras, e um gesto
+  exclusivo pra uma seção não se sustentava.
 
 ## [0.13.2] - 2026-07-29
 

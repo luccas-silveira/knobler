@@ -2,7 +2,7 @@
 
 ![Lista de pessoas online na rede local](images/messages-online.png)
 
-*Aba Mensagens — quem está online agora.*
+*Seção Mensagens em foco — quem está online agora.*
 
 ![Card de mensagem chegando](images/messages-incoming.png)
 
@@ -17,13 +17,14 @@
 Troca mensagens (texto, foto, GIF) com outros Macs rodando Knobler na mesma
 rede local — descoberta via Bonjour, sem servidor central. Uma mensagem
 chegando aparece como um card que desce do notch, com resposta rápida opcional;
-a aba "Mensagens" (segunda página do notch aberto, swipe horizontal) mostra
-quem está online agora e o histórico por conversa.
+a seção "Mensagens" do notch aberto mostra quem está online agora e o
+histórico por conversa.
 
 ## Como usar
 
-- Gesto horizontal de dois dedos no notch aberto troca entre a aba de Música
-  e a aba de Mensagens.
+- Com o card aberto, clique no ícone de balão na faixa do rodapé pra pôr
+  Mensagens em foco (o gesto horizontal de dois dedos anda um passo na faixa e
+  chega no mesmo lugar). Mensagem recém-chegada põe a seção em foco sozinha.
 - Clique numa pessoa online pra abrir a conversa; escreva e envie texto, foto
   ou GIF. A conversa abre já na mensagem mais recente e segue colada nela
   quando chega uma nova — role pra cima pra ver o histórico.
@@ -32,5 +33,5 @@ quem está online agora e o histórico por conversa.
 ## Permissões
 
 - **Rede Local** (`_knobler._tcp` via Bonjour) — *"Knobler troca mensagens
-  com outros Macs na sua rede local."* Sem essa permissão, a aba mostra um
+  com outros Macs na sua rede local."* Sem essa permissão, a seção mostra um
   aviso pedindo pra liberar em Ajustes do Sistema → Privacidade → Rede Local.
