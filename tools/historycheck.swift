@@ -50,7 +50,14 @@ struct HistoryCheck {
         h.record(NotchNotification(appName: "Deploy", title: "90%", body: "", webhookID: "d1"))
         h.record(NotchNotification(appName: "Outro", title: "x", body: "", webhookID: "d2"))
         assert(h.items.count == 2, "mesmo webhookID devia substituir")
-        assert(h.items.first?.title == "90%", "a substituta vai pro topo")
+        assert(h.items.first?.title == "x", "mais recente primeiro")
+
+        // Interleaved: plain + webhook + webhook. O mais recente deve estar no topo.
+        let h2 = NotificationHistory()
+        h2.record(NotchNotification(appName: "A", title: "plain", body: ""))
+        h2.record(NotchNotification(appName: "B", title: "w1", body: "", webhookID: "w1"))
+        h2.record(NotchNotification(appName: "C", title: "w2", body: "", webhookID: "w2"))
+        assert(h2.items[0].title == "w2", "mais recente primeiro em interlacing")
     }
 
     /// Multi-monitor: o enqueue roda uma vez por tela com a MESMA notificação.

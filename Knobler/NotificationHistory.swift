@@ -25,22 +25,8 @@ final class NotificationHistory: ObservableObject {
         // o enqueue roda uma vez por tela com a mesma notificação
         guard !items.contains(where: { $0.id == n.id }) else { return }
         // progresso: mesmo webhookID substitui, igual ao enqueue faz com o card
-        if let wid = n.webhookID {
-            if let index = items.firstIndex(where: { $0.webhookID == wid }) {
-                // Sustituição em lugar — progresso não pula pro topo
-                items.remove(at: index)
-                items.insert(n, at: index)
-            } else {
-                // Novo webhookID: depois dos outros webhooks
-                if let lastWebhookIndex = items.lastIndex(where: { $0.webhookID != nil }) {
-                    items.insert(n, at: lastWebhookIndex + 1)
-                } else {
-                    items.insert(n, at: 0)
-                }
-            }
-        } else {
-            items.insert(n, at: 0)
-        }
+        if let wid = n.webhookID { items.removeAll { $0.webhookID == wid } }
+        items.insert(n, at: 0)
         prune()
     }
 
