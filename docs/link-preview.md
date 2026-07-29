@@ -42,12 +42,17 @@ sozinho continua funcionando.
   Histórico já tinha: com o link em foco, rolar rola o site em vez de fechar o
   card. O eixo horizontal continua trocando de seção.
 
-## Limites conhecidos
+## Teclado
 
-- **Teclado não chega na página.** O notch é um painel `nonactivating`: ele não
-  rouba o foco do app em que você está. Clicar e rolar funcionam; digitar num
-  campo de busca do site, não. Use o botão de abrir no navegador padrão quando
-  precisar interagir de verdade.
+Com a seção Link em foco, o notch aceita teclado: dá pra buscar, logar e
+preencher formulário dentro da página. **⌘C, ⌘V, ⌘X e ⌘A** funcionam — o app não
+tem barra de menus (é `LSUIElement`), então esses atalhos passam por um monitor
+próprio, ativo só enquanto o preview está aberto.
+
+Enquanto isso, o que você digita vai pro notch e não pro app de trás. Sair da
+seção (ou fechar o preview) devolve o teclado na hora. **Esc** fecha o preview.
+
+## Limites conhecidos
 - **Uma página por vez, uma tela por vez.** O `WKWebView` é único (criar um por
   monitor faria N cópias carregando a mesma coisa) e o preview pertence à tela
   onde estava o ponteiro quando você soltou o link.

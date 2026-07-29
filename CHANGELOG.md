@@ -42,6 +42,18 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   pela primeira linha, em `~/Library/Application Support/Knobler/Arrastados/`,
   e entra na prateleira como item normal.
 
+- **Teclado no preview de link**: a seção Link aceita digitação, com ⌘C/⌘V/⌘X/⌘A.
+  Dá pra buscar, logar e preencher formulário sem sair do card. Como o app não
+  tem barra de menus, os atalhos de edição passam por um monitor próprio, ativo
+  só com o preview aberto. Esc fecha.
+- **Histórico de notificações sobrevive ao restart**: gravado em
+  `~/Library/Application Support/Knobler/notificationHistory.json` e recarregado
+  já podado pela janela de 24 h. Virou necessário quando o silêncio em reunião
+  passou a mandar notificação só pro histórico — um restart no meio da reunião
+  apagava a única cópia dela. Os botões espelhados (Aceitar/Recusar, Adiar) não
+  voltam do disco: apontam pra elementos vivos do alerta original, e botão que
+  não faz nada é pior que botão nenhum.
+
 ### Changed
 - Conversão de vídeo perdeu a faixa de atividade do notch: o progresso agora
   aparece no próprio card do preview. Em 100% ela continua saindo por remux

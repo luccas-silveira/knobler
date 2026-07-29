@@ -18,6 +18,7 @@ struct HistoryCheck {
         testWebhookSubstitui()
         testMesmoIDUmaVez()
         testTetoDeLinhas()
+        testPersistencia()
         testGesto()
         testZonaDoGesto()
         testInicioDeGesto()
@@ -84,6 +85,78 @@ struct HistoryCheck {
         assert(h.items.count == 300, "teto de 300 linhas, veio \(h.items.count)")
         assert(h.items.first?.title == "399", "o topo continua sendo o mais recente")
         assert(h.items.last?.title == "100", "quem cai é o mais antigo")
+    }
+
+    /// O histórico virou o único destino de uma notificação silenciada em
+    /// reunião: perder no restart é perder a notificação inteira.
+    static func testPersistencia() {
+        let arquivo = FileManager.default.temporaryDirectory
+            .appendingPathComponent("historycheck-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: arquivo) }
+
+        // arquivo que ainda não existe = primeira execução
+        assert(NotificationHistory(arquivo: arquivo).items.isEmpty,
+               "sem arquivo, histórico nasce vazio")
+
+        let h = NotificationHistory(arquivo: arquivo)
+        h.record(NotchNotification(appName: "A", title: "primeira", body: "corpo 1"))
+        h.record(NotchNotification(appName: "B", title: "segunda", body: "",
+                                   openURL: "https://exemplo.com",
+                                   iconColor: .systemRed,
+                                   actionTitles: ["Responder"], actionToken: UUID()))
+        h.flush()
+
+        let lido = NotificationHistory(arquivo: arquivo)
+        assert(lido.items.map(\.title) == ["segunda", "primeira"],
+               "round-trip preserva conteúdo e ordem, veio \(lido.items.map(\.title))")
+
+        // o id é a chave do dedupe: sem ele, a mesma notificação voltaria a
+        // entrar quando o webhook reenviasse
+        assert(lido.items[0].id == h.items[0].id, "id sobrevive ao disco")
+        let antes = lido.items.count
+        lido.record(h.items[0])
+        assert(lido.items.count == antes, "item restaurado não duplica no record")
+
+        // a poda por idade lê esta data — carimbar uma nova no load daria 24 h
+        // extras de vida a cada restart
+        assert(abs(lido.items[0].date.timeIntervalSince(h.items[0].date)) < 0.001,
+               "date sobrevive ao disco")
+
+        assert(lido.items[0].openURL == "https://exemplo.com",
+               "openURL sobrevive: é dado, e o clique continua valendo")
+        let cor = lido.items[0].iconColor?.usingColorSpace(.sRGB)
+        assert(cor != nil, "iconColor volta do disco")
+        assert(abs((cor?.redComponent ?? 0) - (NSColor.systemRed.usingColorSpace(.sRGB)?.redComponent ?? -1)) < 0.01,
+               "a cor volta igual")
+
+        // o token aponta pra AXUIElement do processo anterior: restaurar o botão
+        // daria um botão que não faz nada
+        assert(lido.items[0].actionTitles.isEmpty, "ação não volta do disco")
+        assert(lido.items[0].actionToken == nil, "token não volta do disco")
+
+        // arquivo de ontem não pode ressuscitar item vencido
+        let velho = NotchNotification(appName: nil, title: "ontem", body: "",
+                                      date: Date().addingTimeInterval(-25 * 3600))
+        let novo = NotchNotification(appName: nil, title: "agora", body: "")
+        try? JSONEncoder().encode([velho, novo]).write(to: arquivo)
+        let podado = NotificationHistory(arquivo: arquivo)
+        assert(podado.items.map(\.title) == ["agora"],
+               "a poda de 24 h roda no load, veio \(podado.items.map(\.title))")
+
+        // disco corrompido não pode derrubar o app nem travar o histórico
+        try? Data("{lixo".utf8).write(to: arquivo)
+        let corrompido = NotificationHistory(arquivo: arquivo)
+        assert(corrompido.items.isEmpty, "arquivo corrompido carrega vazio")
+        corrompido.record(NotchNotification(appName: nil, title: "depois", body: ""))
+        corrompido.flush()
+        assert(NotificationHistory(arquivo: arquivo).items.map(\.title) == ["depois"],
+               "arquivo ruim é sobrescrito pela próxima escrita")
+
+        // nil = harness (gate e snapshot): não toca disco nenhum
+        let semDisco = NotificationHistory()
+        semDisco.record(NotchNotification(appName: nil, title: "memória", body: ""))
+        semDisco.flush()
+        assert(semDisco.items.count == 1, "sem arquivo o histórico funciona igual")
     }
 
     /// Puxão pra baixo numa passada só: 24 pt abre o card e é só isso — o

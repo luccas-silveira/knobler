@@ -101,12 +101,26 @@ Um webhook que atualiza o mesmo `webhookID` várias vezes (por exemplo, uma
 barra de progresso que muda 40 vezes) substitui a entrada anterior em vez de
 empilhar — vira uma linha só no histórico, não quarenta.
 
-### Limitação: não sobrevive ao restart
+### Sobrevive ao restart
 
-O histórico mora só em memória: reiniciar o Knobler limpa tudo. Não é
-limitação técnica — notificação é efêmera por natureza, e guardar 24 h de
-coisa que já passou não vale um arquivo em disco. Se um dia valer, o custo é
-pequeno (o único campo chato de serializar é a cor do conta-gotas).
+O histórico é gravado em
+`~/Library/Application Support/Knobler/notificationHistory.json` e recarregado
+na abertura, já podado pela janela de 24 h — reiniciar o app (ou o Mac) não
+perde nada.
+
+Era só memória até o **silêncio durante reuniões** existir. A partir dele uma
+notificação silenciada não vira card, e o histórico virou a única cópia dela:
+um restart no meio da reunião apagaria a notificação inteira, sem você jamais
+saber que ela existiu.
+
+**Botão de notificação restaurada não volta.** Os botões espelhados
+(Aceitar/Recusar, Adiar) apontam pra elementos vivos do alerta original, que
+morrem com o processo — um botão restaurado não faria nada. Depois do restart a
+linha aparece com o texto, sem botão. O que continua funcionando é o clique que
+abre app, URL ou pasta, porque isso é dado, não handle.
+
+Os corpos das notificações ficam em claro nesse arquivo por 24 h — mesma
+exposição do histórico de mensagens, que já mora na mesma pasta.
 
 O histórico também tem teto de 300 linhas: uma fonte que dispare em rajada
 não cresce sem limite dentro da janela de 24 h. Passando disso, a linha mais

@@ -36,6 +36,8 @@ struct LinkPreviewView: View {
             }
         }
         .foregroundStyle(.white)
+        // Esc fecha o preview, como na nota rápida e no card de pergunta
+        .onExitCommand { preview.fechar() }
     }
 
     private var cabecalho: some View {

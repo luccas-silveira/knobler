@@ -465,6 +465,10 @@ MainActor.assumeIsolated {
 // desligar a nota copia o texto pro clipboard: sem este desvio o harness
 // torraria o que quem roda `snapshot.sh` tinha copiado
 QuickNote.shared.pasteboard = NSPasteboard(name: .init("knobler.snapshot"))
+// mesmo espírito pro histórico, que agora persiste: sem soltar o arquivo, as
+// notificações falsas dos cenários seriam gravadas no histórico REAL de quem
+// roda o harness. Tem que vir antes do primeiro cenário.
+NotificationHistory.shared.arquivo = nil
 for scenario in scenarios {
     // ShelfStore() relê o UserDefaults — sem o clear, os arquivos fake de um
     // cenário vazavam pros seguintes

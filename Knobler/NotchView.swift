@@ -51,6 +51,10 @@ struct NotchView: View {
             // o campo da nota só existe na árvore quando ela é a seção em foco —
             // pedir a janela-chave fora disso engoliria as teclas em silêncio
             || (noteVisible && vm.expanded && vm.focus == .nota)
+            // a página do preview tem campo de busca, login e formulário: sem a
+            // janela-chave o site fica só de leitura
+            || (vm.focus == .link && vm.expanded
+                && linkPreview.hosted(by: vm.displayID))
     }
 
     private func notifyKeyboardEligibility() {
@@ -282,6 +286,8 @@ struct NotchView: View {
         .onChange(of: note.active) { _, _ in notifyKeyboardEligibility() }
         // o teclado segue o dono, não só o interruptor
         .onChange(of: note.hostDisplayID) { _, _ in notifyKeyboardEligibility() }
+        // trocar de link com a seção já em foco não passa pelo `vm.focus`
+        .onChange(of: linkPreview.url) { _, _ in notifyKeyboardEligibility() }
         // digitar segura as notificações; parar de digitar solta a fila
         .onChange(of: note.editing) { _, editing in
             if !editing { vm.resumePendingNotifications() }

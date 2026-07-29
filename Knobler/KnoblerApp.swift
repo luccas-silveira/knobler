@@ -1187,6 +1187,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         webhookClient.shutdown()
         // grava o histórico de mensagens e desliga o Bonjour da Rede Local
         messageStore.flush()
+        // o das notificações também: o debounce de 1s não sobrevive ao quit
+        NotificationHistory.shared.flush()
         lanMessaging.stop()
     }
 

@@ -86,15 +86,55 @@ final class LinkPreview: ObservableObject {
         url = link
         titulo = link.host ?? ""
         webView.load(URLRequest(url: link))
+        instalarAtalhos()
     }
 
     func fechar() {
         url = nil
         hostDisplayID = nil
         titulo = ""
+        removerAtalhos()
         // about:blank em vez de soltar a webView: para o áudio/vídeo da página
         // na hora, e o processo de conteúdo fica quente pro próximo link
         webView.load(URLRequest(url: URL(string: "about:blank")!))
+    }
+
+    // MARK: - Atalhos de edição
+
+    private var atalhoMonitor: Any?
+
+    /// ⌘C/⌘V/⌘X/⌘A dentro da página.
+    ///
+    /// O app é `LSUIElement` e **não tem menu bar**, então os key equivalents do
+    /// menu Edit não existem: sem isto, copiar e colar não funcionam nem com a
+    /// janela-chave. O monitor traduz cada atalho no seletor correspondente e
+    /// deixa o responder chain resolver — é o `WKWebView` que executa.
+    ///
+    /// Molde: `DescansoController.installEscMonitor`.
+    private func instalarAtalhos() {
+        guard atalhoMonitor == nil else { return }
+        atalhoMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard event.modifierFlags.contains(.command),
+                  let tecla = event.charactersIgnoringModifiers?.lowercased()
+            else { return event }
+            let seletor: Selector
+            switch tecla {
+            case "c": seletor = #selector(NSText.copy(_:))
+            case "v": seletor = #selector(NSText.paste(_:))
+            case "x": seletor = #selector(NSText.cut(_:))
+            case "a": seletor = #selector(NSText.selectAll(_:))
+            default: return event
+            }
+            // não engole o evento se ninguém tratou: com o notch sem foco o
+            // atalho tem que continuar valendo pro app de trás
+            return NSApp.sendAction(seletor, to: nil, from: nil) ? nil : event
+        }
+    }
+
+    private func removerAtalhos() {
+        guard let atalhoMonitor else { return }
+        NSEvent.removeMonitor(atalhoMonitor)
+        self.atalhoMonitor = nil
     }
 
     func voltar() { webView.goBack() }
