@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-07-28
+
 ### Changed
 - **A decisão de pareamento do relay virou função pura testada**: escolher entre
   pareado, trancado e nunca pareado estava embutida no cliente do webhook, junto
