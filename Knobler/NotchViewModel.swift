@@ -39,6 +39,8 @@ final class NotchViewModel: ObservableObject {
     /// true = notch físico (câmera no meio); false = ilha simulada em monitor externo
     @Published var hasRealNotch = false
     @Published var activeNotification: NotchNotification?
+    /// Cortina do histórico puxada. Implica `expanded`; fecha junto com ele.
+    @Published var historyOpen = false
     @Published var hud: HUDState?
     @Published var dictation: DictationPhase?
     @Published var activity: NotchActivity?
@@ -155,6 +157,7 @@ final class NotchViewModel: ObservableObject {
                 if self.expanded || self.peeking { self.lastCollapseAt = Date() }
                 self.expanded = false
                 self.peeking = false
+                self.historyOpen = false
             }
             pendingWork = work
             DispatchQueue.main.asyncAfter(deadline: .now() + closeDelay, execute: work)
@@ -243,6 +246,7 @@ final class NotchViewModel: ObservableObject {
     // MARK: - Notificações
 
     func enqueue(_ notification: NotchNotification) {
+        NotificationHistory.shared.record(notification)
         // progresso: mesmo webhookID substitui a ativa ou a enfileirada
         if let wid = notification.webhookID {
             if activeNotification?.webhookID == wid {
