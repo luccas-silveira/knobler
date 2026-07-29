@@ -664,7 +664,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // `currentSize` da view. É pré-existente e deliberado — o monitor roda
         // fora do SwiftUI e não tem como ler o tamanho renderizado sem
         // pendurar um observador por notch.
-        let zoneHeight: CGFloat = vm.historyOpen ? 420 : (expanded ? 200 : vm.notchSize.height + 10)
+        let zoneHeight: CGFloat = vm.focus == .historico ? 420 : (expanded ? 200 : vm.notchSize.height + 10)
         let inZone = abs(mouse.x - screen.frame.midX) <= zoneWidth / 2
             && mouse.y >= screen.frame.maxY - zoneHeight
         guard inZone else {
@@ -695,7 +695,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             // nota ligada ou com o histórico vazio a cortina não tem
             // ScrollView nenhuma, e entregar o eixo vertical a ela mataria o
             // gesto — sem abrir, sem fechar, sem histórico
-            scrollStartedInHistory = vm.historyOpen
+            scrollStartedInHistory = vm.focus == .historico
                 && !NotificationHistory.shared.items.isEmpty
                 && !QuickNote.shared.hosted(by: id)
         }
@@ -718,32 +718,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let target = NotchGesture.verticalTarget(accumY: scrollAccumY, accumX: scrollAccumX) {
             switch target {
             case .closed:
-                vm.historyOpen = false
                 vm.setExpandedDirect(false)
             case .expanded:
-                vm.historyOpen = false
                 vm.setExpandedDirect(true)
             case .history:
+                // nota e histórico são exclusivos: com a nota ligada nesta tela
+                // o card é dela, e focar o histórico por baixo deixaria o
+                // rodapé, o zoneHeight e o handoff de scroll falando de uma
+                // lista que não está na árvore de views
+                if !QuickNote.shared.hosted(by: id) { vm.focoPendente = .historico }
                 vm.setExpandedDirect(true)
-                // nota e cortina são exclusivas: com a nota ligada nesta tela o
-                // card é dela, e abrir a cortina por baixo deixaria o rodapé,
-                // o zoneHeight e o handoff de scroll falando de uma lista que
-                // não está na árvore de views
-                vm.historyOpen = !QuickNote.shared.hosted(by: id)
+                // já estava aberto: a ordem existe, então foca agora (o
+                // `focar` limpa o pendente)
+                if !QuickNote.shared.hosted(by: id) { vm.focar(.historico) }
             }
-        } else if !scrollActed, !vm.historyOpen, abs(scrollAccumX) > 50 {
+        } else if !scrollActed, vm.focus != .historico, abs(scrollAccumX) > 50 {
             // com a cortina aberta o horizontal fica de fora: trocar de aba por
             // baixo do histórico largaria o usuário em Mensagens no hover-out,
             // sem ele ter visto nada acontecer
             scrollActed = true
             if expanded {
-                // card aberto: horizontal navega entre as telas (Música/Mensagens).
+                // card aberto: horizontal anda um passo na faixa de seções.
                 // Com a nota nesta tela o eixo fica de fora: o campo é o card
-                // inteiro, e mexer em `tab` por baixo dele deixaria o usuário
-                // numa aba que ele não viu escolher, aparecendo só no hover-out.
+                // inteiro, e trocar a seção por baixo dele deixaria o usuário
+                // numa tela que ele não viu escolher, aparecendo só no hover-out.
                 if !QuickNote.shared.hosted(by: id) {
                     withAnimation(.easeOut(duration: 0.22)) {
-                        vm.tab = scrollAccumX < 0 ? .messages : .music
+                        vm.focarVizinho(avancando: scrollAccumX < 0)
                     }
                 }
             } else if media.state != nil {
@@ -879,8 +880,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 }
                 // Rede Local: liga o Bonjour quando o usuário abre a aba Mensagens
                 // (app ativo → prompt num momento sensato). start() é idempotente.
-                viewModel.$tab
-                    .filter { $0 == .messages }
+                viewModel.$focus
+                    .filter { $0 == .mensagens }
                     .sink { [weak self] _ in self?.lanMessaging.start() }
                     .store(in: &lanCancellables)
 
@@ -1073,8 +1074,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard let screen, let vm = notches[Self.displayID(of: screen)]?.viewModel else { return }
         note.hostDisplayID = Self.displayID(of: screen)
         note.active = true
-        // nota e cortina são exclusivas: o card é de uma coisa só
-        vm.historyOpen = false
+        // nota e histórico são exclusivos: o card é de uma coisa só (a trava da
+        // nota no recalcularSecoes garante o foco)
         vm.setExpandedDirect(true)
     }
 

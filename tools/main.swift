@@ -212,7 +212,8 @@ let scenarios: [Scenario] = [
     // um gate que não mostra o rodapé não prova que o card coube.
     Scenario(name: "expanded-history-empty", realNotch: true, frameHeight: 400) { vm, _, _ in
         vm.expanded = true
-        vm.historyOpen = true
+        vm.secoes = [.historico]
+        vm.focar(.historico)
     },
     Scenario(name: "dictation-recording", realNotch: true) { vm, _, _ in
         vm.dictation = .recording(level: 0.6)
@@ -463,6 +464,9 @@ for scenario in scenarios {
             media: media, levels: SystemAudioLevels(), shelf: currentShelf,
             dropTargetsEnabled: false,
             agentRequestInitiallyExpanded: scenario.agentRequestExpanded)
+            // a NotchView lê o MessageStore do ambiente só pra saber se há
+            // conversa; sem injetar, o SwiftUI derruba o harness
+            .environmentObject(MessageStore(vazio: true))
     }
     .frame(width: 560, height: scenario.frameHeight)
 
@@ -499,7 +503,7 @@ for scenario in scenarios {
     )
     media.injectPreview(state: nil, artwork: nil)
     let lan = LANMessaging()
-    let store = MessageStore()
+    let store = MessageStore(vazio: true)
     vm.hasRealNotch = realNotch
     vm.notchSize = realNotch
         ? CGSize(width: 200, height: 32)
@@ -563,7 +567,8 @@ for scenario in scenarios {
 // alto que os demais cenários e cortava embaixo com o frame default.
 renderMessageScenario("messages-online", realNotch: true, frameHeight: 390) { vm, lan, _ in
     vm.expanded = true
-    vm.tab = .messages
+    vm.secoes = [.mensagens]
+    vm.focar(.mensagens)
     lan.injectPreview(peers: [
         Peer(id: "p1", name: "Marina", endpoint: .hostPort(host: "127.0.0.1", port: 1)),
         Peer(id: "p2", name: "Diego", endpoint: .hostPort(host: "127.0.0.1", port: 2)),

@@ -189,7 +189,7 @@ struct MessagesView: View {
             vm.pendingAttachment = picked.map { .init(data: $0.0, kind: $0.1) }
             vm.attachmentFailed = picked == nil
             // o painel de arquivos tira o mouse do notch: reabre na conversa
-            vm.tab = .messages
+            vm.focoPendente = .mensagens
             vm.setExpandedDirect(true)
         }
     }

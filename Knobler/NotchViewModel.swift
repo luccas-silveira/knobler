@@ -52,8 +52,6 @@ final class NotchViewModel: ObservableObject {
     /// true = notch físico (câmera no meio); false = ilha simulada em monitor externo
     @Published var hasRealNotch = false
     @Published var activeNotification: NotchNotification?
-    /// Cortina do histórico puxada. Implica `expanded`; fecha junto com ele.
-    @Published var historyOpen = false
     @Published var hud: HUDState?
     @Published var dictation: DictationPhase?
     /// Atividade em curso. Só título/detalhe e o aparecer/sumir promovem — o
@@ -94,9 +92,6 @@ final class NotchViewModel: ObservableObject {
     /// Ações do card — o app conecta no Updater.
     var onUpdateInstall: (() -> Void)?
     var onUpdateSkip: (() -> Void)?
-    /// Aba do notch aberto: música (default) ou mensagens LAN.
-    enum NotchTab: Equatable { case music, messages }
-    @Published var tab: NotchTab = .music
 
     /// Mensagem LAN chegando, exibida como card no notch.
     struct IncomingMessage: Equatable {
@@ -176,6 +171,12 @@ final class NotchViewModel: ObservableObject {
     /// fora do SwiftUI e precisa dela pra delimitar a zona do gesto.
     @Published private(set) var cardHeight: CGFloat = 0
 
+    /// Foco pedido de fora ANTES de o card abrir (clique no card de mensagem, o
+    /// painel de arquivos que devolve o anexo). A ordem só existe depois do
+    /// `recalcularSecoes`, então o pedido espera aqui em vez de ser sobrescrito
+    /// pela promoção da abertura.
+    var focoPendente: NotchSection?
+
     func recalcularSecoes(_ estados: [NotchSectionState], travadaNaNota: Bool) {
         secoes = NotchSectionOrder.ordenar(base: AppSettings.shared.notchSectionOrder,
                                            estados: estados,
@@ -184,7 +185,15 @@ final class NotchViewModel: ObservableObject {
         // a trava da nota vence até a escolha manual anterior
         if travadaNaNota, secoes.contains(.nota) {
             focus = .nota
+            focoPendente = nil
             return
+        }
+        if let pedido = focoPendente {
+            focoPendente = nil
+            if secoes.contains(pedido) {
+                focar(pedido)
+                return
+            }
         }
         guard !focusLocked, let primeira = secoes.first else {
             // o foco travado pode ter perdido o conteúdo enquanto isso
@@ -196,6 +205,7 @@ final class NotchViewModel: ObservableObject {
 
     func focar(_ section: NotchSection) {
         guard secoes.contains(section) else { return }
+        focoPendente = nil
         focus = section
         focusLocked = true
     }
@@ -291,7 +301,6 @@ final class NotchViewModel: ObservableObject {
                 if self.expanded || self.peeking { self.lastCollapseAt = Date() }
                 self.expanded = false
                 self.peeking = false
-                self.historyOpen = false
             }
             pendingWork = work
             DispatchQueue.main.asyncAfter(deadline: .now() + closeDelay, execute: work)
@@ -329,8 +338,6 @@ final class NotchViewModel: ObservableObject {
     func setExpandedDirect(_ value: Bool) {
         pendingWork?.cancel()
         expanded = value
-        // a cortina só existe dentro do card aberto — fechar leva ela junto
-        if !value { historyOpen = false }
     }
 
     // MARK: - Mensagens LAN
@@ -376,7 +383,7 @@ final class NotchViewModel: ObservableObject {
     func openThread(peerID: String) {
         requestDismissIncoming()
         selectedThreadPeerID = peerID
-        tab = .messages
+        focoPendente = .mensagens
         setExpandedDirect(true)
     }
 

@@ -48,6 +48,13 @@ final class MessageStore: ObservableObject {
         }
     }
 
+    /// Store vazio, sem ler o disco: o harness de snapshot não pode depender das
+    /// conversas reais de quem roda (com elas, a seção Mensagens aparecia — ou
+    /// não — conforme a máquina).
+    init(vazio: Bool) {
+        _ = vazio
+    }
+
     func messages(for peerID: String) -> [PeerMessage] { threads[peerID] ?? [] }
 
     func append(_ msg: PeerMessage) {
