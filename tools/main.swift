@@ -187,18 +187,10 @@ let scenarios: [Scenario] = [
             body: "O Time Machine terminou o backup de hoje às 14:32."
         )
     },
+    // ponytail: só o cenário vazio fica no harness — o populado (ScrollView
+    // com itens) renderiza preto sólido no ImageRenderer offscreen, ver
+    // CLAUDE.md. Um PNG preto é um falso gate, pior que não ter o cenário.
     Scenario(name: "expanded-history-empty", realNotch: true) { vm, _, _ in
-        vm.expanded = true
-        vm.historyOpen = true
-    },
-    Scenario(name: "expanded-history", realNotch: true) { vm, _, _ in
-        let h = NotificationHistory.shared
-        h.record(NotchNotification(appName: "Slack", title: "Ana Paula",
-                                   body: "revisei o PR, pode subir"))
-        h.record(NotchNotification(appName: "Knobler", title: "Deploy concluído",
-                                   body: "produção · 2m14s"))
-        h.record(NotchNotification(appName: "Lembretes", title: "Alongar",
-                                   body: "a cada 50 min"))
         vm.expanded = true
         vm.historyOpen = true
     },
