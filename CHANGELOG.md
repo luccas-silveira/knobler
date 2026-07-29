@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-07-29
+
 ### Added
 - **Nota rápida, avisos nas duas pontas**: o campo vazio ganhou o placeholder
   "Rascunho — some ao desligar" (o único lugar onde cabia dizer que o texto é
