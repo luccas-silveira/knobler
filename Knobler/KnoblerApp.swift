@@ -647,26 +647,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             && mouse.y >= screen.frame.maxY - zoneHeight
         guard inZone else { return event }
 
-        // cortina aberta: o vertical é da lista, pra ela rolar de verdade —
-        // inclusive a inércia, senão o flick para seco quando os dedos saem.
-        // A checagem lê scrollStartedInHistory ANTES do bloco .began abaixo
-        // setá-la, mas isso é seguro: um evento .began nunca é de inércia, e
-        // é sempre o primeiro evento do gesto — quando momentum/.changed
-        // chegam, a flag já foi setada por um .began anterior. Não "corrija"
-        // a ordem: é isso que deixa a inércia da lista passar.
-        if scrollStartedInHistory, abs(event.scrollingDeltaY) >= abs(event.scrollingDeltaX) {
-            return event
-        }
-
-        // inércia não conta como gesto; ainda assim é engolida na zona
-        guard event.momentumPhase.isEmpty else { return nil }
-
+        // o reset vem antes de tudo: um gesto que começa precisa resincronizar
+        // o próprio estado mesmo que a cortina tenha fechado por fora (o
+        // setHover fecha sozinho quando o mouse sai), senão a flag velha
+        // engole o gesto novo inteiro
         if event.phase == .began {
             scrollAccumX = 0
             scrollAccumY = 0
             scrollActed = false
             scrollStartedInHistory = vm.historyOpen
         }
+
+        // cortina aberta: o vertical é da lista, pra ela rolar de verdade —
+        // inclusive a inércia, que chega depois dos dedos saírem e por isso
+        // não passa pelo reset acima
+        if scrollStartedInHistory, abs(event.scrollingDeltaY) >= abs(event.scrollingDeltaX) {
+            return event
+        }
+
+        // inércia não conta como gesto; ainda assim é engolida na zona
+        guard event.momentumPhase.isEmpty else { return nil }
 
         scrollAccumX += event.scrollingDeltaX
         scrollAccumY += event.scrollingDeltaY
