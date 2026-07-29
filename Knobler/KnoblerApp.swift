@@ -428,6 +428,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 return [
                     "display": Int(id),
                     "mode": "\(mode)",
+                    // qual seção o card está mostrando — dá pra um script
+                    // perguntar o que o notch tem na cara agora
+                    "focus": notch.viewModel.focus?.rawValue ?? "",
                     "hasNotification": notch.viewModel.activeNotification != nil,
                     "visible": notch.window.isVisible,
                     "frame": "\(notch.window.frame)",

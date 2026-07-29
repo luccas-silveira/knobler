@@ -153,15 +153,39 @@ let scenarios: [Scenario] = [
         media.injectPreview(state: fakeState(playing: false), artwork: fakeArtwork())
         vm.expanded = true
     },
-    // prateleira de arquivos no card expandido (com música junto)
-    Scenario(name: "expanded-shelf", realNotch: true) { vm, media, _ in
+    // Card aberto: o eixo de variação é QUAL SEÇÃO está em foco. A faixa do
+    // rodapé mostra as outras, e `secoes`/`focus` são montados à mão porque o
+    // harness não tem como provocar o carimbo de evento de cada seção.
+    //
+    // Sem cenário pra `historico` e `mensagens` (usam ScrollView, que sai preto
+    // no ImageRenderer offscreen) nem pra `espelho` (precisa de câmera real).
+    Scenario(name: "foco-musica", realNotch: true) { vm, media, _ in
         media.injectPreview(state: fakeState(), artwork: fakeArtwork())
-        fakeShelfFiles().forEach { currentShelf.add($0) }
         vm.expanded = true
+        vm.secoes = [.musica, .atividade, .shelf]
+        vm.focus = .musica
     },
-    Scenario(name: "expanded-shelf-only", realNotch: true) { vm, _, _ in
+    Scenario(name: "foco-atividade", realNotch: true) { vm, media, _ in
+        media.injectPreview(state: fakeState(), artwork: fakeArtwork())
+        vm.activity = NotchActivity(id: "deploy", title: "Deploy", detail: "3 de 8",
+                                    progress: 0.375, updatedAt: Date())
+        vm.expanded = true
+        vm.secoes = [.atividade, .musica]
+        vm.focus = .atividade
+    },
+    Scenario(name: "foco-pomodoro", realNotch: true) { vm, media, _ in
+        media.injectPreview(state: fakeState(), artwork: fakeArtwork())
+        vm.pomodoro = PomodoroState(phase: .focus, runState: .running, remaining: 900,
+                                    completedFocus: 1, cyclesUntilLong: 4)
+        vm.expanded = true
+        vm.secoes = [.pomodoro, .musica]
+        vm.focus = .pomodoro
+    },
+    Scenario(name: "foco-shelf", realNotch: true) { vm, _, _ in
         fakeShelfFiles().forEach { currentShelf.add($0) }
         vm.expanded = true
+        vm.secoes = [.shelf, .musica]
+        vm.focus = .shelf
     },
     // atividade da API: anel na asinha (fechado) e linha no card (aberto)
     Scenario(name: "closed-activity", realNotch: false) { vm, _, _ in
@@ -175,14 +199,9 @@ let scenarios: [Scenario] = [
             id: "deploy", title: "Deploy zoi-studio", detail: "rsync…",
             progress: 0.42, updatedAt: Date())
     },
-    Scenario(name: "expanded-activity-music", realNotch: true) { vm, media, _ in
-        media.injectPreview(state: fakeState(), artwork: fakeArtwork())
-        vm.activity = NotchActivity(
-            id: "deploy", title: "Deploy zoi-studio", detail: "rsync pra produção",
-            progress: 0.42, updatedAt: Date())
-        vm.expanded = true
-    },
-    Scenario(name: "expanded-activity-only", realNotch: true) { vm, _, _ in
+    // atividade sem progresso e sem música: a seção sobe sozinha na ordenação
+    // (é a única com conteúdo) e a faixa fica com um ícone só
+    Scenario(name: "foco-atividade-indeterminada", realNotch: true) { vm, _, _ in
         vm.activity = NotchActivity(
             id: "build", title: "Compilando Knobler", detail: "xcodebuild",
             progress: nil, updatedAt: Date())
@@ -195,22 +214,14 @@ let scenarios: [Scenario] = [
             body: "O Time Machine terminou o backup de hoje às 14:32."
         )
     },
-    // card normal COM histórico guardado: é o gate da alcinha de descoberta
-    // convivendo com os pontinhos de página no mesmo rodapé.
-    Scenario(name: "expanded-history-grabber", realNotch: true) { vm, media, _ in
-        media.injectPreview(state: fakeState(), artwork: fakeArtwork())
-        NotificationHistory.shared.record(
-            NotchNotification(appName: "Finder", title: "Backup concluído", body: ""))
-        vm.expanded = true
-    },
-    // ponytail: da cortina, só o cenário vazio fica no harness — o populado
+    // ponytail: do histórico, só o cenário vazio fica no harness — o populado
     // (ScrollView com itens) renderiza preto sólido no ImageRenderer offscreen,
     // ver CLAUDE.md. Um PNG preto é um falso gate, pior que não ter o cenário.
     //
-    // frameHeight maior que o padrão 240: a cortina tem altura própria
-    // (chrome + 260 da lista), e com 240 o PNG cortava a alcinha do rodapé —
+    // frameHeight maior que o padrão 240: a seção de histórico tem altura
+    // própria (chrome + a lista), e com 240 o PNG cortava a faixa do rodapé —
     // um gate que não mostra o rodapé não prova que o card coube.
-    Scenario(name: "expanded-history-empty", realNotch: true, frameHeight: 400) { vm, _, _ in
+    Scenario(name: "foco-historico-vazio", realNotch: true, frameHeight: 400) { vm, _, _ in
         vm.expanded = true
         vm.secoes = [.historico]
         vm.focar(.historico)
@@ -352,11 +363,6 @@ let scenarios: [Scenario] = [
         vm.pomodoro = PomodoroState(phase: .shortBreak, runState: .waiting, remaining: 5 * 60, completedFocus: 1, cyclesUntilLong: 4)
         vm.expanded = true
     },
-    Scenario(name: "pomodoro-card-with-music", realNotch: true) { vm, media, _ in
-        media.injectPreview(state: fakeState(), artwork: fakeArtwork())
-        vm.pomodoro = PomodoroState(phase: .focus, runState: .running, remaining: 23 * 60 + 14, completedFocus: 1, cyclesUntilLong: 4)
-        vm.expanded = true
-    },
     // AirPods: card de conexão (transitório), faixa junto da música,
     // card dedicado sem música, e aviso de bateria baixa.
     Scenario(name: "airpods-connect", realNotch: true) { vm, _, _ in
@@ -424,7 +430,7 @@ for scenario in scenarios {
         ? CGSize(width: 200, height: 32)
         : CGSize(width: 190, height: 30)
     // o histórico é singleton: sem zerar entre cenários, o que um cenário
-    // grava vaza pro próximo (a alcinha apareceria em todo card expandido)
+    // grava vaza pro próximo (o histórico entraria na faixa de todo card)
     NotificationHistory.shared.prune(now: .distantFuture)
     // mesma razão: a nota também é singleton, e o pontinho dela apareceria em
     // todo notch fechado depois do cenário que a liga
@@ -562,9 +568,8 @@ for scenario in scenarios {
     try? png.write(to: URL(fileURLWithPath: path))
     print("ok \(path)")
 }
-// frameHeight maior que o padrão 240: o painel de Mensagens (chrome + 272,
-// ver NotchView.currentSize case .music com tab == .messages) rende mais
-// alto que os demais cenários e cortava embaixo com o frame default.
+// frameHeight maior que o padrão 240: a seção de Mensagens rende mais alta que
+// as demais (ver NotchView.alturaDaSecao) e cortava embaixo com o frame default.
 renderMessageScenario("messages-online", realNotch: true, frameHeight: 390) { vm, lan, _ in
     vm.expanded = true
     vm.secoes = [.mensagens]

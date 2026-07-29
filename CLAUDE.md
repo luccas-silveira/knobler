@@ -43,9 +43,10 @@ estado em `Snapshots/*.png` — é o jeito de "ver" a UI sem abrir o app.
 
 ⚠️ **Quatro PNGs não são determinísticos** e mudam de hash a cada rodada mesmo
 sem mudança nenhuma de código: `closed-music`, `closed-music-external`,
-`expanded-activity-only` e `update-installing` (visualizador animado, barra de
-progresso). Neles o snapshot é inspeção visual, não detector de regressão — não
-gaste tempo investigando o diff. Os outros 58 são byte-idênticos entre rodadas.
+`foco-atividade-indeterminada` e `update-installing` (visualizador animado,
+barra de progresso). Neles o snapshot é inspeção visual, não detector de
+regressão — não gaste tempo investigando o diff. Os outros 57 são
+byte-idênticos entre rodadas.
 
 ⚠️ **Qualquer view que dependa de um `NSView` real (janela/WindowServer de
 verdade) não renderiza via `ImageRenderer` offscreen** — vira o ícone de
@@ -53,14 +54,17 @@ verdade) não renderiza via `ImageRenderer` offscreen** — vira o ícone de
 `NavigationSplitView`/`HSplitView` (repro isolado), `TextField` (o rodapé do
 `AskCardView` — por isso `ask-simple.png`/`ask-multiselect.png` cortam antes
 da barra do campo de texto), e `NSWorkspace.icon(forFile:)`/`QLThumbnailGenerator`
-(`ShelfThumbnailDragView` — por isso `expanded-shelf.png` é capturado no app
-rodando de verdade, não pelo harness), e `ScrollView`
+(`ShelfThumbnailDragView` — por isso a imagem da prateleira nos docs
+(`docs/images/expanded-shelf.png`) é capturada no app rodando de verdade: o
+`foco-shelf.png` do harness sai com o ícone de "proibido" no lugar das
+miniaturas), e `ScrollView`
 (`NSScrollView` por baixo) — sintoma diferente dos outros: não vira o ícone
 de "proibido", o conteúdo simplesmente não aparece (área inteira preta),
 mesmo com `LazyVStack` trocado por `VStack` simples. Confirmado na
-`HistoryListView` (histórico de notificações, `expanded-history.png`) — por
-isso esse cenário populado não entrou no harness, só o vazio
-(`expanded-history-empty.png`, que não usa `ScrollView`). Ao adicionar
+`HistoryListView` (seção de histórico) e na `MessagesView` — por isso essas
+duas seções não entram no harness populadas, só o histórico vazio
+(`foco-historico-vazio.png`, que não usa `ScrollView`). A seção `espelho`
+também fica de fora: precisa de câmera real. Ao adicionar
 cenário novo ao harness, desconfie de qualquer subview que envolva um
 desses. Por isso `settings-*.png`
 (7 painéis de Ajustes) e `mapping-editor.png` **não** são gerados por

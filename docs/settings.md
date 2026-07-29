@@ -23,7 +23,9 @@ da própria feature, linkada abaixo.
   - **Geral** — login automático, versão do app, atualizações.
   - **Notch** — liga/desliga individualmente HUDs, notificações, countdown de
     calendário, visualizador de áudio, API local, AirPods, screenshots na
-    prateleira, espelho de câmera. Ver `docs/huds.md`, `docs/notifications.md`,
+    prateleira, espelho de câmera. Traz também a **ordem das seções do card
+    aberto**: uma lista arrastável que define quem aparece primeiro quando não
+    há evento recente promovendo ninguém. Ver `docs/huds.md`, `docs/notifications.md`,
     `docs/calendar-countdown.md`, `docs/now-playing.md`, `docs/local-api.md`,
     `docs/airpods.md`, `docs/shelf.md`, `docs/mirror.md`.
   - **Ditado** — ver `docs/dictation.md`.
@@ -68,8 +70,8 @@ Ajustes do Sistema.
 
 O Knobler pede cada permissão **no primeiro uso do recurso**, não na abertura —
 o microfone só quando você segura a ⌥ direita pela primeira vez, a câmera só ao
-abrir o espelho, a rede local só ao abrir a aba Mensagens. Recusar não quebra o
-app: só desliga aquele recurso.
+abrir o espelho, a rede local só ao pôr a seção Mensagens em foco. Recusar não
+quebra o app: só desliga aquele recurso.
 
 A exceção é a **Acessibilidade**, a única pedida na abertura. Sem ela o
 `CGEventTap` nem chega a ser criado, então a ⌥ direita nunca chega ao app e não

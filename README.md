@@ -14,7 +14,8 @@ Dynamic Island para o notch do Mac — nativo, Swift/SwiftUI, macOS 14.2+.
 - **HUDs no notch**: volume, brilho e bateria (carregador/20%) substituem o OSD
   nativo. → [detalhes](docs/huds.md)
 - **Notificações do sistema** interceptadas e exibidas no notch (Acessibilidade),
-  com **histórico das últimas 24 h**: puxe o card pra baixo numa passada só.
+  com **histórico das últimas 24 h**: uma seção do card aberto, a um clique na
+  faixa do rodapé.
   → [detalhes](docs/notifications.md)
 - **Countdown de calendário**: próximo evento entra 15min antes com anel regressivo.
   → [detalhes](docs/calendar-countdown.md)
@@ -43,8 +44,12 @@ Dynamic Island para o notch do Mac — nativo, Swift/SwiftUI, macOS 14.2+.
 - **Bateria dos AirPods** por componente ao conectar.
   → [detalhes](docs/airpods.md)
 - **Espelho de câmera** antes de reuniões. → [detalhes](docs/mirror.md)
-- **Gestos**: dois dedos pra baixo abre, pra cima fecha, horizontal pula faixa;
-  puxão longo na mesma passada entra no histórico de notificações.
+- **Card com foco único**: o card aberto mostra uma seção de cada vez (música,
+  atividade, Pomodoro, prateleira, histórico, Mensagens…) e deixa as outras como
+  ícones no rodapé. A ordem em repouso é sua, arrastável em Ajustes › Notch, e o
+  que acabou de acontecer sobe sozinho por alguns segundos.
+- **Gestos**: dois dedos pra baixo abre, pra cima fecha. Com o notch fechado o
+  horizontal pula faixa; com o card aberto, anda um passo na faixa de seções.
 - **Multi-monitor**: notch real no MacBook, ilha simulada nos externos.
 - **API local** (`127.0.0.1:4477`) — o diferencial: qualquer script publica no notch.
   → [detalhes](docs/local-api.md)
@@ -181,7 +186,7 @@ Duas ressalvas conhecidas, as duas descobertas na v0.13.0:
   desses não vira snapshot — vira screenshot manual. A lista completa está no
   `CLAUDE.md`.
 - **Quatro PNGs não são determinísticos**: `closed-music`,
-  `closed-music-external`, `expanded-activity-only` e `update-installing` mudam
+  `closed-music-external`, `foco-atividade-indeterminada` e `update-installing` mudam
   de hash a cada rodada mesmo sem mudança de código (visualizador animado,
   barra de progresso). Neles o snapshot serve de inspeção visual, não de
   detector de regressão — não perca tempo caçando um diff que não existe.

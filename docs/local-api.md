@@ -214,7 +214,10 @@ não responde e o Codex mostra a aprovação nativa. Detalhes em
 
 Retorna diagnóstico do app. O schema é deliberadamente extensível; campos
 atuais incluem `notches`, `player`, `visualizerTapped`, `dictation`, `ask`,
-`micInUse` e `lanMessaging`.
+`micInUse` e `lanMessaging`. Cada entrada de `notches` traz também `focus`: o
+identificador da seção que o card aberto está mostrando (`musica`, `atividade`,
+`pomodoro`, `shelf`, `espelho`, `mensagens`, `historico`, `nota`), ou string
+vazia quando não há seção em foco.
 
 ```bash
 curl -sS http://127.0.0.1:4477/status | jq .

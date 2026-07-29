@@ -34,7 +34,7 @@ O `Fechar`/`Limpar` do próprio alerta nunca vira botão do card.
 - **Acessibilidade** — necessária pro `AXObserver` ler e fechar o banner
   nativo do Notification Center.
 
-<!-- TODO screenshot: cortina de histórico aberta, com a alcinha visível no rodapé do card -->
+<!-- TODO screenshot: seção de histórico em foco, com a faixa de ícones no rodapé do card -->
 
 ## Histórico (24 h)
 
@@ -47,26 +47,25 @@ no notch enquanto dura.
 
 ### Como abrir
 
-Puxe o card pra baixo **numa passada só**, sem soltar o mouse: os primeiros
-~24 pt abrem o card normal; continuando o mesmo gesto até ~120 pt, ele
-transiciona pra cortina de histórico. Recuar dentro do mesmo gesto desfaz —
-não precisa soltar e puxar de novo. Um swipe majoritariamente horizontal não
-abre nem fecha nada (guarda contra diagonais).
+O histórico é uma **seção** do card aberto, como Música ou Pomodoro: abra o
+card (swipe de dois dedos pra baixo, ou hover) e clique no ícone de sino na
+faixa do rodapé — ou deslize na horizontal até chegar nele. Quando uma
+notificação acabou de passar, o histórico sobe sozinho pro foco por alguns
+segundos; depois disso a ordem volta a ser a dos Ajustes → Notch.
 
-A única dica de que o gesto existe é uma alcinha (uma cápsula) que aparece no
-rodapé do card aberto quando há histórico pra puxar.
+Clicar num ícone trava o foco: nenhuma promoção o tira até o notch recolher.
 
 ### Como fechar
 
 Fechar não é gesto — é tirar o mouse de cima do notch, o mesmo hover-out que
-já fecha o card normal. Com a cortina aberta, o scroll vertical pertence à
-lista (ela realmente rola, com momentum incluso) — mas só quando há lista pra
-rolar: com o histórico vazio o gesto continua valendo pra fechar. Clicar numa
-linha também recolhe o notch, junto com abrir a origem.
+já fecha o card. Com o histórico em foco, o scroll vertical pertence à lista
+(ela realmente rola, com momentum incluso) — mas só quando há lista pra rolar:
+com o histórico vazio o gesto continua valendo pra fechar. Clicar numa linha
+também recolhe o notch, junto com abrir a origem.
 
-A nota rápida e a cortina não convivem: com a nota ligada naquela tela, o
-puxão longo não abre o histórico (o card é da nota). O swipe horizontal, que
-troca Música/Mensagens, fica desligado enquanto a cortina está aberta.
+A nota rápida é modo exclusivo: com a nota em foco a faixa some e o swipe
+horizontal fica desligado — o card é da nota, e nada oferece um caminho pra
+fora do campo de texto.
 
 ### O que aparece em cada linha
 
@@ -76,8 +75,7 @@ snapshot offscreen do projeto, então a linha ficou só com texto. Clicar numa
 linha faz o mesmo que clicar no card original teria feito (abre a URL, foca o
 app, revela a pasta do AirDrop) e recolhe o notch.
 
-Quando não há nada nas últimas 24 h, a cortina mostra "Nada nas últimas
-24 h".
+Quando não há nada nas últimas 24 h, a seção mostra "Nada nas últimas 24 h".
 
 Um webhook que atualiza o mesmo `webhookID` várias vezes (por exemplo, uma
 barra de progresso que muda 40 vezes) substitui a entrada anterior em vez de

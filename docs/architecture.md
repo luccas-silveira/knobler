@@ -44,6 +44,8 @@ regras de domínio novas são implementadas.
 | Versão disponível e instalação | `Updater` | card do notch e Ajustes › Geral |
 | Notificações das últimas 24 h | `NotificationHistory.shared` | `HistoryListView` |
 | Nota rápida (texto, foco, tela dona) | `QuickNote.shared` | `NotchView`, menu da barra |
+| Ordem-base das seções do card | `AppSettings.notchSectionOrder` | `NotchSectionOrder`, Ajustes › Notch |
+| Ordem efetiva, seção em foco e trava | `NotchViewModel` (`secoes`, `focus`, `focusLocked`) | `NotchView`, gestos, `GET /status` |
 
 O mesmo estado de Ask é injetado em todas as janelas. Não crie um store por
 monitor: uma resposta ou cancelamento precisa vencer uma única vez, mesmo com
@@ -58,6 +60,33 @@ fura o dedupe). A nota é singleton mas guarda `hostDisplayID`: uma tela dona,
 escolhida pelo ponteiro na hora de ligar. Sem esse dono, ligar a nota expandia
 todos os monitores sem nada recolhê-los, e as N cópias da `NotchView`
 disputavam foco escrevendo no mesmo `editing`.
+
+## Card aberto: uma seção em foco
+
+O card do notch aberto **não empilha** conteúdo. Ele mostra uma seção de cada
+vez (Música, Atividade, Pomodoro, Prateleira, Espelho, Mensagens, Histórico,
+Nota rápida) e deixa as outras como uma faixa de ícones no rodapé, cada uma com
+um sinal vivo mínimo (anel de progresso, contagem, ponto de "tocando").
+
+A ordem sai de três camadas, nesta sequência:
+
+1. **Ordem-base** — arrastável em Ajustes › Notch (`AppSettings.notchSectionOrder`).
+2. **Conteúdo** — seção sem conteúdo não entra na faixa.
+3. **Evento recente** — `NotchSectionOrder.ordenar` promove pro topo a seção
+   cujo último evento (música trocou, atividade chegou, mensagem entrou) ainda
+   está dentro da janela de promoção. Passado o prazo, a ordem volta à base.
+
+A ordem efetiva é congelada na abertura do card (`NotchViewModel.secoes`):
+recalcular a cada mudança faria o conteúdo pular debaixo do cursor e mover o
+alvo de clique da faixa. Clique num ícone ou swipe horizontal chamam
+`focar`/`focarVizinho`, que travam o foco (`focusLocked`) até o notch recolher.
+`focoPendente` atende quem pede foco **antes** de o card abrir (clique no card
+de mensagem, por exemplo). A nota rápida é modo exclusivo: com ela em foco a
+faixa some.
+
+A altura do card é derivada do foco (`NotchView.currentSize` case `.music`) e
+publicada em `NotchViewModel.alturaAtual`, que o monitor de scroll — fora do
+SwiftUI — usa pra delimitar a zona do gesto junto com `NotchGesture.folgaDeHover`.
 
 ## Fluxo de AskUserQuestion
 

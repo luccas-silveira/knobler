@@ -23,7 +23,12 @@ abertura.
 ## Como usar
 
 - Hover no notch fechado expande; tirar o mouse fecha.
-- Dois dedos pra baixo abre, pra cima fecha, gesto horizontal pula faixa.
+- Dois dedos pra baixo abre, pra cima fecha. Com o notch **fechado**, o gesto
+  horizontal pula faixa; com o card **aberto**, ele anda um passo na faixa de
+  seções do rodapé (e trava o foco onde parar).
+- Música é uma seção como as outras: se ela não estiver em foco, o ícone de
+  nota musical no rodapé mostra um pontinho enquanto algo estiver tocando —
+  clicar traz a seção de volta.
 - Funciona com qualquer app que apareça no Control Center (Now Playing
   universal via `mediaremote-adapter`) — não é exclusivo de Spotify/Apple Music.
 - Em monitores externos (sem notch físico), a mesma UI aparece numa ilha
