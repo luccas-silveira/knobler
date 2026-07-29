@@ -97,6 +97,24 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(loadRemoteImages, forKey: "loadRemoteImages") }
     }
 
+    /// Ordem-base das seções do card aberto. A promoção por evento reordena
+    /// isto na abertura; aqui fica só a preferência em repouso.
+    @Published var notchSectionOrder: [NotchSection] {
+        didSet {
+            // `NotchSectionOrder.ordenar` assume base sem duplicata e sem
+            // buraco. Um reorder da lista de Ajustes não deveria produzir
+            // nenhum dos dois, mas saneia-se antes de salvar pra que a
+            // garantia não dependa da UI. `sanear` é idempotente, então a
+            // reatribuição não gira em loop.
+            let limpa = NotchSectionOrder.sanear(salva: notchSectionOrder.map(\.rawValue))
+            guard limpa == notchSectionOrder else {
+                notchSectionOrder = limpa
+                return
+            }
+            UserDefaults.standard.set(limpa.map(\.rawValue), forKey: "notchSectionOrder")
+        }
+    }
+
     /// Nome que os outros veem nas Mensagens LAN. Começa com o do macOS.
     @Published var displayName: String {
         didSet { UserDefaults.standard.set(displayName, forKey: "displayName") }
@@ -182,6 +200,8 @@ final class AppSettings: ObservableObject {
         hideScreenshotPreview = flag("hideScreenshotPreview")
         webhookNotifications = defaults.bool(forKey: "webhookNotifications") // default false: opt-in
         loadRemoteImages = flag("loadRemoteImages")                           // default true
+        notchSectionOrder = NotchSectionOrder.sanear(
+            salva: defaults.stringArray(forKey: "notchSectionOrder") ?? [])
 
         if let data = defaults.data(forKey: "reminders"),
            let decoded = try? JSONDecoder().decode([Reminder].self, from: data) {

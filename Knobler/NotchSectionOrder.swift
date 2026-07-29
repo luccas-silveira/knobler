@@ -13,6 +13,34 @@ import Foundation
 /// pro `GET /status`, então renomear um caso quebra ordem salva de usuário.
 enum NotchSection: String, CaseIterable {
     case musica, atividade, pomodoro, shelf, espelho, mensagens, historico, nota
+
+    /// Rótulo em pt-BR pros Ajustes e o `aria` da faixa.
+    var titulo: String {
+        switch self {
+        case .musica: return "Música"
+        case .atividade: return "Atividade"
+        case .pomodoro: return "Pomodoro"
+        case .shelf: return "Prateleira"
+        case .espelho: return "Espelho"
+        case .mensagens: return "Mensagens"
+        case .historico: return "Histórico"
+        case .nota: return "Nota rápida"
+        }
+    }
+
+    /// Símbolo SF da faixa de ícones e da lista de Ajustes.
+    var simbolo: String {
+        switch self {
+        case .musica: return "music.note"
+        case .atividade: return "arrow.triangle.2.circlepath"
+        case .pomodoro: return "timer"
+        case .shelf: return "tray.full.fill"
+        case .espelho: return "person.crop.square"
+        case .mensagens: return "bubble.left.and.bubble.right.fill"
+        case .historico: return "bell.fill"
+        case .nota: return "square.and.pencil"
+        }
+    }
 }
 
 /// O que o VM sabe de uma seção no instante em que o card abre.

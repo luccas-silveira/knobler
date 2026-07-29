@@ -80,7 +80,9 @@ swift_check quicknotecheck        Knobler/QuickNote.swift tools/quicknotecheck.s
 swift_check eventoscheck          Knobler/NotchViewModel.swift Knobler/NotchSectionOrder.swift \
   Knobler/Pomodoro.swift Knobler/AirPodsBattery.swift Knobler/NotchNotification.swift \
   Knobler/NotificationHistory.swift Knobler/QuickNote.swift Knobler/Wire.swift \
-  Knobler/Updater.swift tools/eventoscheck.swift
+  Knobler/Updater.swift \
+  Knobler/AppSettings.swift Knobler/Descanso.swift Knobler/Mirror.swift \
+  Knobler/Reminders.swift Knobler/Peer.swift tools/eventoscheck.swift
 # Reminders traz o próprio @main atrás de -D (molde do Pomodoro), sem harness.
 run reminderscheck bash -c "xcrun swiftc -parse-as-library -swift-version 5 \
   -D REMINDERS_SELFCHECK Knobler/Reminders.swift -o /tmp/reminderscheck && /tmp/reminderscheck"

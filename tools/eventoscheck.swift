@@ -16,6 +16,10 @@ import AppKit
 @main
 struct EventosCheck {
     static func main() {
+        // hermético: a ordem-base sai do UserDefaults real da máquina, então
+        // fixa-se a de fábrica antes do primeiro acesso ao AppSettings.shared.
+        UserDefaults.standard.set(NotchSectionOrder.padrao.map(\.rawValue),
+                                  forKey: "notchSectionOrder")
         testPomodoroTiqueNaoCarimba()
         testPomodoroFaseECorridaCarimbam()
         testAtividadeProgressoNaoCarimba()
@@ -30,6 +34,11 @@ struct EventosCheck {
         testFocoTravadoQuePerdeConteudo()
         testTravaDaNotaVenceAEscolhaManual()
         testPublicarAltura()
+        // estes mexem na preferência salva; ficam por último pra não desarrumar
+        // a ordem de fábrica que os testes acima assumem.
+        testOrdemSalvaPassaPorSanear()
+        testOrdemPersistidaSobreviveAoRoundTrip()
+        testBaseQueChegaNoOrdenarNaoTemDuplicata()
         print("✅ eventoscheck ok")
     }
 
@@ -238,5 +247,45 @@ struct EventosCheck {
         assert(vm.cardHeight == 120, "ruído sub-pixel republicou a altura")
         vm.publicarAltura(140)
         assert(vm.cardHeight == 140, "altura nova não publicada")
+    }
+
+    // MARK: - ordem-base dos Ajustes
+
+    /// Lixo salvo por uma versão antiga não pode virar base: `sanear` descarta
+    /// o desconhecido e completa o que faltou.
+    static func testOrdemSalvaPassaPorSanear() {
+        let settings = AppSettings.shared
+        settings.notchSectionOrder = [.shelf, .musica]
+        assert(settings.notchSectionOrder.count == NotchSection.allCases.count,
+               "ordem incompleta não foi completada: \(settings.notchSectionOrder)")
+        assert(settings.notchSectionOrder.prefix(2) == [.shelf, .musica],
+               "sanear não preservou o começo escolhido")
+    }
+
+    /// Escreve → lê do UserDefaults → mesma ordem (prova do `didSet`).
+    static func testOrdemPersistidaSobreviveAoRoundTrip() {
+        let settings = AppSettings.shared
+        let escolhida = NotchSectionOrder.sanear(salva: ["nota", "espelho", "musica"])
+        settings.notchSectionOrder = escolhida
+        let lida = UserDefaults.standard.stringArray(forKey: "notchSectionOrder") ?? []
+        assert(NotchSectionOrder.sanear(salva: lida) == escolhida,
+               "a ordem não sobreviveu ao round-trip: \(lida)")
+    }
+
+    /// `ordenar(base:)` assume base sem duplicata — inclusive depois de um
+    /// reorder torto vindo da lista de Ajustes.
+    static func testBaseQueChegaNoOrdenarNaoTemDuplicata() {
+        let settings = AppSettings.shared
+        settings.notchSectionOrder = [.musica, .musica, .shelf, .shelf, .nota]
+        let base = settings.notchSectionOrder
+        assert(Set(base).count == base.count, "base com duplicata: \(base)")
+        assert(Set(base) == Set(NotchSection.allCases), "base perdeu seção: \(base)")
+
+        // e o VM usa essa base, não mais a de fábrica
+        settings.notchSectionOrder = NotchSectionOrder.sanear(salva: ["shelf", "musica"])
+        let vm = NotchViewModel()
+        vm.recalcularSecoes(comConteudo(.musica, .shelf), travadaNaNota: false)
+        assert(vm.secoes == [.shelf, .musica],
+               "o VM ignorou a ordem dos Ajustes: \(vm.secoes)")
     }
 }

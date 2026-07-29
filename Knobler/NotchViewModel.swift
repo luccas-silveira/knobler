@@ -177,9 +177,7 @@ final class NotchViewModel: ObservableObject {
     @Published private(set) var cardHeight: CGFloat = 0
 
     func recalcularSecoes(_ estados: [NotchSectionState], travadaNaNota: Bool) {
-        // ponytail: base fixa na ordem de fábrica; a Task 4 troca isto pela
-        // preferência do usuário (`AppSettings.shared.notchSectionOrder`).
-        secoes = NotchSectionOrder.ordenar(base: NotchSectionOrder.padrao,
+        secoes = NotchSectionOrder.ordenar(base: AppSettings.shared.notchSectionOrder,
                                            estados: estados,
                                            agora: Date(),
                                            travadaNaNota: travadaNaNota)
