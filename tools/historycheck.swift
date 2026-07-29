@@ -18,6 +18,7 @@ struct HistoryCheck {
         testWebhookSubstitui()
         testMesmoIDUmaVez()
         testGesto()
+        testInicioDeGesto()
         print("✅ historycheck ok")
     }
 
@@ -87,5 +88,32 @@ struct HistoryCheck {
         // guarda de diagonal: swipe quase horizontal não mexe no card
         assert(NotchGesture.verticalTarget(accumY: 30, accumX: 60) == nil, "diagonal não abre")
         assert(NotchGesture.verticalTarget(accumY: -30, accumX: 60) == nil, "diagonal não fecha")
+    }
+
+    /// Reconhecer o começo do gesto é o que zera o acumulador e a flag da
+    /// cortina. Fora do trackpad não existe `.began`, então o resto da tabela
+    /// é o que impede o acumulador de crescer pra sempre.
+    static func testInicioDeGesto() {
+        let g = NotchGesture.gestureGap
+        // trackpad: .began sempre começa
+        assert(NotchGesture.isGestureStart(
+            began: true, momentum: false, sinceLastEvent: 0, previousInZone: true),
+            ".began começa gesto")
+        // inércia NUNCA começa: ela chega depois dos dedos saírem
+        assert(!NotchGesture.isGestureStart(
+            began: false, momentum: true, sinceLastEvent: 99, previousInZone: true),
+            "inércia não começa gesto")
+        // rodinha: sem fase nenhuma, só a pausa separa dois gestos
+        assert(NotchGesture.isGestureStart(
+            began: false, momentum: false, sinceLastEvent: g + 0.01, previousInZone: true),
+            "pausa longa começa gesto novo (mouse de rodinha)")
+        assert(!NotchGesture.isGestureStart(
+            began: false, momentum: false, sinceLastEvent: g / 2, previousInZone: true),
+            "rolagem contínua é o MESMO gesto — é o puxão longo")
+        // gesto que começou fora da zona e entrou arrastando: o .began dele foi
+        // descartado, então o primeiro evento dentro conta como começo
+        assert(NotchGesture.isGestureStart(
+            began: false, momentum: false, sinceLastEvent: 0, previousInZone: false),
+            "entrar na zona no meio do gesto conta como começo")
     }
 }

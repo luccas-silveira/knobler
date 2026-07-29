@@ -25,6 +25,11 @@ enum DictationPhase: Equatable {
 }
 
 final class NotchViewModel: ObservableObject {
+    /// Tela deste view model (existe um por monitor). Quem precisa saber "sou
+    /// eu?" — hoje só a nota rápida — compara com este id. nil no harness de
+    /// snapshot, que instancia o VM solto.
+    var displayID: CGDirectDisplayID?
+
     @Published var expanded = false {
         // recolher o notch desliga o espelho — a câmera nunca fica ligada escondida
         didSet { if !expanded { mirrorOn = false } }
@@ -155,8 +160,11 @@ final class NotchViewModel: ObservableObject {
             let work = DispatchWorkItem { [weak self] in
                 guard let self else { return }
                 // digitar na nota não pode ser interrompido por um mouse que
-                // saiu da área — Esc solta o foco e aí o hover-out volta a valer
-                guard !QuickNote.shared.editing else { return }
+                // saiu da área — Esc solta o foco e aí o hover-out volta a
+                // valer. Só na tela dona: uma nota focada no monitor A não
+                // pode congelar o card do monitor B.
+                guard !QuickNote.shared.hosted(by: self.displayID)
+                    || !QuickNote.shared.editing else { return }
                 if self.expanded || self.peeking { self.lastCollapseAt = Date() }
                 self.expanded = false
                 self.peeking = false
@@ -198,6 +206,8 @@ final class NotchViewModel: ObservableObject {
     func setExpandedDirect(_ value: Bool) {
         pendingWork?.cancel()
         expanded = value
+        // a cortina só existe dentro do card aberto — fechar leva ela junto
+        if !value { historyOpen = false }
     }
 
     // MARK: - Mensagens LAN

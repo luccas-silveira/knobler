@@ -6,11 +6,41 @@
 //  eventos pra poder ser testada sem NSEvent.
 //
 
-import CoreGraphics
+import Foundation
 
 enum ScrollTarget: Equatable { case closed, expanded, history }
 
 enum NotchGesture {
+    /// Pausa que separa dois gestos de um mouse de rodinha.
+    ///
+    /// ponytail: teto real é a rodinha. Rolar sem parar por mais de 0,3 s conta
+    /// como um gesto só — que é justamente o puxão longo que abre a cortina.
+    static let gestureGap: TimeInterval = 0.3
+
+    /// Um gesto está começando? O acumulador e a flag da cortina zeram aqui, e
+    /// sem isso os dois nunca zeram fora do trackpad.
+    ///
+    /// - `began`: o trackpad diz `.began`. É o único caso que o código antigo
+    ///   reconhecia — e mouse de rodinha **não** emite fase nenhuma, então o
+    ///   acumulador crescia pra sempre (o usuário caía na cortina sem querer e
+    ///   só saía rolando centenas de pontos de volta) e a flag da cortina
+    ///   ficava presa em `false`, deixando a lista impossível de rolar.
+    /// - `previousInZone == false`: gesto que começou fora da zona e entrou
+    ///   arrastando — o `.began` dele foi descartado antes desta checagem, então
+    ///   ele herdaria o acumulado e a flag do gesto anterior.
+    /// - tempo desde o último evento: a rodinha, de novo. Sem fase, só a pausa
+    ///   distingue um gesto do seguinte.
+    ///
+    /// Inércia nunca começa gesto: ela vem DEPOIS dos dedos saírem.
+    static func isGestureStart(began: Bool, momentum: Bool,
+                               sinceLastEvent: TimeInterval,
+                               previousInZone: Bool) -> Bool {
+        if momentum { return false }
+        if began { return true }
+        if !previousInZone { return true }
+        return sinceLastEvent > gestureGap
+    }
+
     /// Dedos pra baixo (deltaY positivo, natural scrolling): 24 pt abre o card,
     /// 120 pt — mesma passada, sem soltar — puxa o histórico. Pra cima fecha.
     ///

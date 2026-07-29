@@ -33,12 +33,18 @@ struct NotchView: View {
         askStore.state.active == nil && agentRequestStore.state.active == nil ? vm.mode : .question
     }
 
+    /// A nota mora numa tela só (a que estava sob o mouse quando ligou). Nas
+    /// outras ela simplesmente não existe: nada desenha, nada pede teclado.
+    private var noteVisible: Bool {
+        note.hosted(by: vm.displayID)
+    }
+
     private var keyboardAllowed: Bool {
         askStore.state.active != nil
             || agentRequestStore.state.active != nil
             || vm.incoming?.allowReply == true
             || (vm.tab == .messages && vm.expanded)
-            || (note.active && vm.expanded)
+            || (noteVisible && vm.expanded)
     }
 
     private func notifyKeyboardEligibility() {
@@ -212,6 +218,8 @@ struct NotchView: View {
         .onChange(of: vm.tab) { _, _ in notifyKeyboardEligibility() }
         .onChange(of: vm.expanded) { _, _ in notifyKeyboardEligibility() }
         .onChange(of: note.active) { _, _ in notifyKeyboardEligibility() }
+        // o teclado segue o dono, não só o interruptor
+        .onChange(of: note.hostDisplayID) { _, _ in notifyKeyboardEligibility() }
     }
 
     /// Faixa morta no topo dos cards: só existe onde tem câmera de verdade.
@@ -246,7 +254,7 @@ struct NotchView: View {
             // menor que o conteúdo, que a `.frame` centraliza: as linhas mais
             // novas saem pelo topo da tela e a metade de baixo cai fora do
             // `.onHover` (mover o mouse pra lá lê como saída e fecha o card).
-            if note.active {
+            if noteVisible {
                 return CGSize(width: expandedSize.width,
                               height: chrome + Self.noteEditorHeight + 20)
             }
@@ -659,6 +667,16 @@ struct NotchView: View {
             // garante isso por padrão, e a guarda de hover em
             // NotchViewModel.setHover depende de note.editing virar false.
             .onExitCommand { noteFocused = false }
+            // cinto e suspensório: o campo também sai da árvore por caminhos
+            // que não passam pelo onChange acima (uma notificação tira o modo
+            // de .music, um gesto fecha o card). O SwiftUI costuma zerar o
+            // @FocusState nessa hora, mas não é contrato — e um `editing`
+            // preso em true trava TODO notch aberto pra sempre, sem saída
+            // pelo lado do usuário.
+            .onDisappear {
+                noteFocused = false
+                note.editing = false
+            }
     }
 
     // MARK: - Música expandida
@@ -667,7 +685,7 @@ struct NotchView: View {
     private var expandedContent: some View {
         VStack(spacing: 8) {
             Group {
-                if note.active {
+                if noteVisible {
                     noteSection
                 } else if vm.historyOpen {
                     HistoryListView(history: history)

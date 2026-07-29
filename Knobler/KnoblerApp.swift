@@ -107,9 +107,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var scrollAccumX: CGFloat = 0
     private var scrollAccumY: CGFloat = 0
     private var scrollActed = false
-    /// Gesto que COMEÇOU com o histórico aberto rola a lista, não age no notch.
-    /// Sem isso, o mesmo puxão que abre o histórico seguiria rolando a lista.
+    /// Gesto que COMEÇOU com uma lista rolável na cortina rola a lista, não age
+    /// no notch. Sem isso, o mesmo puxão que abre o histórico seguiria rolando.
     private var scrollStartedInHistory = false
+    /// Timestamp e zona do último evento de scroll — é com eles que
+    /// `NotchGesture.isGestureStart` reconhece começo de gesto sem `.began`
+    /// (mouse de rodinha) ou de gesto que entrou arrastando na zona.
+    private var lastScrollAt: TimeInterval = 0
+    private var lastScrollInZone = false
 
     // ilha simulada nos monitores sem notch físico
     private static let simulatedNotchSize = CGSize(width: 190, height: 30)
@@ -320,9 +325,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         pomodoro.onPhaseEnd = { [weak self] ended, next in
             guard let self else { return }
             let (title, body) = Self.pomodoroNotice(ended: ended, next: next)
-            self.notches.values.forEach {
-                $0.viewModel.enqueue(NotchNotification(appName: "Pomodoro", title: title, body: body))
-            }
+            // uma notificação só, montada FORA do laço: o id é um UUID novo a
+            // cada init, então uma por tela viraria N linhas no histórico (o
+            // dedupe do record() é por id). Os outros pontos de entrada já
+            // montam assim.
+            let notice = NotchNotification(appName: "Pomodoro", title: title, body: body)
+            self.notches.values.forEach { $0.viewModel.enqueue(notice) }
             if AppSettings.shared.pomodoroSound { NSSound(named: "Glass")?.play() }
         }
         // Travar a tela nas pausas do Pomodoro (opt-in): o mesmo overlay do Descanso,
@@ -337,12 +345,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         reminderScheduler.itemsProvider = { AppSettings.shared.reminders }
         reminderScheduler.onFire = { [weak self] r in
             guard let self else { return }
-            self.notches.values.forEach {
-                $0.viewModel.enqueue(NotchNotification(
-                    appName: nil, title: r.title, body: r.body, openURL: r.openURL,
-                    // token = id do lembrete: o card oferece "Adiar" sem abrir Ajustes
-                    actionTitles: Self.snoozeOptions.map(\.title), actionToken: r.id))
-            }
+            // fora do laço pelo mesmo motivo do Pomodoro: uma notificação por
+            // tela teria um id diferente cada e empilharia N linhas iguais no
+            // histórico
+            let card = NotchNotification(
+                appName: nil, title: r.title, body: r.body, openURL: r.openURL,
+                // token = id do lembrete: o card oferece "Adiar" sem abrir Ajustes
+                actionTitles: Self.snoozeOptions.map(\.title), actionToken: r.id)
+            self.notches.values.forEach { $0.viewModel.enqueue(card) }
             if let sound = r.soundName { NSSound(named: NSSound.Name(sound))?.play() }
             if case .oneShot = r.schedule,
                let i = AppSettings.shared.reminders.firstIndex(where: { $0.id == r.id }) {
@@ -635,9 +645,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func handleScroll(_ event: NSEvent) -> NSEvent? {
         let mouse = NSEvent.mouseLocation
-        guard let screen = NSScreen.screens.first(where: { NSMouseInRect(mouse, $0.frame, false) }),
-              let vm = notches[Self.displayID(of: screen)]?.viewModel
+        guard let screen = NSScreen.screens.first(where: { NSMouseInRect(mouse, $0.frame, false) })
         else { return event }
+        let id = Self.displayID(of: screen)
+        guard let vm = notches[id]?.viewModel else { return event }
 
         // zona do gesto: o notch fechado, o card aberto, ou o card com a cortina
         let expanded = vm.mode == .music
@@ -645,17 +656,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let zoneHeight: CGFloat = vm.historyOpen ? 420 : (expanded ? 200 : vm.notchSize.height + 10)
         let inZone = abs(mouse.x - screen.frame.midX) <= zoneWidth / 2
             && mouse.y >= screen.frame.maxY - zoneHeight
-        guard inZone else { return event }
+        guard inZone else {
+            // um gesto que entra arrastando na zona precisa saber que o evento
+            // anterior estava fora — é o que o faz contar como gesto novo
+            lastScrollInZone = false
+            return event
+        }
 
         // o reset vem antes de tudo: um gesto que começa precisa resincronizar
         // o próprio estado mesmo que a cortina tenha fechado por fora (o
         // setHover fecha sozinho quando o mouse sai), senão a flag velha
         // engole o gesto novo inteiro
-        if event.phase == .began {
+        let novoGesto = NotchGesture.isGestureStart(
+            began: event.phase == .began,
+            momentum: !event.momentumPhase.isEmpty,
+            sinceLastEvent: event.timestamp - lastScrollAt,
+            previousInZone: lastScrollInZone)
+        lastScrollAt = event.timestamp
+        lastScrollInZone = true
+
+        if novoGesto {
             scrollAccumX = 0
             scrollAccumY = 0
             scrollActed = false
+            // handoff só quando há de fato uma lista rolável na tela: com a
+            // nota ligada ou com o histórico vazio a cortina não tem
+            // ScrollView nenhuma, e entregar o eixo vertical a ela mataria o
+            // gesto — sem abrir, sem fechar, sem histórico
             scrollStartedInHistory = vm.historyOpen
+                && !NotificationHistory.shared.items.isEmpty
+                && !QuickNote.shared.hosted(by: id)
         }
 
         // cortina aberta: o vertical é da lista, pra ela rolar de verdade —
@@ -683,9 +713,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 vm.setExpandedDirect(true)
             case .history:
                 vm.setExpandedDirect(true)
-                vm.historyOpen = true
+                // nota e cortina são exclusivas: com a nota ligada nesta tela o
+                // card é dela, e abrir a cortina por baixo deixaria o rodapé,
+                // o zoneHeight e o handoff de scroll falando de uma lista que
+                // não está na árvore de views
+                vm.historyOpen = !QuickNote.shared.hosted(by: id)
             }
-        } else if !scrollActed, abs(scrollAccumX) > 50 {
+        } else if !scrollActed, !vm.historyOpen, abs(scrollAccumX) > 50 {
+            // com a cortina aberta o horizontal fica de fora: trocar de aba por
+            // baixo do histórico largaria o usuário em Mensagens no hover-out,
+            // sem ele ter visto nada acontecer
             scrollActed = true
             if expanded {
                 // card aberto: horizontal navega entre as telas (Música/Mensagens)
@@ -750,6 +787,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 notch = existing
             } else {
                 let viewModel = NotchViewModel()
+                viewModel.displayID = id
                 let panel = NotchWindow(
                     contentRect: .zero,
                     styleMask: [.borderless, .nonactivatingPanel],
@@ -969,12 +1007,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Interruptor da nota. Ligar abre o card na hora — esperar o hover
     /// depois de escolher no menu seria um passo a mais sem motivo.
+    ///
+    /// A nota tem UMA tela dona: a que estava sob o mouse quando ligou. Só ela
+    /// abre e só ela fecha. Sem dono, ligar expandia todos os monitores e nada
+    /// os recolhia — o hover-out precisa de um hover-in anterior, e depois do
+    /// menu o ponteiro está no item da barra, não sobre o card. Ficaria um
+    /// notch aberto pra sempre, que o PRODUCT.md proíbe.
     @objc private func toggleQuickNote() {
         let note = QuickNote.shared
-        note.active.toggle()
         if note.active {
-            notches.values.forEach { $0.viewModel.setExpandedDirect(true) }
+            let host = note.hostDisplayID
+            note.active = false  // didSet limpa texto, editing e o dono
+            if let host, let vm = notches[host]?.viewModel { vm.setExpandedDirect(false) }
+            return
         }
+        let mouse = NSEvent.mouseLocation
+        let screen = NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) }
+            ?? NSScreen.main
+        guard let screen, let vm = notches[Self.displayID(of: screen)]?.viewModel else { return }
+        note.hostDisplayID = Self.displayID(of: screen)
+        note.active = true
+        // nota e cortina são exclusivas: o card é de uma coisa só
+        vm.historyOpen = false
+        vm.setExpandedDirect(true)
     }
 
     /// Conta-gotas: lupa nativa, HEX no clipboard, card no notch com os outros
