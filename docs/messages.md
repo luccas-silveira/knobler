@@ -25,7 +25,8 @@ quem está online agora e o histórico por conversa.
 - Gesto horizontal de dois dedos no notch aberto troca entre a aba de Música
   e a aba de Mensagens.
 - Clique numa pessoa online pra abrir a conversa; escreva e envie texto, foto
-  ou GIF.
+  ou GIF. A conversa abre já na mensagem mais recente e segue colada nela
+  quando chega uma nova — role pra cima pra ver o histórico.
 - Nome e foto que os outros veem: Ajustes → Mensagens.
 
 ## Permissões

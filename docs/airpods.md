@@ -23,5 +23,6 @@ vem do `system_profiler SPBluetoothDataType`, lido no connect e depois a cada
 
 ## Permissões
 
-- **Bluetooth** — *"Knobler mostra o nível de bateria dos seus AirPods no
-  notch quando eles conectam."*
+- **Bluetooth** — *"Knobler detecta seus AirPods pra mostrar a bateria e o card
+  de conexão no notch."* Pedida no registro do monitor, logo após a abertura,
+  quando o recurso está ligado em Ajustes → Notch.

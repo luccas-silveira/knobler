@@ -128,13 +128,14 @@ Permissões** (ver [`docs/settings.md`](docs/settings.md)).
 | Rede local | encontrar outros Macs com Knobler |
 | Arquivos e pastas | ler as capturas de tela que vão pra prateleira |
 | Gravação de áudio do sistema | visualizador reagindo ao áudio real do player |
+| Bluetooth | detectar a conexão dos AirPods pra mostrar a bateria |
 
 A Acessibilidade é a única pedida na abertura: sem ela o `CGEventTap` não existe
-e o gatilho do ditado nunca chega ao app.
+e o gatilho do ditado nunca chega ao app. O Bluetooth é pedido logo depois, no
+registro do monitor de AirPods, se o recurso estiver ligado em Ajustes › Notch.
 
-O Knobler **não** pede Automação (não usa Apple Events), **não** pede Bluetooth
-(lê os AirPods por `IOBluetooth`/`system_profiler`) e **não** pede Gravação de
-Tela.
+O Knobler **não** pede Automação (não usa Apple Events) e **não** pede Gravação
+de Tela.
 
 ### O que sai da sua máquina
 

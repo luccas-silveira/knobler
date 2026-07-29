@@ -11,6 +11,27 @@ O endpoint `/status` só existe quando a API local está ligada em Ajustes →
 Notch. Os campos variam por integração; normalmente incluem `notches`,
 `player`, `dictation`, `ask`, `micInUse` e `lanMessaging`.
 
+## O app fecha sozinho ao abrir (versões até a 0.13.0)
+
+Sintoma: o ícone aparece por um instante e o app morre, sempre, em Mac onde ele
+nunca rodou antes. Em quem já usava, não acontece.
+
+Causa: o monitor de AirPods pedia permissão de Bluetooth sem a chave
+`NSBluetoothAlwaysUsageDescription` no `Info.plist`, e o macOS aborta o processo
+nesse caso — só no **primeiro** pedido, por isso máquinas antigas escapavam.
+
+Correção: atualize para a **0.13.1** ou posterior.
+
+```bash
+brew update && brew upgrade knobler
+```
+
+Pra confirmar que era isso, o motivo fica no relatório de falha:
+
+```bash
+ls -t ~/Library/Logs/DiagnosticReports/Knobler* | head -1 | xargs grep -o '"namespace":"TCC"[^]]*]'
+```
+
 ## O app está aberto, mas o notch não aparece
 
 1. Confirme se o processo está ativo:

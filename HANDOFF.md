@@ -1,3 +1,71 @@
+# 🏁 SESSÃO 2026-07-29 (tarde) — o crash em Mac novo e a conversa que abria no topo
+
+Sessão curta e reativa: dois bugs relatados de fora, dois releases publicados
+(**v0.13.1** e **v0.13.2**). O primeiro era grave — o app não abria em nenhuma
+máquina limpa desde sempre.
+
+## O que foi feito
+
+**v0.13.1 — o app morria no launch em todo Mac que não fosse este.** Relato:
+"crasha na hora que abre". O crash log entregou a resposta em uma linha:
+`"termination": {"namespace":"TCC", ...}` pedindo
+`NSBluetoothAlwaysUsageDescription`. O `BluetoothMonitor` registra
+`IOBluetoothDevice.register` no startup (`KnoblerApp.swift:462`, e
+`airpodsNotch` tem default `true`), o TCC pede a permissão, não acha a chave no
+`Info.plist` e chama `__TCC_CRASHING_DUE_TO_PRIVACY_VIOLATION__` — `abort`, não
+erro recuperável. Fix: a chave em `project.yml`.
+
+**Por que era invisível aqui.** O TCC só aborta no **primeiro** pedido. Esta
+máquina já tinha a decisão gravada, então o caminho fatal nunca era percorrido —
+o bug era 100% reproduzível lá fora e 0% aqui. Nenhum gate pegaria: não é
+compilação, não é lógica, é uma chave de plist ausente exercitada só por TCC
+virgem.
+
+**v0.13.2 — a conversa abria no topo.** O `ScrollView` de `MessagesView.swift`
+não tinha âncora, então nascia no histórico mais antigo e obrigava a rolar até
+o fim toda vez. `.defaultScrollAnchor(.bottom)` (macOS 14.0+, dentro do target)
+resolve abertura e mensagem nova de uma vez — sem `ScrollViewReader`, `id` ou
+`onChange`.
+
+**Documentação.** O `README.md` afirmava *"não pede Bluetooth"* e o caveat do
+cask dizia o mesmo — a premissa errada que manteve a chave fora do plist.
+Corrigidos os dois, mais `docs/airpods.md` (texto real do prompt),
+`docs/messages.md` (âncora da conversa) e uma seção nova em
+`docs/troubleshooting.md` pro sintoma "o app fecha sozinho ao abrir".
+
+## Validação
+
+`tools/check.sh` **16 ok**. Build Release limpo nos dois releases.
+
+O fix do Bluetooth foi validado **com controle**, não por leitura de código:
+
+| | TCC | Build | Resultado |
+|---|---|---|---|
+| A | Bluetooth resetado | v0.13.0 | morreu, `namespace: TCC`, assinatura idêntica à relatada |
+| B | Bluetooth resetado | com a chave | vivo |
+| C | 9 serviços resetados (tudo menos Acessibilidade) | com a chave | vivo 30 s, sem crash log novo |
+
+`tccutil reset <Serviço> com.zoi.knobler` é o único jeito de simular Mac limpo
+sem ter um. O serviço chama-se **`BluetoothAlways`**, não `Bluetooth`. O zip
+publicado da 0.13.1 foi baixado e conferido: sha256 bate com o cask e a chave
+está no `Info.plist` de dentro.
+
+O fix da conversa **não tem validação automatizada** — `ScrollView` não
+renderiza no harness de snapshot (`NSScrollView` por baixo, área preta) e a
+conversa exige um peer real na rede. Confirmado só no app, pelo usuário.
+
+## Pendências e followups
+
+- **`Permission` não lista Bluetooth** (`Permissions.swift:27`). O painel
+  Ajustes → Permissões mostra 7 permissões e o app usa 8 — a de Bluetooth não
+  tem linha nem estado. As docs já foram corrigidas; falta o código.
+- **Hipótese descartada, registrada pra não voltar:** o `codeSigningTrustLevel:
+  4294967295` do crash log **não** indica problema de assinatura. É o normal de
+  app não-notarizado com quarentena removida, e não impede o launch. O primeiro
+  palpite da sessão (cert self-signed) estava errado.
+- Notarização segue não feita — `release.sh` já tem o caminho pronto
+  (`KNOBLER_NOTARY_PROFILE`), falta o Apple Developer Program.
+
 # 🏁 SESSÃO 2026-07-29 (fim de manhã) — crítica de UX da nota rápida e os quatro fixes
 
 Sessão de auditoria, não de feature. `/impeccable critique` na nota rápida
