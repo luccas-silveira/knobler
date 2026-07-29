@@ -6,6 +6,14 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Changed
+- **Ícone do app e da barra viraram a marca do site**: a silhueta do notch
+  (mesma geometria de `NotchShape`) substitui o ícone antigo e o caractere
+  `◐` que fazia as vezes de ícone na barra de menus. O da barra é template —
+  acompanha claro/escuro e o realce do menu aberto. O `.icns` é gerado por
+  `tools/makeicon.swift`, direto do vetor, e o favicon do site (que ainda era
+  o padrão do Astro) passou a ser a mesma marca.
+
 ## [0.13.2] - 2026-07-29
 
 ### Fixed

@@ -945,6 +945,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func setupStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        item.button?.image = Self.statusImage()
+        item.button?.imagePosition = .imageLeading
         item.button?.title = Self.statusTitle(needsAccessibility: needsAccessibility)
         let menu = NSMenu()
         menu.delegate = self   // itens do Pomodoro reconstroem a cada abertura
@@ -959,8 +961,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         AppSettings.shared.dictation && !AXIsProcessTrusted()
     }
 
+    /// A marca do produto (a mesma silhueta do site) na barra. Desenhada aqui
+    /// em vez de virar asset: a forma já existe em código e um PNG a mais
+    /// significaria manter dois tamanhos em sincronia à mão.
+    ///
+    /// `isTemplate` é o que faz o ícone acompanhar claro/escuro e o realce do
+    /// menu aberto — sem isso ele fica preto sobre preto na barra escura.
+    static func statusImage() -> NSImage {
+        let size = NSSize(width: 18, height: 18 * 9 / 22)
+        let image = NSImage(size: size, flipped: true) { rect in
+            guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
+            let path = NotchShape(topCornerRadius: rect.width * 3 / 22,
+                                  bottomCornerRadius: rect.width * 5 / 22)
+                .path(in: rect)
+            ctx.addPath(path.cgPath)
+            ctx.setFillColor(NSColor.black.cgColor)
+            ctx.fillPath()
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }
+
+    /// Só o aviso: a marca vem da imagem ao lado. Vazio some da barra.
     static func statusTitle(needsAccessibility: Bool) -> String {
-        needsAccessibility ? "◐⚠" : "◐"
+        needsAccessibility ? " ⚠" : ""
     }
 
     private func refreshAccessibilityBadge() {
