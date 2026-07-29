@@ -1,6 +1,6 @@
 # Spec — Card aberto com foco único
 
-Status: proposto (não implementado)
+Status: implementado (branch `feat/card-foco`, 2026-07-29)
 Escopo: apenas o notch **expandido**. O notch fechado e a prioridade de
 interrupções (`NotchViewModel.mode`) ficam como estão.
 Pesquisa de viabilidade: `card-foco-pesquisa.md` — este spec já incorpora

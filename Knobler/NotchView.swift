@@ -1558,6 +1558,10 @@ private struct AberturaDoCard: ViewModifier {
             // ligar/desligar a nota com o card JÁ aberto não passa pelo
             // `expanded`: sem isto a seção nova nunca entraria na ordem congelada
             .onChange(of: hasNota) { _, _ in if vm.expanded { recalcular() } }
+            // idem pra Mensagens: a PRIMEIRA conversa nasce com o card já
+            // aberto (hover + mensagem LAN chegando), e sem isto `.mensagens`
+            // não estaria na ordem congelada quando o clique no card pede foco
+            .onChange(of: hasMensagens) { _, _ in if vm.expanded { recalcular() } }
             // a altura inicial também precisa sair daqui: quem vive fora do
             // SwiftUI (o monitor de scroll) leria 0 até o card mudar de tamanho
             .onAppear { vm.publicarAltura(altura) }
