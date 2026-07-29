@@ -895,18 +895,13 @@ struct NotchView: View {
     /// Quanto falta da fase atual do Pomodoro, de 0 a 1 — o anel do ícone.
     ///
     /// A duração cheia da fase não vem no `PomodoroState` (só o `remaining`),
-    /// então sai dos Ajustes, que é de onde o próprio `Pomodoro` a lê. Mexer na
-    /// config no meio de uma fase pode dar fração fora da faixa; daí o clamp.
+    /// então sai dos Ajustes, pelo mesmo par que o próprio `Pomodoro` usa —
+    /// `pomodoroConfig` + `duration(of:config:)`. Mexer na config no meio de uma
+    /// fase pode dar fração fora da faixa; daí o clamp.
     /// Parado (idle) não tem ciclo em andamento e não desenha anel.
     static func fatiaDoCiclo(_ p: PomodoroState, settings: AppSettings) -> CGFloat? {
         guard p.runState != .idle else { return nil }
-        let minutos: Int
-        switch p.phase {
-        case .focus: minutos = settings.pomodoroFocus
-        case .shortBreak: minutos = settings.pomodoroShortBreak
-        case .longBreak: minutos = settings.pomodoroLongBreak
-        }
-        let total = TimeInterval(minutos) * 60
+        let total = Pomodoro.duration(of: p.phase, config: settings.pomodoroConfig)
         guard total > 0 else { return nil }
         return CGFloat(min(max(p.remaining / total, 0), 1))
     }

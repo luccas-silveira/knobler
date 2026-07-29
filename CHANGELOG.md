@@ -6,6 +6,24 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- **Bluetooth entra no painel de Permissões**: o app usava oito permissões e o
+  painel listava sete — a do Bluetooth, que o monitor dos AirPods pede logo na
+  abertura, não tinha linha nem estado. Agora tem, com o botão **Abrir** pro
+  painel certo do Ajustes do Sistema. O estado sai do `CBManager.authorization`:
+  quem pede é o IOBluetooth, mas os dois batem no mesmo registro do TCC e só o
+  CoreBluetooth expõe o estado sem instanciar nada.
+
+### Fixed
+- **`docs/settings.md` dizia que a Acessibilidade era a única permissão pedida
+  na abertura** — o Bluetooth também é, desde que **AirPods no notch** esteja
+  ligado (o padrão). Era a mesma premissa errada que manteve a chave do
+  Bluetooth fora do `Info.plist` até a v0.13.1.
+- **O anel do Pomodoro na faixa podia discordar do relógio do card**: a fatia
+  lia os minutos crus dos Ajustes e o engine lia os mesmos minutos com clamp
+  mínimo de 1. Com uma fase configurada em 0, o relógio contava 1 min e o anel
+  não desenhava. Os dois passaram a sair do mesmo `pomodoroConfig`.
+
 ## [0.14.0] - 2026-07-29
 
 ### Changed

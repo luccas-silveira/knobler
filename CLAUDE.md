@@ -45,8 +45,8 @@ estado em `Snapshots/*.png` — é o jeito de "ver" a UI sem abrir o app.
 sem mudança nenhuma de código: `closed-music`, `closed-music-external`,
 `foco-atividade-indeterminada` e `update-installing` (visualizador animado,
 barra de progresso). Neles o snapshot é inspeção visual, não detector de
-regressão — não gaste tempo investigando o diff. O harness gera 53 PNGs no
-total; os outros 49 são byte-idênticos entre rodadas.
+regressão — não gaste tempo investigando o diff. O harness gera 54 PNGs no
+total; os outros 50 são byte-idênticos entre rodadas.
 
 ⚠️ **Qualquer view que dependa de um `NSView` real (janela/WindowServer de
 verdade) não renderiza via `ImageRenderer` offscreen** — vira o ícone de
@@ -70,18 +70,31 @@ harness e vale como detector de regressão. A seção `espelho`
 também fica de fora: precisa de câmera real. Ao adicionar
 cenário novo ao harness, desconfie de qualquer subview que envolva um
 desses. Por isso `settings-*.png`
-(7 painéis de Ajustes) e `mapping-editor.png` **não** são gerados por
+(8 painéis de Ajustes) e `mapping-editor.png` **não** são gerados por
 `tools/snapshot.sh` — são
 mantidos à mão — junto com `nota-placeholder.png` (campo da nota rápida: é um
 `TextEditor`, logo um `ScrollView`; a receita de captura está num comentário em
 `docs/nota-rapida.md`). Pros painéis:
 rode `Knobler.app/Contents/MacOS/Knobler --ajustes=<painel>`
 (painéis: `geral notch ditado pomodoro lembretes descanso webhooks
-mensagens`), tire o screenshot da janela real e salve em `docs/images/`
+mensagens permissoes`), tire o screenshot da janela real e salve em
+`docs/images/`
 (as imagens usadas pelos docs de usuário ficam ali, não em `Snapshots/` —
 `Snapshots/` é gitignored e serve só de QA visual local). `screencapture -l<windowID>`
 captura a sombra própria do macOS (PNG com alpha) — corte pra
 `802x554+55+37` antes de salvar (bordas reais da janela, sem halo).
+
+⚠️ **Recapturar `expanded-shelf.png` mexe na máquina do usuário — peça antes.**
+É a única imagem dos docs que exige o card aberto com a prateleira em foco, e a
+receita passa por fechar o Knobler que estiver rodando (senão são dois notches
+na mesma tela), escrever `shelfItems` e `notchSectionOrder` via `defaults`,
+subir a build Debug, e então **mover o cursor e clicar** — o hover só acorda com
+`CGWarpMouseCursorPosition` em passos pequenos, e o clique no ícone da faixa
+encolhe o card, então o ponteiro tem que subir logo depois ou o card recolhe
+antes do `screencapture`. Confira o resultado por `GET /status`
+(`notches[].focus == "shelf"`), não pelo palpite. Restaure `defaults` e relance
+o app do usuário no fim. Um card transitório (Ask, notificação) pode tomar o
+notch no meio e estragar a captura — capture algumas vezes e escolha.
 
 ## MCP servers (ativos após reiniciar a sessão)
 

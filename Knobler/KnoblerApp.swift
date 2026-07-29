@@ -318,7 +318,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.calendarActivity = activity
             self?.pushActivity()
         }
-        pomodoro.configProvider = { Pomodoro.Config.fromSettings() }
+        pomodoro.configProvider = { AppSettings.shared.pomodoroConfig }
         pomodoro.onState = { [weak self] state in
             self?.notches.values.forEach { $0.viewModel.pomodoro = state }
         }
@@ -338,7 +338,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         pomodoro.onPhaseBegin = { [weak self] phase in
             guard AppSettings.shared.pomodoroLockScreen,
                   phase == .shortBreak || phase == .longBreak else { return }
-            let dur = Pomodoro.duration(of: phase, config: .fromSettings())
+            let dur = Pomodoro.duration(of: phase, config: AppSettings.shared.pomodoroConfig)
             self?.descanso.begin(label: "Pausa do Pomodoro", duration: dur)
         }
         // Lembretes programados: engine dispara → notch + som. oneShot desliga após disparar.
@@ -1008,7 +1008,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             addPomodoroItem(menu, "↺ Resetar", #selector(pomReset))
         case .waiting:
             let mins = Int(Pomodoro.duration(of: pomodoro.phase,
-                                             config: .fromSettings()) / 60)
+                                             config: AppSettings.shared.pomodoroConfig) / 60)
             let label = pomodoro.phase == .focus
                 ? "▶ Iniciar foco (\(mins) min)"
                 : "▶ Iniciar pausa (\(mins) min)"
@@ -1143,18 +1143,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-    }
-}
-
-extension Pomodoro.Config {
-    /// Lê as durações atuais dos Ajustes (minutos → segundos), clamp mínimo 1 min.
-    static func fromSettings() -> Pomodoro.Config {
-        let s = AppSettings.shared
-        return .init(
-            focus: TimeInterval(max(1, s.pomodoroFocus) * 60),
-            shortBreak: TimeInterval(max(1, s.pomodoroShortBreak) * 60),
-            longBreak: TimeInterval(max(1, s.pomodoroLongBreak) * 60),
-            cyclesUntilLong: max(1, s.pomodoroCyclesLong)
-        )
     }
 }

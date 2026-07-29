@@ -1,3 +1,120 @@
+# 🏁 SESSÃO 2026-07-29 (fim de noite) — a limpeza das pendências herdadas
+
+Sessão de pendência, sem feature nova. A pergunta foi *"o que vem agora pro
+nosso app?"*, a resposta saiu da leitura do HANDOFF anterior — e **duas das três
+prioridades já estavam fechadas**, só não no papel.
+
+## O que já estava feito (e o HANDOFF mentia)
+
+| Pendência anotada | Realidade |
+|---|---|
+| "`fix/nota-rapida-ux` não mergeada" | Branch nem existe. `git log master..feat/historico-nota-rapida` volta **vazio** — entrou inteira via 0.13.x |
+| "monitor desconectado ainda não bate a perda da nota" | `KnoblerApp.swift:893-901` já desliga a nota quando a tela dona some; o `didSet` copia pro clipboard. Os três caminhos estão cobertos |
+
+Lição pra próxima: **o HANDOFF acumula pendências que o código já fechou.**
+Vale conferir cada uma contra o repo antes de planejar em cima delas — as duas
+acima custaram menos de cinco minutos de verificação e teriam custado uma
+sessão inteira de trabalho redundante.
+
+## O que foi feito
+
+**Bluetooth entrou no painel de Permissões.** O app usa oito permissões e o
+painel listava sete: a do Bluetooth, que o monitor dos AirPods pede *na
+abertura*, não tinha linha nem estado. O `Permission` ganhou o case entre
+`calendario` e `redeLocal` (agrupa com as que têm status real, antes das
+opacas); os quatro `switch` são exaustivos, então o compilador cobriu o resto e
+o `SettingsView`, que itera `allCases`, não precisou de uma linha.
+
+O estado vem de `CBManager.authorization` — **CoreBluetooth num app que só usa
+IOBluetooth**. Os dois batem no mesmo `kTCCServiceBluetoothAlways`, e só o
+CoreBluetooth expõe o estado sem instanciar um manager. Verificado compilando
+contra o target 14.2 antes de escrever, não pela memória.
+
+**`fatiaDoCiclo` era bug, não só duplicação.** A pendência dizia "reimplementa
+`Pomodoro.duration(of:config:)`". Reimplementava — e **divergia**: o engine
+aplicava `max(1, …)` nos minutos e a view não. Com uma fase configurada em 0, o
+relógio contava 1 minuto e o anel do ícone não desenhava nada. Agora os dois
+saem do mesmo `AppSettings.pomodoroConfig`, que substituiu
+`Pomodoro.Config.fromSettings()`.
+
+A config foi pra `AppSettings`, não pro `Pomodoro`: o engine tem
+`configProvider` justamente pra não conhecer os Ajustes, e mover pra lá
+quebraria esse isolamento. Os dois arquivos já estavam no harness de snapshot,
+então nada mudou em `tools/snapshot.sh`.
+
+**`expanded-shelf.png` recapturado.** Era anterior à faixa de ícones.
+
+**`zoneWidth` do scroll fechado: nada a fazer.** O `400` já não é literal —
+virou `NotchGesture.larguraFechada`, nomeado e comentado. Não deriva de nada
+porque não existe card fechado de onde derivar; é deliberadamente mais largo
+que o notch físico pra pegar dois dedos na moldura. A pendência pedia derivar
+de algo inexistente.
+
+## O buraco de cobertura que apareceu no caminho
+
+**Nenhum dos nove cenários de Pomodoro o deixava na faixa** — todos o punham em
+foco. O anel do `fatiaDoCiclo`, que a v0.14.0 lista como fix ("o ícone do
+Pomodoro na faixa ganhou o anel"), **nunca teve um único PNG cobrindo**.
+Cenário `faixa-pomodoro` adicionado.
+
+Vale como padrão: quando uma seção tem comportamento *em foco* e *na faixa*,
+são dois estados, e o harness tende a cobrir só o primeiro.
+
+## Validação
+
+- `./tools/check.sh` → **18 checks**, e build Debug limpo.
+- `./tools/snapshot.sh` → **54 PNGs** (era 53). Rodado **duas vezes com hash
+  comparado**: 4 não-determinísticos (os mesmos de sempre), **50 byte-idênticos**
+  — os números do `CLAUDE.md` foram recontados, não estimados.
+- Painel de Permissões conferido **no app rodando** (`--ajustes=permissoes`), não
+  por leitura: o Bluetooth aparece com estado real.
+- O anel de `faixa-pomodoro` bate com a conta (900 s de 25 min ≈ 60% do arco).
+
+## O custo da recaptura da prateleira — leia antes de repetir
+
+A recaptura do `expanded-shelf.png` **mexeu na máquina do usuário e ele mandou
+parar no meio** ("para de mexer na porra do meu mouse"). Com razão: eu pedi
+autorização pra fechar o app dele, mas **não** pra dirigir o cursor e clicar na
+tela dele, que é o que a receita exige.
+
+O que a receita exige, agora anotado no `CLAUDE.md`:
+
+- fechar o Knobler que estiver rodando (senão são dois notches na mesma tela);
+- `defaults write` em `shelfItems` e `notchSectionOrder`;
+- **mover o cursor e clicar** — o hover só acorda com
+  `CGWarpMouseCursorPosition` em passos pequenos (`mouseMoved` postado não
+  basta), e o clique no ícone da faixa *encolhe* o card, então o ponteiro tem
+  que subir logo depois ou ele recolhe antes do `screencapture`;
+- conferir por `GET /status` (`notches[].focus == "shelf"`), que foi o que
+  provou que o clique tinha funcionado enquanto as capturas saíam fechadas.
+
+**Peça autorização explícita pra isso, não só pra fechar o app.**
+
+Um card de **Ask de outra sessão** ("Qual repo-alvo? ghraphnizer / codegraph")
+tomou o notch no meio das tentativas e estragou uma captura. Não foi respondido
+nem cancelado — mas o app do usuário esteve fechado nesse intervalo, então
+**aquela sessão pode ter ficado sem resposta**. Fica o aviso.
+
+Estado devolvido no fim: `shelfItems` e `notchSectionOrder` originais, app de
+`/Applications` relançado, processos de automação mortos.
+
+## Pendências e followups
+
+- **`[Unreleased]` acumulado, sem release.** Três entradas no `CHANGELOG.md`
+  (Bluetooth no painel + dois fixes). Bump sugerido: **MINOR** (0.15.0) — o
+  painel ganhou capacidade nova.
+- **Não existe `settings-ditado.png`.** São 9 painéis de Ajustes e 8 imagens;
+  o do ditado nunca foi capturado.
+- **Nenhum self-check cobre `Permission`** no `check.sh` — o `_selfCheck()`
+  existe em `Permissions.swift` e roda só em `DEBUG`, no launch. O case novo é
+  coberto pela exaustividade do compilador, mas o `status` do Bluetooth não tem
+  gate.
+- Herdadas e ainda abertas: **digitar na nota nunca foi testado no app rodando**;
+  **Aceitar/Recusar espelhado** precisa de AirDrop de outro Apple ID;
+  **notarização** espera o Apple Developer Program.
+
+---
+
 # 🏁 SESSÃO 2026-07-29 (noite) — o card parou de empilhar
 
 A sessão começou por uma queixa de UX, não por um bug: *"a organização e a

@@ -181,6 +181,17 @@ let scenarios: [Scenario] = [
         vm.secoes = [.pomodoro, .musica]
         vm.focus = .pomodoro
     },
+    // O Pomodoro na FAIXA, não em foco: é o único cenário que desenha o anel do
+    // tempo restante no ícone (`fatiaDoCiclo`). Sem ele nenhum PNG cobre esse
+    // anel — os outros cenários de Pomodoro o deixam sempre em foco.
+    Scenario(name: "faixa-pomodoro", realNotch: true) { vm, media, _ in
+        media.injectPreview(state: fakeState(), artwork: fakeArtwork())
+        vm.pomodoro = PomodoroState(phase: .focus, runState: .running, remaining: 900,
+                                    completedFocus: 1, cyclesUntilLong: 4)
+        vm.expanded = true
+        vm.secoes = [.musica, .pomodoro]
+        vm.focus = .musica
+    },
     Scenario(name: "foco-shelf", realNotch: true) { vm, _, _ in
         fakeShelfFiles().forEach { currentShelf.add($0) }
         vm.expanded = true

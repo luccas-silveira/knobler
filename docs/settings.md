@@ -64,7 +64,7 @@ toggle **Verificar atualizações automaticamente** desliga a checagem de vez.
 
 *Permissões — o que o app usa, o estado de cada uma e o que quebra sem ela.*
 
-O painel **Permissões** lista as sete permissões que o Knobler pode usar, com o
+O painel **Permissões** lista as oito permissões que o Knobler pode usar, com o
 estado atual de cada uma e o botão **Abrir**, que leva direto ao painel certo do
 Ajustes do Sistema.
 
@@ -73,10 +73,15 @@ o microfone só quando você segura a ⌥ direita pela primeira vez, a câmera s
 abrir o espelho, a rede local só ao pôr a seção Mensagens em foco. Recusar não
 quebra o app: só desliga aquele recurso.
 
-A exceção é a **Acessibilidade**, a única pedida na abertura. Sem ela o
-`CGEventTap` nem chega a ser criado, então a ⌥ direita nunca chega ao app e não
-existe "primeiro uso" que dê pra esperar — o ditado ficaria impossível de
+Duas fogem dessa regra. A **Acessibilidade** é pedida na abertura porque sem ela
+o `CGEventTap` nem chega a ser criado — a ⌥ direita nunca chega ao app e não
+existe "primeiro uso" que dê pra esperar, o ditado ficaria impossível de
 acionar. É também a permissão que os HUDs de volume e brilho usam.
+
+O **Bluetooth** é pedido na abertura junto com o monitor dos AirPods, que sobe
+com o app quando **AirPods no notch** está ligado (o padrão) — o macOS pede
+assim que o Knobler pergunta quais dispositivos estão pareados. Desligue a opção
+em Ajustes › Notch se preferir não conceder.
 
 Três permissões não expõem status ao app — **Rede local**, **Arquivos e pastas**
 e **Gravação de áudio do sistema**. O macOS não oferece API para consultá-las, só

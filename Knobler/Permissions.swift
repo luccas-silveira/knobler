@@ -4,7 +4,7 @@
 //
 //  Inventário único das permissões que o app usa: estado, por quê e o link
 //  pro painel certo do Ajustes do Sistema. Existe porque o painel de Ajustes
-//  precisa dos 7 estados de uma vez e os deep links viviam copiados em 6
+//  precisa dos 8 estados de uma vez e os deep links viviam copiados em 6
 //  arquivos diferentes.
 //
 //  Só LÊ estado — quem pede continua sendo cada subsistema, no primeiro uso
@@ -13,6 +13,7 @@
 
 import AVFoundation
 import ApplicationServices
+import CoreBluetooth
 import EventKit
 import Foundation
 
@@ -25,7 +26,8 @@ enum PermissionStatus {
 }
 
 enum Permission: String, CaseIterable, Identifiable {
-    case acessibilidade, microfone, camera, calendario, redeLocal, arquivos, audioSistema
+    case acessibilidade, microfone, camera, calendario, bluetooth, redeLocal, arquivos,
+         audioSistema
 
     var id: String { rawValue }
 
@@ -35,6 +37,7 @@ enum Permission: String, CaseIterable, Identifiable {
         case .microfone: return "Microfone"
         case .camera: return "Câmera"
         case .calendario: return "Calendários"
+        case .bluetooth: return "Bluetooth"
         case .redeLocal: return "Rede local"
         case .arquivos: return "Arquivos e pastas"
         case .audioSistema: return "Gravação de áudio do sistema"
@@ -52,6 +55,8 @@ enum Permission: String, CaseIterable, Identifiable {
             return "Mostra o espelho no notch antes de reuniões."
         case .calendario:
             return "Mostra a contagem regressiva do próximo evento na asinha do notch."
+        case .bluetooth:
+            return "Vê os AirPods conectarem e lê a bateria deles. Pedida na abertura, junto com a Acessibilidade — desligue \"AirPods no notch\" pra evitar."
         case .redeLocal:
             return "Encontra outros Macs com Knobler pra trocar mensagens."
         case .arquivos:
@@ -70,6 +75,7 @@ enum Permission: String, CaseIterable, Identifiable {
         case .microfone: anchor = "Privacy_Microphone"
         case .camera: anchor = "Privacy_Camera"
         case .calendario: anchor = "Privacy_Calendars"
+        case .bluetooth: anchor = "Privacy_Bluetooth"
         case .redeLocal: anchor = "Privacy_LocalNetwork"
         case .arquivos: anchor = "Privacy_FilesAndFolders"
         // ponytail: âncora só existe no macOS 14.4+; em 14.2/14.3 o Ajustes
@@ -91,6 +97,15 @@ enum Permission: String, CaseIterable, Identifiable {
         case .calendario:
             switch EKEventStore.authorizationStatus(for: .event) {
             case .fullAccess: return .concedida
+            case .notDetermined: return .naoPedida
+            default: return .negada
+            }
+        case .bluetooth:
+            // Quem pede é o IOBluetooth do BluetoothMonitor, não o CoreBluetooth
+            // — mas os dois batem no mesmo TCC (kTCCServiceBluetoothAlways), e
+            // só o CoreBluetooth expõe o estado sem instanciar nada.
+            switch CBManager.authorization {
+            case .allowedAlways: return .concedida
             case .notDetermined: return .naoPedida
             default: return .negada
             }

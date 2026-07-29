@@ -2,10 +2,12 @@
 
 ![Notch expandido com a prateleira](images/expanded-shelf.png)
 
-> A captura acima é anterior à faixa de ícones do rodapé (v0.14.0) — o card
-> real hoje traz a faixa embaixo. Ela não sai do `tools/snapshot.sh` porque as
-> miniaturas dependem do `QLThumbnailGenerator`, que não renderiza offscreen;
-> pede recaptura manual no app rodando.
+*A prateleira em foco, com a faixa de seções no rodapé.*
+
+> Esta imagem não sai do `tools/snapshot.sh`: as miniaturas dependem do
+> `QLThumbnailGenerator`, que não renderiza offscreen (o `foco-shelf.png` do
+> harness sai com o ícone de "proibido" no lugar delas). Recaptura é manual, no
+> app rodando — ver a receita em `CLAUDE.md`.
 
 ## O que faz
 

@@ -168,6 +168,18 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(pomodoroSound, forKey: "pomodoroSound") }
     }
 
+    /// As durações dos Ajustes na forma que o `Pomodoro` entende (minutos →
+    /// segundos, clamp mínimo de 1 min). Fonte única: o engine lê daqui a cada
+    /// fase e o anel do ícone da faixa mede a fatia com a MESMA config — senão
+    /// um clamp aplicado só de um lado faz o anel discordar do relógio.
+    /// Mora aqui, e não no `Pomodoro`, pra manter o engine sem saber de Ajustes.
+    var pomodoroConfig: Pomodoro.Config {
+        .init(focus: TimeInterval(max(1, pomodoroFocus) * 60),
+              shortBreak: TimeInterval(max(1, pomodoroShortBreak) * 60),
+              longBreak: TimeInterval(max(1, pomodoroLongBreak) * 60),
+              cyclesUntilLong: max(1, pomodoroCyclesLong))
+    }
+
     /// Estado real no launchd — não é persistido por nós.
     var launchAtLogin: Bool {
         get { SMAppService.mainApp.status == .enabled }
