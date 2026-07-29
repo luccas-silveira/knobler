@@ -82,8 +82,7 @@ knobler done <id>
 brew tap luccas-silveira/knobler && brew trust luccas-silveira/knobler && brew install knobler
 ```
 
-App assinado ad-hoc (sem Developer ID). O `brew trust` é exigido pelo Homebrew 6+
-em taps de terceiros; o cask tira a quarentena no install, então abre limpo.
+O `brew trust` é exigido pelo Homebrew 6+ em taps de terceiros.
 Update: o app avisa sozinho quando sai versão nova (card no notch + Ajustes ›
 Geral) e instala com um clique — pelo `brew upgrade` se veio do cask, baixando o
 zip do release se não. Na mão: `brew upgrade knobler`.
@@ -92,8 +91,54 @@ Remover: `brew uninstall --zap knobler`.
 Sem Homebrew: baixe o zip do [Releases](https://github.com/luccas-silveira/knobler/releases)
 e rode `xattr -dr com.apple.quarantine /Applications/Knobler.app` uma vez.
 
-Permissões pedidas em runtime: Acessibilidade, Gravação de Áudio do Sistema,
-Automação (Spotify/Music), Calendário, Mic, Bluetooth.
+### Sobre a assinatura
+
+O Knobler **não é notarizado pela Apple**. Ele é assinado com um certificado
+próprio, estável entre versões — o que mantém as permissões concedidas de uma
+atualização para a outra, mas não é o mesmo que a verificação da Apple.
+
+Na prática isso significa que o macOS não consegue confirmar quem publicou o
+app, e por isso o bloqueia no primeiro launch. O cask remove essa marca de
+quarentena durante o install para o app abrir. Se você não quiser que um
+instalador faça isso por você, baixe o zip do Releases e remova a marca na mão,
+depois de conferir o que está instalando — o código-fonte inteiro está aqui e o
+build é reproduzível por `./tools/release.sh`.
+
+### Permissões
+
+Todas são pedidas **no primeiro uso do recurso** e podem ser recusadas — recusar
+desliga aquele recurso, não o app. O estado de cada uma fica em **Ajustes ›
+Permissões** (ver [`docs/settings.md`](docs/settings.md)).
+
+| Permissão | Para quê |
+|---|---|
+| Acessibilidade | teclas de volume/brilho, gatilho do ditado, colar o texto transcrito |
+| Microfone | gravar sua voz durante o ditado |
+| Câmera | espelho no notch antes de reuniões |
+| Calendários | contagem regressiva do próximo evento |
+| Rede local | encontrar outros Macs com Knobler |
+| Arquivos e pastas | ler as capturas de tela que vão pra prateleira |
+| Gravação de áudio do sistema | visualizador reagindo ao áudio real do player |
+
+A Acessibilidade é a única pedida na abertura: sem ela o `CGEventTap` não existe
+e o gatilho do ditado nunca chega ao app.
+
+O Knobler **não** pede Automação (não usa Apple Events), **não** pede Bluetooth
+(lê os AirPods por `IOBluetooth`/`system_profiler`) e **não** pede Gravação de
+Tela.
+
+### O que sai da sua máquina
+
+| Quando | Para onde | Como desligar |
+|---|---|---|
+| Checagem de update, 1×/dia | API do GitHub | Ajustes › Geral |
+| Notificações externas | o relay que você configurar | desligado por padrão |
+| Ditado em nuvem | Deepgram | desligado por padrão (o ditado roda local) |
+| Formatação do transcript | o endpoint que você configurar (padrão: `localhost`) | desligado por padrão |
+| Ícone de uma notificação externa | o host da imagem | Ajustes › Notificações externas |
+
+Fora isso, tudo — áudio do ditado, capturas, calendário, mídia — fica na máquina.
+A API local escuta só em `127.0.0.1`.
 
 ## Build
 

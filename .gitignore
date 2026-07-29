@@ -7,3 +7,6 @@ graphify-out/
 .superpowers/
 .impeccable/
 .playwright-mcp/
+
+# chave privada de assinatura — nunca versionar
+*.p12

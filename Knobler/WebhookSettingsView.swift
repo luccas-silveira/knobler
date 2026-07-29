@@ -38,6 +38,21 @@ struct WebhookSettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    if client.credentialsLocked {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Label("Credenciais inacessíveis", systemImage: "lock.trianglebadge.exclamationmark.fill")
+                                .foregroundStyle(.orange)
+                            Text("O Keychain não libera os segredos deste Mac porque a "
+                                 + "assinatura do app mudou desde que eles foram guardados. "
+                                 + "Parear de novo resolve, mas gera links novos — os que "
+                                 + "você já colou em serviços externos param de funcionar.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Button("Parear de novo") { client.repair() }
+                        }
+                        .padding(.vertical, 2)
+                    }
                     SettingToggle(
                         title: "Carregar imagens remotas",
                         subtitle: "Baixa o avatar da notificação. Desligue para não expor "

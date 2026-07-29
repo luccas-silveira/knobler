@@ -16,6 +16,21 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   **◐⚠** da barra de menus agora abre esse painel em vez do Ajustes do Sistema.
 
 ### Changed
+- **O Keychain não pede mais a senha do Mac**: os três segredos do relay de
+  notificações externas (`deviceId`, `deviceSecret`, `publishToken`) têm uma ACL
+  presa ao requisito de assinatura de quem os gravou. Quando a assinatura do app
+  muda, a ACL deixa de bater e o macOS pedia a senha do login keychain — três
+  diálogos, um por item, no meio da abertura. Agora a leitura roda com a
+  interação desligada: em vez do diálogo, o app detecta que está trancado e
+  mostra o aviso em Ajustes › Notificações externas, com um botão **Parear de
+  novo**. O re-pareamento é decisão do usuário, e não automático, porque troca o
+  `publishToken` — que é a URL pública já colada nos serviços externos.
+- **Documentação de assinatura e privacidade honesta**: o README explicava a
+  assinatura em uma linha (“assinado ad-hoc”) e listava permissões que o app
+  nunca pede (Automação, Bluetooth). Agora traz a tabela das 7 permissões reais,
+  o que o macOS bloqueia e por quê, e uma tabela do que sai da máquina — checagem
+  de update, relay, Deepgram, formatação de transcript, imagem de notificação —
+  com como desligar cada um. Os caveats do cask foram reescritos no mesmo tom.
 - **Só a Acessibilidade é pedida na abertura**: as outras permissões esperam o
   primeiro uso real do recurso. O microfone era pedido no launch junto do
   pré-aquecimento do modelo de ditado — mas baixar o modelo não usa microfone;
@@ -23,6 +38,15 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   era pedida duas vezes (ditado e notificações); virou um pedido só, porque sem
   ela o `CGEventTap` não existe e o gatilho do ditado é invisível — não há
   "primeiro uso" que dê pra esperar.
+
+### Added
+- **Caminho de notarização no `tools/release.sh`**: com `KNOBLER_NOTARY_PROFILE`
+  apontando pra um perfil do `notarytool`, o release passa a assinar com
+  Developer ID + hardened runtime + timestamp, submeter à Apple, dar `stapler` e
+  re-zipar com o ticket dentro. Sem a variável, o fluxo é exatamente o de antes
+  (certificado local, sem notarização). `tools/knobler.entitlements` destrava só
+  o que o hardened runtime bloquearia: microfone, câmera, calendário e o
+  carregamento do `MediaRemoteAdapter` pelo perl.
 
 ### Removed
 - **`NSBluetoothAlwaysUsageDescription`**: linha morta no `Info.plist`. É a

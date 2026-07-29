@@ -144,15 +144,59 @@ else
   echo "    Rode ./tools/make-signing-cert.sh para resolver de vez." >&2
   SIGN_ID="-"
 fi
+# Notarização: só entra se houver um perfil do notarytool no keychain, criado uma
+# vez com
+#   xcrun notarytool store-credentials knobler-notary \
+#     --apple-id <id> --team-id <team> --password <senha de app>
+# e exportado via KNOBLER_NOTARY_PROFILE=knobler-notary. Sem isso o fluxo abaixo
+# é exatamente o de sempre — cert local, sem notarização.
+#
+# Notarizar exige Developer ID Application + hardened runtime + timestamp. O
+# hardened runtime bloqueia mic/câmera/calendário e o carregamento do
+# MediaRemoteAdapter pelo perl; tools/knobler.entitlements destrava só isso.
+NOTARY="${KNOBLER_NOTARY_PROFILE:-}"
+if [ -n "$NOTARY" ]; then
+  DEV_ID="${KNOBLER_DEVELOPER_ID:-Developer ID Application}"
+  if ! security find-identity -v -p codesigning | grep -qF "$DEV_ID"; then
+    echo "==> ERRO: KNOBLER_NOTARY_PROFILE setado mas identidade \"$DEV_ID\" não existe." >&2
+    echo "    Notarização exige Developer ID Application (Apple Developer Program)." >&2
+    exit 1
+  fi
+  SIGN_ID="$DEV_ID"
+  # --force --deep ficam DENTRO do array: com set -u, o bash 3.2 do macOS aborta
+  # em "${arr[@]}" quando o array está vazio, então ele nunca pode ficar vazio.
+  SIGN_FLAGS=(--force --deep --options runtime --timestamp
+              --entitlements "$(dirname "$0")/knobler.entitlements")
+  echo "==> assinando pra notarização com \"$DEV_ID\""
+else
+  # ponytail: sem --timestamp no caminho local — o cert self-signed não tem
+  # cadeia pra TSA validar e o codesign falharia.
+  SIGN_FLAGS=(--force --deep)
+fi
+
 # ponytail: --deep re-sign resolve nested (FluidAudio); se um framework aninhado
 # reclamar, assinar de dentro pra fora antes do bundle externo.
 rm -f "$APP/Contents/embedded.provisionprofile"
-codesign --force --deep --sign "$SIGN_ID" "$APP"
+codesign "${SIGN_FLAGS[@]}" --sign "$SIGN_ID" "$APP"
 codesign --verify --strict --verbose=2 "$APP"
 
 ZIP="build/Knobler-$VER.zip"
 rm -f "$ZIP"
 ditto -c -k --keepParent "$APP" "$ZIP"
+
+if [ -n "$NOTARY" ]; then
+  echo "==> enviando pra notarização (pode levar alguns minutos)"
+  xcrun notarytool submit "$ZIP" --keychain-profile "$NOTARY" --wait
+  # staple grava o ticket DENTRO do bundle: o Gatekeeper valida offline e o
+  # cask não precisa mais mexer em quarantine.
+  xcrun stapler staple "$APP"
+  xcrun stapler validate "$APP"
+  # re-zipa: o zip acima foi feito antes do ticket existir
+  rm -f "$ZIP"
+  ditto -c -k --keepParent "$APP" "$ZIP"
+  echo "==> notarizado e stapled"
+fi
+
 SHA="$(shasum -a 256 "$ZIP" | awk '{print $1}')"
 echo "==> $ZIP"
 echo "    sha256 $SHA"

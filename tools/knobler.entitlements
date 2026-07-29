@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Entitlements do caminho notarizado (tools/release.sh com KNOBLER_NOTARY_PROFILE).
+
+  Notarização exige hardened runtime, e o hardened runtime bloqueia por padrão o
+  que o app precisa. Cada chave aqui destrava uma coisa que o app de fato usa —
+  não adicionar nada "por precaução": entitlement a mais é superfície a mais e
+  aparece pro usuário.
+
+  Não é sandbox (não vai pra App Store), então nada de com.apple.security.app-sandbox.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- ditado: MicRecorder -->
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
+
+	<!-- espelho no notch: MirrorController -->
+	<key>com.apple.security.device.camera</key>
+	<true/>
+
+	<!-- countdown do próximo evento: CalendarCountdown -->
+	<key>com.apple.security.personal-information.calendars</key>
+	<true/>
+
+	<!-- O MediaRemoteAdapter.framework é carregado em runtime pelo
+	     /usr/bin/perl (Vendor/mediaremote-adapter.pl), não linkado pelo app.
+	     Com library validation ligada o carregamento falha e o now playing morre. -->
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<true/>
+</dict>
+</plist>

@@ -23,6 +23,9 @@ private struct PushNotification: Decodable {
 final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelegate {
     @Published private(set) var connected = false
     @Published private(set) var link: String?
+    /// Pareado, mas o Keychain não abre os segredos (ACL x assinatura do app).
+    /// Só re-parear resolve, e isso troca o link — por isso é decisão do usuário.
+    @Published private(set) var credentialsLocked = false
     var onNotify: ((NotchNotification) -> Void)?
 
     private let base = URL(string: "https://push.appzoi.com.br")!
@@ -80,7 +83,17 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private func ensurePairedThenConnect() {
         if let pub = WebhookKeychainStore.load(.publishToken),
            WebhookKeychainStore.load(.deviceSecret) != nil {
+            DispatchQueue.main.async { self.credentialsLocked = false }
             publishLink(pub); connect(); return
+        }
+        // Existe no Keychain mas não abriu: a assinatura do app mudou e a ACL do
+        // item não bate mais. NÃO re-registrar — o publishToken é a URL pública
+        // que o usuário já colou no serviço externo, e um registro novo a
+        // invalidaria em silêncio. Melhor parar e deixar ele decidir na UI.
+        if WebhookKeychainStore.exists(.publishToken) {
+            log.error("credenciais no Keychain inacessíveis (ACL não bate com a assinatura)")
+            DispatchQueue.main.async { self.credentialsLocked = true }
+            return
         }
         // 1º uso: registra
         var req = URLRequest(url: base.appendingPathComponent("register"))
@@ -105,6 +118,19 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                 self.connect()
             }
         }.resume()
+    }
+
+    /// Descarta um pareamento que ficou trancado e registra de novo. Troca o
+    /// link — a UI avisa disso antes de chamar.
+    func repair() {
+        queue.async {
+            WebhookKeychainStore.clearAll()
+            DispatchQueue.main.async {
+                self.credentialsLocked = false
+                self.link = nil
+            }
+            self.ensurePairedThenConnect()
+        }
     }
 
     private func publishLink(_ pub: String) {
