@@ -37,7 +37,11 @@ final class MessageStore: ObservableObject {
         return dir
     }
 
-    init() {
+    /// `carregando: false` devolve um store vazio, sem tocar o disco: o harness
+    /// de snapshot não pode depender das conversas reais de quem roda (com elas,
+    /// a seção Mensagens aparecia — ou não — conforme a máquina).
+    init(carregando: Bool = true) {
+        guard carregando else { return }
         if let data = try? Data(contentsOf: threadsURL),
            let decoded = try? JSONDecoder().decode([String: [PeerMessage]].self, from: data) {
             threads = decoded
@@ -46,13 +50,6 @@ final class MessageStore: ObservableObject {
            let decoded = try? JSONDecoder().decode([String: String].self, from: data) {
             names = decoded
         }
-    }
-
-    /// Store vazio, sem ler o disco: o harness de snapshot não pode depender das
-    /// conversas reais de quem roda (com elas, a seção Mensagens aparecia — ou
-    /// não — conforme a máquina).
-    init(vazio: Bool) {
-        _ = vazio
     }
 
     func messages(for peerID: String) -> [PeerMessage] { threads[peerID] ?? [] }

@@ -466,7 +466,7 @@ for scenario in scenarios {
             agentRequestInitiallyExpanded: scenario.agentRequestExpanded)
             // a NotchView lê o MessageStore do ambiente só pra saber se há
             // conversa; sem injetar, o SwiftUI derruba o harness
-            .environmentObject(MessageStore(vazio: true))
+            .environmentObject(MessageStore(carregando: false))
     }
     .frame(width: 560, height: scenario.frameHeight)
 
@@ -503,7 +503,7 @@ for scenario in scenarios {
     )
     media.injectPreview(state: nil, artwork: nil)
     let lan = LANMessaging()
-    let store = MessageStore(vazio: true)
+    let store = MessageStore(carregando: false)
     vm.hasRealNotch = realNotch
     vm.notchSize = realNotch
         ? CGSize(width: 200, height: 32)

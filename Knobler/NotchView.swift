@@ -47,7 +47,9 @@ struct NotchView: View {
             || agentRequestStore.state.active != nil
             || vm.incoming?.allowReply == true
             || (vm.focus == .mensagens && vm.expanded)
-            || (noteVisible && vm.expanded)
+            // o campo da nota só existe na árvore quando ela é a seção em foco —
+            // pedir a janela-chave fora disso engoliria as teclas em silêncio
+            || (noteVisible && vm.expanded && vm.focus == .nota)
     }
 
     private func notifyKeyboardEligibility() {
@@ -295,10 +297,18 @@ struct NotchView: View {
                 height: vm.notchSize.height
             )
         case .music:
-            // topo (câmera) + a seção em foco + a faixa do rodapé
-            let chrome = topInset + 10 + 16
+            // Parcela por parcela, as MESMAS que o `expandedContent` desenha:
+            // `.padding(.top, topInset + 8)`, a seção em foco, o espaçamento de 8
+            // da VStack, a faixa do rodapé (mais o segundo espaçamento de 8) e
+            // `.padding(.bottom, 14)`. Divergir daqui é o modo de falha clássico
+            // deste arquivo: o conteúdo sai da moldura, a `.frame` centraliza e a
+            // metade de baixo do card cai fora do `.onHover` — mover o mouse pra
+            // lá lê como saída e fecha o card.
             let corpo = vm.focus.map { Self.alturaDaSecao($0) } ?? 118
-            return CGSize(width: expandedSize.width, height: chrome + corpo)
+            // a nota é modo exclusivo: sem faixa, e sem o espaçamento dela
+            let faixa = vm.focus == .nota ? 0 : Self.sectionStripHeight + 8
+            let chrome = topInset + 8 + 8 + 14
+            return CGSize(width: expandedSize.width, height: chrome + corpo + faixa)
         case .notification:
             let hasActions = vm.activeNotification?.actionTitles.isEmpty == false
             return CGSize(width: notificationWidth,
@@ -802,6 +812,13 @@ struct NotchView: View {
         .animation(.easeOut(duration: 0.3), value: vm.focus)
     }
 
+    /// Altura da faixa do rodapé. Fixa e não intrínseca de propósito: o maior
+    /// desenho lá dentro é o anel de progresso da atividade (14) mais o padding
+    /// de 4 de cada lado do alvo de clique, e o `currentSize` soma ESTA
+    /// constante. Deixar a faixa medir sozinha era o caminho pra moldura e
+    /// conteúdo divergirem de novo.
+    static let sectionStripHeight: CGFloat = 22
+
     /// Rodapé do card: as seções que não estão em foco, cada uma com um sinal
     /// vivo mínimo. Você perde o detalhe, não o glance.
     private var sectionStrip: some View {
@@ -824,6 +841,7 @@ struct NotchView: View {
                 .accessibilityLabel(s.titulo)
             }
         }
+        .frame(height: Self.sectionStripHeight)
     }
 
     /// O sinal de cada ícone: anel pra progresso, ponto pra "está rolando",
@@ -1481,14 +1499,6 @@ private struct RemoteAvatarView: View {
     }
 }
 
-/// Carimba os eventos de transição das seções que nascem fora do VM (música,
-/// shelf, histórico, nota). Vive num `ViewModifier` próprio — e recebe valores
-/// já extraídos, não os stores — porque o `body` do notch interativo já estoura
-/// o type-checker do Swift quando ganha mais um punhado de `.onChange`.
-///
-/// Nada aqui carimba tique: da música só troca de faixa e play/pause entram (a
-/// posição avança sozinha e promoveria a música pra sempre), e da nota só o
-/// vazio → não-vazio (cada tecla depois disso não recarimba).
 /// Congela a ordem das seções na abertura do card e publica a altura pra quem
 /// vive fora do SwiftUI (o monitor de scroll). Mesmo motivo do `CarimboDeEventos`
 /// pra ser um modificador à parte: mais `.onChange` inline estoura o
@@ -1512,6 +1522,12 @@ private struct AberturaDoCard: ViewModifier {
             .onChange(of: vm.expanded) { _, aberto in
                 if aberto { recalcular() }
             }
+            // ligar/desligar a nota com o card JÁ aberto não passa pelo
+            // `expanded`: sem isto a seção nova nunca entraria na ordem congelada
+            .onChange(of: hasNota) { _, _ in if vm.expanded { recalcular() } }
+            // a altura inicial também precisa sair daqui: quem vive fora do
+            // SwiftUI (o monitor de scroll) leria 0 até o card mudar de tamanho
+            .onAppear { vm.publicarAltura(altura) }
             .onChange(of: altura) { _, novo in vm.publicarAltura(novo) }
     }
 
@@ -1526,6 +1542,14 @@ private struct AberturaDoCard: ViewModifier {
     }
 }
 
+/// Carimba os eventos de transição das seções que nascem fora do VM (música,
+/// shelf, histórico, nota). Vive num `ViewModifier` próprio — e recebe valores
+/// já extraídos, não os stores — porque o `body` do notch interativo já estoura
+/// o type-checker do Swift quando ganha mais um punhado de `.onChange`.
+///
+/// Nada aqui carimba tique: da música só troca de faixa e play/pause entram (a
+/// posição avança sozinha e promoveria a música pra sempre), e da nota só o
+/// vazio → não-vazio (cada tecla depois disso não recarimba).
 private struct CarimboDeEventos: ViewModifier {
     let vm: NotchViewModel
     let faixa: String?

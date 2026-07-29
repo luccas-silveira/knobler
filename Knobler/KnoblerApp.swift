@@ -1073,9 +1073,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             ?? NSScreen.main
         guard let screen, let vm = notches[Self.displayID(of: screen)]?.viewModel else { return }
         note.hostDisplayID = Self.displayID(of: screen)
+        // A trava do `recalcularSecoes` é `typingNote` (= hospedada E editando), e
+        // neste instante o `TextEditor` ainda nem entrou na árvore — `editing` é
+        // false. Sem pedir o foco aqui, o card abriria no Histórico ou na Música
+        // (a nota é a última da ordem padrão) e o painel tomaria a janela-chave
+        // sem campo nenhum focado: teclas engolidas em silêncio.
+        vm.focoPendente = .nota
         note.active = true
-        // nota e histórico são exclusivos: o card é de uma coisa só (a trava da
-        // nota no recalcularSecoes garante o foco)
         vm.setExpandedDirect(true)
     }
 
