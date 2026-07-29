@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-07-29
+
 ### Added
 - **Bluetooth entra no painel de Permissões**: o app usava oito permissões e o
   painel listava sete — a do Bluetooth, que o monitor dos AirPods pede logo na
