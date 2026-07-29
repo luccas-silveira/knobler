@@ -15,6 +15,9 @@ struct NotchView: View {
     let levels: SystemAudioLevels
     @ObservedObject var shelf: ShelfStore
     @ObservedObject private var settings = AppSettings.shared
+    @ObservedObject private var history = NotificationHistory.shared
+    @ObservedObject private var note = QuickNote.shared
+    @FocusState private var noteFocused: Bool
     /// false no harness de snapshot: onDrop cria uma NSView que o ImageRenderer
     /// não renderiza (vira placeholder amarelo). No app fica sempre true.
     var dropTargetsEnabled = true
@@ -30,11 +33,18 @@ struct NotchView: View {
         askStore.state.active == nil && agentRequestStore.state.active == nil ? vm.mode : .question
     }
 
+    /// A nota mora numa tela só (a que estava sob o mouse quando ligou). Nas
+    /// outras ela simplesmente não existe: nada desenha, nada pede teclado.
+    private var noteVisible: Bool {
+        note.hosted(by: vm.displayID)
+    }
+
     private var keyboardAllowed: Bool {
         askStore.state.active != nil
             || agentRequestStore.state.active != nil
             || vm.incoming?.allowReply == true
             || (vm.tab == .messages && vm.expanded)
+            || (noteVisible && vm.expanded)
     }
 
     private func notifyKeyboardEligibility() {
@@ -50,6 +60,13 @@ struct NotchView: View {
             ? .spring(response: 0.42, dampingFraction: 0.76)
             : .spring(response: 0.30, dampingFraction: 0.95)
     }
+
+    /// Altura do campo da nota. Mesma regra da `HistoryListView.listHeight`:
+    /// o `currentSize` soma ESTA constante, então layout e moldura mudam juntos.
+    static let noteEditorHeight: CGFloat = 120
+    /// Alcinha (3 pt) + o respiro dela (2 pt) + o espaçamento da VStack do
+    /// `musicContent` (10 pt): o quanto o card cresce quando há histórico.
+    private static let grabberBlock: CGFloat = 15
 
     private let expandedSize = CGSize(width: 430, height: 188)
     private let notificationWidth: CGFloat = 380
@@ -200,6 +217,9 @@ struct NotchView: View {
         .onChange(of: vm.incoming?.allowReply) { _, _ in notifyKeyboardEligibility() }
         .onChange(of: vm.tab) { _, _ in notifyKeyboardEligibility() }
         .onChange(of: vm.expanded) { _, _ in notifyKeyboardEligibility() }
+        .onChange(of: note.active) { _, _ in notifyKeyboardEligibility() }
+        // o teclado segue o dono, não só o interruptor
+        .onChange(of: note.hostDisplayID) { _, _ in notifyKeyboardEligibility() }
     }
 
     /// Faixa morta no topo dos cards: só existe onde tem câmera de verdade.
@@ -228,6 +248,20 @@ struct NotchView: View {
         case .music:
             // topo (câmera) + pontinhos de página no rodapé, comuns às duas telas
             let chrome = topInset + 10 + 16
+            // Nota e cortina têm altura própria e vêm ANTES da aritmética de
+            // música/shelf/atividade — é a mesma ordem de precedência do
+            // `expandedContent`. Sem estes dois ramos a moldura sairia ~150 pt
+            // menor que o conteúdo, que a `.frame` centraliza: as linhas mais
+            // novas saem pelo topo da tela e a metade de baixo cai fora do
+            // `.onHover` (mover o mouse pra lá lê como saída e fecha o card).
+            if noteVisible {
+                return CGSize(width: expandedSize.width,
+                              height: chrome + Self.noteEditorHeight + 20)
+            }
+            if vm.historyOpen {
+                return CGSize(width: expandedSize.width,
+                              height: chrome + HistoryListView.listHeight + 12)
+            }
             if vm.tab == .messages {
                 // aba Mensagens tem altura própria (conversa: cabeçalho + histórico
                 // rolável até 160 + campo); a lista de online cabe no mesmo espaço.
@@ -246,6 +280,9 @@ struct NotchView: View {
             if !vm.mirrorOn, !hasPomodoro, hasMusic || placeholder { height += 118 }
             if vm.activity != nil { height += hasMusic || hasShelf ? 46 : 60 }
             if hasShelf { height += hasMusic || vm.activity != nil ? 62 : 76 }
+            // alcinha de descoberta que o musicContent acrescenta quando há
+            // histórico pra puxar
+            if !history.items.isEmpty { height += Self.grabberBlock }
             return CGSize(width: expandedSize.width, height: height)
         case .notification:
             let hasActions = vm.activeNotification?.actionTitles.isEmpty == false
@@ -611,13 +648,49 @@ struct NotchView: View {
         .clipShape(RoundedRectangle(cornerRadius: 7))
     }
 
+    // MARK: - Nota rápida
+
+    /// ponytail: texto simples, não rich text. Negrito e itálico exigiriam
+    /// NSAttributedString e uma barra de formatação pra uma nota que vive
+    /// minutos.
+    private var noteSection: some View {
+        TextEditor(text: $note.text)
+            .font(.system(size: 13))
+            .foregroundStyle(.white.opacity(0.92))
+            .scrollContentBackground(.hidden)
+            .focused($noteFocused)
+            .frame(height: Self.noteEditorHeight)
+            .padding(.horizontal, 4)
+            .onAppear { noteFocused = true }
+            .onChange(of: noteFocused) { _, focused in note.editing = focused }
+            // Esc precisa liberar o foco explicitamente: TextEditor não
+            // garante isso por padrão, e a guarda de hover em
+            // NotchViewModel.setHover depende de note.editing virar false.
+            .onExitCommand { noteFocused = false }
+            // cinto e suspensório: o campo também sai da árvore por caminhos
+            // que não passam pelo onChange acima (uma notificação tira o modo
+            // de .music, um gesto fecha o card). O SwiftUI costuma zerar o
+            // @FocusState nessa hora, mas não é contrato — e um `editing`
+            // preso em true trava TODO notch aberto pra sempre, sem saída
+            // pelo lado do usuário.
+            .onDisappear {
+                noteFocused = false
+                note.editing = false
+            }
+    }
+
     // MARK: - Música expandida
 
     @ViewBuilder
     private var expandedContent: some View {
         VStack(spacing: 8) {
             Group {
-                if vm.tab == .messages {
+                if noteVisible {
+                    noteSection
+                } else if vm.historyOpen {
+                    HistoryListView(history: history,
+                                    onOpen: { vm.setExpandedDirect(false) })
+                } else if vm.tab == .messages {
                     MessagesView(vm: vm)
                 } else {
                     musicContent
@@ -625,8 +698,16 @@ struct NotchView: View {
             }
             .transition(.blurReplace)
             Spacer(minLength: 0)
-            pageDots
+            if vm.historyOpen { grabber } else { pageDots }
         }
+    }
+
+    /// Alcinha do Dynamic Island: a única dica de que há mais coisa abaixo —
+    /// o puxão longo não se anuncia sozinho.
+    private var grabber: some View {
+        Capsule()
+            .fill(.white.opacity(0.25))
+            .frame(width: 28, height: 3)
     }
 
     /// Único indicador de navegação: a troca de tela é por swipe de dois dedos.
@@ -672,6 +753,9 @@ struct NotchView: View {
             // espelho aberto (ou Pomodoro ativo) toma o lugar da música — volta ao fechar/encerrar
             if !vm.mirrorOn, vm.pomodoro == nil {
                 musicSection
+            }
+            if !history.items.isEmpty {
+                grabber.padding(.top, 2)
             }
         }
         .animation(.easeOut(duration: 0.3), value: vm.activity == nil)
@@ -930,7 +1014,7 @@ struct NotchView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    openSourceApp(notification)
+                    Self.openSourceApp(notification)
                     vm.dismissActiveNotification()
                 }
                 if let token = notification.actionToken, !notification.actionTitles.isEmpty {
@@ -964,7 +1048,9 @@ struct NotchView: View {
             .frame(width: 32, height: 32)
     }
 
-    private func openSourceApp(_ notification: NotchNotification) {
+    /// Estático e internal: a linha do histórico reusa o mesmo clique. O corpo
+    /// já só usava `Self.` e NSWorkspace, então a promoção não muda nada.
+    static func openSourceApp(_ notification: NotchNotification) {
         // AirDrop revela a pasta de destino — caminho fixo do sistema, nunca uma
         // string vinda de fora (o openURL abaixo aceita payload de webhook)
         if notification.revealsDownloads {

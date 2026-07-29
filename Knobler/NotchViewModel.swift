@@ -25,6 +25,11 @@ enum DictationPhase: Equatable {
 }
 
 final class NotchViewModel: ObservableObject {
+    /// Tela deste view model (existe um por monitor). Quem precisa saber "sou
+    /// eu?" — hoje só a nota rápida — compara com este id. nil no harness de
+    /// snapshot, que instancia o VM solto.
+    var displayID: CGDirectDisplayID?
+
     @Published var expanded = false {
         // recolher o notch desliga o espelho — a câmera nunca fica ligada escondida
         didSet { if !expanded { mirrorOn = false } }
@@ -39,6 +44,8 @@ final class NotchViewModel: ObservableObject {
     /// true = notch físico (câmera no meio); false = ilha simulada em monitor externo
     @Published var hasRealNotch = false
     @Published var activeNotification: NotchNotification?
+    /// Cortina do histórico puxada. Implica `expanded`; fecha junto com ele.
+    @Published var historyOpen = false
     @Published var hud: HUDState?
     @Published var dictation: DictationPhase?
     @Published var activity: NotchActivity?
@@ -152,9 +159,17 @@ final class NotchViewModel: ObservableObject {
         guard inside else {
             let work = DispatchWorkItem { [weak self] in
                 guard let self else { return }
+                // digitar na nota não pode ser interrompido por um mouse que
+                // saiu da área — Esc solta o foco e aí o hover-out volta a
+                // valer. Só na tela dona: uma nota focada no monitor A não
+                // pode congelar o card do monitor B.
+                let digitandoAqui = QuickNote.shared.hosted(by: self.displayID)
+                    && QuickNote.shared.editing
+                guard !digitandoAqui else { return }
                 if self.expanded || self.peeking { self.lastCollapseAt = Date() }
                 self.expanded = false
                 self.peeking = false
+                self.historyOpen = false
             }
             pendingWork = work
             DispatchQueue.main.asyncAfter(deadline: .now() + closeDelay, execute: work)
@@ -192,6 +207,8 @@ final class NotchViewModel: ObservableObject {
     func setExpandedDirect(_ value: Bool) {
         pendingWork?.cancel()
         expanded = value
+        // a cortina só existe dentro do card aberto — fechar leva ela junto
+        if !value { historyOpen = false }
     }
 
     // MARK: - Mensagens LAN
@@ -243,6 +260,7 @@ final class NotchViewModel: ObservableObject {
     // MARK: - Notificações
 
     func enqueue(_ notification: NotchNotification) {
+        NotificationHistory.shared.record(notification)
         // progresso: mesmo webhookID substitui a ativa ou a enfileirada
         if let wid = notification.webhookID {
             if activeNotification?.webhookID == wid {

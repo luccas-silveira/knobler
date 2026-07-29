@@ -48,8 +48,15 @@ verdade) não renderiza via `ImageRenderer` offscreen** — vira o ícone de
 `AskCardView` — por isso `ask-simple.png`/`ask-multiselect.png` cortam antes
 da barra do campo de texto), e `NSWorkspace.icon(forFile:)`/`QLThumbnailGenerator`
 (`ShelfThumbnailDragView` — por isso `expanded-shelf.png` é capturado no app
-rodando de verdade, não pelo harness). Ao adicionar cenário novo ao harness,
-desconfie de qualquer subview que envolva um desses. Por isso `settings-*.png`
+rodando de verdade, não pelo harness), e `ScrollView`
+(`NSScrollView` por baixo) — sintoma diferente dos outros: não vira o ícone
+de "proibido", o conteúdo simplesmente não aparece (área inteira preta),
+mesmo com `LazyVStack` trocado por `VStack` simples. Confirmado na
+`HistoryListView` (histórico de notificações, `expanded-history.png`) — por
+isso esse cenário populado não entrou no harness, só o vazio
+(`expanded-history-empty.png`, que não usa `ScrollView`). Ao adicionar
+cenário novo ao harness, desconfie de qualquer subview que envolva um
+desses. Por isso `settings-*.png`
 (7 painéis de Ajustes) e `mapping-editor.png` **não** são gerados por
 `tools/snapshot.sh` — são
 mantidos à mão: rode `Knobler.app/Contents/MacOS/Knobler --ajustes=<painel>`

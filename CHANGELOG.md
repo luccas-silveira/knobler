@@ -6,6 +6,22 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- **Histórico de notificações (24 h)**: puxe o card do notch pra baixo numa
+  passada só — ~24 pt abre o card normal, ~120 pt no mesmo gesto entra na
+  cortina de histórico — pra ver banner do sistema, card de webhook, lembrete
+  disparado, fim de fase do Pomodoro e conta-gotas das últimas 24 h. Uma
+  alcinha no rodapé do card aberto avisa que dá pra puxar. Fechar é tirar o
+  mouse (não gesto) ou clicar numa linha; com a cortina aberta e lista pra
+  rolar, o scroll pertence à lista. Mora só em memória (teto de 300 linhas) —
+  não sobrevive ao restart do Knobler.
+- **Nota rápida**: **✎ Nota rápida** no menu da barra (◐) liga um campo de
+  texto simples no card expandido, focado ao abrir. Digitar segura o card
+  aberto mesmo com o mouse fora; **Esc** solta o foco. Com mais de um monitor,
+  a nota mora na tela onde o mouse estava ao ligar — desconectar essa tela
+  desliga a nota. Desligar o interruptor apaga o texto e recolhe o card. Sem
+  persistência entre restarts.
+
 ## [0.12.0] - 2026-07-29
 
 ### Added
