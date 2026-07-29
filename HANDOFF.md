@@ -1,3 +1,77 @@
+# 🏁 SESSÃO 2026-07-29 (manhã) — histórico de notificações + nota rápida, **v0.13.0 publicada**
+
+Duas features do `IDEIAS.md` entregues juntas porque dividem o mesmo pedaço de
+tela: o card expandido do notch. Ciclo completo — brainstorm, spec, plano, nove
+tasks em TDD com subagentes, review de branch inteira, release.
+
+## O que foi feito
+
+**Histórico das últimas 24 h** (`docs/notifications.md`). Tudo que virou card
+entra num `NotificationHistory` singleton em memória: banner do sistema, card de
+webhook, lembrete disparado, fim de fase do Pomodoro e conta-gotas. Abre com um
+**puxão longo pra baixo numa passada só** — ~24 pt abre o card, ~120 pt no mesmo
+gesto entra na cortina. Fechar é tirar o mouse, **não** é gesto: assim o eixo
+vertical fica livre pra lista rolar de verdade, inércia inclusive.
+
+**Nota rápida** (`docs/nota-rapida.md`). Interruptor no menu da barra liga um
+`TextEditor` que toma o card. Enquanto o campo tem foco, o hover-out não recolhe
+— digitar nunca é interrompido. Esc solta o foco (explicitamente, via
+`onExitCommand`; o padrão do SwiftUI não garante isso). Desligar apaga.
+
+## As três decisões que valem lembrar
+
+| Decisão | Por quê |
+|---|---|
+| Gesto vertical virou **função pura do acumulado** | Menos código que o `scrollActed` que existia, e recuar dentro do mesmo gesto passou a desfazer de graça |
+| Nada em disco, nas duas | Notificação e nota são efêmeras por natureza. **A justificativa antiga era falsa**: `NotchNotification` não carrega `NSImage` nem `AXUIElement` (o `AXUIElement` mora no interceptor, indexado por `actionToken`) |
+| A nota tem **uma tela dona** (`hostDisplayID`) | Sem dono, ligar expandia todos os monitores sem nada recolhê-los, e as N cópias da `NotchView` disputavam foco escrevendo no mesmo `editing` |
+
+## O que só a review de branch inteira pegou
+
+Nenhuma review por task podia ver, e é o padrão que vale carregar pra próxima
+vez: **cada task estava certa isolada; o defeito morava na costura.**
+
+- **`currentSize` nunca aprendeu sobre os dois estados novos.** A cortina
+  desenhava ~325 pt num quadro de ~176 pt e o SwiftUI centraliza o excedente:
+  as notificações **mais recentes** ficavam acima da borda da tela e o cursor
+  descendo na lista caía fora do hover, fechando o card. O
+  `expanded-history-empty.png` já mostrava isso e ninguém tinha lido o PNG.
+- **Lembrete e Pomodoro construíam a `NotchNotification` dentro do `forEach`
+  das telas** — `id` é `let id = UUID()`, então cada monitor gerava uma linha
+  no histórico. Os outros quatro call sites já construíam fora do laço.
+- **Rodinha de mouse comum nunca emite `.began`**, então o acumulador nunca
+  zerava: cruzava 120 sozinho e a cortina virava um beco sem saída.
+
+Três defeitos foram **do plano**, não de quem implementou: a guarda de diagonal
+(`|Δy| > |Δx| × 1,5`) que sumiu na reescrita, a inércia engolida antes de chegar
+na lista, e a justificativa falsa acima.
+
+## Validação
+
+- `./tools/check.sh`: **15 checks** (`historycheck` novo — store, gesto, teto de
+  300, `isGestureStart`). Os asserts do gesto foram conferidos com **controle
+  negativo**: removendo a guarda, o assert falha.
+- Release: build Release + `satisfies its Designated Requirement`, v0.13.0 no
+  GitHub Releases e no cask.
+
+## Pendências e followups
+
+- **Nada foi exercitado num trackpad de verdade.** Todo o comportamento de gesto
+  e foco é verificado só por leitura de código. O roteiro de 15 itens saiu na
+  conversa da sessão; os checklists por task ficaram em `.superpowers/sdd/` (que
+  é gitignored — se sumir, o roteiro se perde).
+- **Dois screenshots faltando**: `docs/nota-rapida.md` e a seção do histórico
+  estão com `<!-- TODO screenshot -->`. Precisam do app rodando.
+- **`ScrollView` não renderiza offscreen** — descoberto aqui, já no `CLAUDE.md`.
+  Por isso o cenário de histórico populado saiu do harness (PNG preto é gate
+  falso, pior que gate nenhum).
+- **Quatro PNGs do snapshot não são determinísticos** (`closed-music`,
+  `closed-music-external`, `expanded-activity-only`, `update-installing`): mudam
+  de hash a cada rodada sem mudança de código. Neles o harness não detecta
+  regressão. Está no `CLAUDE.md` e no README.
+
+---
+
 # 🏁 SESSÃO 2026-07-29 (madrugada, 4ª) — pendências fechadas + **v0.12.0 publicada**
 
 Sessão de pendência, não de feature nova: das cinco abertas no topo do handoff
@@ -152,127 +226,3 @@ Herdadas e ainda abertas:
   0.11.0 saiu com o cert local. Quem instalar fora do cask vê o Gatekeeper.
 
 ---
-
-# 🆕 SESSÃO 2026-07-29 (madrugada, 2ª) — três features tiradas do IDEIAS
-
-Sessão de feature, não de manutenção: conta-gotas, conversão de arquivos e
-AirDrop saíram do `docs/IDEIAS.md` e entraram no app. `[Unreleased]` acumula as
-três — **nada foi publicado**, é `./tools/release.sh minor` → v0.11.0 quando
-quiser.
-
-## O que foi feito
-
-| Feature | Onde vive | Como se usa |
-|---|---|---|
-| Conta-gotas | `ColorPicker.swift` | menu da barra → **◉ Selecionar cor…**; HEX vai pro clipboard, card mostra RGB/SwiftUI e a amostra da cor |
-| Conversão de arquivos | `FileConverter.swift` (despachante), `ImageConverter`, `DocumentConverter`, `VideoConverter` | botão direito na miniatura do shelf → **Converter ▸** |
-| Compartilhar / AirDrop | `Sharing.swift` | mesmo menu → **Compartilhar ▸ Enviar por AirDrop / Compartilhar… / Enviar tudo** |
-
-Conversões por tipo: imagem → PNG/JPEG/HEIC/PDF · PDF → PNG por página (2x) ·
-vídeo → MP4/MOV (passthrough quando o codec cabe, senão recodifica, com
-progresso na faixa de atividade) · Markdown → PDF renderizado no app (parser do
-Foundation + CoreText, paginado em Letter).
-
-## A descoberta que mudou o desenho do AirDrop
-
-A ideia original dizia "o app impede o recebimento" e a decisão inicial foi
-espelhar **Aceitar/Recusar** no notch. `tools/axdump.swift` (criado nesta
-sessão, fica no repo) mostrou que **esse par de botões não existe** entre
-dispositivos do mesmo Apple ID — o macOS aceita sozinho e o que aparece é:
-
-```
-AXGroup [AXNotificationCenterAlert] AXDescription="AirDrop, Recebendo uma foto"
-        actions=["AXPress", "Name:Mostrar Detalhes", "Name:Fechar"]
-```
-
-A ação `Name:Fechar` casava com `closeActionHints` — o interceptor fechava o
-alerta que **acompanha a transferência viva**. Era essa a interferência.
-
-Conserto: `process()` só fecha quando não é AirDrop **e** não há botão de ação.
-O alerta do sistema fica de pé e o card do notch virou espelho, não substituto.
-O espelhamento de botões foi implementado mesmo assim (aciona o botão real via
-`AXUIElementPerformAction`, card dura 30s) — mas **nunca rodou de verdade**:
-só entra em cena recebendo de outro Apple ID.
-
-## Validação
-
-- `./tools/check.sh`: **13 checks** (eram 9) — novos: `colorpickercheck`,
-  `imageconvertercheck`, `documentconvertercheck`, `sharingcheck`.
-- Build Debug ok; `tools/snapshot.sh` regenerando.
-- Ao vivo: conta-gotas (`#BC7426` no clipboard), Markdown → PDF conferido em
-  imagem rasterizada, AirDrop recebido **e** enviado pelo usuário.
-
-## Pendências e followups
-
-- **`Compartilhar…` (menu nativo) não teve confirmação visual.** Ancora num
-  `NSPanel` nonactivating e popover pode não aparecer. Plano B mapeado: montar
-  `NSMenu` com `NSSharingService.sharingServices(forItems:)` +
-  `popUp(positioning:at:in:nil)`, sem âncora (API depreciada no 13, aceita).
-- **Aceitar/Recusar espelhado nunca foi exercitado** — precisa de um envio de
-  Apple ID diferente.
-- **Publicar a v0.11.0** (`./tools/release.sh minor`).
-- Markdown → PDF ignora tabela, imagem embutida e regra horizontal (o alt text
-  da imagem vira linha de texto). Registrado no IDEIAS.
-- `tools/snapshot.sh` estava quebrado desde a 0.10.0 (faltava
-  `Permissions.swift` na lista manual) — consertado de passagem.
-
-## Segurança
-
-O review automático pegou um `file://` que **eu** tinha aberto no allowlist do
-`openSourceApp` pro card do AirDrop revelar o Downloads. Era exploitável:
-`WebhookClient.swift:237` preenche `openURL` com payload do relay externo, então
-um webhook abriria qualquer app do disco. Revertido — o card usa o campo
-`revealsDownloads` e o caminho vem de `FileManager.urls(for: .downloadsDirectory)`.
-
----
-
-# 🆕 SESSÃO 2026-07-29 (madrugada) — as pendências de cobertura, fechadas
-
-Plano: `docs/superpowers/plans/2026-07-28-fechar-pendencias.md`. Quatro
-pendências dependiam de nós; três fecharam, a quarta é bloqueio externo.
-
-## A única mudança de código
-
-A decisão **pareado / trancado / nunca pareado** estava inline no
-`ensurePairedThenConnect`, junto de `URLSession` e do relay — não havia como
-exercitá-la sem rede, e era exatamente a lógica que a pendência do keychain
-queria cobrir. Virou `WebhookKeychainStore.PairingState` +
-`pairingState(load:exists:)`, pura, com `tools/webhookcheck.swift` cobrindo os
-quatro casos (inclusive **meio segredo aberto** → `locked`, que o código antigo
-já tratava por acidente da ordem dos `if`). `check.sh` foi de 8 pra 9 checks.
-Comportamento do app idêntico — commit `b042507`.
-
-## As três validações ao vivo, contra a 0.10.1
-
-A 0.10.1 foi publicada como veículo: os dois caminhos do updater só podem ser
-exercitados contra uma release mais nova que a instalada.
-
-| Pendência | Como foi provada | Desfecho |
-|---|---|---|
-| Update pelo brew (nunca rodou de ponta a ponta) | card no notch anunciou a 0.10.1 com **Atualizar** (não "Ver release" → `canInstall` verdadeiro), clique instalou por `brew upgrade --cask` | 0.10.1, cask ainda gerenciando, `axTrusted/tapExists/tapEnabled` todos `true` |
-| Caminho direto (`.zip` → `replaceItemAt` → relançar) | `brew uninstall`, 0.10.0 instalada por `ditto`, `brew list` passou a falhar → o updater caiu no `installDirect` | 0.10.1 com o binário de 22:19 dentro de um app que o brew não conhecia; permissões intactas; app devolvido ao brew no fim |
-| Ramo trancado do keychain | os 3 segredos gravados pelo `security(1)`, cuja ACL o app não abre — `exists == true`, `load == nil`, sem tocar na assinatura | UI mostrou **Credenciais inacessíveis** + **Parear de novo**, os itens falsos ficaram intactos (o app parou em vez de registrar por cima), e o `repair()` trocou o `tokenfalso` por um token real do relay |
-
-O truque do `security(1)` vale registrar: até aqui, reproduzir o keychain
-trancado exigia trocar a assinatura do app. Como a ACL pertence a **quem
-gravou**, gravar por outro binário produz o mesmo estado — repro barato e
-reversível, sem mexer em assinatura nem em TCC.
-
-**Nenhum dos dois updates derrubou a Acessibilidade**, que era o risco herdado
-das sessões anteriores: as duas vias assinam com `Knobler Local Signing`, então
-o `csreq` guardado pelo TCC continua batendo.
-
-## Grafo
-
-Regenerado em modo incremental (22 arquivos alterados): **2036 nós, 3799
-arestas, 161 comunidades** — 95k tokens contra os 639k da passada completa.
-`// ponytail:` das 161 comunidades, só as 22 maiores ganharam nome; o resto
-ficou `Comunidade N`.
-
-## Pendências
-
-- **Notarização** (`KNOBLER_NOTARY_PROFILE`) — bloqueada por dependência
-  externa: o caminho existe no `tools/release.sh` desde a 0.10.0 e espera uma
-  conta Apple Developer paga. Enquanto não houver, o cask segue removendo a
-  quarentena no install, e os caveats explicam isso ao usuário.
-

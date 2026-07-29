@@ -42,10 +42,22 @@ regras de domínio novas são implementadas.
 | Webhooks | `WebhookClient` + Keychain | Ajustes e notificações |
 | Agenda | `CalendarCountdown`, `ScheduleEngine` | notch e Ajustes |
 | Versão disponível e instalação | `Updater` | card do notch e Ajustes › Geral |
+| Notificações das últimas 24 h | `NotificationHistory.shared` | `HistoryListView` |
+| Nota rápida (texto, foco, tela dona) | `QuickNote.shared` | `NotchView`, menu da barra |
 
 O mesmo estado de Ask é injetado em todas as janelas. Não crie um store por
 monitor: uma resposta ou cancelamento precisa vencer uma única vez, mesmo com
 dois ou mais monitores.
+
+`NotificationHistory` e `QuickNote` seguem a mesma regra e pelo mesmo motivo:
+`NotchViewModel.enqueue` roda uma vez por tela com a mesma notificação, então
+um histórico por monitor daria N cópias podando cada uma por conta própria
+(o `record` deduplica por `id` justamente por isso — e quem constrói a
+`NotchNotification` **dentro** do `forEach` das telas gera N ids diferentes e
+fura o dedupe). A nota é singleton mas guarda `hostDisplayID`: uma tela dona,
+escolhida pelo ponteiro na hora de ligar. Sem esse dono, ligar a nota expandia
+todos os monitores sem nada recolhê-los, e as N cópias da `NotchView`
+disputavam foco escrevendo no mesmo `editing`.
 
 ## Fluxo de AskUserQuestion
 

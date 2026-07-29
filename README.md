@@ -13,7 +13,8 @@ Dynamic Island para o notch do Mac — nativo, Swift/SwiftUI, macOS 14.2+.
   bandas — as barras dançam com a música de verdade, tingidas pela cor da capa.
 - **HUDs no notch**: volume, brilho e bateria (carregador/20%) substituem o OSD
   nativo. → [detalhes](docs/huds.md)
-- **Notificações do sistema** interceptadas e exibidas no notch (Acessibilidade).
+- **Notificações do sistema** interceptadas e exibidas no notch (Acessibilidade),
+  com **histórico das últimas 24 h**: puxe o card pra baixo numa passada só.
   → [detalhes](docs/notifications.md)
 - **Countdown de calendário**: próximo evento entra 15min antes com anel regressivo.
   → [detalhes](docs/calendar-countdown.md)
@@ -30,6 +31,8 @@ Dynamic Island para o notch do Mac — nativo, Swift/SwiftUI, macOS 14.2+.
   botão direito converte (imagem, PDF, vídeo, Markdown — com tabela e imagem
   embutida) e envia por AirDrop.
   → [detalhes](docs/shelf.md)
+- **Nota rápida**: campo de texto efêmero no card, ligado pelo menu da barra;
+  digitar segura o notch aberto. → [detalhes](docs/nota-rapida.md)
 - **Conta-gotas**: amostra qualquer cor da tela e copia em HEX.
   → [detalhes](docs/color-picker.md)
 - **Mensagens** com outros Macs na rede local (texto, foto, GIF).
@@ -39,7 +42,8 @@ Dynamic Island para o notch do Mac — nativo, Swift/SwiftUI, macOS 14.2+.
 - **Bateria dos AirPods** por componente ao conectar.
   → [detalhes](docs/airpods.md)
 - **Espelho de câmera** antes de reuniões. → [detalhes](docs/mirror.md)
-- **Gestos**: dois dedos pra baixo abre, pra cima fecha, horizontal pula faixa.
+- **Gestos**: dois dedos pra baixo abre, pra cima fecha, horizontal pula faixa;
+  puxão longo na mesma passada entra no histórico de notificações.
 - **Multi-monitor**: notch real no MacBook, ilha simulada nos externos.
 - **API local** (`127.0.0.1:4477`) — o diferencial: qualquer script publica no notch.
   → [detalhes](docs/local-api.md)
@@ -166,6 +170,19 @@ O passo a passo completo de desenvolvimento e validação está em
 
 `tools/snapshot.sh` renderiza todos os estados do notch em `Snapshots/*.png`
 (offscreen, com estado fake injetado) — rodar e olhar antes de qualquer mudança de UI.
+
+Duas ressalvas conhecidas, as duas descobertas na v0.13.0:
+
+- **Nem toda view renderiza offscreen.** `ScrollView`, `TextField`/`TextEditor`,
+  `NavigationSplitView` e `NSWorkspace.icon(forFile:)` dependem de um `NSView`
+  real e saem em preto ou como ícone de "proibido". Cenário novo que use um
+  desses não vira snapshot — vira screenshot manual. A lista completa está no
+  `CLAUDE.md`.
+- **Quatro PNGs não são determinísticos**: `closed-music`,
+  `closed-music-external`, `expanded-activity-only` e `update-installing` mudam
+  de hash a cada rodada mesmo sem mudança de código (visualizador animado,
+  barra de progresso). Neles o snapshot serve de inspeção visual, não de
+  detector de regressão — não perca tempo caçando um diff que não existe.
 
 ## Consumo
 

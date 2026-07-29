@@ -41,6 +41,12 @@ estado em `Snapshots/*.png` — é o jeito de "ver" a UI sem abrir o app.
 ⚠️ A lista de arquivos em `tools/snapshot.sh` é **manual**. Ao adicionar um
 `.swift` novo em `Knobler/` que a `NotchView` use, adicione-o lá também.
 
+⚠️ **Quatro PNGs não são determinísticos** e mudam de hash a cada rodada mesmo
+sem mudança nenhuma de código: `closed-music`, `closed-music-external`,
+`expanded-activity-only` e `update-installing` (visualizador animado, barra de
+progresso). Neles o snapshot é inspeção visual, não detector de regressão — não
+gaste tempo investigando o diff. Os outros 57 são byte-idênticos entre rodadas.
+
 ⚠️ **Qualquer view que dependa de um `NSView` real (janela/WindowServer de
 verdade) não renderiza via `ImageRenderer` offscreen** — vira o ícone de
 "proibido" no lugar do conteúdo. Casos confirmados até agora:
