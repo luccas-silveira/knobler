@@ -13,6 +13,10 @@ pulado, nunca acumula/enfileira pra tocar tudo de uma vez ao acordar.
 
 - Criar, editar, pausar (sem apagar) ou remover: Ajustes → Lembretes.
 - Cada lembrete pode tocar um som e abrir uma URL ao clicar.
+- Quando o lembrete dispara, o card no notch traz **Adiar 5 min** e **30 min** —
+  o disparo é empurrado sem abrir os Ajustes. Adiar vale uma vez só: o lembrete
+  volta pra agenda normal depois de tocar. O adiamento mora na memória; se o
+  Knobler reiniciar antes de vencer, o lembrete volta pro horário de sempre.
 
 ## Permissões
 

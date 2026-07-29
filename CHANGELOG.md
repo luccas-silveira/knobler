@@ -7,6 +7,12 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 ## [Unreleased]
 
 ### Added
+- **Adiar lembrete no card**: quando um lembrete dispara, o card no notch traz
+  **Adiar 5 min** e **30 min** — empurra o próximo disparo sem abrir os Ajustes.
+  O adiamento vale uma vez: depois de tocar, o lembrete volta pra agenda normal
+  (um "uma vez" é religado pra o adiamento poder vencer). Mora na memória —
+  reiniciar o app antes de vencer devolve o horário original. Coberto pelo
+  `reminderscheck`, novo no `tools/check.sh`.
 - **Conta-gotas (color picker)**: item **◉ Selecionar cor…** no menu da barra
   abre a lupa nativa do macOS (`NSColorSampler`); a cor amostrada vai pro
   clipboard em HEX e o notch mostra um card com a amostra da cor e os outros

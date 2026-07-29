@@ -203,6 +203,15 @@ final class ScheduleEngine<Item: Scheduled> {
         }
     }
 
+    /// Adia o próximo disparo deste item (botão "Adiar" no card). Vence a agenda
+    /// uma vez só: ao disparar, o tick recomputa a próxima ocorrência normal.
+    /// ponytail: mora na memória — reiniciar o app perde o adiamento e o lembrete
+    /// volta pro horário de sempre. Persistir se alguém reclamar.
+    func snooze(_ item: Item, minutes: Int, now: Date = Date()) {
+        nextFire[item.id] = (item.schedule.hashValue,
+                             now.addingTimeInterval(TimeInterval(max(1, minutes) * 60)))
+    }
+
     private func computeNext(_ schedule: Schedule, from: Date) -> Date {
         switch schedule {
         case .interval(let min):
@@ -301,6 +310,27 @@ enum RemindersSelfCheck {
             assert(fired == ["D"])
             sched.tick(now: d("2026-07-20 09:00") + 5)        // próximo dia, na hora → dispara
             assert(fired == ["D", "D"])
+        }
+        // --- scheduler: adiar empurra o disparo e não some com a agenda ---
+        do {
+            let sched = ReminderScheduler()
+            var fired: [String] = []
+            let r = Reminder(title: "S", schedule: daily)
+            sched.itemsProvider = { [r] }
+            sched.onFire = { fired.append($0.title) }
+
+            sched.tick(now: d("2026-07-18 08:59"))             // arma
+            sched.tick(now: d("2026-07-18 09:00") + 5)         // dispara às 09:00
+            assert(fired == ["S"])
+            sched.snooze(r, minutes: 5, now: d("2026-07-18 09:00") + 5)
+            sched.tick(now: d("2026-07-18 09:03"))             // ainda não
+            assert(fired == ["S"])
+            sched.tick(now: d("2026-07-18 09:05") + 10)        // adiamento vence → dispara
+            assert(fired == ["S", "S"])
+            sched.tick(now: d("2026-07-18 09:06"))             // não redispara
+            assert(fired == ["S", "S"])
+            sched.tick(now: d("2026-07-19 09:00") + 5)         // agenda diária intacta
+            assert(fired == ["S", "S", "S"])
         }
         // --- scheduler: desligado não dispara ---
         do {

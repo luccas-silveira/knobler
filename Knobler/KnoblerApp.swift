@@ -63,6 +63,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let calendar = CalendarCountdown()
     private let pomodoro = Pomodoro()
     private let reminderScheduler = ReminderScheduler()
+    /// Botões de adiamento no card do lembrete. Dois: o "já já" e o "mais tarde".
+    static let snoozeOptions: [(title: String, minutes: Int)] =
+        [("Adiar 5 min", 5), ("30 min", 30)]
     private let breakScheduler = ScheduleEngine<ScreenBreak>()
     private let descanso = DescansoController()
     private let shelf = ShelfStore()
@@ -85,6 +88,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let display = currentActivity
         notches.values.forEach { $0.viewModel.activity = display }
     }
+    /// Empurra o lembrete pra daqui a `minutes`. Um `oneShot` já foi desligado
+    /// pelo `onFire` quando o card apareceu — religa, senão o tick o ignoraria e
+    /// o adiamento nunca venceria.
+    private func snooze(_ reminder: Reminder, by minutes: Int) {
+        if case .oneShot = reminder.schedule,
+           let i = AppSettings.shared.reminders.firstIndex(where: { $0.id == reminder.id }) {
+            AppSettings.shared.reminders[i].enabled = true
+        }
+        reminderScheduler.snooze(reminder, minutes: minutes)
+    }
+
     private var levelsCancellable: AnyCancellable?
     private var pausedCancellable: AnyCancellable?
 
@@ -322,7 +336,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             guard let self else { return }
             self.notches.values.forEach {
                 $0.viewModel.enqueue(NotchNotification(
-                    appName: nil, title: r.title, body: r.body, openURL: r.openURL))
+                    appName: nil, title: r.title, body: r.body, openURL: r.openURL,
+                    // token = id do lembrete: o card oferece "Adiar" sem abrir Ajustes
+                    actionTitles: Self.snoozeOptions.map(\.title), actionToken: r.id))
             }
             if let sound = r.soundName { NSSound(named: NSSound.Name(sound))?.play() }
             if case .oneShot = r.schedule,
@@ -730,11 +746,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 notch = ScreenNotch(window: panel, viewModel: viewModel)
                 notches[id] = notch
 
-                // botão do card (Aceitar/Recusar) → aciona o botão real do alerta
-                // do sistema e dispensa o card em todas as telas
+                // botão do card → adia o lembrete (token = id dele) ou, quando o
+                // token é de um alerta interceptado, aciona o botão real do sistema.
+                // Nos dois casos o card sai de todas as telas.
                 viewModel.onNotificationAction = { [weak self] token, index in
-                    self?.interceptor?.perform(token: token, index: index)
-                    self?.notches.values.forEach { $0.viewModel.dismissActiveNotification() }
+                    guard let self else { return }
+                    if let reminder = AppSettings.shared.reminders.first(where: { $0.id == token }),
+                       Self.snoozeOptions.indices.contains(index) {
+                        self.snooze(reminder, by: Self.snoozeOptions[index].minutes)
+                    } else {
+                        self.interceptor?.perform(token: token, index: index)
+                    }
+                    self.notches.values.forEach { $0.viewModel.dismissActiveNotification() }
                 }
 
                 // controles do card do Pomodoro → engine (onState reprograma todas as vms)

@@ -8,7 +8,7 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 
 - **Tema claro no notch**: Modo claro automático durante o dia, escuro à noite baseado no horário ou sensor de luminosidade. Notch se adaptaria ao ambiente sem força manual.
 
-- **Notificações com ações**: Suporte a botões de ação direta no notch — aceitar/rejeitar, delete, archive, snooze. Hoje mostram só o título; com ações seria pra valer interativo.
+- **Notificações com ações**: Suporte a botões de ação direta no notch — aceitar/rejeitar, delete, archive. Hoje mostram só o título; com ações seria pra valer interativo. ⚠️ Mais caro do que parece: acionar a ação exige o `AXUIElement` do banner **vivo**, e o interceptor fecha o banner justamente pra o notch substituí-lo. Ou o balão do sistema fica na tela (duplicado com o card), ou não há ação. A infra de botão no card já existe (`actionTitles`/`actionToken`) — o nó é esse.
 
 - **Animations suave entre estados**: Transições mais fluidas quando o notch abre/fecha, especialmente a music tab entrando/saindo. Agora é um pouco abrupto.
 
@@ -54,7 +54,9 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 
 ## Lembretes & Notificações
 
-- **Notificações com snooze direto**: Botão "lembrar em 5 min" sem abrir os Ajustes — ações rápidas no notch.
+- **Persistir o adiamento**: o card do lembrete já adia 5/30 min, mas o adiamento
+  mora na memória — reiniciar o Knobler antes de vencer devolve o lembrete ao
+  horário original. Gravar junto do lembrete resolveria.
 
 - **Persistência de notificações**: Salvar histórico de notificações dos últimos 24h — scroll no notch pra ver o que chegou.
 
