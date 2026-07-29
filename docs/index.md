@@ -34,7 +34,8 @@ contratos e explicações para entender decisões.
 - [Pomodoro](pomodoro.md)
 - [Descanso](descanso.md)
 - [Lembretes](reminders.md)
-- [Shelf de capturas](shelf.md)
+- [Shelf de capturas](shelf.md) — inclui conversão de arquivos e AirDrop
+- [Conta-gotas](color-picker.md)
 - [Mensagens LAN](messages.md)
 - [Webhooks](webhooks.md)
 - [AirPods](airpods.md)

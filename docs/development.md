@@ -50,8 +50,9 @@ Um comando roda todos os self-checks — é exatamente o que a CI executa:
 ```
 
 Cobre: `askcheck`, `updatercheck`, `agentrequestcheck`, `airpodscheck`,
-`wirecheck`, `webhookcheck`, o hook do Claude, a ponte do Codex e o e2e de
-solicitações de agente. Sai com código 1 se qualquer um falhar. Ao adicionar um
+`wirecheck`, `webhookcheck`, `colorpickercheck`, `imageconvertercheck`,
+`documentconvertercheck`, `sharingcheck`, o hook do Claude, a ponte do Codex e o
+e2e de solicitações de agente. Sai com código 1 se qualquer um falhar. Ao adicionar um
 self-check novo, inclua-o no script — ele é a lista canônica.
 
 Exige `jq` e `node`, que **não** vêm num macOS limpo (`brew install jq node`) —
