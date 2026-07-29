@@ -151,6 +151,12 @@ release real exige branch com upstream, `gh` autenticado, tap Homebrew e
 working tree sem mudanças nas fontes protegidas. Leia
 [`VERSIONING.md`](../VERSIONING.md) antes de publicar.
 
+O clone canônico do tap é o do `brew` (`brew --repo luccas-silveira/knobler`) —
+é onde o script bumpa o cask quando `KNOBLER_TAP_DIR` não está setada. **Não
+clone o tap em outro lugar**: um clone paralelo não aparece na busca do script,
+e foi assim que os caveats reescritos na 0.10.0 ficaram fora do ar, commitados
+num clone que o release nunca tocou.
+
 ## Checklist antes de entregar
 
 - código gerado não foi editado à mão;

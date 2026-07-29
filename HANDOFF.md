@@ -44,10 +44,15 @@ do bump 0.10.0).
 
 ## Pendências
 
-- **Push do commit dos caveats** (`1944b7d` no clone de `~/Desktop/Ferramentas`).
-- **Dois clones do tap continuam sendo uma armadilha** — o release só sincroniza
-  o que ele mesmo usa. Ou apaga um clone, ou o `release.sh` passa a avisar
-  quando acha mais de um.
+- ~~Push do commit dos caveats~~ — publicado (`1944b7d`); `brew info --cask
+  knobler` já serve as seções `ASSINATURA` e `PERMISSÕES` novas.
+- ~~Dois clones do tap~~ — resolvido eliminando a possibilidade de divergir, não
+  detectando-a: `~/Desktop/Ferramentas/homebrew-knobler` virou **symlink** pro
+  clone do `brew`, então o caminho antigo continua funcionando e editar por ali
+  edita o clone que o `release.sh` usa. Uma guarda no script não teria pego este
+  caso — o clone do Desktop nunca esteve entre os candidatos que ele procura
+  (`tools/release.sh:14-29`). O clone canônico agora está documentado em
+  [development.md](docs/development.md#release).
 - **Caminho trancado do keychain sem cobertura**: o aviso "Parear de novo" em
   Ajustes › Notificações externas não foi exercitado porque o toggle está
   desligado — ligar dispara pareamento real com o relay.
