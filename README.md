@@ -27,7 +27,8 @@ Dynamic Island para o notch do Mac — nativo, Swift/SwiftUI, macOS 14.2+.
 - **Lembretes** programados (únicos, recorrentes ou por intervalo); o card adia
   5 ou 30 min sem abrir os Ajustes. → [detalhes](docs/reminders.md)
 - **Prateleira de arquivos**: arraste pro notch, screenshots caem sozinhos;
-  botão direito converte (imagem, PDF, vídeo, Markdown) e envia por AirDrop.
+  botão direito converte (imagem, PDF, vídeo, Markdown — com tabela e imagem
+  embutida) e envia por AirDrop.
   → [detalhes](docs/shelf.md)
 - **Conta-gotas**: amostra qualquer cor da tela e copia em HEX.
   → [detalhes](docs/color-picker.md)

@@ -1,4 +1,84 @@
-# 🏁 SESSÃO 2026-07-29 (madrugada, 3ª) — adiar lembrete + **v0.11.0 publicada**
+# 🏁 SESSÃO 2026-07-29 (madrugada, 4ª) — pendências fechadas + **v0.12.0 publicada**
+
+Sessão de pendência, não de feature nova: das cinco abertas no topo do handoff
+anterior, **três fecharam** — duas com código, uma só com teste. As duas que
+sobraram dependem de coisa que não está nesta mesa.
+
+## O que foi feito
+
+**1. O adiamento do lembrete sobrevive ao restart** (`aa65f8d`). O `ScheduleEngine`
+ganhou um `snoozed: [UUID: Date]` espelhado no UserDefaults: `snooze()` grava,
+`init` lê, e o primeiro `tick()` depois do restart semeia o `nextFire` a partir
+dele. Vencido (ou lembrete apagado), o adiamento some sozinho — continua valendo
+uma vez só.
+
+O hash do schedule **não** é persistido junto de propósito: `hashValue` é
+randomizado por processo e não sobreviveria ao restart de qualquer jeito. O
+preço é editar o horário com um adiamento no ar mantendo o adiamento; está
+comentado no código.
+
+**2. Tabela, imagem embutida e regra horizontal no Markdown → PDF** (`151c5c7`).
+As três lacunas que o conversor carregava desde que nasceu.
+
+| Peça | Como |
+|---|---|
+| Paginação | saiu do **CoreText** e foi pro **TextKit** — um `NSTextContainer` por página |
+| Tabela | célula da mesma linha vira `\t`, um tab stop por coluna, alinhamento `:---`/`---:` respeitado |
+| Imagem | `run.imageURL` resolvido contra a pasta do `.md` → `NSTextAttachment` reduzido pra caber |
+| Régua | o "⸻" do parser repetido até a caixa, com `kern` negativo |
+
+A troca de motor foi o nó: era o `CTFramesetter` que ignorava anexo e tab stop.
+`NSLayoutManager` dá os dois de graça e custa menos código que a alternativa
+(`CTRunDelegate` reservando espaço + desenho manual).
+
+## As duas descobertas que só o olho pegou
+
+Ambas saíram de rasterizar o PDF e **olhar**, não de teste passando.
+
+- **A citação saía invisível.** O cinza vinha de `.secondaryLabelColor` — cor
+  dinâmica, que resolve pela aparência do sistema e no modo escuro vira branco.
+  Em papel branco, nada. Bug que já existia desde a 0.11.0 e nenhum assert
+  pegaria. Agora é tinta fixa (`quoteGray`), com assert de brilho no self-check.
+  Foi ele também que escondeu a régua na primeira tentativa e me fez trocar o
+  traço por um tab sublinhado antes de achar a causa real.
+- **O parser omite célula vazia.** `| Total | | 50,50 |` não gera run pra célula
+  do meio, então um tab por run puxava o valor pra coluna errada. O contador de
+  coluna virou explícito (`tableCell(intent)`).
+
+**3. `Compartilhar…` (menu nativo)** — fechada sem código: exercitada ao vivo,
+o menu abre e envia. O plano B (`NSSharingService.sharingServices(forItems:)`)
+não foi preciso.
+
+## Validação
+
+- `./tools/check.sh`: **14 checks**. `reminderscheck` ganhou o caso do restart
+  (engine A adia, engine B com `nextFire` zerado dispara na hora certa, engine C
+  confirma que o adiamento vencido não ressuscita); `documentconvertercheck`
+  ganhou três (tabela + régua + brilho da tinta; imagem com anexo medido e
+  caminho quebrado caindo no alt).
+- **PDF real rasterizado e conferido a olho** — foi o que achou os dois bugs
+  acima. Vale repetir o hábito: `DocumentConverter.pngPages(fromPDF:)` num md de
+  exemplo e ler o PNG.
+- Release: build Release + `satisfies its Designated Requirement`, v0.12.0 no
+  GitHub Releases e no cask.
+
+## Pendências e followups
+
+Sobraram as duas de bloqueio externo — nenhuma depende de código:
+
+- **Aceitar/Recusar espelhado nunca foi exercitado** — precisa de um AirDrop
+  vindo de **outro Apple ID**. Entre dispositivos do mesmo ID o macOS aceita
+  sozinho e esse par de botões nem aparece.
+- **Sem notarização**: `KNOBLER_NOTARY_PROFILE` espera uma conta Apple Developer
+  paga. A 0.12.0 saiu com o cert local; o cask remove a quarentena no install e
+  os caveats explicam.
+
+Ideias que a sessão deixou registradas em `docs/IDEIAS.md`: preview da conversão
+(hoje é às cegas, sem escolher qualidade/resolução).
+
+---
+
+# 🆕 SESSÃO 2026-07-29 (madrugada, 3ª) — adiar lembrete + **v0.11.0 publicada**
 
 Sessão curta de uma feature só. O `[Unreleased]` que a sessão anterior deixou
 acumulado **saiu**: `v0.11.0` está no GitHub Releases e no cask.
@@ -58,16 +138,16 @@ Novas desta sessão:
 
 - **O adiamento mora na memória.** Reiniciar o Knobler antes de vencer devolve
   o lembrete ao horário original. Registrado no IDEIAS; persistir junto do
-  `Reminder` resolveria.
+  `Reminder` resolveria. ✅ **Fechada na sessão de 29/07 (madrugada, 4ª).**
 
 Herdadas e ainda abertas:
 
-- **`Compartilhar…` (menu nativo) não teve confirmação visual** — plano B
-  (montar `NSMenu` com `NSSharingService.sharingServices(forItems:)`) segue
-  mapeado na sessão abaixo.
+- ~~**`Compartilhar…` (menu nativo) não teve confirmação visual**~~ — exercitado
+  ao vivo em 29/07: o menu abre e envia. Fechada sem código.
 - **Aceitar/Recusar espelhado nunca foi exercitado** — precisa de um AirDrop de
   Apple ID diferente.
-- **Markdown → PDF ignora tabela, imagem embutida e regra horizontal.**
+- ~~**Markdown → PDF ignora tabela, imagem embutida e regra horizontal.**~~ ✅
+  **Fechada na sessão de 29/07 (madrugada, 4ª).**
 - **Sem notarização**: `KNOBLER_NOTARY_PROFILE` não estava setado, então a
   0.11.0 saiu com o cert local. Quem instalar fora do cask vê o Gatekeeper.
 
@@ -196,164 +276,3 @@ ficou `Comunidade N`.
   conta Apple Developer paga. Enquanto não houver, o cask segue removendo a
   quarentena no install, e os caveats explicam isso ao usuário.
 
----
-
-# SESSÃO 2026-07-28 (madrugada) — a 0.10.0 instalada e validada ao vivo
-
-A 0.10.0 tinha sido publicada sem nunca ter sido instalada: não existia
-`Knobler.app` nesta máquina — nem em `/Applications`, nem em `~/Applications`,
-nem no Caskroom (o `brew list --cask knobler` quebrava com "diretório sumiu").
-Painel de Permissões, keychain sem prompt de senha e o pedido único de
-Acessibilidade tinham ido pro ar só com o build passando. Esta sessão fechou
-isso: instalou pelo cask e provou cada uma no app rodando.
-
-A sessão que **produziu** a 0.10.0 não deixou entrada aqui; o que ela entregou
-está no `CHANGELOG.md` e nos commits `b8857e1` (painel de Permissões + pedido no
-primeiro uso), `12d1f3b` (assinatura honesta, keychain sem prompt, notarização
-pronta) e `f6ac5eb` (release).
-
-## Validado ao vivo
-
-| O que | Prova |
-|---|---|
-| Instalação pelo cask | `brew install --cask knobler` → 0.10.0 em `/Applications`, `codesign` diz `Authority=Knobler Local Signing` |
-| Painel de Permissões | as 7 linhas com estado real: Microfone e Calendários *Concedida*, Câmera *Não solicitada*, Rede local/Arquivos/Áudio do sistema *Ainda não usada* |
-| Keychain sem senha | app aberto duas vezes, zero diálogos de login keychain — e os itens `com.zoi.knobler.webhook` de instalações antigas estavam lá, então o cenário do bug estava armado |
-| Pedido único de Acessibilidade | o diálogo do sistema apareceu no launch (`promptAccessibilityOnce`) |
-| Recuperação do tap | depois de remover e re-adicionar o Knobler na lista de Acessibilidade, `GET /status` deu `axTrusted: true, tapExists: true, tapEnabled: true` **sem relançar o app** — o `checkTapHealth` recriou o tap sozinho |
-| Badge da barra | `◐⚠` enquanto faltava a permissão, `◐` depois de conceder — ciclo completo do P2 da 0.9.0 |
-
-Detalhe do TCC que vale lembrar: o Knobler **já estava** na lista de
-Acessibilidade com o toggle ligado e mesmo assim `AXIsProcessTrusted()` era
-`false` — a entrada guardava a assinatura de uma instalação anterior. Ligar/
-desligar não basta em todo caso; remover com `−` e deixar o diálogo re-adicionar
-resolve.
-
-## Achado: os caveats do cask nunca foram publicados
-
-O CHANGELOG da 0.10.0 afirma que "os caveats do cask foram reescritos", mas o
-`brew info --cask knobler` ainda serve o texto velho — "assinado ad-hoc" e
-permissões que o app não pede (Automação, Bluetooth).
-
-Causa: os **dois clones do tap** divergiram. O commit `481fd62` ficou parado em
-`~/Desktop/Ferramentas/homebrew-knobler` enquanto o `release.sh` bumpou a 0.10.0
-pelo clone do `brew` (`/opt/homebrew/Library/Taps/...`). É a mesma pegadinha que
-o handoff da 0.9.0 previu — o `pull --ff-only` que o script ganhou protege o
-clone que ele usa, não o outro. Rebaseado sobre `origin/main` (`1944b7d` em cima
-do bump 0.10.0).
-
-## Pendências
-
-- ~~Push do commit dos caveats~~ — publicado (`1944b7d`); `brew info --cask
-  knobler` já serve as seções `ASSINATURA` e `PERMISSÕES` novas.
-- ~~Dois clones do tap~~ — resolvido eliminando a possibilidade de divergir, não
-  detectando-a: `~/Desktop/Ferramentas/homebrew-knobler` virou **symlink** pro
-  clone do `brew`, então o caminho antigo continua funcionando e editar por ali
-  edita o clone que o `release.sh` usa. Uma guarda no script não teria pego este
-  caso — o clone do Desktop nunca esteve entre os candidatos que ele procura
-  (`tools/release.sh:14-29`). O clone canônico agora está documentado em
-  [development.md](docs/development.md#release).
-- ~~Caminho trancado do keychain~~, ~~caminho direto do updater~~ e ~~teste de
-  aceitação do update~~ — fechados na madrugada seguinte, ver a entrada acima.
-- **Notarização** (`KNOBLER_NOTARY_PROFILE`) nunca exercitada — precisa de conta
-  Apple Developer paga.
-
----
-
-# SESSÃO 2026-07-28 (noite) — P1 e P2 do ditado + release 0.9.0
-
-As duas pendências que sobraram de 25/07 — a causa (duas identidades de
-assinatura) e o sintoma (falha silenciosa) — e, no fim, a publicação da 0.9.0
-com tudo que estava parado em `[Unreleased]`.
-
-## O que foi feito
-
-**P1 — uma identidade só.** `project.yml` assinava com
-`Apple Development: … (J8UFPJ9AZJ)` e o `tools/release.sh` com
-`Knobler Local Signing`. Copiar um build por cima do outro em `/Applications`
-trocava a identidade, invalidava o `csreq` guardado pelo TCC e matava o ditado em
-silêncio. Agora `CODE_SIGN_IDENTITY: "Knobler Local Signing"` no `project.yml`
-(e `DEVELOPMENT_TEAM` removido — cert self-signed não tem team). A CI não
-precisa do cert: builda com `CODE_SIGNING_ALLOWED=NO`.
-
-**P2 — o aviso saiu do notch e foi pra barra de menus.** Com o ditado ligado e
-`AXIsProcessTrusted() == false`, o ícone vira `◐⚠` e o menu ganha
-**⚠ Ditado precisa de Acessibilidade…**, que abre o painel do sistema. A pílula
-de 2s do launch continua, mas deixou de ser o único sinal. Descartada a pílula
-persistente no notch da proposta original: ela cobriria mídia, HUDs e o resto
-enquanto a permissão faltasse.
-
-O badge não abriu timer novo — pegou carona no `checkTapHealth`
-(`VolumeHUD.swift`), que já sondava a Acessibilidade a cada 3s. Ele ganhou
-`onAXTrust`, disparado só na mudança; o `AppDelegate` reavalia o título ali e no
-sink de `AppSettings` (o toggle do ditado também muda a condição).
-
-Arquivos: `project.yml`, `Knobler/KnoblerApp.swift`, `Knobler/VolumeHUD.swift`,
-`CHANGELOG.md`, `README.md`, `docs/development.md`, `docs/troubleshooting.md`.
-
-## Validação
-
-- `xcodebuild` Debug ✅; `codesign -dvv` do produto imprime
-  `Authority=Knobler Local Signing` — o P1 provado no artefato, não no YAML.
-- `./tools/check.sh` → 8/8 ✅ (o gate do Codex segue pulado sem `--com-ambiente`).
-- **Badge verificado ao vivo** (no fim da sessão): instalar a 0.9.0 trocou a
-  identidade da cópia de `/Applications`, o TCC invalidou a Acessibilidade e o
-  ícone da barra virou `◐⚠` — screenshot da barra de menus confirma, com
-  `GET /status` lendo `axTrusted: false, tapExists: false`.
-
-## Release 0.9.0 publicada
-
-`./tools/release.sh minor` rodou limpo depois de um `--dry-run` de validação:
-tag `v0.9.0`, commit `5b94c3a` (bump de `project.yml` + `CHANGELOG`), `.app`
-assinado com `Knobler Local Signing` (`satisfies its Designated Requirement`),
-`Knobler-0.9.0.zip` no [release](https://github.com/luccas-silveira/knobler/releases/tag/v0.9.0)
-e cask bumpado no tap (`eba0691`). CI verde em todos os commits da sessão.
-
-**Pegadinha achada na hora, já corrigida** (`680e638`): o caminho do tap era fixo
-em `../homebrew-knobler` e o clone está em `~/Desktop/Ferramentas/homebrew-knobler`
-— o release só passou com `KNOBLER_TAP_DIR=` na frente. Agora o script procura ao
-lado do repo e no tap do `brew`, e dá `pull --ff-only` antes de bumpar: existem
-**dois clones** do tap nesta máquina e o atrasado falharia no push com o cask já
-editado. Os dois estão sincronizados em `0.9.0` agora.
-
-## Instalação da 0.9.0 (feita)
-
-Escolhida a via **Homebrew** em vez do `ditto`: `brew install --cask knobler`,
-depois de mover a cópia 0.8.4 pra fora de `/Applications` (o brew recusa
-sobrescrever app não gerenciado). Confirmado: `Authority=Knobler Local Signing`,
-`CFBundleShortVersionString 0.9.0`, `brew list --cask knobler` responde. O sha256
-do zip publicado foi baixado e conferido contra o cask — batem.
-
-Consequência prevista e observada: o TCC invalidou a Acessibilidade na troca de
-identidade. **Falta reconceder no painel** (aberto na sessão, mas o clique é
-manual). Depois disso o `checkTapHealth` recria o tap sozinho e o badge some.
-
-Efeito colateral útil: com o app gerenciado pelo brew, o updater passa a usar o
-caminho `brew upgrade --cask knobler`. O caminho direto (baixar `.zip` → validar
-→ `replaceItemAt` → relançar) **continua sem nunca ter sido exercitado**.
-
-## Pendências
-
-- **Publicado**: `f70f427` (assinatura), `980f478` (badge), `5b94c3a` (v0.9.0),
-  `680e638` (tap do release).
-- **Reconceder a Acessibilidade** — pendência de clique humano, não de código.
-  Enquanto não fizer, o ditado não inicia (e o `◐⚠` fica na barra avisando).
-- **Teste de aceitação do update real**: na próxima release, o app deve avisar
-  sozinho e atualizar por `brew upgrade --cask knobler`. O caminho direto
-  (`.zip` → `replaceItemAt` → relançar) segue sem cobertura — para exercitá-lo
-  seria preciso uma instalação fora do brew.
-- A partir de agora as duas vias assinam igual, então instalar por cima **não**
-  derruba mais a Acessibilidade. Esta foi a última vez.
-- ~~`CLAUDE.md` afirmava que o `glassEffect`/Liquid Glass estava em uso~~ —
-  corrigido nesta sessão (zero ocorrências no código; o target é macOS 14.2).
-- ~~`graphify-out/` sem regenerar~~ — regenerado no fim da sessão: 1943 nós,
-  3787 arestas, 112 comunidades (1689 nós de AST + 409 semânticos, 639k tokens).
-  As 29 imagens de `docs/images/` ficaram de fora da camada semântica — são
-  screenshots de UI já referenciados pelos `.md` e cada uma exigiria um agente de
-  visão próprio. Snapshots também regenerados: 51/51 cenários ok.
-
-
----
-
-Sessões anteriores estão em
-[`docs/handoffs/2026-07.md`](docs/handoffs/2026-07.md).
