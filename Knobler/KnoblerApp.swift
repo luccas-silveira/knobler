@@ -737,9 +737,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             // sem ele ter visto nada acontecer
             scrollActed = true
             if expanded {
-                // card aberto: horizontal navega entre as telas (Música/Mensagens)
-                withAnimation(.easeOut(duration: 0.22)) {
-                    vm.tab = scrollAccumX < 0 ? .messages : .music
+                // card aberto: horizontal navega entre as telas (Música/Mensagens).
+                // Com a nota nesta tela o eixo fica de fora: o campo é o card
+                // inteiro, e mexer em `tab` por baixo dele deixaria o usuário
+                // numa aba que ele não viu escolher, aparecendo só no hover-out.
+                if !QuickNote.shared.hosted(by: id) {
+                    withAnimation(.easeOut(duration: 0.22)) {
+                        vm.tab = scrollAccumX < 0 ? .messages : .music
+                    }
                 }
             } else if media.state != nil {
                 if scrollAccumX < 0 { media.nextTrack() } else { media.previousTrack() }
@@ -1075,6 +1080,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        // a nota morre com o app; desligar aqui é o que joga o texto no
+        // clipboard antes (o didSet de `active`) em vez de sumir com ele
+        QuickNote.shared.active = false
         // devolve o OSD nativo — sem o Knobler o usuário fica sem HUD nenhum
         OSDSuppressor.restore()
         // devolve o preview do print (senão ficaria sem preview E sem shelf)

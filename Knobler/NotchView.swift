@@ -89,6 +89,21 @@ struct NotchView: View {
         hasMusic && (media.state?.isPlaying == true || vm.peeking)
     }
 
+    /// Nota ligada COM texto: o notch fechado precisa dizer que tem coisa lá
+    /// dentro. Sem isso o usuário fecha o card, trabalha meia hora, esquece, e
+    /// desliga o interruptor achando que está limpando um campo vazio — o
+    /// clipboard salva o texto hoje, mas continua sendo surpresa.
+    /// Só na tela dona, como todo o resto da nota.
+    private var noteBadge: Bool {
+        noteVisible && !note.text.isEmpty
+    }
+
+    /// Tem asa no fechado? A view e o `currentSize` precisam concordar — quando
+    /// divergiam, o conteúdo desenhava fora da moldura.
+    private var closedHasContent: Bool {
+        wingsVisible || vm.activity != nil || vm.micInUse || noteBadge
+    }
+
     private var notch: some View {
         let compact = mode == .closed || mode == .hud
             || mode == .dictation || mode == .pomodoro
@@ -102,7 +117,7 @@ struct NotchView: View {
 
             switch mode {
             case .closed:
-                if wingsVisible || vm.activity != nil || vm.micInUse {
+                if closedHasContent {
                     closedWings
                         .transition(.blurReplace)
                 }
@@ -201,6 +216,8 @@ struct NotchView: View {
         }
         .animation(morphAnimation, value: mode)
         .animation(morphAnimation, value: wingsVisible)
+        // asa aparece/some com o pontinho da nota, não só com a música
+        .animation(morphAnimation, value: noteBadge)
         .animation(morphAnimation, value: vm.micInUse)
         .animation(morphAnimation, value: askStore.state.active?.id)
         .animation(morphAnimation, value: agentRequestStore.state.active?.id)
@@ -220,6 +237,10 @@ struct NotchView: View {
         .onChange(of: note.active) { _, _ in notifyKeyboardEligibility() }
         // o teclado segue o dono, não só o interruptor
         .onChange(of: note.hostDisplayID) { _, _ in notifyKeyboardEligibility() }
+        // digitar segura as notificações; parar de digitar solta a fila
+        .onChange(of: note.editing) { _, editing in
+            if !editing { vm.resumePendingNotifications() }
+        }
     }
 
     /// Faixa morta no topo dos cards: só existe onde tem câmera de verdade.
@@ -231,7 +252,7 @@ struct NotchView: View {
         // notch real: asas ao redor da câmera; externo: o conteúdo dita o tamanho
         switch mode {
         case .closed:
-            let hasContent = wingsVisible || vm.activity != nil || vm.micInUse
+            let hasContent = closedHasContent
             if vm.hasRealNotch {
                 return CGSize(
                     width: vm.notchSize.width + (hasContent ? wingWidth * 2 : 0),
@@ -604,6 +625,16 @@ struct NotchView: View {
             Spacer(minLength: 0)
             // asa direita: mic em uso + (atividade OU barras de áudio)
             HStack(spacing: 8) {
+                // pontinho da nota: dica ambiente, sem ícone e sem cor própria —
+                // "tem rascunho aqui" não é urgente como o mic laranja.
+                // Ink Tertiary (60%) em vez do Ink Faint que a DESIGN.md reserva
+                // pra placeholder: num alvo de 4 pt, 30% some contra o preto.
+                if noteBadge {
+                    Circle()
+                        .fill(.white.opacity(0.6))
+                        .frame(width: 4, height: 4)
+                        .transition(.blurReplace)
+                }
                 if vm.micInUse {
                     Image(systemName: "mic.fill")
                         .font(.system(size: 10, weight: .semibold))
@@ -650,6 +681,49 @@ struct NotchView: View {
 
     // MARK: - Nota rápida
 
+    /// Desliga o scroller do `NSScrollView` que o `TextEditor` embrulha — o
+    /// SwiftUI não expõe isso por modificador nenhum no macOS.
+    ///
+    /// `.scrollIndicators(.hidden)` não pega em `TextEditor` no macOS, e no
+    /// macOS 26 ele embrulha um `AppKitScrollView` cujo `hasVerticalScroller`
+    /// sozinho também não bastou — por isso o `NSScroller` é escondido direto.
+    ///
+    /// ponytail: varredura de árvore, porque não há API. Teto conhecido: se o
+    /// SwiftUI mudar a hierarquia interna, o laço não acha nada e a barra volta
+    /// — falha em silêncio, para no comportamento de hoje, não quebra. A saída
+    /// definitiva é trocar o `TextEditor` por um `NSTextView` próprio; custo
+    /// alto pra um campo que vive minutos.
+    private struct ScrollerHider: NSViewRepresentable {
+        func makeNSView(context: Context) -> NSView { NSView() }
+
+        func updateNSView(_ view: NSView, context: Context) {
+            // async: no momento do update a árvore do TextEditor ainda não
+            // existe embaixo da janela.
+            DispatchQueue.main.async {
+                guard let root = view.window?.contentView else { return }
+                Self.hideScrollers(in: root)
+            }
+        }
+
+        /// Varre pra BAIXO a partir da janela: o `.background` é irmão do
+        /// TextEditor, não ancestral, então subir por `superview` não acha nada.
+        /// Pega todo scroller da janela do notch, e isso é seguro porque a nota
+        /// é modo exclusivo — a lista do histórico nunca está na árvore junto.
+        private static func hideScrollers(in view: NSView) {
+            if let scroll = view as? NSScrollView {
+                scroll.hasVerticalScroller = false
+                scroll.scrollerStyle = .overlay
+            }
+            // o scroller some por ele mesmo também: no macOS 26 o TextEditor usa
+            // um `AppKitScrollView` próprio e reativar o flag acima não bastou.
+            if let scroller = view as? NSScroller {
+                scroller.isHidden = true
+                scroller.alphaValue = 0
+            }
+            view.subviews.forEach(hideScrollers)
+        }
+    }
+
     /// ponytail: texto simples, não rich text. Negrito e itálico exigiriam
     /// NSAttributedString e uma barra de formatação pra uma nota que vive
     /// minutos.
@@ -658,8 +732,36 @@ struct NotchView: View {
             .font(.system(size: 13))
             .foregroundStyle(.white.opacity(0.92))
             .scrollContentBackground(.hidden)
+            // `scrollContentBackground` esconde o fundo, não o scroller, e
+            // `.scrollIndicators(.hidden)` não pega em TextEditor no macOS
+            // (testado no app real). Quem usa "Mostrar barras de rolagem:
+            // sempre" via uma barra cinza parada dentro do card, com o campo
+            // VAZIO — barra de sistema dentro do notch é o "widget de terceiro"
+            // que o DESIGN.md proíbe.
+            .background(ScrollerHider())
             .focused($noteFocused)
             .frame(height: Self.noteEditorHeight)
+            // Campo vazio é um retângulo preto com um cursor: o placeholder é o
+            // único lugar onde cabe dizer que o texto morre no desligar.
+            // Ink Tertiary (60%), não o Ink Faint (30%) que a DESIGN.md dá pra
+            // placeholder: 30% sobre preto puro dá 2,6:1 e o PRODUCT.md exige
+            // 4,5:1. Vai ANTES do padding externo pra alinhar com o inset
+            // interno do TextEditor, não com a moldura.
+            //
+            // O 5 no leading NÃO é chute: medido no app real, o NSTextView por
+            // baixo tem textContainerInset (0,0) e lineFragmentPadding 5, então
+            // a primeira linha digitada nasce exatamente em (5, 0). Sem topo
+            // nenhum — um padding aqui faria o placeholder pular pra cima na
+            // primeira tecla.
+            .overlay(alignment: .topLeading) {
+                if note.text.isEmpty {
+                    Text("Rascunho — some ao desligar")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.white.opacity(0.6))
+                        .padding(.leading, 5)
+                        .allowsHitTesting(false)
+                }
+            }
             .padding(.horizontal, 4)
             .onAppear { noteFocused = true }
             .onChange(of: noteFocused) { _, focused in note.editing = focused }
@@ -698,7 +800,13 @@ struct NotchView: View {
             }
             .transition(.blurReplace)
             Spacer(minLength: 0)
-            if vm.historyOpen { grabber } else { pageDots }
+            // nota é modo exclusivo: o campo é o card inteiro, não há aba pra
+            // trocar nem cortina pra puxar. Rodapé vazio em vez dos pontinhos,
+            // que eram clicáveis e mudavam `vm.tab` por baixo da nota — o ponto
+            // de Mensagens acendia numa tela que seguia mostrando o texto.
+            if !noteVisible {
+                if vm.historyOpen { grabber } else { pageDots }
+            }
         }
     }
 
