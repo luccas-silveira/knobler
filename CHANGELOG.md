@@ -14,6 +14,12 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   desligar achando que o campo estava vazio.
 
 ### Fixed
+- **Abertura em Mac novo**: o app morria no launch em qualquer máquina que ainda
+  não tivesse concedido Bluetooth. O `BluetoothMonitor` registra notificação de
+  conexão dos AirPods, o TCC pede a permissão, e sem
+  `NSBluetoothAlwaysUsageDescription` no `Info.plist` o processo é abortado no
+  ato. Não aparecia em quem já tinha a permissão gravada — só em instalação
+  limpa.
 - **Nota rápida, teclado no meio da frase**: com o campo focado, notificação e
   HUD deixaram de tomar o card. Antes eles tiravam o campo da tela, o painel
   largava a janela chave e as teclas seguintes iam pro app da frente sem aviso

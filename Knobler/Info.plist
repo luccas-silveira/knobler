@@ -26,6 +26,8 @@
 	<true/>
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>Knobler lê o áudio do player para animar o visualizador no notch, como no iPhone.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Knobler detecta seus AirPods pra mostrar a bateria e o card de conexão no notch.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_knobler._tcp</string>

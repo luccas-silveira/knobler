@@ -34,6 +34,10 @@ targets:
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         LSUIElement: true
         NSAudioCaptureUsageDescription: Knobler lê o áudio do player para animar o visualizador no notch, como no iPhone.
+        # Obrigatória: o BluetoothMonitor chama registerForConnectNotifications, e
+        # sem a chave o TCC aborta o processo no primeiro pedido (só não aparece
+        # em máquina que já concedeu antes).
+        NSBluetoothAlwaysUsageDescription: Knobler detecta seus AirPods pra mostrar a bateria e o card de conexão no notch.
         NSCalendarsFullAccessUsageDescription: Knobler mostra a contagem regressiva do próximo evento no notch.
         NSCameraUsageDescription: Knobler mostra sua câmera no notch como espelho antes de reuniões.
         NSMicrophoneUsageDescription: Knobler grava sua voz enquanto você segura a tecla de ditado, para transcrever onde o cursor estiver.
