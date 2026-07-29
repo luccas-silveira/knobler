@@ -190,7 +190,18 @@ let scenarios: [Scenario] = [
     // ponytail: só o cenário vazio fica no harness — o populado (ScrollView
     // com itens) renderiza preto sólido no ImageRenderer offscreen, ver
     // CLAUDE.md. Um PNG preto é um falso gate, pior que não ter o cenário.
-    Scenario(name: "expanded-history-empty", realNotch: true) { vm, _, _ in
+    // card normal COM histórico guardado: é o gate da alcinha de descoberta
+    // convivendo com os pontinhos de página no mesmo rodapé.
+    Scenario(name: "expanded-history-grabber", realNotch: true) { vm, media, _ in
+        media.injectPreview(state: fakeState(), artwork: fakeArtwork())
+        NotificationHistory.shared.record(
+            NotchNotification(appName: "Finder", title: "Backup concluído", body: ""))
+        vm.expanded = true
+    },
+    // frameHeight maior que o padrão 240: a cortina tem altura própria
+    // (chrome + 260 da lista), e com 240 o PNG cortava a alcinha do rodapé —
+    // um gate que não mostra o rodapé não prova que o card coube.
+    Scenario(name: "expanded-history-empty", realNotch: true, frameHeight: 400) { vm, _, _ in
         vm.expanded = true
         vm.historyOpen = true
     },
@@ -399,6 +410,9 @@ for scenario in scenarios {
     vm.notchSize = scenario.realNotch
         ? CGSize(width: 200, height: 32)
         : CGSize(width: 190, height: 30)
+    // o histórico é singleton: sem zerar entre cenários, o que um cenário
+    // grava vaza pro próximo (a alcinha apareceria em todo card expandido)
+    NotificationHistory.shared.prune(now: .distantFuture)
     scenario.configure(vm, media, askStore)
     if let request = scenario.agentRequest {
         agentRequestStore.send(.enqueue(request))

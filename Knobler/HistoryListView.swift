@@ -8,6 +8,12 @@
 import SwiftUI
 
 struct HistoryListView: View {
+    /// Altura da cortina. É a MESMA constante que o `currentSize` da `NotchView`
+    /// soma pra dimensionar o card — mudar aqui muda o card junto. Se ela virar
+    /// duas, o card fica menor que a lista e as linhas de cima somem pra fora
+    /// da tela (a `.frame` centraliza o que não cabe).
+    static let listHeight: CGFloat = 260
+
     @ObservedObject var history: NotificationHistory
 
     private static let hora: DateFormatter = {
@@ -33,7 +39,7 @@ struct HistoryListView: View {
                 }
             }
         }
-        .frame(height: 260)
+        .frame(height: Self.listHeight)
     }
 
     private func linha(_ item: NotchNotification) -> some View {

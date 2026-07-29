@@ -55,6 +55,13 @@ struct NotchView: View {
             : .spring(response: 0.30, dampingFraction: 0.95)
     }
 
+    /// Altura do campo da nota. Mesma regra da `HistoryListView.listHeight`:
+    /// o `currentSize` soma ESTA constante, então layout e moldura mudam juntos.
+    static let noteEditorHeight: CGFloat = 120
+    /// Alcinha (3 pt) + o respiro dela (2 pt) + o espaçamento da VStack do
+    /// `musicContent` (10 pt): o quanto o card cresce quando há histórico.
+    private static let grabberBlock: CGFloat = 15
+
     private let expandedSize = CGSize(width: 430, height: 188)
     private let notificationWidth: CGFloat = 380
     // asinhas do estado fechado quando tem música tocando (capa + visualizer)
@@ -233,6 +240,20 @@ struct NotchView: View {
         case .music:
             // topo (câmera) + pontinhos de página no rodapé, comuns às duas telas
             let chrome = topInset + 10 + 16
+            // Nota e cortina têm altura própria e vêm ANTES da aritmética de
+            // música/shelf/atividade — é a mesma ordem de precedência do
+            // `expandedContent`. Sem estes dois ramos a moldura sairia ~150 pt
+            // menor que o conteúdo, que a `.frame` centraliza: as linhas mais
+            // novas saem pelo topo da tela e a metade de baixo cai fora do
+            // `.onHover` (mover o mouse pra lá lê como saída e fecha o card).
+            if note.active {
+                return CGSize(width: expandedSize.width,
+                              height: chrome + Self.noteEditorHeight + 20)
+            }
+            if vm.historyOpen {
+                return CGSize(width: expandedSize.width,
+                              height: chrome + HistoryListView.listHeight + 12)
+            }
             if vm.tab == .messages {
                 // aba Mensagens tem altura própria (conversa: cabeçalho + histórico
                 // rolável até 160 + campo); a lista de online cabe no mesmo espaço.
@@ -251,6 +272,9 @@ struct NotchView: View {
             if !vm.mirrorOn, !hasPomodoro, hasMusic || placeholder { height += 118 }
             if vm.activity != nil { height += hasMusic || hasShelf ? 46 : 60 }
             if hasShelf { height += hasMusic || vm.activity != nil ? 62 : 76 }
+            // alcinha de descoberta que o musicContent acrescenta quando há
+            // histórico pra puxar
+            if !history.items.isEmpty { height += Self.grabberBlock }
             return CGSize(width: expandedSize.width, height: height)
         case .notification:
             let hasActions = vm.activeNotification?.actionTitles.isEmpty == false
@@ -627,7 +651,7 @@ struct NotchView: View {
             .foregroundStyle(.white.opacity(0.92))
             .scrollContentBackground(.hidden)
             .focused($noteFocused)
-            .frame(height: 120)
+            .frame(height: Self.noteEditorHeight)
             .padding(.horizontal, 4)
             .onAppear { noteFocused = true }
             .onChange(of: noteFocused) { _, focused in note.editing = focused }
