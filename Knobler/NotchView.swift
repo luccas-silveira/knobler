@@ -805,7 +805,7 @@ struct NotchView: View {
                                                  onOpen: { vm.setExpandedDirect(false) })
                 case .mensagens: MessagesView(vm: vm)
                 case .espelho: mirrorSection
-                case .shelf: ShelfRowView(shelf: shelf, vm: vm)
+                case .shelf: ShelfRowView(shelf: shelf, vm: vm, onAirDrop: vm.onAirDrop)
                 case .atividade: if let a = vm.activity { activityRow(a) }
                 case .pomodoro: if let p = vm.pomodoro { pomodoroSection(p) }
                 case .musica, .none: musicSection

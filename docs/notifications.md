@@ -29,6 +29,26 @@ só um espelho:
 
 O `Fechar`/`Limpar` do próprio alerta nunca vira botão do card.
 
+## Silêncio durante reuniões
+
+Com **Ajustes › Notch › Silenciar durante reuniões** ligado, notificação de app,
+da API local e de webhook **não vira card** enquanto uma reunião acontece. Ela
+não some: vai direto pro Histórico, e está lá quando a reunião acabar.
+
+Continuam aparecendo normalmente: **lembretes**, **Pomodoro**, perguntas do
+Claude e o conta-gotas. São coisas que você mesmo agendou — engoli-las seria
+perder o alarme que você pediu, não filtrar ruído.
+
+"Reunião" é um evento do calendário **acontecendo agora** e **com link de call**
+(Zoom, Meet, Teams, Webex, Whereby, Jitsi). Evento comum de agenda não conta:
+"Almoço" e "Aniversário da Ana" não silenciam nada. Evento de dia inteiro também
+não — senão um aniversário calaria o notch o dia todo.
+
+A opção é **opt-in** e depende da contagem do calendário estar ligada, que é
+quem sabe o que está em curso. Microfone em uso foi recusado como sinal: o
+ditado do próprio Knobler o acende, e o notch silenciaria toda vez que você
+falasse.
+
 ## Permissões
 
 - **Acessibilidade** — necessária pro `AXObserver` ler e fechar o banner

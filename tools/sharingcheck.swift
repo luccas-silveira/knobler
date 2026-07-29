@@ -17,7 +17,63 @@ struct SharingCheck {
     static func main() {
         testExistingFilter()
         testActionTitle()
+        testAirDropLabel()
+        testAirDropCancel()
+        testSilenciarEmReuniao()
         print("✅ sharingcheck ok")
+    }
+
+    /// Silenciar o notch por engano é pior que não silenciar: você perde a
+    /// notificação e não sabe que perdeu.
+    static func testSilenciarEmReuniao() {
+        let inicio = Date(timeIntervalSince1970: 1_000_000)
+        let fim = inicio.addingTimeInterval(3600)
+        func silencia(
+            allDay: Bool = false, call: Bool = true, agora: Date,
+            de: Date = inicio, ate: Date = fim
+        ) -> Bool {
+            NotificationRules.silenciaOChat(
+                isAllDay: allDay, start: de, end: ate, temLinkDeCall: call, agora: agora)
+        }
+
+        assert(silencia(agora: inicio.addingTimeInterval(600)), "reunião em curso silencia")
+        assert(silencia(agora: inicio), "o instante do início já conta")
+        assert(!silencia(agora: inicio.addingTimeInterval(-1)), "um segundo antes, não")
+        assert(!silencia(agora: fim),
+               "fim é exclusivo: às 15h, a reunião que ia até as 15h acabou")
+        assert(!silencia(agora: fim.addingTimeInterval(600)), "depois do fim, não")
+
+        assert(!silencia(call: false, agora: inicio.addingTimeInterval(600)),
+               "evento sem link de call não silencia (almoço, aniversário)")
+        assert(!silencia(allDay: true, agora: inicio.addingTimeInterval(600)),
+               "evento de dia inteiro nunca silencia")
+
+        // reunião de duração zero (convite mal formado) não pode prender o notch
+        assert(!silencia(agora: inicio, de: inicio, ate: inicio),
+               "evento de duração zero não silencia nada")
+    }
+
+    /// O card diz o que foi enviado: um arquivo pelo nome, vários pela contagem.
+    static func testAirDropLabel() {
+        let a = URL(fileURLWithPath: "/tmp/foto.png")
+        let b = URL(fileURLWithPath: "/tmp/nota.txt")
+        assert(Sharing.label(for: [a]) == "foto.png", "um arquivo: nome")
+        assert(Sharing.label(for: [a, b]) == "2 arquivos", "vários: contagem")
+    }
+
+    /// Fechar a janela do AirDrop sem escolher destino chega no delegate como
+    /// erro. Tratar isso como falha encheria o notch de card de erro toda vez
+    /// que o usuário desistisse do envio.
+    static func testAirDropCancel() {
+        let cancelou = NSError(domain: NSCocoaErrorDomain, code: NSUserCancelledError)
+        assert(AirDropSession.isCancel(cancelou), "cancelamento do usuário")
+
+        let falhou = NSError(domain: NSCocoaErrorDomain, code: NSFileWriteUnknownError)
+        assert(!AirDropSession.isCancel(falhou), "erro de escrita é falha de verdade")
+
+        let outroDominio = NSError(domain: NSURLErrorDomain, code: NSUserCancelledError)
+        assert(!AirDropSession.isCancel(outroDominio),
+               "mesmo código em outro domínio não é o cancelamento do AppKit")
     }
 
     /// O shelf guarda caminhos, não arquivos: mandar pro AirDrop um path morto

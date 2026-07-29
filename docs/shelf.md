@@ -33,7 +33,7 @@ prontos pra arrastar em vez de precisar ir até a área de trabalho.
 
 ```
 Converter     ▸ …                       (só quando o tipo tem conversão)
-Compartilhar  ▸ Enviar por AirDrop
+Compartilhar  ▸ Enviar por AirDrop      (estado aparece no notch)
                 Compartilhar…           (menu nativo: Mensagens, Mail, Notas…)
                 Enviar tudo por AirDrop (N)   ← a partir de 2 itens
 ──────────────
@@ -86,6 +86,21 @@ imagem embutida, paginado em Letter. A imagem sai do caminho relativo ao própri
 `.md` (link remoto não é baixado — a conversão não faz rede) e é reduzida pra
 caber na largura da página. Coluna de tabela tem largura fixa, dividida em
 partes iguais; o alinhamento (`:---`, `---:`) é respeitado.
+
+## Enviar por AirDrop
+
+Além do menu de contexto da miniatura, o menu da barra tem **↗ Enviar por
+AirDrop…**, que abre um seletor de arquivo — mandar algo não obriga mais a
+arrastá-lo pra prateleira antes.
+
+Nos dois caminhos o notch mostra o estado: uma atividade **"Enviando por
+AirDrop"** enquanto vai, e um card 📤 no fim. Fechar a janela do AirDrop sem
+escolher destino não mostra nada — desistir não é erro.
+
+A atividade é **indeterminada** (sem barra de porcentagem) porque
+`NSSharingService` não expõe bytes transferidos; nenhuma API pública expõe. Quem
+mostra a régua de progresso é a janela do próprio sistema. Isso é limite da
+plataforma, não simplificação.
 
 ## Permissões
 

@@ -41,6 +41,12 @@ final class AppSettings: ObservableObject {
     @Published var calendarCountdown: Bool {
         didSet { UserDefaults.standard.set(calendarCountdown, forKey: "calendarCountdown") }
     }
+    /// Durante reunião com link de call, notificação de app/API/webhook não vira
+    /// card — vai direto pro histórico. Requer a contagem do calendário ligada,
+    /// que é quem sabe o que está em curso.
+    @Published var silenciarEmReuniao: Bool {
+        didSet { UserDefaults.standard.set(silenciarEmReuniao, forKey: "silenciarEmReuniao") }
+    }
     /// Espelho abre sozinho 2min antes de evento com link de call
     /// (requer a contagem do calendário ligada).
     @Published var mirrorBeforeMeetings: Bool {
@@ -205,6 +211,9 @@ final class AppSettings: ObservableObject {
         localAPI = flag("localAPI")
         checkForUpdates = flag("checkForUpdates")
         calendarCountdown = flag("calendarCountdown")
+        // opt-in: engolir card sem o usuário ter pedido é o tipo de surpresa que
+        // faz perder notificação e culpar o app
+        silenciarEmReuniao = defaults.bool(forKey: "silenciarEmReuniao")
         mirrorBeforeMeetings = flag("mirrorBeforeMeetings")
         mirrorDeviceID = defaults.string(forKey: "mirrorDeviceID") ?? ""  // "" = automática
         micIndicator = flag("micIndicator")

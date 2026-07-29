@@ -22,8 +22,8 @@ da própria feature, linkada abaixo.
 - Painéis e onde encontrar os detalhes de cada um:
   - **Geral** — login automático, versão do app, atualizações.
   - **Notch** — liga/desliga individualmente HUDs, notificações, countdown de
-    calendário, visualizador de áudio, API local, AirPods, screenshots na
-    prateleira, espelho de câmera. Traz também a **ordem das seções do card
+    calendário, **silêncio durante reuniões**, visualizador de áudio, API local,
+    AirPods, screenshots na prateleira, espelho de câmera. Traz também a **ordem das seções do card
     aberto**: uma lista arrastável que define quem aparece primeiro quando não
     há evento recente promovendo ninguém. Ver `docs/huds.md`, `docs/notifications.md`,
     `docs/calendar-countdown.md`, `docs/now-playing.md`, `docs/local-api.md`,

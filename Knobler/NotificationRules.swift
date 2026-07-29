@@ -28,4 +28,21 @@ enum NotificationRules {
     static func isAirDrop(appName: String?, title: String) -> Bool {
         [appName, title].contains { $0?.lowercased().contains(airdropMarker) == true }
     }
+
+    /// Evento que justifica silenciar o notch. Fora do `CalendarCountdown` pelo
+    /// mesmo motivo do resto deste arquivo: lá dentro depende do EventKit e não
+    /// dá pra testar.
+    ///
+    /// Exige link de call de propósito. "Almoço" e "Aniversário da Ana" são
+    /// eventos de agenda, não reunião — silenciar por causa deles faria o
+    /// usuário perder notificação sem entender por quê. Dia inteiro nunca conta,
+    /// pelo mesmo motivo.
+    ///
+    /// O fim é exclusivo: às 15h em ponto, a reunião que ia até as 15h acabou.
+    static func silenciaOChat(
+        isAllDay: Bool, start: Date, end: Date, temLinkDeCall: Bool, agora: Date
+    ) -> Bool {
+        guard !isAllDay, temLinkDeCall else { return false }
+        return start <= agora && end > agora
+    }
 }

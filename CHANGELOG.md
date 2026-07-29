@@ -19,6 +19,19 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   Salvar grava o conjunto ao lado do original (só a primeira entra na
   prateleira, pra não estourar a capacidade de 8 itens).
 
+- **Silenciar durante reuniões** (Ajustes › Notch, opt-in): enquanto um evento
+  do calendário com link de call está em curso, notificação de app, da API local
+  e de webhook vai direto pro Histórico em vez de virar card. Lembretes,
+  Pomodoro e perguntas do Claude continuam aparecendo — são coisas que você
+  agendou, não ruído. Evento sem link de call e evento de dia inteiro não
+  silenciam nada.
+- **Estado do AirDrop no notch**: enviar pelo shelf mostra uma atividade
+  "Enviando por AirDrop" e um card 📤 no fim. Desistir na janela do sistema não
+  mostra nada. A atividade é indeterminada porque `NSSharingService` não expõe
+  bytes transferidos — limite da plataforma, não simplificação.
+- **↗ Enviar por AirDrop…** no menu da barra, com seletor de arquivo: mandar
+  algo não obriga mais a arrastá-lo pra prateleira antes.
+
 ### Changed
 - Conversão de vídeo perdeu a faixa de atividade do notch: o progresso agora
   aparece no próprio card do preview. Em 100% ela continua saindo por remux

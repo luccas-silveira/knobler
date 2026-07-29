@@ -100,9 +100,15 @@ struct ShelfDropDelegate: DropDelegate {
 
 struct ShelfRowView: View {
     @ObservedObject var shelf: ShelfStore
-    /// Só pra faixa de progresso da conversão de vídeo — o resto do shelf não
-    /// precisa do view model.
+    /// Foco na prateleira ao abrir o preview de conversão.
     var vm: NotchViewModel?
+    /// Envio por AirDrop que reporta estado no notch. nil (harness de snapshot,
+    /// que não tem AppDelegate) cai no envio mudo de sempre.
+    var onAirDrop: (([URL]) -> Void)?
+
+    private func enviar(_ urls: [URL]) {
+        if let onAirDrop { onAirDrop(urls) } else { Sharing.airdrop(urls) }
+    }
 
     var body: some View {
         if let preview = shelf.preview {
@@ -160,12 +166,12 @@ struct ShelfRowView: View {
                 }
             }
             Menu("Compartilhar") {
-                Button("Enviar por AirDrop") { Sharing.airdrop([url]) }
+                Button("Enviar por AirDrop") { enviar([url]) }
                 Button("Compartilhar…") { Sharing.share([url]) }
                 if shelf.items.count > 1 {
                     Divider()
                     Button("Enviar tudo por AirDrop (\(shelf.items.count))") {
-                        Sharing.airdrop(shelf.items)
+                        enviar(shelf.items)
                     }
                 }
             }

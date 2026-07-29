@@ -290,6 +290,13 @@ struct NotchSettingsPane: View {
                     subtitle: "Abre a câmera 2 min antes de eventos com link de call.",
                     isOn: $settings.mirrorBeforeMeetings)
                     .disabled(!settings.calendarCountdown)
+                SettingToggle(
+                    title: "Silenciar durante reuniões",
+                    subtitle: "Em evento com link de call, notificação de app, "
+                        + "API e webhook vai direto pro histórico, sem virar card. "
+                        + "Lembretes e Pomodoro continuam aparecendo.",
+                    isOn: $settings.silenciarEmReuniao)
+                    .disabled(!settings.calendarCountdown)
             }
             Section("Capturas de tela") {
                 SettingToggle(

@@ -61,6 +61,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var lanCancellables = Set<AnyCancellable>()
     private let dictation = DictationController()
     private let calendar = CalendarCountdown()
+    /// Reunião com link de call acontecendo agora (vem do `CalendarCountdown`).
+    private var emReuniao = false
     private let pomodoro = Pomodoro()
     private let reminderScheduler = ReminderScheduler()
     /// Botões de adiamento no card do lembrete. Dois: o "já já" e o "mais tarde".
@@ -79,14 +81,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Evita reabrir o espelho a cada tick se o usuário fechou antes da call.
     private var mirrorAutoOpened = false
 
-    // duas fontes de atividade: API (explícita) vence o calendário (ambiente)
+    // três fontes de atividade, em ordem de prioridade: envio de AirDrop (ação
+    // que você acabou de disparar), API (explícita) e calendário (ambiente)
     private var apiActivity: NotchActivity?
     private var calendarActivity: NotchActivity?
-    private var currentActivity: NotchActivity? { apiActivity ?? calendarActivity }
+    private var airdropActivity: NotchActivity?
+    private var currentActivity: NotchActivity? {
+        airdropActivity ?? apiActivity ?? calendarActivity
+    }
 
     private func pushActivity() {
         let display = currentActivity
         notches.values.forEach { $0.viewModel.activity = display }
+    }
+
+    /// Envia por AirDrop mostrando o estado no notch: atividade
+    /// **indeterminada** enquanto vai (o `NSSharingService` não expõe bytes
+    /// transferidos — ver `AirDropState`) e card no fim.
+    func airdropComEstado(_ urls: [URL]) {
+        Sharing.airdrop(urls) { [weak self] in self?.aplicarEstadoAirDrop($0) }
+    }
+
+    private func aplicarEstadoAirDrop(_ state: AirDropState) {
+        switch state {
+        case .enviando(let label):
+            airdropActivity = NotchActivity(
+                id: "airdrop",
+                title: "Enviando por AirDrop",
+                detail: label,
+                progress: nil,
+                updatedAt: Date())
+        case .enviado(let label):
+            airdropActivity = nil
+            publicar(NotchNotification(
+                appName: "AirDrop", title: "Enviado", body: label, iconEmoji: "📤"))
+        case .cancelado:
+            airdropActivity = nil
+        case .falhou(let motivo):
+            airdropActivity = nil
+            publicar(NotchNotification(
+                appName: "AirDrop", title: "Não deu pra enviar", body: motivo,
+                iconEmoji: "📤"))
+        }
+        pushActivity()
     }
     /// Empurra o lembrete pra daqui a `minutes`. Um `oneShot` já foi desligado
     /// pelo `onFire` quando o card apareceu — religa, senão o tick o ignoraria e
@@ -135,7 +172,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         // notificações aparecem em TODAS as telas, como os HUDs
         let interceptor = NotificationInterceptor { [weak self] notch in
-            self?.notches.values.forEach { $0.viewModel.enqueue(notch) }
+            self?.publicar(notch)
         }
         interceptor.start()
         self.interceptor = interceptor
@@ -303,11 +340,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         // API local: scripts publicam cards no notch (diferencial do Knobler)
         apiServer.onNotification = { [weak self] notification in
-            self?.notches.values.forEach { $0.viewModel.enqueue(notification) }
+            self?.publicar(notification)
         }
         // webhook externo (relay): cada notificação recebida vira card em todas as telas
         webhookClient.onNotify = { [weak self] notification in
-            self?.notches.values.forEach { $0.viewModel.enqueue(notification) }
+            self?.publicar(notification)
         }
         // atividade é global: aparece em todos os monitores
         apiServer.onActivity = { [weak self] activity in
@@ -317,6 +354,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         calendar.onActivity = { [weak self] activity in
             self?.calendarActivity = activity
             self?.pushActivity()
+        }
+        calendar.onMeeting = { [weak self] emReuniao in
+            self?.emReuniao = emReuniao
         }
         pomodoro.configProvider = { AppSettings.shared.pomodoroConfig }
         pomodoro.onState = { [weak self] state in
@@ -824,6 +864,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     }
                     self.notches.values.forEach { $0.viewModel.dismissActiveNotification() }
                 }
+                viewModel.onAirDrop = { [weak self] urls in
+                    self?.airdropComEstado(urls)
+                }
 
                 // controles do card do Pomodoro → engine (onState reprograma todas as vms)
                 viewModel.onPomodoroPause = { [weak self] in self?.pomodoro.pause() }
@@ -1023,6 +1066,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let picker = menu.addItem(
             withTitle: "◉ Selecionar cor…", action: #selector(pickColor), keyEquivalent: "")
         picker.target = self
+        // ponto de envio que não passa pela prateleira: mandar um arquivo não
+        // devia obrigar a arrastá-lo pro notch antes
+        let airdrop = menu.addItem(
+            withTitle: "↗ Enviar por AirDrop…", action: #selector(sendAirDrop), keyEquivalent: "")
+        airdrop.target = self
         menu.addItem(.separator())
         let settings = menu.addItem(
             withTitle: "Ajustes…", action: #selector(openSettings), keyEquivalent: ",")
@@ -1075,6 +1123,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         vm.setExpandedDirect(true)
     }
 
+    /// Manda a notificação pras telas — ou, em reunião, só pro histórico.
+    ///
+    /// Só passa por aqui o que chega **de fora**: app interceptado, API local e
+    /// webhook. Pomodoro, lembretes e conta-gotas continuam indo direto ao
+    /// `enqueue`, porque são coisas que *você* agendou — engoli-las seria perder
+    /// o alarme que você mesmo pediu, não filtrar ruído.
+    ///
+    /// Silenciar nunca descarta: o `record` roda igual, e o card silenciado está
+    /// na seção Histórico quando a reunião acabar.
+    private func publicar(_ notification: NotchNotification) {
+        guard emReuniao, AppSettings.shared.silenciarEmReuniao else {
+            notches.values.forEach { $0.viewModel.enqueue(notification) }
+            return
+        }
+        NotificationHistory.shared.record(notification)
+    }
+
     /// Conta-gotas: lupa nativa, HEX no clipboard, card no notch com os outros
     /// formatos. Cancelar (Esc) não mostra nada.
     @objc private func pickColor() {
@@ -1087,6 +1152,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 iconColor: color)
             self.notches.values.forEach { $0.viewModel.enqueue(notification) }
         }
+    }
+
+    @objc private func sendAirDrop() {
+        Sharing.airdropFromPanel { [weak self] in self?.aplicarEstadoAirDrop($0) }
     }
 
     @objc private func pomStart() { pomodoro.start() }

@@ -15,6 +15,9 @@ final class CalendarCountdown {
     /// true enquanto uma reunião com link de call está a ≤2min de começar —
     /// borda de subida abre o espelho, de descida fecha (reunião começou).
     var onMirrorMoment: ((Bool) -> Void)?
+    /// true enquanto uma reunião com link de call está **acontecendo** (entre
+    /// início e fim). Diferente do `onMirrorMoment`, que é o instante anterior.
+    var onMeeting: ((Bool) -> Void)?
 
     private let store = EKEventStore()
     private var timer: Timer?
@@ -27,6 +30,23 @@ final class CalendarCountdown {
         "zoom.us", "meet.google.com", "teams.microsoft.com",
         "webex.com", "whereby.com", "meet.jit.si",
     ]
+
+    /// Reunião acontecendo agora — a regra em si vive em
+    /// `NotificationRules.silenciaOChat`, que é testável.
+    ///
+    /// Recusado como sinal: microfone em uso. O ditado do próprio Knobler o
+    /// acende, e o notch silenciaria toda vez que você falasse.
+    private func emReuniao(at now: Date) -> Bool {
+        let predicate = store.predicateForEvents(withStart: now, end: now, calendars: nil)
+        return store.events(matching: predicate).contains { event in
+            NotificationRules.silenciaOChat(
+                isAllDay: event.isAllDay,
+                start: event.startDate,
+                end: event.endDate,
+                temLinkDeCall: Self.hasCallLink(event),
+                agora: now)
+        }
+    }
 
     private static func hasCallLink(_ event: EKEvent) -> Bool {
         let haystack = [event.url?.absoluteString, event.location, event.notes]
@@ -63,10 +83,12 @@ final class CalendarCountdown {
         guard AppSettings.shared.calendarCountdown else {
             onActivity?(nil)
             onMirrorMoment?(false)
+            onMeeting?(false)
             return
         }
 
         let now = Date()
+        onMeeting?(emReuniao(at: now))
         let predicate = store.predicateForEvents(
             withStart: now.addingTimeInterval(-lingerAfterStart),
             end: now.addingTimeInterval(leadTime),
@@ -83,6 +105,8 @@ final class CalendarCountdown {
             onMirrorMoment?(false)
             return
         }
+        // o onMeeting já foi publicado acima: ele não depende de haver evento
+        // *próximo*, e sim de haver um em curso — sair aqui não pode calá-lo
 
         let remaining = event.startDate.timeIntervalSince(now)
         onMirrorMoment?(remaining > 0 && remaining <= mirrorLead && Self.hasCallLink(event))

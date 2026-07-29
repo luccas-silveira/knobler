@@ -491,6 +491,9 @@ final class NotchViewModel: ObservableObject {
 
     /// Ação do card (Aceitar/Recusar) → o app aciona o botão real do alerta.
     var onNotificationAction: ((UUID, Int) -> Void)?
+    /// Envio por AirDrop que mostra estado no notch. O `AppDelegate` liga; o
+    /// harness de snapshot deixa nil e o shelf cai no envio mudo.
+    var onAirDrop: (([URL]) -> Void)?
 
     // MARK: - HUD de som
 
