@@ -6,6 +6,13 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Changed
+- **A decisão de pareamento do relay virou função pura testada**: escolher entre
+  pareado, trancado e nunca pareado estava embutida no cliente do webhook, junto
+  da chamada de rede, e por isso nunca teve teste. Agora é
+  `WebhookKeychainStore.pairingState()`, sem efeito nenhum, coberta pelo
+  `webhookcheck` no `tools/check.sh`. O comportamento do app é o mesmo.
+
 ## [0.10.0] - 2026-07-28
 
 ### Added
