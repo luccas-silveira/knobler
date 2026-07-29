@@ -24,6 +24,7 @@ swiftc -O -o build/snapshot \
   Knobler/NotificationHistory.swift \
   Knobler/HistoryListView.swift \
   Knobler/NotchGesture.swift \
+  Knobler/NotchSectionOrder.swift \
   Knobler/QuickNote.swift \
   Knobler/NotificationInterceptor.swift \
   Knobler/NotificationRules.swift \
