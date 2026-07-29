@@ -1,4 +1,79 @@
-# 🏁 SESSÃO 2026-07-29 (madrugada) — três features tiradas do IDEIAS
+# 🏁 SESSÃO 2026-07-29 (madrugada, 3ª) — adiar lembrete + **v0.11.0 publicada**
+
+Sessão curta de uma feature só. O `[Unreleased]` que a sessão anterior deixou
+acumulado **saiu**: `v0.11.0` está no GitHub Releases e no cask.
+
+## O que foi feito
+
+**Adiar lembrete direto no card do notch** (`1a29ef4`). Quando um lembrete
+dispara, o card traz **Adiar 5 min** e **30 min**.
+
+O diff é pequeno porque quase tudo já existia — a UI de botão no card
+(`actionTitles` / `actionToken`) tinha sido escrita na sessão anterior pro
+AirDrop e **só rodava em alerta de Apple ID alheio**. Agora roda todo dia.
+
+| Peça | Onde |
+|---|---|
+| `snooze(_:minutes:now:)` — empurra o `nextFire` sem tocar na agenda | `Reminders.swift` (engine) |
+| `onFire` manda `actionToken: r.id` + os dois títulos | `KnoblerApp.swift:336` |
+| Roteamento por token: lembrete → snooze, resto → interceptor | `KnoblerApp.swift:749` |
+| `snoozeOptions` (títulos + minutos, fonte única) | `KnoblerApp.swift:66` |
+
+Duas decisões que valem lembrar:
+
+- **O adiamento vence uma vez só.** Ao disparar, o tick recomputa a agenda
+  normal — um diário adiado pras 09:05 volta pras 09:00 no dia seguinte.
+- **Um `oneShot` precisa ser religado no snooze.** O `onFire` já o desligou
+  quando o card apareceu, e o tick pula item desabilitado — sem religar, o
+  adiamento nunca venceria. Custou uma linha, mas é invisível na leitura.
+
+## A descoberta que matou a feature que eu ia fazer
+
+A recomendação inicial era **notificações de app com ações** (Responder,
+Marcar como lida) — parecia barata, já que a infra de botão existe. Não é.
+
+Acionar a ação exige o `AXUIElement` do banner **vivo**, e o interceptor fecha
+o banner justamente pra o notch substituí-lo. Ou o balão do sistema fica na
+tela duplicado com o card, ou não há ação — não existe meio-termo via AX.
+Anotado com ⚠️ em `docs/IDEIAS.md` pra não custar essa descoberta de novo.
+
+Trocamos pelo snooze, que é a mesma UI sem nenhum AX no caminho.
+
+## Validação
+
+- `./tools/check.sh`: **14 checks** (eram 13). O `reminderscheck` entrou —
+  o `-D REMINDERS_SELFCHECK` existia desde sempre no `Reminders.swift` mas
+  **nunca rodava no CI**. O novo assert cobre adiar → não dispara antes →
+  dispara na hora → não redispara → agenda diária intacta no dia seguinte.
+- **Ao vivo, ciclo completo** (lembrete de teste via `defaults write`, removido
+  depois): card com os dois botões às 00:14 · clique roteou pro snooze
+  (o `enabled` do `oneShot` voltou a `true` no plist, coisa que **só** o snooze
+  faz) às 00:16 · card reapareceu às **00:21**, exatos 5 min depois.
+- Release: build Release + `satisfies its Designated Requirement` (cert local
+  `Knobler Local Signing`, então o TCC não revoga a Acessibilidade).
+
+## Pendências e followups
+
+Novas desta sessão:
+
+- **O adiamento mora na memória.** Reiniciar o Knobler antes de vencer devolve
+  o lembrete ao horário original. Registrado no IDEIAS; persistir junto do
+  `Reminder` resolveria.
+
+Herdadas e ainda abertas:
+
+- **`Compartilhar…` (menu nativo) não teve confirmação visual** — plano B
+  (montar `NSMenu` com `NSSharingService.sharingServices(forItems:)`) segue
+  mapeado na sessão abaixo.
+- **Aceitar/Recusar espelhado nunca foi exercitado** — precisa de um AirDrop de
+  Apple ID diferente.
+- **Markdown → PDF ignora tabela, imagem embutida e regra horizontal.**
+- **Sem notarização**: `KNOBLER_NOTARY_PROFILE` não estava setado, então a
+  0.11.0 saiu com o cert local. Quem instalar fora do cask vê o Gatekeeper.
+
+---
+
+# 🆕 SESSÃO 2026-07-29 (madrugada, 2ª) — três features tiradas do IDEIAS
 
 Sessão de feature, não de manutenção: conta-gotas, conversão de arquivos e
 AirDrop saíram do `docs/IDEIAS.md` e entraram no app. `[Unreleased]` acumula as
