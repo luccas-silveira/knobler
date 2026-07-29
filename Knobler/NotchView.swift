@@ -109,7 +109,9 @@ struct NotchView: View {
                     .transition(.blurReplace)
             case .notification:
                 notificationCard
-                    .frame(width: notificationWidth - 48, height: 56)
+                    .frame(width: notificationWidth - 48,
+                           height: vm.activeNotification?.actionTitles.isEmpty == false
+                               ? 92 : 56, alignment: .top)
                     .padding(.top, topInset)
                     // notificação desce do notch, como no iPhone
                     .transition(.blurReplace.combined(with: .move(edge: .top)))
@@ -246,7 +248,9 @@ struct NotchView: View {
             if hasShelf { height += hasMusic || vm.activity != nil ? 62 : 76 }
             return CGSize(width: expandedSize.width, height: height)
         case .notification:
-            return CGSize(width: notificationWidth, height: topInset + 56)
+            let hasActions = vm.activeNotification?.actionTitles.isEmpty == false
+            return CGSize(width: notificationWidth,
+                          height: topInset + 56 + (hasActions ? 36 : 0))
         case .message:
             let tall = vm.incoming?.allowReply == true
             // a imagem toma a largura toda do card; a altura vem do app (aspecto real)
@@ -658,7 +662,7 @@ struct NotchView: View {
                     .transition(.blurReplace)
             }
             if !shelf.items.isEmpty {
-                ShelfRowView(shelf: shelf)
+                ShelfRowView(shelf: shelf, vm: vm)
                     .transition(.blurReplace)
             }
             if let activity = vm.activity {
@@ -906,27 +910,47 @@ struct NotchView: View {
     @ViewBuilder
     private var notificationCard: some View {
         if let notification = vm.activeNotification {
-            HStack(spacing: 12) {
-                appIcon(for: notification)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(notification.title)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                    if !notification.body.isEmpty {
-                        Text(notification.body)
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.65))
-                            .lineLimit(2)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 12) {
+                    appIcon(for: notification)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(notification.title)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                        if !notification.body.isEmpty {
+                            Text(notification.body)
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.65))
+                                .lineLimit(2)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    openSourceApp(notification)
+                    vm.dismissActiveNotification()
+                }
+                if let token = notification.actionToken, !notification.actionTitles.isEmpty {
+                    HStack(spacing: 8) {
+                        ForEach(Array(notification.actionTitles.enumerated()), id: \.offset) {
+                            index, title in
+                            Button(title) {
+                                vm.onNotificationAction?(token, index)
+                            }
+                            .buttonStyle(.plain)
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.white)
+                            .padding(.vertical, 5)
+                            .padding(.horizontal, 12)
+                            .background(.white.opacity(index == 0 ? 0.22 : 0.10),
+                                        in: Capsule())
+                        }
+                        Spacer(minLength: 0)
                     }
                 }
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                openSourceApp(notification)
-                vm.dismissActiveNotification()
             }
         }
     }
@@ -934,14 +958,26 @@ struct NotchView: View {
     private func appIcon(for notification: NotchNotification) -> some View {
         RemoteAvatarView(iconURL: notification.iconURL,
                          iconEmoji: notification.iconEmoji,
+                         iconColor: notification.iconColor,
                          fallbackPath: Self.appPath(bundleID: notification.bundleID,
                                                     named: notification.appName))
             .frame(width: 32, height: 32)
     }
 
     private func openSourceApp(_ notification: NotchNotification) {
+        // AirDrop revela a pasta de destino — caminho fixo do sistema, nunca uma
+        // string vinda de fora (o openURL abaixo aceita payload de webhook)
+        if notification.revealsDownloads {
+            if let downloads = FileManager.default.urls(
+                for: .downloadsDirectory, in: .userDomainMask).first {
+                NSWorkspace.shared.activateFileViewerSelecting([downloads])
+            }
+            return
+        }
+        // só http/https: file:// aqui deixaria um webhook abrir qualquer app
         if let raw = notification.openURL, let url = URL(string: raw),
-           let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
+           let scheme = url.scheme?.lowercased(),
+           scheme == "http" || scheme == "https" {
             NSWorkspace.shared.open(url)
             return
         }
@@ -1221,12 +1257,18 @@ struct AudioBarsView: View {
 private struct RemoteAvatarView: View {
     let iconURL: String?
     let iconEmoji: String?
+    var iconColor: NSColor? = nil
     let fallbackPath: String?
     @StateObject private var loader = RemoteAvatarLoader()
 
     var body: some View {
         Group {
-            if let e = iconEmoji, !e.isEmpty {
+            if let iconColor {
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(Color(nsColor: iconColor))
+                    .overlay(RoundedRectangle(cornerRadius: 7)
+                        .strokeBorder(.white.opacity(0.25), lineWidth: 1))
+            } else if let e = iconEmoji, !e.isEmpty {
                 Text(e).font(.system(size: 22))
             } else if let img = loader.image {
                 Image(nsImage: img).resizable().scaledToFit()

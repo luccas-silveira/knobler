@@ -133,6 +133,8 @@ final class NotchViewModel: ObservableObject {
     private let reopenCooldown: TimeInterval = 0.45
     private var lastCollapseAt = Date.distantPast
     private let notificationDuration: TimeInterval = 5.0
+    /// O alerta do sistema vive ~30s; o card espelhado acompanha.
+    private let actionableDuration: TimeInterval = 30.0
     private let hudDuration: TimeInterval = 1.5
     private var pendingWork: DispatchWorkItem?
     private var queue: [NotchNotification] = []
@@ -293,8 +295,14 @@ final class NotchViewModel: ObservableObject {
             self?.dismissActiveNotification()
         }
         dismissWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + notificationDuration, execute: work)
+        // card com botões espera uma decisão: 5s não dá tempo nem de ler
+        let duration = activeNotification?.actionTitles.isEmpty == false
+            ? actionableDuration : notificationDuration
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: work)
     }
+
+    /// Ação do card (Aceitar/Recusar) → o app aciona o botão real do alerta.
+    var onNotificationAction: ((UUID, Int) -> Void)?
 
     // MARK: - HUD de som
 

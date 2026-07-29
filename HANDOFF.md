@@ -1,3 +1,76 @@
+# 🏁 SESSÃO 2026-07-29 (madrugada) — três features tiradas do IDEIAS
+
+Sessão de feature, não de manutenção: conta-gotas, conversão de arquivos e
+AirDrop saíram do `docs/IDEIAS.md` e entraram no app. `[Unreleased]` acumula as
+três — **nada foi publicado**, é `./tools/release.sh minor` → v0.11.0 quando
+quiser.
+
+## O que foi feito
+
+| Feature | Onde vive | Como se usa |
+|---|---|---|
+| Conta-gotas | `ColorPicker.swift` | menu da barra → **◉ Selecionar cor…**; HEX vai pro clipboard, card mostra RGB/SwiftUI e a amostra da cor |
+| Conversão de arquivos | `FileConverter.swift` (despachante), `ImageConverter`, `DocumentConverter`, `VideoConverter` | botão direito na miniatura do shelf → **Converter ▸** |
+| Compartilhar / AirDrop | `Sharing.swift` | mesmo menu → **Compartilhar ▸ Enviar por AirDrop / Compartilhar… / Enviar tudo** |
+
+Conversões por tipo: imagem → PNG/JPEG/HEIC/PDF · PDF → PNG por página (2x) ·
+vídeo → MP4/MOV (passthrough quando o codec cabe, senão recodifica, com
+progresso na faixa de atividade) · Markdown → PDF renderizado no app (parser do
+Foundation + CoreText, paginado em Letter).
+
+## A descoberta que mudou o desenho do AirDrop
+
+A ideia original dizia "o app impede o recebimento" e a decisão inicial foi
+espelhar **Aceitar/Recusar** no notch. `tools/axdump.swift` (criado nesta
+sessão, fica no repo) mostrou que **esse par de botões não existe** entre
+dispositivos do mesmo Apple ID — o macOS aceita sozinho e o que aparece é:
+
+```
+AXGroup [AXNotificationCenterAlert] AXDescription="AirDrop, Recebendo uma foto"
+        actions=["AXPress", "Name:Mostrar Detalhes", "Name:Fechar"]
+```
+
+A ação `Name:Fechar` casava com `closeActionHints` — o interceptor fechava o
+alerta que **acompanha a transferência viva**. Era essa a interferência.
+
+Conserto: `process()` só fecha quando não é AirDrop **e** não há botão de ação.
+O alerta do sistema fica de pé e o card do notch virou espelho, não substituto.
+O espelhamento de botões foi implementado mesmo assim (aciona o botão real via
+`AXUIElementPerformAction`, card dura 30s) — mas **nunca rodou de verdade**:
+só entra em cena recebendo de outro Apple ID.
+
+## Validação
+
+- `./tools/check.sh`: **13 checks** (eram 9) — novos: `colorpickercheck`,
+  `imageconvertercheck`, `documentconvertercheck`, `sharingcheck`.
+- Build Debug ok; `tools/snapshot.sh` regenerando.
+- Ao vivo: conta-gotas (`#BC7426` no clipboard), Markdown → PDF conferido em
+  imagem rasterizada, AirDrop recebido **e** enviado pelo usuário.
+
+## Pendências e followups
+
+- **`Compartilhar…` (menu nativo) não teve confirmação visual.** Ancora num
+  `NSPanel` nonactivating e popover pode não aparecer. Plano B mapeado: montar
+  `NSMenu` com `NSSharingService.sharingServices(forItems:)` +
+  `popUp(positioning:at:in:nil)`, sem âncora (API depreciada no 13, aceita).
+- **Aceitar/Recusar espelhado nunca foi exercitado** — precisa de um envio de
+  Apple ID diferente.
+- **Publicar a v0.11.0** (`./tools/release.sh minor`).
+- Markdown → PDF ignora tabela, imagem embutida e regra horizontal (o alt text
+  da imagem vira linha de texto). Registrado no IDEIAS.
+- `tools/snapshot.sh` estava quebrado desde a 0.10.0 (faltava
+  `Permissions.swift` na lista manual) — consertado de passagem.
+
+## Segurança
+
+O review automático pegou um `file://` que **eu** tinha aberto no allowlist do
+`openSourceApp` pro card do AirDrop revelar o Downloads. Era exploitável:
+`WebhookClient.swift:237` preenche `openURL` com payload do relay externo, então
+um webhook abriria qualquer app do disco. Revertido — o card usa o campo
+`revealsDownloads` e o caminho vem de `FileManager.urls(for: .downloadsDirectory)`.
+
+---
+
 # 🆕 SESSÃO 2026-07-29 (madrugada) — as pendências de cobertura, fechadas
 
 Plano: `docs/superpowers/plans/2026-07-28-fechar-pendencias.md`. Quatro

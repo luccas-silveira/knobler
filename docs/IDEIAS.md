@@ -104,7 +104,7 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 
 - **WhatsApp Web**: Enviar mensagens via WhatsApp direto do notch (parse da URL, login headless).
 
-- **AirDrop nativo**: O app intercepta notificações do AirDrop impedindo o recebimento. Precisamos integrar corretamente com AirDrop — mostrar solicitações/transferências na interface do notch e deixar o sistema operar normalmente.
+- **Progresso do AirDrop no notch**: o app já não atrapalha mais o AirDrop (o alerta do sistema fica de pé) e mostra um card de espelho, mas sem barra de progresso da transferência nem ponto de envio fora do shelf (ex.: item na barra de menus com seletor de arquivo).
 
 ---
 
@@ -130,9 +130,7 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 
 ## Utilidades & Conversão
 
-- **Conversão de arquivos nativa**: Arrastar arquivo pro notch e convertê-lo pra outro formato (JPEG → PNG, Markdown → PDF, etc.). Suporte a múltiplos formatos (imagens, documentos, vídeos) com preview da conversão.
-
-- **Color Picker nativo**: Selecionar qualquer cor da tela e copiar em múltiplos formatos (HEX, RGB, SwiftUI, CSS). Útil pra designers/desenvolvedores pegarem cores de qualquer aplicativo.
+- **Preview da conversão**: o shelf já converte imagem, PDF, vídeo e Markdown pelo menu de contexto, mas às cegas — mostrar o resultado antes de confirmar (e deixar escolher qualidade/resolução) seria o próximo passo. Faltam também tabela e imagem embutida no Markdown → PDF.
 
 ---
 
@@ -153,8 +151,6 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 - **Dicas de hotkeys**: Mostrar dicas inline quando o user abre notch pela primeira vez (⌥ direita pra ditado, etc.).
 
 - **Modo tutorial**: Guiar o user pelos principais recursos com tooltips e highlights — educacional pra novos.
-
-- **Verificação e atualização automática**: Buscar updates periodicamente (ex: a cada 24h) e notificar user. Opcionalmente, instalar automaticamente em background com restart silencioso.
 
 ---
 

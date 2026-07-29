@@ -28,6 +28,15 @@ struct NotchNotification: Identifiable, Equatable {
     var iconURL: String? = nil
     /// Emoji fixo do perfil (webhook) — renderiza local, sem baixar nada.
     var iconEmoji: String? = nil
+    /// Amostra de cor no lugar do ícone — conta-gotas.
+    var iconColor: NSColor? = nil
+    /// Botões do alerta original espelhados no card (vazio = card só informa).
+    var actionTitles: [String] = []
+    /// Chave pro interceptor achar os botões reais quando o card for clicado.
+    var actionToken: UUID? = nil
+    /// Card do AirDrop: clique revela a pasta de download (caminho do sistema,
+    /// não uma URL — `openURL` aceita payload de webhook e não pode abrir file://).
+    var revealsDownloads = false
     /// ID de dedupe do webhook: mesmo id substitui em vez de empilhar (progresso).
     var webhookID: String? = nil
     let date = Date()
@@ -40,8 +49,8 @@ final class NotificationInterceptor {
     ]
     private static let windowSubroles: Set<String> =
         bannerSubroles.union(["AXSystemDialog"])
-    // ação de fechar pode vir com nome cru ou localizado
-    private static let closeActionHints = ["close", "clear", "fechar", "limpar"]
+    // regras puras (o que é ação, o que é AirDrop) em NotificationRules.swift
+    private static let closeActionHints = NotificationRules.closeActionHints
 
     private let onNotification: (NotchNotification) -> Void
     private var observer: AXObserver?
@@ -148,14 +157,77 @@ final class NotificationInterceptor {
         lastContentDate = Date()
 
         NSLog("knobler intercepted: title=%@", parsed.title)
-        close(banner)
+
+        let airdrop = NotificationRules.isAirDrop(appName: parsed.appName, title: parsed.title)
+        let buttons = actionButtons(in: banner)
+        // O alerta do AirDrop acompanha uma transferência viva e alertas com
+        // botão (Aceitar/Recusar) exigem decisão — em ambos, fechar destrói
+        // algo que o usuário precisa. O do sistema fica na tela; o card do
+        // notch é um espelho, não o substitui.
+        if !airdrop, buttons.isEmpty { close(banner) }
+
+        var token: UUID?
+        if !buttons.isEmpty {
+            let id = UUID()
+            actionRegistry[id] = buttons.map(\.element)
+            // teto: um alerta que some sem ser acionado deixaria o AXUIElement
+            // pendurado pra sempre
+            if actionRegistry.count > 8, let oldest = actionOrder.first {
+                actionRegistry[oldest] = nil
+                actionOrder.removeFirst()
+            }
+            actionOrder.append(id)
+            token = id
+        }
+
         onNotification(NotchNotification(
-            appName: Self.appName(forBundleID: Self.defaultBundleID),
+            appName: airdrop ? "AirDrop" : Self.appName(forBundleID: Self.defaultBundleID),
             title: parsed.title,
             body: parsed.body,
-            bundleID: Self.defaultBundleID
+            bundleID: airdrop ? nil : Self.defaultBundleID,
+            iconEmoji: airdrop ? "📥" : nil,
+            actionTitles: buttons.map(\.title),
+            actionToken: token,
+            // clique no card do AirDrop revela a pasta de destino
+            revealsDownloads: airdrop
         ))
     }
+
+    // MARK: - Ações espelhadas no card
+
+    private var actionRegistry: [UUID: [AXUIElement]] = [:]
+    private var actionOrder: [UUID] = []
+
+    /// Aciona o botão real do alerta do sistema. `false` = o alerta já morreu.
+    @discardableResult
+    func perform(token: UUID, index: Int) -> Bool {
+        guard let buttons = actionRegistry[token], buttons.indices.contains(index) else {
+            return false
+        }
+        let ok = AXUIElementPerformAction(buttons[index], kAXPressAction as CFString) == .success
+        actionRegistry[token] = nil
+        actionOrder.removeAll { $0 == token }
+        return ok
+    }
+
+    /// Botões de verdade dentro do alerta (Aceitar/Recusar), fora o X de fechar.
+    private func actionButtons(in banner: AXUIElement) -> [(title: String, element: AXUIElement)] {
+        var found: [(String, AXUIElement)] = []
+        var stack = children(of: banner)
+        var visited = 0
+        while !stack.isEmpty, visited < 200, found.count < 3 {
+            visited += 1
+            let element = stack.removeFirst()
+            if stringAttribute(element, kAXRoleAttribute) == (kAXButtonRole as String),
+               let title = stringAttribute(element, kAXTitleAttribute),
+               NotificationRules.isActionTitle(title) {
+                found.append((title, element))
+            }
+            stack.append(contentsOf: children(of: element))
+        }
+        return found
+    }
+
 
     /// O Tahoe não expõe o app de origem no banner (AXStackingIdentifier foi
     /// removido) e o banco da Central de Notificações some com a notificação

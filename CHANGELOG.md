@@ -6,6 +6,48 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- **Conta-gotas (color picker)**: item **◉ Selecionar cor…** no menu da barra
+  abre a lupa nativa do macOS (`NSColorSampler`); a cor amostrada vai pro
+  clipboard em HEX e o notch mostra um card com a amostra da cor e os outros
+  formatos (RGB e SwiftUI) pra consulta. Coberto pelo `colorpickercheck` no
+  `tools/check.sh`.
+- **Conversão de arquivos no shelf**: botão direito num item da prateleira abre
+  **Converter para …** com os destinos que fazem sentido pro tipo do arquivo —
+  imagem → PNG/JPEG/HEIC/PDF, PDF → PNG (uma por página), vídeo → MP4/MOV,
+  Markdown → PDF. Mais "Mostrar no Finder" e "Remover do shelf". O arquivo novo
+  nasce ao lado do original com nome livre (`foto-1.png` se `foto.png` já
+  existir) e entra no shelf; o original nunca é tocado.
+  - O **Markdown → PDF** é renderizado no app (parser do Foundation + CoreText),
+    com cabeçalho, negrito/itálico, listas, citação e bloco de código, paginado
+    em Letter. Sem tabela, imagem embutida nem regra horizontal.
+  - O **vídeo** tenta remux instantâneo (passthrough) e só recodifica se o codec
+    não couber no contêiner de destino; o progresso aparece na faixa de
+    atividade do notch.
+  - Coberto pelos `imageconvertercheck` e `documentconvertercheck`.
+
+- **Compartilhar do shelf**: o menu de contexto da miniatura ganhou
+  **Compartilhar ▸ Enviar por AirDrop / Compartilhar… / Enviar tudo por
+  AirDrop**. O AirDrop abre a janela do sistema com os arquivos engatilhados; o
+  "Compartilhar…" abre o menu nativo (Mensagens, Mail, Notas…). Path que não
+  existe mais no disco é filtrado antes de enviar. O menu inteiro virou dois
+  níveis (**Converter ▸** e **Compartilhar ▸**), que estava virando um paredão
+  com até quatro destinos de conversão soltos.
+
+### Fixed
+- **O Knobler não atrapalha mais o AirDrop**: o interceptor fechava *qualquer*
+  coisa que a Central de Notificações mostrasse, inclusive o alerta que
+  acompanha uma transferência de AirDrop em curso (a ação `Fechar` do alerta
+  casava com a lista de dicas de fechamento). Agora o alerta do AirDrop e
+  qualquer alerta com botão de ação ficam na tela — o card do notch passa a ser
+  um espelho, não um substituto. O card do AirDrop mostra 📥 e revela a pasta
+  Downloads no clique; alertas com botão têm as ações espelhadas no card
+  (clicar no notch aciona o botão real via Accessibility) e duram 30s em vez de
+  5s. Regras puras em `NotificationRules.swift`, cobertas pelo `sharingcheck`.
+- **`tools/snapshot.sh` voltou a compilar**: faltava `Knobler/Permissions.swift`
+  na lista manual de fontes desde que o painel de Permissões entrou (0.10.0), e
+  o harness morria antes de renderizar qualquer PNG.
+
 ## [0.10.1] - 2026-07-28
 
 ### Changed

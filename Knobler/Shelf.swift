@@ -8,6 +8,7 @@
 //  bookmarks security-scoped só se um dia sandboxar.
 //
 
+import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -73,6 +74,9 @@ struct ShelfDropDelegate: DropDelegate {
 
 struct ShelfRowView: View {
     @ObservedObject var shelf: ShelfStore
+    /// Só pra faixa de progresso da conversão de vídeo — o resto do shelf não
+    /// precisa do view model.
+    var vm: NotchViewModel?
 
     var body: some View {
         HStack(spacing: 14) {
@@ -109,6 +113,61 @@ struct ShelfRowView: View {
             .buttonStyle(.plain)
             .offset(x: 6, y: -5)
         }
+        .contextMenu {
+            let targets = FileConverter.targets(for: url)
+            if !targets.isEmpty {
+                Menu("Converter") {
+                    ForEach(targets, id: \.self) { target in
+                        Button(target.label) { convert(url, to: target) }
+                    }
+                }
+            }
+            Menu("Compartilhar") {
+                Button("Enviar por AirDrop") { Sharing.airdrop([url]) }
+                Button("Compartilhar…") { Sharing.share([url]) }
+                if shelf.items.count > 1 {
+                    Divider()
+                    Button("Enviar tudo por AirDrop (\(shelf.items.count))") {
+                        Sharing.airdrop(shelf.items)
+                    }
+                }
+            }
+            Divider()
+            Button("Mostrar no Finder") {
+                NSWorkspace.shared.activateFileViewerSelecting([url])
+            }
+            Button("Remover do shelf") { shelf.remove(url) }
+        }
         .transition(.blurReplace)
+    }
+
+    /// Converte fora da main e coloca o resultado no shelf — o original fica.
+    /// Vídeo demora, então ocupa a faixa de atividade do notch enquanto roda.
+    /// Falha: beep e log, sem card de erro.
+    private func convert(_ url: URL, to target: ConversionTarget) {
+        // ponytail: a faixa de atividade é um slot só, compartilhado com a API
+        // local — uma conversão longa esconde a atividade que estiver lá.
+        if target.isSlow { showActivity(url, to: target, progress: 0) }
+        FileConverter.convert(url, to: target) { fraction in
+            if target.isSlow { showActivity(url, to: target, progress: fraction) }
+        } completion: { result in
+            if target.isSlow { vm?.activity = nil }
+            switch result {
+            case .success(let out):
+                shelf.add(out)
+            case .failure(let error):
+                NSLog("knobler: conversão falhou (\(url.lastPathComponent)): \(error)")
+                NSSound.beep()
+            }
+        }
+    }
+
+    private func showActivity(_ url: URL, to target: ConversionTarget, progress: Double) {
+        vm?.activity = NotchActivity(
+            id: "conversao",
+            title: "Convertendo para \(target.label)",
+            detail: url.lastPathComponent,
+            progress: progress > 0 ? progress : nil,
+            updatedAt: Date())
     }
 }

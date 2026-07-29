@@ -21,12 +21,14 @@ swiftc -O -o build/snapshot \
   Knobler/MediaRemoteSource.swift \
   Knobler/AudioLevelTap.swift \
   Knobler/NotificationInterceptor.swift \
+  Knobler/NotificationRules.swift \
   Knobler/RemoteAvatarLoader.swift \
   Knobler/WebhookKeychainStore.swift \
   Knobler/WebhookClient.swift \
   Knobler/WebhookSettingsView.swift \
   Knobler/MappingEditorView.swift \
   Knobler/AppSettings.swift \
+  Knobler/Permissions.swift \
   Knobler/SettingsView.swift \
   Knobler/IdentitySettingsView.swift \
   Knobler/Reminders.swift \
@@ -34,6 +36,11 @@ swiftc -O -o build/snapshot \
   Knobler/Descanso.swift \
   Knobler/DescansoView.swift \
   Knobler/Shelf.swift \
+  Knobler/ImageConverter.swift \
+  Knobler/DocumentConverter.swift \
+  Knobler/VideoConverter.swift \
+  Knobler/FileConverter.swift \
+  Knobler/Sharing.swift \
   Knobler/ShelfThumbnailDragView.swift \
   Knobler/Mirror.swift \
   Knobler/Peer.swift \

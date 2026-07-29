@@ -67,6 +67,11 @@ swift_check agentrequestcheck Knobler/AgentRequestModels.swift Knobler/AgentRequ
 swift_check airpodscheck      Knobler/AirPodsBattery.swift tools/airpods_selfcheck.swift
 swift_check wirecheck         Knobler/Wire.swift tools/wirecheck/main.swift
 swift_check webhookcheck      Knobler/WebhookKeychainStore.swift tools/webhookcheck.swift
+swift_check colorpickercheck  Knobler/ColorPicker.swift tools/colorpickercheck.swift
+CONVERSAO="Knobler/FileConverter.swift Knobler/ImageConverter.swift Knobler/DocumentConverter.swift Knobler/VideoConverter.swift"
+swift_check imageconvertercheck    $CONVERSAO tools/imageconvertercheck.swift
+swift_check documentconvertercheck $CONVERSAO tools/documentconvertercheck.swift
+swift_check sharingcheck          Knobler/Sharing.swift Knobler/NotificationRules.swift tools/sharingcheck.swift
 
 echo "== gates de integração =="
 run claude-hook          bash tools/claude-hook/test.sh
