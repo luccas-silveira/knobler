@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-07-29
+
 ### Changed
 - **Card do notch mostra uma coisa de cada vez**: em vez de empilhar música,
   atividade, prateleira e Pomodoro numa ordem fixa, o card agora mostra uma
