@@ -46,8 +46,6 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 
 - **Integração com Calendario**: Ver próximo evento/reunião no notch durante pomodoro — útil pra saber quanto tempo falta até o próximo compromisso.
 
-- **Pomodoro com metas diárias**: Rastrear quantos pomodoros você fez hoje e mostrar progress bar visual no notch.
-
 ---
 
 ## Lembretes & Notificações
@@ -70,8 +68,6 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 
 ## Webhooks & Automação
 
-- **Webhook para eventos do Knobler**: Dispara payload quando notch abre/fecha, quando música muda, quando você termina um pomodoro, etc. Hoje só recebe; seria legal também enviar.
-
 - **Template de webhook**: Permitir templates customizáveis (`{artist}`, `{track}`, `{status}`) nas payloads mandadas.
 
 - **Retry automático**: Se um webhook falhar, retentar com backoff exponencial (1s, 2s, 4s, 8s).
@@ -83,8 +79,6 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 - **Persistência de estado**: Salvar estado do notch (se tava aberto, qual tab) entre restarts — restaura o contexto.
 
 - **Sync entre máquinas**: Se você tiver Knobler em múltiplos Macs, sincronizar Ajustes, reminders, histórico de mensagens via endpoint central.
-
-- **Estatísticas e analytics**: Endpoint `/stats` que retorna minutos dictados, pomodoros completados, msgs enviadas — useful pra dashboard pessoal.
 
 - **Canal de notificações do desenvolvedor**: Rota endpoint que permite o time enviar notificações pro usuário (novas features, updates críticos, avisos). Notificação aparece no notch e fica persistida; user pode marcar como read/dismiss.
 

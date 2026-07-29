@@ -20,6 +20,50 @@ xcodebuild -project Knobler.xcodeproj -scheme Knobler -configuration Debug build
 ⚠️ **Nunca edite `Knobler.xcodeproj` à mão** — a mudança some no próximo
 `xcodegen generate`. Alvos, dependências e settings vivem em `project.yml`.
 
+O build local assina com a identidade `Knobler Local Signing`
+(`./tools/make-signing-cert.sh`, uma vez por máquina). Só compilar sem ela:
+acrescente `CODE_SIGNING_ALLOWED=NO` (é o que a CI faz).
+
+## Checks
+
+Não há XCTest. Cada área tem um harness `tools/*check*.swift` (ou `.mjs`) que
+compila só os arquivos que toca e roda asserções. `tools/check.sh` é a **lista
+canônica** — é o que a CI executa.
+
+```bash
+./tools/check.sh                  # todos os gates herméticos
+./tools/check.sh --com-ambiente   # + gate do Codex (exige a CLI)
+```
+
+Gate isolado: a linha de compilação está no cabeçalho de cada
+`tools/*check*.swift`, por exemplo
+
+```bash
+xcrun swiftc -parse-as-library -swift-version 5 \
+  Knobler/NotchSectionOrder.swift tools/sectionordercheck.swift \
+  -o /tmp/sectionordercheck && /tmp/sectionordercheck
+```
+
+Harness escrito como `main.swift` **não** aceita `-parse-as-library`. Check novo
+= entrada nova em `tools/check.sh`, senão a CI não o vê. `jq` e `node` são
+pré-requisitos (`brew install jq node`).
+
+## Onde as coisas estão
+
+| Preciso de | Está em |
+|---|---|
+| Como o app é composto, ownership de estado | `docs/architecture.md` |
+| Contrato da API local (127.0.0.1:4477) | `docs/local-api.md` |
+| Setup, checks, release | `docs/development.md` |
+| Decisões de design | `docs/superpowers/specs/` |
+| Estado da última sessão | `HANDOFF.md` |
+
+`AppDelegate` (`Knobler/KnoblerApp.swift`) só compõe serviços e cria uma
+`NotchWindow`/`NotchViewModel` por display — regra de domínio nova não mora lá.
+Stores que precisam vencer uma vez só (`AskStore`, `NotificationHistory`,
+`QuickNote`) são singletons injetados em todas as janelas: **não** crie um por
+monitor.
+
 ## Versionamento
 
 **SemVer 2.0.0**, uma versão canônica só (a tag `vX.Y.Z`). Regras completas em
