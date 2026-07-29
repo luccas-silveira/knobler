@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-07-28
+
 ### Added
 - **Painel de Permissões nos Ajustes**: novo painel que lista as 7 permissões
   que o app usa, o estado de cada uma, o que quebra sem ela e um botão que abre
