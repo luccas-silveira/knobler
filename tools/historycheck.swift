@@ -111,23 +111,37 @@ struct HistoryCheck {
         let g = NotchGesture.gestureGap
         // trackpad: .began sempre começa
         assert(NotchGesture.isGestureStart(
-            began: true, momentum: false, sinceLastEvent: 0, previousInZone: true),
+            began: true, momentum: false, sinceLastEvent: 0, previousInZone: true,
+            hasPhase: true),
             ".began começa gesto")
         // inércia NUNCA começa: ela chega depois dos dedos saírem
         assert(!NotchGesture.isGestureStart(
-            began: false, momentum: true, sinceLastEvent: 99, previousInZone: true),
+            began: false, momentum: true, sinceLastEvent: 99, previousInZone: true,
+            hasPhase: true),
             "inércia não começa gesto")
         // rodinha: sem fase nenhuma, só a pausa separa dois gestos
         assert(NotchGesture.isGestureStart(
-            began: false, momentum: false, sinceLastEvent: g + 0.01, previousInZone: true),
+            began: false, momentum: false, sinceLastEvent: g + 0.01, previousInZone: true,
+            hasPhase: false),
             "pausa longa começa gesto novo (mouse de rodinha)")
         assert(!NotchGesture.isGestureStart(
-            began: false, momentum: false, sinceLastEvent: g / 2, previousInZone: true),
+            began: false, momentum: false, sinceLastEvent: g / 2, previousInZone: true,
+            hasPhase: false),
             "rolagem contínua é o MESMO gesto — é o puxão longo")
+        // trackpad com os dedos PARADOS na superfície: o macOS não manda evento
+        // enquanto ninguém se mexe, então o `.changed` que retoma o puxão vem
+        // depois de uma pausa maior que o gap. Ainda é o MESMO gesto — o
+        // relógio não pode valer pra quem tem fase, senão o "numa passada só"
+        // perde o acumulado e os 120 pt do histórico viram card.
+        assert(!NotchGesture.isGestureStart(
+            began: false, momentum: false, sinceLastEvent: g + 0.1, previousInZone: true,
+            hasPhase: true),
+            "hesitar sem soltar os dedos NÃO começa gesto novo")
         // gesto que começou fora da zona e entrou arrastando: o .began dele foi
         // descartado, então o primeiro evento dentro conta como começo
         assert(NotchGesture.isGestureStart(
-            began: false, momentum: false, sinceLastEvent: 0, previousInZone: false),
+            began: false, momentum: false, sinceLastEvent: 0, previousInZone: false,
+            hasPhase: true),
             "entrar na zona no meio do gesto conta como começo")
     }
 }

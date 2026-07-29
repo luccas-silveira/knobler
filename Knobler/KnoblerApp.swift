@@ -653,6 +653,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // zona do gesto: o notch fechado, o card aberto, ou o card com a cortina
         let expanded = vm.mode == .music
         let zoneWidth: CGFloat = expanded ? 460 : 400
+        // ⚠️ os 200 do card aberto são carga: o card da nota mede
+        // `topInset + NotchView.noteEditorHeight + 46`, que num notch de 32 pt
+        // dá 198 pt — sobra de 2 pt. Num notch mais alto que ~34 pt (ou com o
+        // `noteEditorHeight` maior) a tira de baixo do card fica FORA da zona e
+        // o scroll ali deixa de ser reconhecido. Só afeta o scroll: o hover usa
+        // o frame do painel, que é o certo.
+        //
+        // ponytail: tabela de números literais em vez de derivar do
+        // `currentSize` da view. É pré-existente e deliberado — o monitor roda
+        // fora do SwiftUI e não tem como ler o tamanho renderizado sem
+        // pendurar um observador por notch.
         let zoneHeight: CGFloat = vm.historyOpen ? 420 : (expanded ? 200 : vm.notchSize.height + 10)
         let inZone = abs(mouse.x - screen.frame.midX) <= zoneWidth / 2
             && mouse.y >= screen.frame.maxY - zoneHeight
@@ -671,7 +682,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             began: event.phase == .began,
             momentum: !event.momentumPhase.isEmpty,
             sinceLastEvent: event.timestamp - lastScrollAt,
-            previousInZone: lastScrollInZone)
+            previousInZone: lastScrollInZone,
+            hasPhase: !event.phase.isEmpty || !event.momentumPhase.isEmpty)
         lastScrollAt = event.timestamp
         lastScrollInZone = true
 
@@ -889,6 +901,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         // remove janelas de monitores desconectados
         for (id, notch) in notches where !seen.contains(id) {
+            // a nota mora numa tela só: se foi essa que sumiu, desliga junto —
+            // senão ela fica `active` (com o tique no menu) hospedada num
+            // display que não existe mais, invisível e sem jeito de fechar
+            if QuickNote.shared.hosted(by: id) { QuickNote.shared.active = false }
             notch.window.orderOut(nil)
             notches.removeValue(forKey: id)
         }

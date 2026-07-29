@@ -18,8 +18,9 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 - **Nota rápida**: **✎ Nota rápida** no menu da barra (◐) liga um campo de
   texto simples no card expandido, focado ao abrir. Digitar segura o card
   aberto mesmo com o mouse fora; **Esc** solta o foco. Com mais de um monitor,
-  a nota mora na tela onde o mouse estava ao ligar. Desligar o interruptor
-  apaga o texto e recolhe o card. Sem persistência entre restarts.
+  a nota mora na tela onde o mouse estava ao ligar — desconectar essa tela
+  desliga a nota. Desligar o interruptor apaga o texto e recolhe o card. Sem
+  persistência entre restarts.
 
 ## [0.12.0] - 2026-07-29
 

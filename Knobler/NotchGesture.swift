@@ -18,6 +18,9 @@ enum NotchGesture {
     /// ponytail: relógio no lugar de fase. A rodinha não emite `.began` nem
     /// `.ended`, então não há como saber onde um gesto acaba — rastrear isso
     /// por dispositivo custaria muito mais e o usuário não notaria a diferença.
+    /// Teto conhecido: um puxão MUITO lento de rodinha, com mais de 0,3 s entre
+    /// dois cliques do detente, se parte em dois gestos. Numa rodinha real os
+    /// detentes de uma mesma girada chegam bem abaixo disso.
     static let gestureGap: TimeInterval = 0.3
 
     /// Um gesto está começando? O acumulador e a flag da cortina zeram aqui, e
@@ -32,15 +35,22 @@ enum NotchGesture {
     ///   arrastando — o `.began` dele foi descartado antes desta checagem, então
     ///   ele herdaria o acumulado e a flag do gesto anterior.
     /// - tempo desde o último evento: a rodinha, de novo. Sem fase, só a pausa
-    ///   distingue um gesto do seguinte.
+    ///   distingue um gesto do seguinte. **Só vale pra evento sem fase
+    ///   nenhuma** (`hasPhase == false`): no trackpad os dedos podem parar
+    ///   parados na superfície por meio segundo — o macOS não manda evento
+    ///   enquanto isso — e o puxão continua no mesmo gesto, com `.changed`.
+    ///   Se o relógio valesse ali, o acumulado do "numa passada só" zerava e
+    ///   os 120 pt do histórico viravam o card.
     ///
     /// Inércia nunca começa gesto: ela vem DEPOIS dos dedos saírem.
     static func isGestureStart(began: Bool, momentum: Bool,
                                sinceLastEvent: TimeInterval,
-                               previousInZone: Bool) -> Bool {
+                               previousInZone: Bool,
+                               hasPhase: Bool) -> Bool {
         if momentum { return false }
         if began { return true }
         if !previousInZone { return true }
+        if hasPhase { return false }
         return sinceLastEvent > gestureGap
     }
 
