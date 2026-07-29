@@ -650,21 +650,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let id = Self.displayID(of: screen)
         guard let vm = notches[id]?.viewModel else { return event }
 
-        // zona do gesto: o notch fechado, o card aberto, ou o card com a cortina
+        // zona do gesto: o notch fechado ou o card aberto
         let expanded = vm.mode == .music
         let zoneWidth: CGFloat = expanded ? 460 : 400
-        // ⚠️ os 200 do card aberto são carga: o card da nota mede
-        // `topInset + NotchView.noteEditorHeight + 46`, que num notch de 32 pt
-        // dá 198 pt — sobra de 2 pt. Num notch mais alto que ~34 pt (ou com o
-        // `noteEditorHeight` maior) a tira de baixo do card fica FORA da zona e
-        // o scroll ali deixa de ser reconhecido. Só afeta o scroll: o hover usa
-        // o frame do painel, que é o certo.
-        //
-        // ponytail: tabela de números literais em vez de derivar do
-        // `currentSize` da view. É pré-existente e deliberado — o monitor roda
-        // fora do SwiftUI e não tem como ler o tamanho renderizado sem
-        // pendurar um observador por notch.
-        let zoneHeight: CGFloat = vm.focus == .historico ? 420 : (expanded ? 200 : vm.notchSize.height + 10)
+        // a altura vem do VM: cada seção declara a sua, e a tabela de literais
+        // que morava aqui já ficava 2 pt do card da nota
+        let zoneHeight: CGFloat = expanded ? vm.cardHeight + 12 : vm.notchSize.height + 10
         let inZone = abs(mouse.x - screen.frame.midX) <= zoneWidth / 2
             && mouse.y >= screen.frame.maxY - zoneHeight
         guard inZone else {
@@ -692,15 +683,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             scrollAccumY = 0
             scrollActed = false
             // handoff só quando há de fato uma lista rolável na tela: com a
-            // nota ligada ou com o histórico vazio a cortina não tem
-            // ScrollView nenhuma, e entregar o eixo vertical a ela mataria o
-            // gesto — sem abrir, sem fechar, sem histórico
+            // nota ligada ou com o histórico vazio a seção não tem ScrollView
+            // nenhuma, e entregar o eixo vertical a ela mataria o gesto — sem
+            // abrir e sem fechar
             scrollStartedInHistory = vm.focus == .historico
                 && !NotificationHistory.shared.items.isEmpty
                 && !QuickNote.shared.hosted(by: id)
         }
 
-        // cortina aberta: o vertical é da lista, pra ela rolar de verdade —
+        // histórico em foco: o vertical é da lista, pra ela rolar de verdade —
         // inclusive a inércia, que chega depois dos dedos saírem e por isso
         // não passa pelo reset acima
         if scrollStartedInHistory, abs(event.scrollingDeltaY) >= abs(event.scrollingDeltaX) {
@@ -721,28 +712,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 vm.setExpandedDirect(false)
             case .expanded:
                 vm.setExpandedDirect(true)
-            case .history:
-                // nota e histórico são exclusivos: com a nota ligada nesta tela
-                // o card é dela, e focar o histórico por baixo deixaria o
-                // rodapé, o zoneHeight e o handoff de scroll falando de uma
-                // lista que não está na árvore de views
-                if !QuickNote.shared.hosted(by: id) { vm.focoPendente = .historico }
-                vm.setExpandedDirect(true)
-                // já estava aberto: a ordem existe, então foca agora (o
-                // `focar` limpa o pendente)
-                if !QuickNote.shared.hosted(by: id) { vm.focar(.historico) }
             }
-        } else if !scrollActed, vm.focus != .historico, abs(scrollAccumX) > 50 {
-            // com a cortina aberta o horizontal fica de fora: trocar de aba por
-            // baixo do histórico largaria o usuário em Mensagens no hover-out,
-            // sem ele ter visto nada acontecer
+        } else if !scrollActed, abs(scrollAccumX) > 50 {
             scrollActed = true
             if expanded {
                 // card aberto: horizontal anda um passo na faixa de seções.
-                // Com a nota nesta tela o eixo fica de fora: o campo é o card
-                // inteiro, e trocar a seção por baixo dele deixaria o usuário
-                // numa tela que ele não viu escolher, aparecendo só no hover-out.
-                if !QuickNote.shared.hosted(by: id) {
+                // Com a nota em foco o eixo fica de fora: o campo é o card
+                // inteiro, e trocar a seção por baixo dele tiraria o teclado do
+                // usuário sem ele ver.
+                if vm.focus != .nota {
                     withAnimation(.easeOut(duration: 0.22)) {
                         vm.focarVizinho(avancando: scrollAccumX < 0)
                     }

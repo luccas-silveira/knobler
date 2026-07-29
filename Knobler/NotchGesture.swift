@@ -8,7 +8,7 @@
 
 import Foundation
 
-enum ScrollTarget: Equatable { case closed, expanded, history }
+enum ScrollTarget: Equatable { case closed, expanded }
 
 enum NotchGesture {
     /// Pausa que separa dois gestos num mouse de rodinha: eventos a menos de
@@ -39,8 +39,8 @@ enum NotchGesture {
     ///   nenhuma** (`hasPhase == false`): no trackpad os dedos podem parar
     ///   parados na superfície por meio segundo — o macOS não manda evento
     ///   enquanto isso — e o puxão continua no mesmo gesto, com `.changed`.
-    ///   Se o relógio valesse ali, o acumulado do "numa passada só" zerava e
-    ///   os 120 pt do histórico viravam o card.
+    ///   Se o relógio valesse ali, o acumulado do "numa passada só" zerava no
+    ///   meio do puxão e o gesto se partiria em dois.
     ///
     /// Inércia nunca começa gesto: ela vem DEPOIS dos dedos saírem.
     static func isGestureStart(began: Bool, momentum: Bool,
@@ -54,8 +54,8 @@ enum NotchGesture {
         return sinceLastEvent > gestureGap
     }
 
-    /// Dedos pra baixo (deltaY positivo, natural scrolling): 24 pt abre o card,
-    /// 120 pt — mesma passada, sem soltar — puxa o histórico. Pra cima fecha.
+    /// Dedos pra baixo (deltaY positivo, natural scrolling): 24 pt abre o card.
+    /// Pra cima fecha.
     ///
     /// O eixo horizontal entra só como guarda de diagonal: um swipe quase
     /// horizontal (pular faixa, trocar de tela) não pode abrir nem fechar o
@@ -65,11 +65,10 @@ enum NotchGesture {
     /// mais barato que o scrollActed que existia aqui e o recuo dentro do
     /// mesmo gesto passa a funcionar de graça.
     ///
-    /// Com o histórico já aberto esta função não é consultada: o monitor
-    /// entrega o evento à lista pra ela rolar de verdade.
+    /// Com o histórico em foco esta função não é consultada: o monitor entrega
+    /// o evento à lista pra ela rolar de verdade.
     static func verticalTarget(accumY: CGFloat, accumX: CGFloat) -> ScrollTarget? {
         guard abs(accumY) > abs(accumX) * 1.5 else { return nil }
-        if accumY > 120 { return .history }
         if accumY > 24 { return .expanded }
         if accumY < -24 { return .closed }
         return nil

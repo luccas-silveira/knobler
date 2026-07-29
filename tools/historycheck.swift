@@ -85,14 +85,21 @@ struct HistoryCheck {
         assert(h.items.last?.title == "100", "quem cai é o mais antigo")
     }
 
-    /// Puxão longo numa passada só: 24 pt abre o card, 120 pt segue pro
-    /// histórico. Como o alvo é função pura do acumulado, recuar os dedos
-    /// dentro do mesmo gesto desfaz sem precisar de máquina de estados.
+    /// Puxão pra baixo numa passada só: 24 pt abre o card e é só isso — o
+    /// histórico virou uma seção da faixa, então não há mais degrau de 120 pt.
+    /// Como o alvo é função pura do acumulado, recuar os dedos dentro do mesmo
+    /// gesto desfaz sem precisar de máquina de estados.
     static func testGesto() {
         assert(NotchGesture.verticalTarget(accumY: 10, accumX: 0) == nil, "ruído não age")
         assert(NotchGesture.verticalTarget(accumY: -10, accumX: 0) == nil, "ruído não age")
         assert(NotchGesture.verticalTarget(accumY: 30, accumX: 0) == .expanded, "30 pt abre o card")
-        assert(NotchGesture.verticalTarget(accumY: 130, accumX: 0) == .history, "130 pt vai ao histórico")
+        // a cortina do histórico foi aposentada: o histórico virou uma seção
+        // como as outras, e um segundo caminho pra ele seria redundante
+        assert(NotchGesture.verticalTarget(accumY: 130, accumX: 0) == .expanded,
+               "puxão longo não é mais cortina")
+        // puxão gigante também: não há mais degrau nenhum acima do card
+        assert(NotchGesture.verticalTarget(accumY: 900, accumX: 0) == .expanded,
+               "puxão gigante continua sendo só o card")
         // mesmo gesto, dedos recuando: 130 → 30 volta ao card
         assert(NotchGesture.verticalTarget(accumY: 30, accumX: 0) == .expanded, "recuo volta ao card")
         assert(NotchGesture.verticalTarget(accumY: -30, accumX: 0) == .closed, "pra cima fecha")
