@@ -946,6 +946,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             addPomodoroItem(menu, "↺ Resetar", #selector(pomReset))
         }
         menu.addItem(.separator())
+        let nota = menu.addItem(
+            withTitle: "✎ Nota rápida", action: #selector(toggleQuickNote), keyEquivalent: "")
+        nota.target = self
+        nota.state = QuickNote.shared.active ? .on : .off
         let picker = menu.addItem(
             withTitle: "◉ Selecionar cor…", action: #selector(pickColor), keyEquivalent: "")
         picker.target = self
@@ -961,6 +965,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func addPomodoroItem(_ menu: NSMenu, _ title: String, _ sel: Selector) {
         let it = menu.addItem(withTitle: title, action: sel, keyEquivalent: "")
         it.target = self
+    }
+
+    /// Interruptor da nota. Ligar abre o card na hora — esperar o hover
+    /// depois de escolher no menu seria um passo a mais sem motivo.
+    @objc private func toggleQuickNote() {
+        let note = QuickNote.shared
+        note.active.toggle()
+        if note.active {
+            notches.values.forEach { $0.viewModel.setExpandedDirect(true) }
+        }
     }
 
     /// Conta-gotas: lupa nativa, HEX no clipboard, card no notch com os outros
