@@ -22,6 +22,7 @@ swiftc -O -o build/snapshot \
   Knobler/AudioLevelTap.swift \
   Knobler/NotchNotification.swift \
   Knobler/NotificationHistory.swift \
+  Knobler/NotchGesture.swift \
   Knobler/NotificationInterceptor.swift \
   Knobler/NotificationRules.swift \
   Knobler/RemoteAvatarLoader.swift \

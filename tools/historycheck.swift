@@ -17,6 +17,7 @@ struct HistoryCheck {
         testPoda()
         testWebhookSubstitui()
         testMesmoIDUmaVez()
+        testGesto()
         print("✅ historycheck ok")
     }
 
@@ -67,5 +68,21 @@ struct HistoryCheck {
         h.record(n)
         h.record(n)
         assert(h.items.count == 1, "mesmo id não pode duplicar")
+    }
+
+    /// Puxão longo numa passada só: 24 pt abre o card, 120 pt segue pro
+    /// histórico. Como o alvo é função pura do acumulado, recuar os dedos
+    /// dentro do mesmo gesto desfaz sem precisar de máquina de estados.
+    static func testGesto() {
+        assert(NotchGesture.verticalTarget(accumY: 10) == nil, "ruído não age")
+        assert(NotchGesture.verticalTarget(accumY: -10) == nil, "ruído não age")
+        assert(NotchGesture.verticalTarget(accumY: 30) == .expanded, "30 pt abre o card")
+        assert(NotchGesture.verticalTarget(accumY: 130) == .history, "130 pt vai ao histórico")
+        // mesmo gesto, dedos recuando: 130 → 30 volta ao card
+        assert(NotchGesture.verticalTarget(accumY: 30) == .expanded, "recuo volta ao card")
+        assert(NotchGesture.verticalTarget(accumY: -30) == .closed, "pra cima fecha")
+        // limiares exatos: o limite é aberto (>), não fechado (>=)
+        assert(NotchGesture.verticalTarget(accumY: 24) == nil, "24 pt ainda é ruído")
+        assert(NotchGesture.verticalTarget(accumY: 120) == .expanded, "120 pt ainda é card")
     }
 }
