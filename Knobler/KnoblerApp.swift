@@ -107,6 +107,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var scrollAccumX: CGFloat = 0
     private var scrollAccumY: CGFloat = 0
     private var scrollActed = false
+    /// Gesto que COMEÇOU com o histórico aberto rola a lista, não age no notch.
+    /// Sem isso, o mesmo puxão que abre o histórico seguiria rolando a lista.
+    private var scrollStartedInHistory = false
 
     // ilha simulada nos monitores sem notch físico
     private static let simulatedNotchSize = CGSize(width: 190, height: 30)
@@ -636,10 +639,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
               let vm = notches[Self.displayID(of: screen)]?.viewModel
         else { return event }
 
-        // zona do gesto: o notch fechado (ou o card aberto, se expandido)
+        // zona do gesto: o notch fechado, o card aberto, ou o card com a cortina
         let expanded = vm.mode == .music
         let zoneWidth: CGFloat = expanded ? 460 : 400
-        let zoneHeight: CGFloat = expanded ? 200 : vm.notchSize.height + 10
+        let zoneHeight: CGFloat = vm.historyOpen ? 420 : (expanded ? 200 : vm.notchSize.height + 10)
         let inZone = abs(mouse.x - screen.frame.midX) <= zoneWidth / 2
             && mouse.y >= screen.frame.maxY - zoneHeight
         guard inZone else { return event }
@@ -651,25 +654,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             scrollAccumX = 0
             scrollAccumY = 0
             scrollActed = false
+            scrollStartedInHistory = vm.historyOpen
         }
+
+        // cortina aberta: o vertical é da lista, pra ela rolar de verdade
+        if scrollStartedInHistory, abs(event.scrollingDeltaY) >= abs(event.scrollingDeltaX) {
+            return event
+        }
+
         scrollAccumX += event.scrollingDeltaX
         scrollAccumY += event.scrollingDeltaY
 
-        if !scrollActed {
-            if abs(scrollAccumY) > 24, abs(scrollAccumY) > abs(scrollAccumX) * 1.5 {
-                scrollActed = true
-                // natural scrolling: dedos pra baixo → deltaY positivo
-                vm.setExpandedDirect(scrollAccumY > 0)
-            } else if abs(scrollAccumX) > 50 {
-                scrollActed = true
-                if expanded {
-                    // card aberto: horizontal navega entre as telas (Música/Mensagens)
-                    withAnimation(.easeOut(duration: 0.22)) {
-                        vm.tab = scrollAccumX < 0 ? .messages : .music
-                    }
-                } else if media.state != nil {
-                    if scrollAccumX < 0 { media.nextTrack() } else { media.previousTrack() }
+        // vertical: alvo é função do acumulado, então recuar dentro do mesmo
+        // gesto desfaz. Idempotente — aplicar o mesmo alvo duas vezes não custa.
+        if let target = NotchGesture.verticalTarget(accumY: scrollAccumY) {
+            switch target {
+            case .closed:
+                vm.historyOpen = false
+                vm.setExpandedDirect(false)
+            case .expanded:
+                vm.historyOpen = false
+                vm.setExpandedDirect(true)
+            case .history:
+                vm.setExpandedDirect(true)
+                vm.historyOpen = true
+            }
+        } else if !scrollActed, abs(scrollAccumX) > 50 {
+            scrollActed = true
+            if expanded {
+                // card aberto: horizontal navega entre as telas (Música/Mensagens)
+                withAnimation(.easeOut(duration: 0.22)) {
+                    vm.tab = scrollAccumX < 0 ? .messages : .music
                 }
+            } else if media.state != nil {
+                if scrollAccumX < 0 { media.nextTrack() } else { media.previousTrack() }
             }
         }
         return nil // engole o scroll na zona — a janela de trás não rola junto
