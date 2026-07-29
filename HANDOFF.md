@@ -1,4 +1,56 @@
-# 🆕 SESSÃO 2026-07-28 (madrugada) — a 0.10.0 instalada e validada ao vivo
+# 🆕 SESSÃO 2026-07-29 (madrugada) — as pendências de cobertura, fechadas
+
+Plano: `docs/superpowers/plans/2026-07-28-fechar-pendencias.md`. Quatro
+pendências dependiam de nós; três fecharam, a quarta é bloqueio externo.
+
+## A única mudança de código
+
+A decisão **pareado / trancado / nunca pareado** estava inline no
+`ensurePairedThenConnect`, junto de `URLSession` e do relay — não havia como
+exercitá-la sem rede, e era exatamente a lógica que a pendência do keychain
+queria cobrir. Virou `WebhookKeychainStore.PairingState` +
+`pairingState(load:exists:)`, pura, com `tools/webhookcheck.swift` cobrindo os
+quatro casos (inclusive **meio segredo aberto** → `locked`, que o código antigo
+já tratava por acidente da ordem dos `if`). `check.sh` foi de 8 pra 9 checks.
+Comportamento do app idêntico — commit `b042507`.
+
+## As três validações ao vivo, contra a 0.10.1
+
+A 0.10.1 foi publicada como veículo: os dois caminhos do updater só podem ser
+exercitados contra uma release mais nova que a instalada.
+
+| Pendência | Como foi provada | Desfecho |
+|---|---|---|
+| Update pelo brew (nunca rodou de ponta a ponta) | card no notch anunciou a 0.10.1 com **Atualizar** (não "Ver release" → `canInstall` verdadeiro), clique instalou por `brew upgrade --cask` | 0.10.1, cask ainda gerenciando, `axTrusted/tapExists/tapEnabled` todos `true` |
+| Caminho direto (`.zip` → `replaceItemAt` → relançar) | `brew uninstall`, 0.10.0 instalada por `ditto`, `brew list` passou a falhar → o updater caiu no `installDirect` | 0.10.1 com o binário de 22:19 dentro de um app que o brew não conhecia; permissões intactas; app devolvido ao brew no fim |
+| Ramo trancado do keychain | os 3 segredos gravados pelo `security(1)`, cuja ACL o app não abre — `exists == true`, `load == nil`, sem tocar na assinatura | UI mostrou **Credenciais inacessíveis** + **Parear de novo**, os itens falsos ficaram intactos (o app parou em vez de registrar por cima), e o `repair()` trocou o `tokenfalso` por um token real do relay |
+
+O truque do `security(1)` vale registrar: até aqui, reproduzir o keychain
+trancado exigia trocar a assinatura do app. Como a ACL pertence a **quem
+gravou**, gravar por outro binário produz o mesmo estado — repro barato e
+reversível, sem mexer em assinatura nem em TCC.
+
+**Nenhum dos dois updates derrubou a Acessibilidade**, que era o risco herdado
+das sessões anteriores: as duas vias assinam com `Knobler Local Signing`, então
+o `csreq` guardado pelo TCC continua batendo.
+
+## Grafo
+
+Regenerado em modo incremental (22 arquivos alterados): **2036 nós, 3799
+arestas, 161 comunidades** — 95k tokens contra os 639k da passada completa.
+`// ponytail:` das 161 comunidades, só as 22 maiores ganharam nome; o resto
+ficou `Comunidade N`.
+
+## Pendências
+
+- **Notarização** (`KNOBLER_NOTARY_PROFILE`) — bloqueada por dependência
+  externa: o caminho existe no `tools/release.sh` desde a 0.10.0 e espera uma
+  conta Apple Developer paga. Enquanto não houver, o cask segue removendo a
+  quarentena no install, e os caveats explicam isso ao usuário.
+
+---
+
+# SESSÃO 2026-07-28 (madrugada) — a 0.10.0 instalada e validada ao vivo
 
 A 0.10.0 tinha sido publicada sem nunca ter sido instalada: não existia
 `Knobler.app` nesta máquina — nem em `/Applications`, nem em `~/Applications`,
@@ -53,12 +105,8 @@ do bump 0.10.0).
   caso — o clone do Desktop nunca esteve entre os candidatos que ele procura
   (`tools/release.sh:14-29`). O clone canônico agora está documentado em
   [development.md](docs/development.md#release).
-- **Caminho trancado do keychain sem cobertura**: o aviso "Parear de novo" em
-  Ajustes › Notificações externas não foi exercitado porque o toggle está
-  desligado — ligar dispara pareamento real com o relay.
-- **Caminho direto do updater** (`.zip` → `replaceItemAt` → relançar) segue sem
-  nunca ter rodado: com o app gerenciado pelo brew, o updater usa
-  `brew upgrade --cask knobler`.
+- ~~Caminho trancado do keychain~~, ~~caminho direto do updater~~ e ~~teste de
+  aceitação do update~~ — fechados na madrugada seguinte, ver a entrada acima.
 - **Notarização** (`KNOBLER_NOTARY_PROFILE`) nunca exercitada — precisa de conta
   Apple Developer paga.
 
