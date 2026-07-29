@@ -107,8 +107,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var scrollAccumX: CGFloat = 0
     private var scrollAccumY: CGFloat = 0
     private var scrollActed = false
-    /// Gesto que COMEÇOU com uma lista rolável na cortina rola a lista, não age
-    /// no notch. Sem isso, o mesmo puxão que abre o histórico seguiria rolando.
+    /// Gesto que COMEÇOU com uma lista rolável no card rola a lista, não age
+    /// no notch. Sem isso, o mesmo puxão seguiria trocando a seção em foco.
     private var scrollStartedInHistory = false
     /// Timestamp e zona do último evento de scroll — é com eles que
     /// `NotchGesture.isGestureStart` reconhece começo de gesto sem `.began`
@@ -672,7 +672,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         // o reset vem antes de tudo: um gesto que começa precisa resincronizar
-        // o próprio estado mesmo que a cortina tenha fechado por fora (o
+        // o próprio estado mesmo que o card tenha fechado por fora (o
         // setHover fecha sozinho quando o mouse sai), senão a flag velha
         // engole o gesto novo inteiro
         let novoGesto = NotchGesture.isGestureStart(
@@ -862,7 +862,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     Updater.shared.skipCurrent()
                     self?.notches.values.forEach { $0.viewModel.updateCard = false }
                 }
-                // Rede Local: liga o Bonjour quando o usuário abre a aba Mensagens
+                // Rede Local: liga o Bonjour quando Mensagens entra em foco no card
                 // (app ativo → prompt num momento sensato). start() é idempotente.
                 viewModel.$focus
                     .filter { $0 == .mensagens }

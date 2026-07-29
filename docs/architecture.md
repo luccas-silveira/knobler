@@ -84,7 +84,8 @@ alvo de clique da faixa. Clique num ícone ou swipe horizontal chamam
 de mensagem, por exemplo). A nota rápida é modo exclusivo: com ela em foco a
 faixa some.
 
-A altura do card é derivada do foco (`NotchView.currentSize` case `.music`) e
+A altura do card é derivada do foco (`NotchView.alturaDaSecao`, que o
+`currentSize` consome) e
 publicada em `NotchViewModel.alturaAtual`, que o monitor de scroll — fora do
 SwiftUI — usa pra delimitar a zona do gesto junto com `NotchGesture.folgaDeHover`.
 

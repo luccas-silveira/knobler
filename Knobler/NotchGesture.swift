@@ -51,13 +51,13 @@ enum NotchGesture {
         return mouseY >= screenMaxY - zoneHeight
     }
 
-    /// Um gesto está começando? O acumulador e a flag da cortina zeram aqui, e
+    /// Um gesto está começando? O acumulador e a flag da lista rolável zeram aqui, e
     /// sem isso os dois nunca zeram fora do trackpad.
     ///
     /// - `began`: o trackpad diz `.began`. É o único caso que o código antigo
     ///   reconhecia — e mouse de rodinha **não** emite fase nenhuma, então o
-    ///   acumulador crescia pra sempre (o usuário caía na cortina sem querer e
-    ///   só saía rolando centenas de pontos de volta) e a flag da cortina
+    ///   acumulador crescia pra sempre (o usuário trocava de seção sem querer e
+    ///   só saía rolando centenas de pontos de volta) e a flag da lista rolável
     ///   ficava presa em `false`, deixando a lista impossível de rolar.
     /// - `previousInZone == false`: gesto que começou fora da zona e entrou
     ///   arrastando — o `.began` dele foi descartado antes desta checagem, então

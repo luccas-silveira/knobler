@@ -112,7 +112,7 @@ final class NotchViewModel: ObservableObject {
     @Published var pendingAttachment: PendingAttachment?
     /// Última escolha falhou (formato/tamanho) — a view mostra o aviso.
     @Published var attachmentFailed = false
-    /// Conversa aberta na aba Mensagens (peerID) — nil = mostra a lista.
+    /// Conversa aberta na seção Mensagens (peerID) — nil = mostra a lista.
     /// Fonte da verdade da seleção (a MessagesView lê/escreve aqui) pra que
     /// `openThread` (clique no card) consiga abrir a conversa certa.
     @Published var selectedThreadPeerID: String?
@@ -380,7 +380,7 @@ final class NotchViewModel: ObservableObject {
         if let onDismissEverywhere { onDismissEverywhere() } else { dismissIncoming() }
     }
 
-    /// Abre a conversa daquele peer na aba Mensagens.
+    /// Abre a conversa daquele peer na seção Mensagens.
     func openThread(peerID: String) {
         requestDismissIncoming()
         selectedThreadPeerID = peerID
