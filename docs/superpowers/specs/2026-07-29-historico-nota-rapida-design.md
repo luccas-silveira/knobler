@@ -101,7 +101,10 @@ mesmo eixo. Não vale o rastreamento.
   rodapé do card aberto. É a única dica de que há mais coisa embaixo — o gesto
   escolhido não se anuncia sozinho.
 - **Lista**: capada em 260 pt de altura com scroll interno. Cada linha traz hora
-  (`10:32`), ícone do app, título e corpo truncado em uma linha.
+  (`10:32`), nome do app, título e corpo truncado em uma linha. **Sem ícone de
+  app**: ele viria de `NSWorkspace.icon(forFile:)`, que o `CLAUDE.md` lista como
+  não renderizável no `ImageRenderer` offscreen — o cenário de snapshot viraria
+  o ícone de "proibido". Texto também lê melhor numa lista densa.
 - **Clique** reusa o `onNotificationAction` / `openURL` que o card já tem.
 - **Vazio**: "Nada nas últimas 24 h".
 - `zoneHeight` do `handleScroll` precisa acompanhar a altura maior do card com
