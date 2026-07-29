@@ -14,8 +14,6 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 
 - **Gestos customizáveis no notch**: Permitir que swipes à esquerda/direita façam coisas diferentes em cada estado (close, voltar, skip track, etc.).
 
-- **Nota rápida no notch**: Sticky note temporário que fica no notch — abre/recolhe com mouse over, auto-delete após 15 min de inatividade (configurável). Totalmente efêmero, sem persistência.
-
 - **Melhorar UI das perguntas do Claude**: Perguntas e respostas do Claude não aparecem inteiras no notch — truncam ou ficam cortadas. Melhorar a layout pra que conteúdo longo seja acessível (scroll, expansão, etc.).
 
 - **Preview de links**: Arrastar URL pro notch e mostrar preview (título, favicon, descrição). Notch se expande mostrando o site navegável dentro com opção de abrir no navegador.
@@ -53,8 +51,6 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 ---
 
 ## Lembretes & Notificações
-
-- **Persistência de notificações**: Salvar histórico de notificações dos últimos 24h — scroll no notch pra ver o que chegou.
 
 - **DND inteligente**: Silenciar notificações automaticamente quando você está em reunião (detecta calendário) ou em uma call (Zoom, Teams).
 

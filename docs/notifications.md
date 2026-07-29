@@ -33,3 +33,51 @@ O `Fechar`/`Limpar` do próprio alerta nunca vira botão do card.
 
 - **Acessibilidade** — necessária pro `AXObserver` ler e fechar o banner
   nativo do Notification Center.
+
+<!-- TODO screenshot: cortina de histórico aberta, com a alcinha visível no rodapé do card -->
+
+## Histórico (24 h)
+
+Tudo que virou card no notch fica registrado por 24 h: banner de sistema
+interceptado, card de webhook, lembrete disparado e atividade da API local.
+Não é um log separado — é o mesmo conteúdo que já passou pelo card, guardado
+pra consulta.
+
+### Como abrir
+
+Puxe o card pra baixo **numa passada só**, sem soltar o mouse: os primeiros
+~24 pt abrem o card normal; continuando o mesmo gesto até ~120 pt, ele
+transiciona pra cortina de histórico. Recuar dentro do mesmo gesto desfaz —
+não precisa soltar e puxar de novo. Um swipe majoritariamente horizontal não
+abre nem fecha nada (guarda contra diagonais).
+
+A única dica de que o gesto existe é uma alcinha (uma cápsula) que aparece no
+rodapé do card aberto quando há histórico pra puxar.
+
+### Como fechar
+
+Fechar não é gesto — é tirar o mouse de cima do notch, o mesmo hover-out que
+já fecha o card normal. Com a cortina aberta, o scroll vertical pertence à
+lista (ela realmente rola, com momentum incluso); só o hover-out fecha.
+
+### O que aparece em cada linha
+
+Horário à esquerda, nome do app, título e corpo truncado numa linha. **Sem
+ícone do app** — `NSWorkspace.icon(forFile:)` não renderiza no harness de
+snapshot offscreen do projeto, então a linha ficou só com texto. Clicar numa
+linha faz o mesmo que clicar no card original teria feito (abre a URL, foca o
+app, revela a pasta do AirDrop).
+
+Quando não há nada nas últimas 24 h, a cortina mostra "Nada nas últimas
+24 h".
+
+Um webhook que atualiza o mesmo `webhookID` várias vezes (por exemplo, uma
+barra de progresso que muda 40 vezes) substitui a entrada anterior em vez de
+empilhar — vira uma linha só no histórico, não quarenta.
+
+### Limitação: não sobrevive ao restart
+
+O histórico mora só em memória. `NotchNotification` carrega um `NSImage` e,
+em alguns casos, um `AXUIElement` — nenhum dos dois é serializável, então
+persistir exigiria manter um DTO paralelo só pra isso. Notificação também é
+efêmera por natureza: reiniciar o Knobler limpa o histórico.
