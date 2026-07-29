@@ -1,4 +1,65 @@
-# 🆕 SESSÃO 2026-07-28 (noite) — P1 e P2 do ditado + release 0.9.0
+# 🆕 SESSÃO 2026-07-28 (madrugada) — a 0.10.0 instalada e validada ao vivo
+
+A 0.10.0 tinha sido publicada sem nunca ter sido instalada: não existia
+`Knobler.app` nesta máquina — nem em `/Applications`, nem em `~/Applications`,
+nem no Caskroom (o `brew list --cask knobler` quebrava com "diretório sumiu").
+Painel de Permissões, keychain sem prompt de senha e o pedido único de
+Acessibilidade tinham ido pro ar só com o build passando. Esta sessão fechou
+isso: instalou pelo cask e provou cada uma no app rodando.
+
+A sessão que **produziu** a 0.10.0 não deixou entrada aqui; o que ela entregou
+está no `CHANGELOG.md` e nos commits `b8857e1` (painel de Permissões + pedido no
+primeiro uso), `12d1f3b` (assinatura honesta, keychain sem prompt, notarização
+pronta) e `f6ac5eb` (release).
+
+## Validado ao vivo
+
+| O que | Prova |
+|---|---|
+| Instalação pelo cask | `brew install --cask knobler` → 0.10.0 em `/Applications`, `codesign` diz `Authority=Knobler Local Signing` |
+| Painel de Permissões | as 7 linhas com estado real: Microfone e Calendários *Concedida*, Câmera *Não solicitada*, Rede local/Arquivos/Áudio do sistema *Ainda não usada* |
+| Keychain sem senha | app aberto duas vezes, zero diálogos de login keychain — e os itens `com.zoi.knobler.webhook` de instalações antigas estavam lá, então o cenário do bug estava armado |
+| Pedido único de Acessibilidade | o diálogo do sistema apareceu no launch (`promptAccessibilityOnce`) |
+| Recuperação do tap | depois de remover e re-adicionar o Knobler na lista de Acessibilidade, `GET /status` deu `axTrusted: true, tapExists: true, tapEnabled: true` **sem relançar o app** — o `checkTapHealth` recriou o tap sozinho |
+| Badge da barra | `◐⚠` enquanto faltava a permissão, `◐` depois de conceder — ciclo completo do P2 da 0.9.0 |
+
+Detalhe do TCC que vale lembrar: o Knobler **já estava** na lista de
+Acessibilidade com o toggle ligado e mesmo assim `AXIsProcessTrusted()` era
+`false` — a entrada guardava a assinatura de uma instalação anterior. Ligar/
+desligar não basta em todo caso; remover com `−` e deixar o diálogo re-adicionar
+resolve.
+
+## Achado: os caveats do cask nunca foram publicados
+
+O CHANGELOG da 0.10.0 afirma que "os caveats do cask foram reescritos", mas o
+`brew info --cask knobler` ainda serve o texto velho — "assinado ad-hoc" e
+permissões que o app não pede (Automação, Bluetooth).
+
+Causa: os **dois clones do tap** divergiram. O commit `481fd62` ficou parado em
+`~/Desktop/Ferramentas/homebrew-knobler` enquanto o `release.sh` bumpou a 0.10.0
+pelo clone do `brew` (`/opt/homebrew/Library/Taps/...`). É a mesma pegadinha que
+o handoff da 0.9.0 previu — o `pull --ff-only` que o script ganhou protege o
+clone que ele usa, não o outro. Rebaseado sobre `origin/main` (`1944b7d` em cima
+do bump 0.10.0).
+
+## Pendências
+
+- **Push do commit dos caveats** (`1944b7d` no clone de `~/Desktop/Ferramentas`).
+- **Dois clones do tap continuam sendo uma armadilha** — o release só sincroniza
+  o que ele mesmo usa. Ou apaga um clone, ou o `release.sh` passa a avisar
+  quando acha mais de um.
+- **Caminho trancado do keychain sem cobertura**: o aviso "Parear de novo" em
+  Ajustes › Notificações externas não foi exercitado porque o toggle está
+  desligado — ligar dispara pareamento real com o relay.
+- **Caminho direto do updater** (`.zip` → `replaceItemAt` → relançar) segue sem
+  nunca ter rodado: com o app gerenciado pelo brew, o updater usa
+  `brew upgrade --cask knobler`.
+- **Notarização** (`KNOBLER_NOTARY_PROFILE`) nunca exercitada — precisa de conta
+  Apple Developer paga.
+
+---
+
+# SESSÃO 2026-07-28 (noite) — P1 e P2 do ditado + release 0.9.0
 
 As duas pendências que sobraram de 25/07 — a causa (duas identidades de
 assinatura) e o sintoma (falha silenciosa) — e, no fim, a publicação da 0.9.0
