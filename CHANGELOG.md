@@ -6,6 +6,26 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-07-29
+
+### Added
+- **Markdown → PDF desenha tabela, imagem embutida e regra horizontal**: a
+  tabela sai com uma coluna por tab stop (respeitando `:---` / `---:` e o
+  cabeçalho em destaque), a imagem do markdown entra no PDF resolvida contra a
+  pasta do próprio arquivo e reduzida pra caber na página, e a regra horizontal
+  vira uma régua de ponta a ponta. A paginação passou de CoreText pra TextKit —
+  era o `CTFramesetter` que ignorava anexo e tab stop.
+
+### Fixed
+- **Citação não sumia mais no PDF**: o cinza da citação vinha de
+  `.secondaryLabelColor`, cor dinâmica que no modo escuro resolvia pra branco —
+  no papel branco, texto invisível. Agora é tinta fixa.
+- **O adiamento de lembrete sobrevive ao restart**: até a 0.11.0 o "Adiar 5 min"
+  morava só na memória — reiniciar o Knobler antes de vencer devolvia o lembrete
+  ao horário original. Agora ele é gravado no disco e restaurado no primeiro
+  tick após o restart; ao vencer (ou se o lembrete for apagado), some sozinho.
+  Coberto por um novo caso do `reminderscheck`.
+
 ## [0.11.0] - 2026-07-29
 
 ### Added
