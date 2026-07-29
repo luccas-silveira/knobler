@@ -268,7 +268,9 @@ struct EventosCheck {
         let escolhida = NotchSectionOrder.sanear(salva: ["nota", "espelho", "musica"])
         settings.notchSectionOrder = escolhida
         let lida = UserDefaults.standard.stringArray(forKey: "notchSectionOrder") ?? []
-        assert(NotchSectionOrder.sanear(salva: lida) == escolhida,
+        // comparação crua: passar `lida` por `sanear` completaria qualquer
+        // escrita truncada até 8 e esconderia exatamente o defeito procurado.
+        assert(lida == escolhida.map(\.rawValue),
                "a ordem não sobreviveu ao round-trip: \(lida)")
     }
 
@@ -280,6 +282,11 @@ struct EventosCheck {
         let base = settings.notchSectionOrder
         assert(Set(base).count == base.count, "base com duplicata: \(base)")
         assert(Set(base) == Set(NotchSection.allCases), "base perdeu seção: \(base)")
+        // o ramo do saneamento também tem que chegar no disco: se ele corrigir
+        // só a memória, o próximo launch restaura a ordem torta de antes.
+        let lida = UserDefaults.standard.stringArray(forKey: "notchSectionOrder") ?? []
+        assert(lida == base.map(\.rawValue),
+               "atribuição não-sã corrigiu a memória mas não o disco: \(lida)")
 
         // e o VM usa essa base, não mais a de fábrica
         settings.notchSectionOrder = NotchSectionOrder.sanear(salva: ["shelf", "musica"])

@@ -103,15 +103,21 @@ final class AppSettings: ObservableObject {
         didSet {
             // `NotchSectionOrder.ordenar` assume base sem duplicata e sem
             // buraco. Um reorder da lista de Ajustes não deveria produzir
-            // nenhum dos dois, mas saneia-se antes de salvar pra que a
-            // garantia não dependa da UI. `sanear` é idempotente, então a
-            // reatribuição não gira em loop.
+            // nenhum dos dois, mas saneia-se aqui pra que a garantia não
+            // dependa da UI.
+            //
+            // Grava ANTES de corrigir a memória, de propósito: o disco tem que
+            // receber a versão sã nos dois ramos. Escrever depois do
+            // `notchSectionOrder = limpa` funcionaria só por um detalhe frágil
+            // — `@Published` é property wrapper, então o observador mora num
+            // setter computado e a reatribuição REENTRA no `didSet` (um
+            // `didSet` de propriedade armazenada crua não reentraria). Nesta
+            // ordem o comportamento não depende disso.
             let limpa = NotchSectionOrder.sanear(salva: notchSectionOrder.map(\.rawValue))
-            guard limpa == notchSectionOrder else {
-                notchSectionOrder = limpa
-                return
-            }
             UserDefaults.standard.set(limpa.map(\.rawValue), forKey: "notchSectionOrder")
+            // `sanear` é idempotente: com o wrapper reentrando, a passada
+            // seguinte cai no `==` e para.
+            if limpa != notchSectionOrder { notchSectionOrder = limpa }
         }
     }
 
