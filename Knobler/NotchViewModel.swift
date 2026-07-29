@@ -32,7 +32,13 @@ final class NotchViewModel: ObservableObject {
 
     @Published var expanded = false {
         // recolher o notch desliga o espelho — a câmera nunca fica ligada escondida
-        didSet { if !expanded { mirrorOn = false } }
+        didSet {
+            if !expanded {
+                mirrorOn = false
+                // escolha manual vale até fechar; a próxima abertura volta ao automático
+                focusLocked = false
+            }
+        }
     }
     @Published var mirrorOn = false {
         didSet { if mirrorOn != oldValue { marcarEvento(.espelho) } }
@@ -151,6 +157,61 @@ final class NotchViewModel: ObservableObject {
                               hasContent: conteudo[$0] ?? false,
                               lastEvent: eventos[$0])
         }
+    }
+
+    // MARK: - Foco do card aberto
+
+    /// Ordem efetiva do card, congelada no instante da abertura. Recalcular a
+    /// cada mudança faria o conteúdo pular debaixo do cursor e mover o alvo de
+    /// clique da faixa.
+    ///
+    /// `internal` e não `private(set)`: o harness de snapshot monta a lista à
+    /// mão pra capturar cenários que não dá pra provocar offscreen.
+    @Published var secoes: [NotchSection] = []
+    @Published var focus: NotchSection?
+    /// Escolha manual do usuário (clique na faixa ou swipe): nenhuma promoção
+    /// tira o foco até o notch recolher.
+    @Published private(set) var focusLocked = false
+    /// Altura do card aberto agora. Publicada porque o monitor de scroll roda
+    /// fora do SwiftUI e precisa dela pra delimitar a zona do gesto.
+    @Published private(set) var cardHeight: CGFloat = 0
+
+    func recalcularSecoes(_ estados: [NotchSectionState], travadaNaNota: Bool) {
+        // ponytail: base fixa na ordem de fábrica; a Task 4 troca isto pela
+        // preferência do usuário (`AppSettings.shared.notchSectionOrder`).
+        secoes = NotchSectionOrder.ordenar(base: NotchSectionOrder.padrao,
+                                           estados: estados,
+                                           agora: Date(),
+                                           travadaNaNota: travadaNaNota)
+        // a trava da nota vence até a escolha manual anterior
+        if travadaNaNota, secoes.contains(.nota) {
+            focus = .nota
+            return
+        }
+        guard !focusLocked, let primeira = secoes.first else {
+            // o foco travado pode ter perdido o conteúdo enquanto isso
+            if let f = focus, !secoes.contains(f) { focus = secoes.first; focusLocked = false }
+            return
+        }
+        focus = primeira
+    }
+
+    func focar(_ section: NotchSection) {
+        guard secoes.contains(section) else { return }
+        focus = section
+        focusLocked = true
+    }
+
+    /// Swipe horizontal no card: anda um passo na faixa e trava, igual ao clique.
+    func focarVizinho(avancando: Bool) {
+        guard let atual = focus, let i = secoes.firstIndex(of: atual), secoes.count > 1 else { return }
+        let destino = (i + (avancando ? 1 : -1) + secoes.count) % secoes.count
+        focar(secoes[destino])
+    }
+
+    func publicarAltura(_ h: CGFloat) {
+        guard abs(h - cardHeight) > 0.5 else { return }
+        cardHeight = h
     }
 
     struct HUDState: Equatable {

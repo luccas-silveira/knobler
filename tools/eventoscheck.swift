@@ -23,6 +23,13 @@ struct EventosCheck {
         testEspelhoSoCarimbaNaVirada()
         testMensagemCarimba()
         testEstadoDasSecoes()
+        testFocoInicialEhAPrimeira()
+        testFocarTravaESobreviveAoRecalculo()
+        testRecolherSoltaATrava()
+        testFocarVizinhoCirculaNasDuasDirecoes()
+        testFocoTravadoQuePerdeConteudo()
+        testTravaDaNotaVenceAEscolhaManual()
+        testPublicarAltura()
         print("✅ eventoscheck ok")
     }
 
@@ -139,5 +146,97 @@ struct EventosCheck {
         assert(!e(.shelf).hasContent, "shelf vazio não tem conteúdo")
         assert(e(.historico).hasContent, "histórico deveria ter conteúdo")
         assert(e(.shelf).lastEvent == nil, "seção sem evento deveria vir com lastEvent nil")
+    }
+
+    // MARK: - Foco do card
+
+    /// Retrato à mão: só as seções listadas têm conteúdo, nenhuma promovida
+    /// (sem `lastEvent`), então a ordem cai na `NotchSectionOrder.padrao`.
+    static func comConteudo(_ secoes: NotchSection...) -> [NotchSectionState] {
+        NotchSection.allCases.map {
+            NotchSectionState(section: $0, hasContent: secoes.contains($0), lastEvent: nil)
+        }
+    }
+
+    static func testFocoInicialEhAPrimeira() {
+        let vm = NotchViewModel()
+        vm.recalcularSecoes(comConteudo(.pomodoro, .musica), travadaNaNota: false)
+        assert(vm.secoes == [.musica, .pomodoro], "ordem inesperada: \(vm.secoes)")
+        assert(vm.focus == .musica, "foco inicial deveria ser a primeira da lista")
+        assert(!vm.focusLocked, "foco automático não pode nascer travado")
+    }
+
+    static func testFocarTravaESobreviveAoRecalculo() {
+        let vm = NotchViewModel()
+        vm.recalcularSecoes(comConteudo(.musica, .pomodoro), travadaNaNota: false)
+        vm.focar(.pomodoro)
+        assert(vm.focus == .pomodoro && vm.focusLocked, "clique não travou o foco")
+        vm.recalcularSecoes(comConteudo(.musica, .pomodoro), travadaNaNota: false)
+        assert(vm.focus == .pomodoro, "recalcular roubou o foco travado")
+        // seção fora da lista não pode virar foco
+        vm.focar(.shelf)
+        assert(vm.focus == .pomodoro, "focou uma seção sem conteúdo")
+    }
+
+    static func testRecolherSoltaATrava() {
+        let vm = NotchViewModel()
+        vm.expanded = true
+        vm.recalcularSecoes(comConteudo(.musica, .pomodoro), travadaNaNota: false)
+        vm.focar(.pomodoro)
+        vm.expanded = false
+        assert(!vm.focusLocked, "recolher deveria soltar a trava")
+        vm.recalcularSecoes(comConteudo(.musica, .pomodoro), travadaNaNota: false)
+        assert(vm.focus == .musica, "próxima abertura deveria voltar ao automático")
+    }
+
+    static func testFocarVizinhoCirculaNasDuasDirecoes() {
+        let vm = NotchViewModel()
+        vm.recalcularSecoes(comConteudo(.musica, .pomodoro, .shelf), travadaNaNota: false)
+        assert(vm.secoes == [.musica, .pomodoro, .shelf], "ordem inesperada: \(vm.secoes)")
+        vm.focarVizinho(avancando: true)
+        assert(vm.focus == .pomodoro, "avançar não andou")
+        assert(vm.focusLocked, "swipe deveria travar igual ao clique")
+        vm.focarVizinho(avancando: true)
+        vm.focarVizinho(avancando: true)
+        assert(vm.focus == .musica, "avançar não deu a volta")
+        vm.focarVizinho(avancando: false)
+        assert(vm.focus == .shelf, "voltar não deu a volta")
+        vm.focarVizinho(avancando: false)
+        assert(vm.focus == .pomodoro, "voltar não andou")
+        // lista de uma seção só não circula
+        vm.recalcularSecoes(comConteudo(.musica), travadaNaNota: false)
+        vm.focarVizinho(avancando: true)
+        assert(vm.focus == .musica, "lista de uma seção não deveria circular")
+    }
+
+    static func testFocoTravadoQuePerdeConteudo() {
+        let vm = NotchViewModel()
+        vm.recalcularSecoes(comConteudo(.musica, .pomodoro), travadaNaNota: false)
+        vm.focar(.pomodoro)
+        vm.recalcularSecoes(comConteudo(.musica), travadaNaNota: false)
+        assert(vm.focus == .musica, "o card ficou sem foco quando a seção travada sumiu")
+        assert(!vm.focusLocked, "a trava deveria cair junto com a seção")
+    }
+
+    static func testTravaDaNotaVenceAEscolhaManual() {
+        let vm = NotchViewModel()
+        vm.recalcularSecoes(comConteudo(.musica, .nota), travadaNaNota: false)
+        vm.focar(.musica)
+        vm.recalcularSecoes(comConteudo(.musica, .nota), travadaNaNota: true)
+        assert(vm.secoes.first == .nota, "a nota deveria estar no topo")
+        assert(vm.focus == .nota, "digitar na nota deveria vencer a escolha manual")
+        // sem conteúdo na nota a trava não age
+        vm.recalcularSecoes(comConteudo(.musica), travadaNaNota: true)
+        assert(vm.focus == .musica, "trava da nota agiu sem a nota na lista")
+    }
+
+    static func testPublicarAltura() {
+        let vm = NotchViewModel()
+        vm.publicarAltura(120)
+        assert(vm.cardHeight == 120, "altura não publicada")
+        vm.publicarAltura(120.2)
+        assert(vm.cardHeight == 120, "ruído sub-pixel republicou a altura")
+        vm.publicarAltura(140)
+        assert(vm.cardHeight == 140, "altura nova não publicada")
     }
 }
