@@ -169,6 +169,23 @@ final class ScheduleEngine<Item: Scheduled> {
     private var timer: Timer?
     /// Próximo disparo por lembrete, chaveado pelo hash do schedule (invalida em edição).
     private var nextFire: [UUID: (hash: Int, date: Date)] = [:]
+    /// Adiamentos pendentes (id → quando), espelhados no disco pra sobreviver a restart.
+    /// ponytail: sem hash do schedule junto — `hashValue` é randomizado por processo,
+    /// então não sobrevive ao restart de qualquer jeito. Consequência: editar o horário
+    /// com um adiamento no ar mantém o adiamento; ele vence no primeiro disparo.
+    private var snoozed: [UUID: Date] = [:] {
+        didSet { UserDefaults.standard.set(try? JSONEncoder().encode(snoozed), forKey: snoozeKey) }
+    }
+    /// Chave do adiamento no UserDefaults (injetável pro self-check não sujar o app).
+    var snoozeKey = "reminderSnooze"
+
+    init(snoozeKey: String = "reminderSnooze") {
+        self.snoozeKey = snoozeKey
+        if let d = UserDefaults.standard.data(forKey: snoozeKey),
+           let s = try? JSONDecoder().decode([UUID: Date].self, from: d) {
+            snoozed = s
+        }
+    }
 
     func start() {
         stop()
@@ -188,11 +205,15 @@ final class ScheduleEngine<Item: Scheduled> {
         let reminders = itemsProvider()
         let live = Set(reminders.map(\.id))
         nextFire = nextFire.filter { live.contains($0.key) }   // limpa apagados
+        if snoozed.keys.contains(where: { !live.contains($0) }) {
+            snoozed = snoozed.filter { live.contains($0.key) }
+        }
 
         for r in reminders where r.enabled {
             let h = r.schedule.hashValue
             if nextFire[r.id]?.hash != h {                     // novo ou editado
-                nextFire[r.id] = (h, computeNext(r.schedule, from: now))
+                // adiamento restaurado do disco entra aqui, no primeiro tick após o restart
+                nextFire[r.id] = (h, snoozed[r.id] ?? computeNext(r.schedule, from: now))
             }
             guard let nf = nextFire[r.id]?.date, now >= nf else { continue }
             if now.timeIntervalSince(nf) <= tolerance {        // na hora → dispara
@@ -200,16 +221,17 @@ final class ScheduleEngine<Item: Scheduled> {
             }                                                  // atrasado → só reprograma
             // avança pra próxima futura: pula backlog e evita refire no mesmo tick.
             nextFire[r.id] = (h, computeNext(r.schedule, from: now))
+            snoozed[r.id] = nil                                // adiamento venceu
         }
     }
 
     /// Adia o próximo disparo deste item (botão "Adiar" no card). Vence a agenda
     /// uma vez só: ao disparar, o tick recomputa a próxima ocorrência normal.
-    /// ponytail: mora na memória — reiniciar o app perde o adiamento e o lembrete
-    /// volta pro horário de sempre. Persistir se alguém reclamar.
+    /// Sobrevive a restart — o `nextFire` da memória é semeado por `snoozed` no tick.
     func snooze(_ item: Item, minutes: Int, now: Date = Date()) {
-        nextFire[item.id] = (item.schedule.hashValue,
-                             now.addingTimeInterval(TimeInterval(max(1, minutes) * 60)))
+        let when = now.addingTimeInterval(TimeInterval(max(1, minutes) * 60))
+        nextFire[item.id] = (item.schedule.hashValue, when)
+        snoozed[item.id] = when
     }
 
     private func computeNext(_ schedule: Schedule, from: Date) -> Date {
@@ -313,7 +335,7 @@ enum RemindersSelfCheck {
         }
         // --- scheduler: adiar empurra o disparo e não some com a agenda ---
         do {
-            let sched = ReminderScheduler()
+            let sched = ReminderScheduler(snoozeKey: "selfcheckSnooze")
             var fired: [String] = []
             let r = Reminder(title: "S", schedule: daily)
             sched.itemsProvider = { [r] }
@@ -331,6 +353,34 @@ enum RemindersSelfCheck {
             assert(fired == ["S", "S"])
             sched.tick(now: d("2026-07-19 09:00") + 5)         // agenda diária intacta
             assert(fired == ["S", "S", "S"])
+        }
+        // --- scheduler: o adiamento sobrevive ao restart do app ---
+        do {
+            let key = "selfcheckSnoozeRestart"
+            UserDefaults.standard.removeObject(forKey: key)
+            let r = Reminder(title: "R", schedule: daily)
+            let antes = ReminderScheduler(snoozeKey: key)
+            antes.itemsProvider = { [r] }
+            antes.tick(now: d("2026-07-18 08:59"))
+            antes.snooze(r, minutes: 30, now: d("2026-07-18 09:00") + 5)
+
+            var fired: [String] = []                           // restart: engine novo, mesma key
+            let depois = ReminderScheduler(snoozeKey: key)
+            depois.itemsProvider = { [r] }
+            depois.onFire = { fired.append($0.title) }
+            depois.tick(now: d("2026-07-18 09:10"))            // ainda adiado
+            assert(fired.isEmpty)
+            depois.tick(now: d("2026-07-18 09:30") + 10)       // adiamento vence → dispara
+            assert(fired == ["R"])
+            // e o adiamento vencido some do disco: outro restart não o ressuscita
+            let terceiro = ReminderScheduler(snoozeKey: key)
+            terceiro.itemsProvider = { [r] }
+            terceiro.onFire = { fired.append($0.title) }
+            terceiro.tick(now: d("2026-07-18 09:31"))
+            assert(fired == ["R"])
+            terceiro.tick(now: d("2026-07-19 09:00") + 5)      // agenda diária intacta
+            assert(fired == ["R", "R"])
+            UserDefaults.standard.removeObject(forKey: key)
         }
         // --- scheduler: desligado não dispara ---
         do {
