@@ -650,14 +650,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let id = Self.displayID(of: screen)
         guard let vm = notches[id]?.viewModel else { return event }
 
-        // zona do gesto: o notch fechado ou o card aberto
+        // zona do gesto: o notch fechado ou o card aberto. O eixo vertical mora
+        // no NotchGesture, que é testável sem NSEvent — é ele que sabe somar a
+        // folga de hover e aguentar a altura ainda não publicada
         let expanded = vm.mode == .music
         let zoneWidth: CGFloat = expanded ? 460 : 400
-        // a altura vem do VM: cada seção declara a sua, e a tabela de literais
-        // que morava aqui já ficava 2 pt do card da nota
-        let zoneHeight: CGFloat = expanded ? vm.cardHeight + 12 : vm.notchSize.height + 10
         let inZone = abs(mouse.x - screen.frame.midX) <= zoneWidth / 2
-            && mouse.y >= screen.frame.maxY - zoneHeight
+            && NotchGesture.inZone(mouseY: mouse.y,
+                                   screenMaxY: screen.frame.maxY,
+                                   expanded: expanded,
+                                   alturaAtual: vm.alturaAtual,
+                                   notchHeight: vm.notchSize.height)
         guard inZone else {
             // um gesto que entra arrastando na zona precisa saber que o evento
             // anterior estava fora — é o que o faz contar como gesto novo

@@ -242,11 +242,11 @@ struct EventosCheck {
     static func testPublicarAltura() {
         let vm = NotchViewModel()
         vm.publicarAltura(120)
-        assert(vm.cardHeight == 120, "altura não publicada")
+        assert(vm.alturaAtual == 120, "altura não publicada")
         vm.publicarAltura(120.2)
-        assert(vm.cardHeight == 120, "ruído sub-pixel republicou a altura")
+        assert(vm.alturaAtual == 120, "ruído sub-pixel republicou a altura")
         vm.publicarAltura(140)
-        assert(vm.cardHeight == 140, "altura nova não publicada")
+        assert(vm.alturaAtual == 140, "altura nova não publicada")
     }
 
     // MARK: - ordem-base dos Ajustes

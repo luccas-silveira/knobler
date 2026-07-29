@@ -167,9 +167,10 @@ final class NotchViewModel: ObservableObject {
     /// Escolha manual do usuário (clique na faixa ou swipe): nenhuma promoção
     /// tira o foco até o notch recolher.
     @Published private(set) var focusLocked = false
-    /// Altura do card aberto agora. Publicada porque o monitor de scroll roda
+    /// Altura desenhada do notch agora, em QUALQUER modo (fechado, HUD, ditado,
+    /// card aberto) — não só do card. Publicada porque o monitor de scroll roda
     /// fora do SwiftUI e precisa dela pra delimitar a zona do gesto.
-    @Published private(set) var cardHeight: CGFloat = 0
+    @Published private(set) var alturaAtual: CGFloat = 0
 
     /// Foco pedido de fora ANTES de o card abrir (clique no card de mensagem, o
     /// painel de arquivos que devolve o anexo). A ordem só existe depois do
@@ -218,8 +219,8 @@ final class NotchViewModel: ObservableObject {
     }
 
     func publicarAltura(_ h: CGFloat) {
-        guard abs(h - cardHeight) > 0.5 else { return }
-        cardHeight = h
+        guard abs(h - alturaAtual) > 0.5 else { return }
+        alturaAtual = h
     }
 
     struct HUDState: Equatable {

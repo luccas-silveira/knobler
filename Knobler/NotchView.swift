@@ -203,9 +203,12 @@ struct NotchView: View {
         )
         .frame(width: currentSize.width, height: currentSize.height)
         // folga invisível de hover ao redor do card aberto: jitter na borda
-        // não fecha; e o hit-test cobre o retângulo todo, não só o desenhado
-        .padding(.horizontal, mode == .music ? 16 : 0)
-        .padding(.bottom, mode == .music ? 16 : 0)
+        // não fecha; e o hit-test cobre o retângulo todo, não só o desenhado.
+        // A constante vem do NotchGesture porque a zona do scroll soma a MESMA
+        // folga — separar as duas deixaria uma tira que responde ao hover e
+        // não ao gesto.
+        .padding(.horizontal, mode == .music ? NotchGesture.folgaDeHover : 0)
+        .padding(.bottom, mode == .music ? NotchGesture.folgaDeHover : 0)
         .contentShape(Rectangle())
     }
 

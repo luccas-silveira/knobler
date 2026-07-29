@@ -23,6 +23,34 @@ enum NotchGesture {
     /// detentes de uma mesma girada chegam bem abaixo disso.
     static let gestureGap: TimeInterval = 0.3
 
+    /// Folga invisível de hover embaixo do card aberto — a `NotchView` a aplica
+    /// como `.padding(.bottom,)` e a zona do gesto a soma na altura. Mora aqui
+    /// pra que as duas leiam a MESMA constante: o que o usuário lê como "o card"
+    /// termina nela, não na altura desenhada, e zona menor que a folga deixa uma
+    /// tira que responde ao hover mas não ao scroll.
+    static let folgaDeHover: CGFloat = 16
+
+    /// Folga acima e abaixo do notch fechado. Sem ela o alvo seria a moldura
+    /// exata — dois dedos sobre o notch nunca acertariam.
+    static let folgaDoNotch: CGFloat = 10
+
+    /// O cursor está na faixa vertical que escuta o gesto?
+    ///
+    /// Aberto, a zona é a altura publicada pelo VM mais a folga de hover: cada
+    /// seção declara a sua altura, então a zona anda junto sozinha. Era uma
+    /// tabela de literais (`420 / 200`) que ficava a 2 pt de estourar no card da
+    /// nota e estouraria de vez com as seções altas.
+    ///
+    /// `alturaAtual` pode chegar zerada, antes da view publicar a primeira: a
+    /// zona encolhe pra folga, o que ainda cobre o topo — degenerar pra negativo
+    /// mataria o gesto em vez de só apertá-lo.
+    static func inZone(mouseY: CGFloat, screenMaxY: CGFloat, expanded: Bool,
+                       alturaAtual: CGFloat, notchHeight: CGFloat) -> Bool {
+        let zoneHeight = expanded ? alturaAtual + folgaDeHover
+                                  : notchHeight + folgaDoNotch
+        return mouseY >= screenMaxY - zoneHeight
+    }
+
     /// Um gesto está começando? O acumulador e a flag da cortina zeram aqui, e
     /// sem isso os dois nunca zeram fora do trackpad.
     ///
