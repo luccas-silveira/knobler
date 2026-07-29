@@ -1,8 +1,9 @@
 # 🏁 SESSÃO 2026-07-29 (fim de noite) — a limpeza das pendências herdadas
 
-Sessão de pendência, sem feature nova. A pergunta foi *"o que vem agora pro
-nosso app?"*, a resposta saiu da leitura do HANDOFF anterior — e **duas das três
-prioridades já estavam fechadas**, só não no papel.
+Sessão de pendência, sem feature nova, fechada com **v0.15.0 publicada**. A
+pergunta foi *"o que vem agora pro nosso app?"*, a resposta saiu da leitura do
+HANDOFF anterior — e **duas das três prioridades já estavam fechadas**, só não
+no papel.
 
 ## O que já estava feito (e o HANDOFF mentia)
 
@@ -100,9 +101,6 @@ Estado devolvido no fim: `shelfItems` e `notchSectionOrder` originais, app de
 
 ## Pendências e followups
 
-- **`[Unreleased]` acumulado, sem release.** Três entradas no `CHANGELOG.md`
-  (Bluetooth no painel + dois fixes). Bump sugerido: **MINOR** (0.15.0) — o
-  painel ganhou capacidade nova.
 - **Não existe `settings-ditado.png`.** São 9 painéis de Ajustes e 8 imagens;
   o do ditado nunca foi capturado.
 - **Nenhum self-check cobre `Permission`** no `check.sh` — o `_selfCheck()`
