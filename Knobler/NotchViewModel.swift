@@ -34,7 +34,9 @@ final class NotchViewModel: ObservableObject {
         // recolher o notch desliga o espelho — a câmera nunca fica ligada escondida
         didSet { if !expanded { mirrorOn = false } }
     }
-    @Published var mirrorOn = false
+    @Published var mirrorOn = false {
+        didSet { if mirrorOn != oldValue { marcarEvento(.espelho) } }
+    }
     /// Algum app está capturando o microfone (pontinho laranja no notch).
     @Published var micInUse = false
     /// Música pausada some do notch; hover "espia" (peeking) antes de expandir.
@@ -48,9 +50,27 @@ final class NotchViewModel: ObservableObject {
     @Published var historyOpen = false
     @Published var hud: HUDState?
     @Published var dictation: DictationPhase?
-    @Published var activity: NotchActivity?
+    /// Atividade em curso. Só título/detalhe e o aparecer/sumir promovem — o
+    /// `progress` (e o `updatedAt` que vem junto) anda a cada passo e faria a
+    /// atividade morar no topo pra sempre.
+    @Published var activity: NotchActivity? {
+        didSet {
+            guard activity?.title != oldValue?.title
+                || activity?.detail != oldValue?.detail
+                || (activity == nil) != (oldValue == nil) else { return }
+            marcarEvento(.atividade)
+        }
+    }
     /// Timer Pomodoro em exibição (pílula própria no notch). nil = idle.
-    @Published var pomodoro: PomodoroState?
+    /// Só fase/estado promovem — `remaining` muda a cada segundo e faria o
+    /// Pomodoro morar no topo pra sempre.
+    @Published var pomodoro: PomodoroState? {
+        didSet {
+            guard pomodoro?.phase != oldValue?.phase
+                || pomodoro?.runState != oldValue?.runState else { return }
+            marcarEvento(.pomodoro)
+        }
+    }
     /// AirPods conectados: bateria por componente (nil = desconectado). Alimenta
     /// a faixa junto da música e o card dedicado no hover.
     @Published var airpods: AirPodsBattery?
@@ -98,6 +118,40 @@ final class NotchViewModel: ObservableObject {
     /// Resposta rápida do card → app envia (peerID, texto).
     var onSendReply: ((String, String) -> Void)?
     private var incomingWork: DispatchWorkItem?
+
+    // MARK: - Eventos das seções (insumo da hierarquia do card)
+
+    /// Quando cada seção teve o último **evento de transição**. É o insumo da
+    /// promoção; ver a tabela em docs/specs/card-foco.md pra o que conta.
+    /// Não é `@Published`: só é lido no instante em que o card abre.
+    private(set) var eventos: [NotchSection: Date] = [:]
+
+    func marcarEvento(_ section: NotchSection, at date: Date = Date()) {
+        eventos[section] = date
+    }
+
+    /// Retrato das seções pro `NotchSectionOrder`. Os dados que não moram no
+    /// VM (música, shelf, histórico, mensagens, nota) entram por parâmetro:
+    /// quem chama é a NotchView, que já observa esses stores.
+    func estadoDasSecoes(hasMusic: Bool, hasShelf: Bool,
+                         hasHistory: Bool, hasMensagens: Bool,
+                         hasNota: Bool) -> [NotchSectionState] {
+        let conteudo: [NotchSection: Bool] = [
+            .musica: hasMusic,
+            .atividade: activity != nil,
+            .pomodoro: pomodoro != nil,
+            .shelf: hasShelf,
+            .espelho: mirrorOn,
+            .mensagens: hasMensagens,
+            .historico: hasHistory,
+            .nota: hasNota,
+        ]
+        return NotchSection.allCases.map {
+            NotchSectionState(section: $0,
+                              hasContent: conteudo[$0] ?? false,
+                              lastEvent: eventos[$0])
+        }
+    }
 
     struct HUDState: Equatable {
         enum Kind: Equatable { case volume, brightness, battery }
@@ -226,6 +280,7 @@ final class NotchViewModel: ObservableObject {
     /// permitida demora mais (dá tempo de ler e digitar), mas some.
     func showIncoming(_ m: IncomingMessage) {
         incoming = m
+        marcarEvento(.mensagens)
         scheduleIncomingDismiss()
     }
 

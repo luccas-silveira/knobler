@@ -241,6 +241,12 @@ struct NotchView: View {
         .onChange(of: note.editing) { _, editing in
             if !editing { vm.resumePendingNotifications() }
         }
+        .modifier(CarimboDeEventos(vm: vm,
+                                   faixa: media.state?.title,
+                                   tocando: media.state?.isPlaying,
+                                   itensShelf: shelf.items.count,
+                                   itensHistorico: history.items.count,
+                                   notaVazia: note.text.isEmpty))
     }
 
     /// Faixa morta no topo dos cards: só existe onde tem câmera de verdade.
@@ -1481,5 +1487,33 @@ private struct RemoteAvatarView: View {
     private func reload() {
         guard iconEmoji == nil else { return }   // emoji fixo: renderiza local, não baixa nada
         if AppSettings.shared.loadRemoteImages { loader.load(iconURL) }
+    }
+}
+
+/// Carimba os eventos de transição das seções que nascem fora do VM (música,
+/// shelf, histórico, nota). Vive num `ViewModifier` próprio — e recebe valores
+/// já extraídos, não os stores — porque o `body` do notch interativo já estoura
+/// o type-checker do Swift quando ganha mais um punhado de `.onChange`.
+///
+/// Nada aqui carimba tique: da música só troca de faixa e play/pause entram (a
+/// posição avança sozinha e promoveria a música pra sempre), e da nota só o
+/// vazio → não-vazio (cada tecla depois disso não recarimba).
+private struct CarimboDeEventos: ViewModifier {
+    let vm: NotchViewModel
+    let faixa: String?
+    let tocando: Bool?
+    let itensShelf: Int
+    let itensHistorico: Int
+    let notaVazia: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: faixa) { _, _ in vm.marcarEvento(.musica) }
+            .onChange(of: tocando) { _, _ in vm.marcarEvento(.musica) }
+            .onChange(of: itensShelf) { _, _ in vm.marcarEvento(.shelf) }
+            .onChange(of: itensHistorico) { _, _ in vm.marcarEvento(.historico) }
+            .onChange(of: notaVazia) { _, vazio in
+                if !vazio { vm.marcarEvento(.nota) }
+            }
     }
 }
