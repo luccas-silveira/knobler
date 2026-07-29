@@ -13,7 +13,13 @@ chamada de verdade.
 
 ## Como usar
 
-- No notch aberto, clique no botão de câmera pra ligar/desligar o espelho.
+- No notch aberto, com a seção **Música** em foco, clique no botão de câmera
+  (à direita dos controles de reprodução) pra ligar/desligar o espelho. Sem
+  música tocando o mesmo botão aparece no meio do card, sob "Nada tocando".
+- Ligado, o espelho vira uma **seção** do card, com ícone próprio na faixa do
+  rodapé — clicar nele traz o espelho de volta se você tiver posto outra coisa
+  na frente. Recolher o notch desliga o espelho: a câmera nunca fica ligada
+  escondida.
 - Na primeira vez, o macOS pede a permissão de câmera.
 - Com mais de uma câmera na máquina (webcam USB, OBS Virtual Camera, Câmera de
   Continuidade), a **setinha no canto do preview** abre a lista pra escolher

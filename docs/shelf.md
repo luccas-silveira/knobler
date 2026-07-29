@@ -2,6 +2,11 @@
 
 ![Notch expandido com a prateleira](images/expanded-shelf.png)
 
+> A captura acima é anterior à faixa de ícones do rodapé (v0.14.0) — o card
+> real hoje traz a faixa embaixo. Ela não sai do `tools/snapshot.sh` porque as
+> miniaturas dependem do `QLThumbnailGenerator`, que não renderiza offscreen;
+> pede recaptura manual no app rodando.
+
 ## O que faz
 
 Uma prateleira de arquivos temporários no notch: arraste um arquivo pro notch
@@ -17,6 +22,11 @@ prontos pra arrastar em vez de precisar ir até a área de trabalho.
   "tirar" ele de lá.
 - Screenshots caírem automaticamente na prateleira: Ajustes → Notch
   (`screenshotsToShelf`).
+- A prateleira é uma **seção** do card aberto. Se ela não estiver em foco, o
+  ícone de bandeja na faixa do rodapé mostra a **contagem de itens** — clicar
+  traz a prateleira pra frente. Arquivo novo (arrastado ou screenshot
+  capturado) conta como evento: o card recém-aberto põe a prateleira na
+  frente por alguns segundos.
 - **Botão direito** (ou Control+clique) na miniatura abre o menu:
 
 ```

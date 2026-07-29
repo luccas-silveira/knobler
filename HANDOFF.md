@@ -1,3 +1,80 @@
+# 🏁 SESSÃO 2026-07-29 (noite) — o card parou de empilhar
+
+A sessão começou por uma queixa de UX, não por um bug: *"a organização e a
+hierarquia da informação no notch não acompanha o usuário — parece uma coisa
+fixa da qual ele que precisa se curvar."* Terminou com **v0.14.0** publicada,
+depois de um desvio pro ícone do app.
+
+## O que foi feito
+
+**O card aberto virou uma lista ordenada + um índice de foco.** Antes ele
+empilhava tudo que existia numa ordem hardcoded (pomodoro > espelho > shelf >
+atividade > música), com a altura somada à mão por constantes combinatórias e
+**três** mecanismos de navegação concorrentes: abas com pontinhos, cortina do
+histórico e swipe. Agora a seção em foco ocupa o card e declara a própria
+altura; as outras viram ícones no rodapé, com sinal vivo mínimo (anel de
+progresso, contagem, ponto de tocando).
+
+A ordem sai de três camadas: base do usuário (arrastável em Ajustes › Notch),
+filtro de conteúdo, e promoção por **evento de transição** nos últimos 10 s —
+congelada no instante da abertura, pra nada pular debaixo do cursor.
+
+**A distinção evento × tique é o coração da feature, e quase passou batido.**
+O spec original dizia "seção que mudou nos últimos 10 s sobe". A pesquisa de
+viabilidade derrubou isso: `PomodoroState.remaining` muda a cada segundo e o
+`MediaController` publica posição continuamente — "mudou" deixaria os dois
+permanentemente promovidos e a regra degeneraria em "pomodoro sempre no topo".
+Virou uma tabela fechada de transições por seção, com `tools/eventoscheck.swift`
+provando por mutation testing que cada guarda tem seu matador.
+
+**Antes disso, o ícone.** O app usava um ícone que não conversava com o site, e
+a barra de menus não tinha ícone nenhum — era o caractere `◐` no título do
+`NSStatusItem`. Os dois viraram a silhueta do notch, que é a marca real do
+site (o `favicon.svg` de lá era o logo padrão do Astro, nunca trocado — também
+corrigido, no repo `knobler-site`). `tools/makeicon.swift` gera o `.icns` do
+vetor. Dois aprendizados: a arte precisa **sangrar até a borda** do canvas,
+senão o macOS 26 compõe tudo dentro de uma moldura clara dele (a "borda
+gigante"); e o ícone da barra é desenhado em runtime como `NSImage` template,
+sem asset novo.
+
+## Validação
+
+- `./tools/check.sh` → **18 checks** (era 16; a branch somou `sectionordercheck`
+  e `eventoscheck`).
+- `./tools/snapshot.sh` → 53 PNGs, cenários reescritos no eixo "qual seção em
+  foco". 49 byte-idênticos entre rodadas (recontado, não estimado).
+- Gesto medido no app real via `CGEvent.postToPid(_:)` — inclusive a folga de
+  16 pt, com controle negativo.
+- Ícone conferido lendo o que o **sistema** compõe (`NSWorkspace.icon(forFile:)`
+  do app instalado), não o PNG de origem.
+
+O processo foi SDD: 7 tasks, cada uma com implementador e revisor próprios. A
+revisão pegou um **Critical** (ligar a nota abria o card na seção errada *e* o
+app tomava a janela-chave sem campo focado — teclas engolidas em silêncio) e
+três Important, entre eles um `focoPendente` que sequestrava a abertura
+seguinte e travava a promoção pela sessão inteira. Um "Important" era **falso
+positivo** e o implementador provou com repro: `@Published` torna a propriedade
+computada, então `didSet` **reentra** — ao contrário da regra que vale pra
+propriedade armazenada.
+
+## Pendências e followups
+
+- **`docs/images/expanded-shelf.png` é anterior à faixa** e pede recaptura
+  manual no app rodando (as miniaturas dependem do `QLThumbnailGenerator`, que
+  não renderiza offscreen). Já anotado na própria página.
+- **`fatiaDoCiclo` reimplementa `Pomodoro.duration(of:config:)`** e ignora o
+  `configProvider` injetado. Trocar o `switch` pela chamada mata a duplicação
+  sem mudar contrato.
+- **`zoneWidth` do scroll fechado (400) segue literal** — o aberto já deriva de
+  `NotchGesture.larguraDoCard + 2×folgaDeHover`.
+- **Digitar na nota nunca foi testado no app rodando** (painel `nonactivating`,
+  `keystroke` do System Events vai pro app da frente). É o único ponto da
+  feature cuja garantia é leitura de código, e é justamente o caminho da perda
+  silenciosa de teclas — vale um teste manual humano.
+- O app em `/Applications` pode estar num build Debug desta sessão. `brew
+  upgrade knobler` pra ficar com a release; a assinatura muda e o TCC ancora a
+  Acessibilidade no cdhash, então o ditado pode pedir permissão de novo.
+
 # 🏁 SESSÃO 2026-07-29 (tarde) — o crash em Mac novo e a conversa que abria no topo
 
 Sessão curta e reativa: dois bugs relatados de fora, dois releases publicados
