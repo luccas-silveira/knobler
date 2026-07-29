@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-07-29
+
 ### Added
 - **Adiar lembrete no card**: quando um lembrete dispara, o card no notch traz
   **Adiar 5 min** e **30 min** — empurra o próximo disparo sem abrir os Ajustes.
