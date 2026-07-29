@@ -16,6 +16,8 @@ struct NotchView: View {
     @ObservedObject var shelf: ShelfStore
     @ObservedObject private var settings = AppSettings.shared
     @ObservedObject private var history = NotificationHistory.shared
+    @ObservedObject private var note = QuickNote.shared
+    @FocusState private var noteFocused: Bool
     /// false no harness de snapshot: onDrop cria uma NSView que o ImageRenderer
     /// não renderiza (vira placeholder amarelo). No app fica sempre true.
     var dropTargetsEnabled = true
@@ -36,6 +38,7 @@ struct NotchView: View {
             || agentRequestStore.state.active != nil
             || vm.incoming?.allowReply == true
             || (vm.tab == .messages && vm.expanded)
+            || (note.active && vm.expanded)
     }
 
     private func notifyKeyboardEligibility() {
@@ -201,6 +204,7 @@ struct NotchView: View {
         .onChange(of: vm.incoming?.allowReply) { _, _ in notifyKeyboardEligibility() }
         .onChange(of: vm.tab) { _, _ in notifyKeyboardEligibility() }
         .onChange(of: vm.expanded) { _, _ in notifyKeyboardEligibility() }
+        .onChange(of: note.active) { _, _ in notifyKeyboardEligibility() }
     }
 
     /// Faixa morta no topo dos cards: só existe onde tem câmera de verdade.
@@ -612,13 +616,33 @@ struct NotchView: View {
         .clipShape(RoundedRectangle(cornerRadius: 7))
     }
 
+    // MARK: - Nota rápida
+
+    /// ponytail: texto simples, não rich text. Negrito e itálico exigiriam
+    /// NSAttributedString e uma barra de formatação pra uma nota que vive
+    /// minutos.
+    private var noteSection: some View {
+        TextEditor(text: $note.text)
+            .font(.system(size: 13))
+            .foregroundStyle(.white.opacity(0.92))
+            .scrollContentBackground(.hidden)
+            .background(.clear)
+            .focused($noteFocused)
+            .frame(height: 120)
+            .padding(.horizontal, 4)
+            .onAppear { noteFocused = true }
+            .onChange(of: noteFocused) { _, focused in note.editing = focused }
+    }
+
     // MARK: - Música expandida
 
     @ViewBuilder
     private var expandedContent: some View {
         VStack(spacing: 8) {
             Group {
-                if vm.historyOpen {
+                if note.active {
+                    noteSection
+                } else if vm.historyOpen {
                     HistoryListView(history: history)
                 } else if vm.tab == .messages {
                     MessagesView(vm: vm)

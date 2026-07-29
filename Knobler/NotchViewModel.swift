@@ -154,6 +154,9 @@ final class NotchViewModel: ObservableObject {
         guard inside else {
             let work = DispatchWorkItem { [weak self] in
                 guard let self else { return }
+                // digitar na nota não pode ser interrompido por um mouse que
+                // saiu da área — Esc solta o foco e aí o hover-out volta a valer
+                guard !QuickNote.shared.editing else { return }
                 if self.expanded || self.peeking { self.lastCollapseAt = Date() }
                 self.expanded = false
                 self.peeking = false
