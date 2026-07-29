@@ -25,6 +25,23 @@ com o relay usa um WebSocket sempre ativo, com reconexão automática.
   (título, corpo, ícone, som) às partes do card.
 - Rotacionar ou excluir um perfil invalida o link antigo.
 
+## Quando o painel diz "Credenciais inacessíveis"
+
+Os três segredos do pareamento (`deviceId`, `deviceSecret`, `publishToken`) têm
+uma ACL presa ao requisito de assinatura de quem os gravou. Se a assinatura do
+app mudar — passar a ser notarizado com Developer ID, por exemplo — a ACL deixa
+de bater e o Keychain não abre mais os itens. O app lê com a interação
+desligada, então em vez do diálogo de senha do macOS aparece o aviso no painel,
+com o botão **Parear de novo**.
+
+Ele **não** re-pareia sozinho de propósito: o `publishToken` é a URL pública que
+você já colou nos serviços externos, e um registro novo a invalidaria em
+silêncio. Clicar em **Parear de novo** troca o link — os POSTs para o link
+antigo param de chegar, e é preciso atualizar o serviço externo.
+
+Distinguir "nunca pareado" de "pareado mas trancado" é decisão de
+`WebhookKeychainStore.pairingState()`, coberta pelo `webhookcheck`.
+
 ## Permissões
 
 Nenhuma permissão especial (usa rede normal, sem entitlement de sistema).
