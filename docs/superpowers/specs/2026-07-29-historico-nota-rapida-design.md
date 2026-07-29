@@ -40,9 +40,13 @@ o histórico seria copiado por monitor e cada cópia podaria sozinha.
 
 Três decisões embutidas:
 
-- **Sem disco.** Reiniciou o app, zerou. `NotchNotification` carrega `NSImage` e
-  `AXUIElement`, nenhum dos dois serializável — persistir exigiria um DTO
-  paralelo. Notificação é efêmera por natureza; o preço não paga.
+- **Sem disco.** Reiniciou o app, zerou. O motivo é que notificação é efêmera
+  por natureza, não impedimento técnico: os campos de `NotchNotification` são
+  `String`/`UUID`/`Bool` e serializam sem drama (só `iconColor: NSColor?`
+  daria trabalho; o `AXUIElement` mora no interceptor, indexado pelo
+  `actionToken`, não no struct). Guardar 24 h de coisa que já passou não paga
+  um arquivo. **Correção pós-implementação:** também há teto de 300 linhas — a
+  poda por idade sozinha não segura uma rajada de `webhookID` distintos.
 - **`webhookID` repetido substitui.** Mesma regra do `enqueue`: uma barra de
   progresso que atualiza 40 vezes é uma linha no histórico, não 40.
 - **Poda na escrita.** Sem timer. A lista só muda quando algo entra, então
@@ -51,7 +55,9 @@ Três decisões embutidas:
 
 Ponto de entrada: uma chamada a `record()` dentro de `NotchViewModel.enqueue`.
 Escopo = tudo que virou card: banner do sistema interceptado, card de webhook,
-lembrete disparado e atividade da API local.
+lembrete disparado, fim de fase do Pomodoro e conta-gotas. **Correção
+pós-implementação:** atividade da API local **não** entra — ela vai por
+`onActivity → pushActivity → vm.activity` e nunca passa pelo `enqueue`.
 
 ### Gesto: puxão longo, numa passada só
 
@@ -141,6 +147,12 @@ Um `NSMenuItem` "Nota rápida" com `state = active ? .on : .off`, dentro do
 
 Ligar também chama `setExpandedDirect(true)`: a nota aparece na hora, sem exigir
 que o usuário vá com o mouse até o notch.
+
+**Correção pós-implementação:** a nota tem UMA tela dona (`hostDisplayID`, a
+tela sob o mouse na hora de ligar). Ligar expande só ela; desligar recolhe só
+ela. Sem dono, ligar expandia todos os monitores e nada os recolhia (o
+hover-out exige hover-in anterior, e depois do menu o ponteiro está na barra),
+e as N cópias da `NotchView` disputavam foco escrevendo no mesmo `editing`.
 
 ### Conteúdo
 

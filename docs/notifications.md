@@ -39,9 +39,11 @@ O `Fechar`/`Limpar` do próprio alerta nunca vira botão do card.
 ## Histórico (24 h)
 
 Tudo que virou card no notch fica registrado por 24 h: banner de sistema
-interceptado, card de webhook, lembrete disparado e atividade da API local.
-Não é um log separado — é o mesmo conteúdo que já passou pelo card, guardado
-pra consulta.
+interceptado, card de webhook, lembrete disparado, fim de fase do Pomodoro e
+cor copiada pelo conta-gotas. Não é um log separado — é o mesmo conteúdo que
+já passou pelo card, guardado pra consulta. Atividade da API local (a linha
+de progresso do deploy) **não** entra: ela não é card, é uma faixa que vive
+no notch enquanto dura.
 
 ### Como abrir
 
@@ -58,7 +60,13 @@ rodapé do card aberto quando há histórico pra puxar.
 
 Fechar não é gesto — é tirar o mouse de cima do notch, o mesmo hover-out que
 já fecha o card normal. Com a cortina aberta, o scroll vertical pertence à
-lista (ela realmente rola, com momentum incluso); só o hover-out fecha.
+lista (ela realmente rola, com momentum incluso) — mas só quando há lista pra
+rolar: com o histórico vazio o gesto continua valendo pra fechar. Clicar numa
+linha também recolhe o notch, junto com abrir a origem.
+
+A nota rápida e a cortina não convivem: com a nota ligada naquela tela, o
+puxão longo não abre o histórico (o card é da nota). O swipe horizontal, que
+troca Música/Mensagens, fica desligado enquanto a cortina está aberta.
 
 ### O que aparece em cada linha
 
@@ -66,7 +74,7 @@ Horário à esquerda, nome do app, título e corpo truncado numa linha. **Sem
 ícone do app** — `NSWorkspace.icon(forFile:)` não renderiza no harness de
 snapshot offscreen do projeto, então a linha ficou só com texto. Clicar numa
 linha faz o mesmo que clicar no card original teria feito (abre a URL, foca o
-app, revela a pasta do AirDrop).
+app, revela a pasta do AirDrop) e recolhe o notch.
 
 Quando não há nada nas últimas 24 h, a cortina mostra "Nada nas últimas
 24 h".
@@ -77,7 +85,11 @@ empilhar — vira uma linha só no histórico, não quarenta.
 
 ### Limitação: não sobrevive ao restart
 
-O histórico mora só em memória. `NotchNotification` carrega um `NSImage` e,
-em alguns casos, um `AXUIElement` — nenhum dos dois é serializável, então
-persistir exigiria manter um DTO paralelo só pra isso. Notificação também é
-efêmera por natureza: reiniciar o Knobler limpa o histórico.
+O histórico mora só em memória: reiniciar o Knobler limpa tudo. Não é
+limitação técnica — notificação é efêmera por natureza, e guardar 24 h de
+coisa que já passou não vale um arquivo em disco. Se um dia valer, o custo é
+pequeno (o único campo chato de serializar é a cor do conta-gotas).
+
+O histórico também tem teto de 300 linhas: uma fonte que dispare em rajada
+não cresce sem limite dentro da janela de 24 h. Passando disso, a linha mais
+antiga sai.

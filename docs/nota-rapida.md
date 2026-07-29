@@ -14,7 +14,8 @@ não é lugar pra guardar coisa importante.
 1. Menu da barra (**◐**) → **✎ Nota rápida** — o item ganha um check quando
    está ativo.
 2. Ligar abre o notch na hora, já com o campo de texto focado, pronto pra
-   digitar.
+   digitar. Com mais de um monitor, a nota mora na tela onde o mouse estava
+   quando você ligou — só ela abre, e desligar recolhe só ela.
 3. Enquanto o interruptor estiver ligado, o texto volta toda vez que o notch
    abrir de novo (por hover ou pelo gesto normal) — a nota fica ali até você
    desligar.
@@ -35,13 +36,15 @@ pra nota.
 ## Desligar apaga
 
 Não existe timer nem prazo configurável. Desligar o interruptor no menu
-**apaga o texto** — é a única forma de limpar a nota. Se você quer manter o
+**apaga o texto** e recolhe o card — é a única forma de limpar a nota. Se você quer manter o
 que escreveu, copie antes de desligar.
 
 ## Limitações
 
 - **Não sobrevive a reiniciar o Knobler.** A nota mora só em memória, junto
   com o resto do estado efêmero do notch.
+- **Não convive com o histórico.** Com a nota ligada naquela tela, o puxão
+  longo pra baixo não abre a cortina de histórico — o card é da nota.
 - **Texto simples, sem formatação.** Negrito/itálico exigiriam
   `NSAttributedString` e uma barra de formatação — custo alto pra uma nota que
   costuma viver minutos.

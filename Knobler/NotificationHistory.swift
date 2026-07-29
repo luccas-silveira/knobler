@@ -6,9 +6,11 @@
 //  porque existe um view model por tela: lá dentro o histórico seria copiado
 //  por monitor e cada cópia podaria sozinha.
 //
-//  ponytail: sem disco. NotchNotification carrega NSImage e AXUIElement, que
-//  não são serializáveis — persistir exigiria um DTO paralelo. Notificação é
-//  efêmera; reiniciou o app, zerou. Virar disco se alguém reclamar de perda.
+//  ponytail: sem disco porque notificação é efêmera por natureza — passou,
+//  passou; reiniciou o app, zerou. Serializar seria quase de graça (os campos
+//  são String/UUID/Bool; só `iconColor: NSColor?` precisaria de tratamento),
+//  então o motivo NÃO é impedimento técnico: é que guardar em disco por 24 h
+//  não vale o arquivo. Virar disco se alguém reclamar de perda num restart.
 //
 
 import Foundation
@@ -20,6 +22,12 @@ final class NotificationHistory: ObservableObject {
     @Published private(set) var items: [NotchNotification] = []
 
     private let janela: TimeInterval = 24 * 3600
+    /// ponytail: teto duro de linhas. A poda por idade sozinha não segura uma
+    /// fonte que emita `webhookID` distinto em rajada — em 24 h a lista cresce
+    /// sem limite e o `record` é O(n) por inserção. 300 é muito mais do que
+    /// alguém lê numa cortina de 260 pt; quem precisar de mais precisa de
+    /// busca, não de teto maior.
+    private let capacidade = 300
 
     func record(_ n: NotchNotification) {
         // o enqueue roda uma vez por tela com a mesma notificação
@@ -28,6 +36,7 @@ final class NotificationHistory: ObservableObject {
         if let wid = n.webhookID { items.removeAll { $0.webhookID == wid } }
         items.insert(n, at: 0)
         prune()
+        if items.count > capacidade { items.removeLast(items.count - capacidade) }
     }
 
     /// Poda na escrita — a lista só muda quando algo entra, então não há timer.

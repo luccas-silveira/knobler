@@ -688,7 +688,8 @@ struct NotchView: View {
                 if noteVisible {
                     noteSection
                 } else if vm.historyOpen {
-                    HistoryListView(history: history)
+                    HistoryListView(history: history,
+                                    onOpen: { vm.setExpandedDirect(false) })
                 } else if vm.tab == .messages {
                     MessagesView(vm: vm)
                 } else {

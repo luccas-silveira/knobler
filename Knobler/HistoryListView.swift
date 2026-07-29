@@ -15,6 +15,10 @@ struct HistoryListView: View {
     static let listHeight: CGFloat = 260
 
     @ObservedObject var history: NotificationHistory
+    /// Chamado depois de abrir a origem: o card ao vivo se recolhe no clique e
+    /// a linha do histórico faz o mesmo — senão a cortina fica aberta atrás do
+    /// app que acabou de vir pra frente.
+    var onOpen: () -> Void = {}
 
     private static let hora: DateFormatter = {
         let f = DateFormatter()
@@ -70,6 +74,9 @@ struct HistoryListView: View {
             Spacer(minLength: 0)
         }
         .contentShape(Rectangle())
-        .onTapGesture { NotchView.openSourceApp(item) }
+        .onTapGesture {
+            NotchView.openSourceApp(item)
+            onOpen()
+        }
     }
 }

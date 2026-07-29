@@ -17,6 +17,7 @@ struct HistoryCheck {
         testPoda()
         testWebhookSubstitui()
         testMesmoIDUmaVez()
+        testTetoDeLinhas()
         testGesto()
         testInicioDeGesto()
         print("✅ historycheck ok")
@@ -69,6 +70,19 @@ struct HistoryCheck {
         h.record(n)
         h.record(n)
         assert(h.items.count == 1, "mesmo id não pode duplicar")
+    }
+
+    /// Teto de linhas: a poda por idade não segura uma rajada de webhookIDs
+    /// distintos dentro da mesma janela de 24 h. O que sobra é o mais recente.
+    static func testTetoDeLinhas() {
+        let h = NotificationHistory()
+        for i in 0..<400 {
+            h.record(NotchNotification(appName: "Rajada", title: "\(i)", body: "",
+                                       webhookID: "w\(i)"))
+        }
+        assert(h.items.count == 300, "teto de 300 linhas, veio \(h.items.count)")
+        assert(h.items.first?.title == "399", "o topo continua sendo o mais recente")
+        assert(h.items.last?.title == "100", "quem cai é o mais antigo")
     }
 
     /// Puxão longo numa passada só: 24 pt abre o card, 120 pt segue pro
