@@ -31,6 +31,8 @@ struct DocumentConverterCheck {
         testImageToPDF()
         testPDFToPNG()
         testMarkdownStyling()
+        testMarkdownTableAndBreak()
+        testMarkdownImage()
         testMarkdownToPDF()
         print("✅ documentconvertercheck ok")
     }
@@ -144,8 +146,97 @@ struct DocumentConverterCheck {
         let codeFont = attr.attribute(.font, at: codeIndex, effectiveRange: nil) as! NSFont
         assert(codeFont.fontName != bodyFont.fontName, "código em monoespaçada")
 
+        // citação em tinta escura fixa: `.secondaryLabelColor` resolvia pela
+        // aparência do sistema e, no escuro, saía branca — sumia no PDF
+        let quoteIndex = text.range(of: "citação")!.lowerBound.utf16Offset(in: text)
+        let quoteColor = attr.attribute(.foregroundColor, at: quoteIndex, effectiveRange: nil)
+            as! NSColor
+        assert(quoteColor.usingColorSpace(.deviceRGB)!.brightnessComponent < 0.5,
+               "citação visível no papel branco")
+
         // markdown quebrado não pode derrubar nada: entra, sai texto
         assert(DocumentConverter.styled(markdown: "**sem fim").length > 0)
+    }
+
+    /// Tabela e regra horizontal: o parser sempre entregou os blocos; o que se
+    /// testa aqui é o desenho — célula na mesma linha separada por tab (com tab
+    /// stop por coluna) e linhas diferentes separadas por quebra.
+    static func testMarkdownTableAndBreak() {
+        let md = """
+        Antes
+
+        ---
+
+        | Nome | Qtd |
+        |:-----|----:|
+        | café | 2 |
+        | pão | 10 |
+        """
+        let attr = DocumentConverter.styled(markdown: md)
+        let text = attr.string
+        assert(text.contains("Nome\tQtd"), "célula da mesma linha usa tab: \(text.debugDescription)")
+        assert(text.contains("café\t2"))
+        assert(text.contains("\ncafé"), "linha nova da tabela quebra: \(text.debugDescription)")
+        assert(!text.contains("|"), "o pipe do markdown não vaza pro PDF")
+
+        // cabeçalho da tabela em semibold, e o tab stop da 2ª coluna à direita
+        let head = text.range(of: "Nome")!.lowerBound.utf16Offset(in: text)
+        let headFont = attr.attribute(.font, at: head, effectiveRange: nil) as! NSFont
+        let cellIndex = text.range(of: "café")!.lowerBound.utf16Offset(in: text)
+        let cellFont = attr.attribute(.font, at: cellIndex, effectiveRange: nil) as! NSFont
+        assert(headFont.fontDescriptor.symbolicTraits.contains(.bold), "cabeçalho destacado")
+        assert(!cellFont.fontDescriptor.symbolicTraits.contains(.bold), "célula comum não")
+
+        let cellStyle = attr.attribute(.paragraphStyle, at: cellIndex, effectiveRange: nil)
+            as! NSParagraphStyle
+        assert(cellStyle.tabStops.count == 1, "uma coluna sem tab (a 0) + uma com")
+        assert(cellStyle.tabStops[0].alignment == .right, "coluna `----:` alinha à direita")
+        assert(cellStyle.tabStops[0].location > 0)
+
+        // a regra horizontal: o parser dá um "⸻" solto; o PDF quer a caixa inteira
+        let rule = text.split(separator: "\n").first { $0.hasPrefix("⸻") }!
+        let ruleIndex = text.range(of: rule)!.lowerBound.utf16Offset(in: text)
+        // medida na string atribuída: a régua tem kern próprio pra emendar os traços
+        let width = attr.attributedSubstring(
+            from: NSRange(location: ruleIndex, length: rule.utf16.count)).size().width
+        assert(width > (612 - 54 * 2) * 0.9, "régua atravessa a caixa, veio \(width)pt")
+        assert(width <= 612 - 54 * 2, "e não estoura a margem")
+
+        // cor fixa, não dinâmica: `.secondaryLabelColor` resolve pela aparência do
+        // sistema e no modo escuro saía branca — invisível no PDF de fundo branco
+        let ruleColor = attr.attribute(.foregroundColor, at: ruleIndex, effectiveRange: nil)
+            as! NSColor
+        assert(ruleColor.usingColorSpace(.deviceRGB)!.brightnessComponent < 0.5, "tinta escura")
+    }
+
+    /// Imagem embutida vira anexo de verdade — e caminho quebrado cai no alt.
+    static func testMarkdownImage() {
+        let foto = dir.appendingPathComponent("gato.png")
+        writePNG(at: foto, width: 900, height: 300)   // mais larga que a caixa: encolhe
+        let md = dir.appendingPathComponent("com-imagem.md")
+        try! "Olha:\n\n![um gato](gato.png)\n".write(to: md, atomically: true, encoding: .utf8)
+
+        let attr = DocumentConverter.styled(
+            markdown: try! String(contentsOf: md, encoding: .utf8), baseURL: dir)
+        var found: NSTextAttachment?
+        attr.enumerateAttribute(.attachment, in: NSRange(location: 0, length: attr.length)) {
+            value, _, _ in found = found ?? value as? NSTextAttachment
+        }
+        let anexo = found!
+        assert(anexo.image != nil, "imagem relativa resolvida contra a pasta do .md")
+        assert(abs(anexo.bounds.width - (612 - 54 * 2)) < 0.5, "largura limitada à caixa")
+        assert(abs(anexo.bounds.height - anexo.bounds.width / 3) < 0.5, "proporção 3:1 preservada")
+        assert(!attr.string.contains("um gato"), "alt sai de cena quando a imagem carrega")
+
+        // caminho quebrado: sem anexo, o alt segue como texto (não some conteúdo)
+        let quebrado = DocumentConverter.styled(markdown: "![sumiu](nao-existe.png)", baseURL: dir)
+        assert(quebrado.string.contains("sumiu"), "imagem faltando cai no alt")
+
+        // e o PDF sai com a imagem dentro
+        let pdf = try! DocumentConverter.pdf(fromMarkdown: md)
+        let doc = PDFDocument(url: pdf)!
+        assert(doc.pageCount == 1)
+        assert(doc.page(at: 0)!.string?.contains("Olha") == true, "o texto ao redor sobreviveu")
     }
 
     static func testMarkdownToPDF() {

@@ -45,9 +45,12 @@ original**, com nome livre (`foto-1.png` se `foto.png` já existir), e entra na
 prateleira; o original nunca é tocado. Conversão de vídeo mostra o progresso na
 faixa de atividade do notch — as outras são instantâneas.
 
-O Markdown é renderizado pelo próprio app (parser do Foundation + CoreText):
-cabeçalhos, negrito/itálico, código, listas e citação, paginado em Letter.
-Tabela, imagem embutida e regra horizontal ainda não desenham.
+O Markdown é renderizado pelo próprio app (parser do Foundation + TextKit):
+cabeçalhos, negrito/itálico, código, listas, citação, tabela, regra horizontal e
+imagem embutida, paginado em Letter. A imagem sai do caminho relativo ao próprio
+`.md` (link remoto não é baixado — a conversão não faz rede) e é reduzida pra
+caber na largura da página. Coluna de tabela tem largura fixa, dividida em
+partes iguais; o alinhamento (`:---`, `---:`) é respeitado.
 
 ## Permissões
 

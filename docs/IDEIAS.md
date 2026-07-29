@@ -54,10 +54,6 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 
 ## Lembretes & Notificações
 
-- **Persistir o adiamento**: o card do lembrete já adia 5/30 min, mas o adiamento
-  mora na memória — reiniciar o Knobler antes de vencer devolve o lembrete ao
-  horário original. Gravar junto do lembrete resolveria.
-
 - **Persistência de notificações**: Salvar histórico de notificações dos últimos 24h — scroll no notch pra ver o que chegou.
 
 - **DND inteligente**: Silenciar notificações automaticamente quando você está em reunião (detecta calendário) ou em uma call (Zoom, Teams).
@@ -132,7 +128,7 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 
 ## Utilidades & Conversão
 
-- **Preview da conversão**: o shelf já converte imagem, PDF, vídeo e Markdown pelo menu de contexto, mas às cegas — mostrar o resultado antes de confirmar (e deixar escolher qualidade/resolução) seria o próximo passo. Faltam também tabela e imagem embutida no Markdown → PDF.
+- **Preview da conversão**: o shelf já converte imagem, PDF, vídeo e Markdown pelo menu de contexto, mas às cegas — mostrar o resultado antes de confirmar (e deixar escolher qualidade/resolução) seria o próximo passo.
 
 ---
 
