@@ -10,14 +10,25 @@
 //  arquivo nem de Ajuste de intervalo.
 //
 
+import AppKit
 import CoreGraphics
 import Foundation
 
 final class QuickNote: ObservableObject {
     static let shared = QuickNote()
 
+    /// Onde o texto é despejado ao desligar. Seam só pro self-check, que não
+    /// pode mexer no clipboard de verdade da máquina.
+    var pasteboard: NSPasteboard = .general
+
     @Published var active = false {
-        didSet { if !active { text = ""; editing = false; hostDisplayID = nil } }
+        didSet {
+            guard !active else { return }
+            stashToPasteboard()
+            text = ""
+            editing = false
+            hostDisplayID = nil
+        }
     }
     @Published var text = ""
     /// Campo com foco de teclado — segura o card aberto contra o hover-out.
@@ -34,5 +45,27 @@ final class QuickNote: ObservableObject {
     /// A nota é desta tela? Onde não for, ela não existe.
     func hosted(by id: CGDirectDisplayID?) -> Bool {
         active && id != nil && hostDisplayID == id
+    }
+
+    /// Digitando nesta tela agora. Enquanto for true, notificação e HUD não
+    /// tomam o card: tirar o campo da tela derruba o foco do teclado junto, e
+    /// as teclas seguintes cairiam no app da frente sem nenhum aviso.
+    func typing(on id: CGDirectDisplayID?) -> Bool {
+        hosted(by: id) && editing
+    }
+
+    /// Desligar não apaga no vazio: o texto vai pro clipboard antes de sumir.
+    /// É a única rede de segurança da nota, e as TRÊS formas de perdê-la passam
+    /// por aqui — o interruptor do menu, o monitor dono desconectado e o quit.
+    /// Nenhuma delas pergunta nada antes, e o `TextEditor` já saiu da árvore
+    /// quando o texto some, então o Cmd+Z do campo não alcança.
+    ///
+    /// ponytail: sobrescreve o que estava copiado, sem restaurar depois. Perder
+    /// a nota é pior que perder o clipboard. Se incomodar, o molde de
+    /// salvar/restaurar já existe em `Dictation.swift`.
+    private func stashToPasteboard() {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
     }
 }

@@ -119,6 +119,14 @@ let scenarios: [Scenario] = [
         vm.musicPaused = true
         vm.peeking = true
     },
+    // nota com texto e card fechado: a asa existe só por causa do pontinho —
+    // sem música, sem atividade, sem mic. É o aviso de "tem rascunho aqui".
+    Scenario(name: "closed-note", realNotch: true) { vm, _, _ in
+        vm.displayID = 1
+        QuickNote.shared.hostDisplayID = 1
+        QuickNote.shared.active = true
+        QuickNote.shared.text = "pedido 88213"
+    },
     Scenario(name: "hud-volume", realNotch: true) { vm, _, _ in
         vm.hud = .init(level: 0.6, muted: false)
     },
@@ -387,6 +395,9 @@ let scenarios: [Scenario] = [
 ]
 
 MainActor.assumeIsolated {
+// desligar a nota copia o texto pro clipboard: sem este desvio o harness
+// torraria o que quem roda `snapshot.sh` tinha copiado
+QuickNote.shared.pasteboard = NSPasteboard(name: .init("knobler.snapshot"))
 for scenario in scenarios {
     // ShelfStore() relê o UserDefaults — sem o clear, os arquivos fake de um
     // cenário vazavam pros seguintes
@@ -414,6 +425,9 @@ for scenario in scenarios {
     // o histórico é singleton: sem zerar entre cenários, o que um cenário
     // grava vaza pro próximo (a alcinha apareceria em todo card expandido)
     NotificationHistory.shared.prune(now: .distantFuture)
+    // mesma razão: a nota também é singleton, e o pontinho dela apareceria em
+    // todo notch fechado depois do cenário que a liga
+    QuickNote.shared.active = false
     scenario.configure(vm, media, askStore)
     if let request = scenario.agentRequest {
         agentRequestStore.send(.enqueue(request))

@@ -1,6 +1,11 @@
 # Nota rápida
 
-<!-- TODO screenshot: card expandido com o campo de texto da nota rápida, cursor piscando -->
+![Card do notch aberto com o campo da nota vazio e o placeholder "Rascunho — some ao desligar"](images/nota-placeholder.png)
+
+<!-- Esta imagem é MANUAL: o TextEditor é um ScrollView e não renderiza no
+     harness offscreen (ver CLAUDE.md). Pra refazer: rodar o build novo, ligar a
+     nota pelo menu ◐, achar o windowID do notch (layer 27 em
+     CGWindowListCopyWindowInfo), `screencapture -o -l<id>` e recortar o card. -->
 
 ## O que faz
 
@@ -20,6 +25,13 @@ não é lugar pra guardar coisa importante.
    abrir de novo (por hover ou pelo gesto normal) — a nota fica ali até você
    desligar.
 
+Com o card **fechado** e texto guardado, um pontinho branco de 4 pt aparece na
+asa direita do notch (do mesmo lado do indicador de microfone). É o lembrete de
+que tem rascunho ali — sem ele dá pra esquecer e desligar achando que o campo
+estava vazio.
+
+![Notch fechado com o pontinho da nota na asa direita](images/closed-note.png)
+
 ## Segurar o card aberto pra digitar
 
 O card normalmente fecha quando o mouse sai de cima do notch. Com o foco no
@@ -28,23 +40,38 @@ cursor do mouse em outro canto da tela. **Esc** solta o foco do campo — depois
 disso, tirar o mouse fecha o card normalmente, e o texto volta na próxima vez
 que você abrir (hover ou gesto).
 
+Enquanto o campo está focado, **notificação e HUD não tomam o card**. A
+notificação espera na fila e aparece assim que você solta o campo; o HUD de
+volume/brilho simplesmente não aparece durante a digitação. Ditado e mensagem
+recebida ainda passam na frente — os dois têm campo de teclado próprio.
+
 Digitar na nota **não** rouba o foco do app que está na frente: o notch é um
 painel `nonactivating`, então o teclado continua indo pro app ativo assim que
 você clica fora do campo — só enquanto o campo está focado é que as teclas vão
 pra nota.
 
-## Desligar apaga
+## Desligar copia e apaga
 
 Não existe timer nem prazo configurável. Desligar o interruptor no menu
-**apaga o texto** e recolhe o card — é a única forma de limpar a nota. Se você quer manter o
-que escreveu, copie antes de desligar.
+**apaga o texto** e recolhe o card — é a única forma de limpar a nota.
+
+Antes de apagar, o texto **vai pro clipboard**: se você desligou sem querer,
+é só colar (⌘V) de volta. Vale pros três jeitos de perder a nota — o
+interruptor, desconectar o monitor dono, e sair do Knobler. Nota vazia (ou só
+com espaço e enter) não mexe no clipboard.
+
+⚠️ O que você tinha copiado antes é sobrescrito. Perder a nota é pior que
+perder o clipboard, mas vale saber.
 
 ## Limitações
 
 - **Não sobrevive a reiniciar o Knobler.** A nota mora só em memória, junto
-  com o resto do estado efêmero do notch.
-- **Não convive com o histórico.** Com a nota ligada naquela tela, o puxão
-  longo pra baixo não abre a cortina de histórico — o card é da nota.
+  com o resto do estado efêmero do notch — mas o texto vai pro clipboard ao
+  sair, então dá pra colar de volta depois de abrir o app.
+- **Toma o card inteiro.** Com a nota ligada naquela tela, o puxão longo pra
+  baixo não abre a cortina de histórico, o swipe horizontal não troca pra
+  Mensagens e os pontinhos de página somem do rodapé — o card é da nota. Com o
+  notch fechado o swipe horizontal continua pulando faixa, normal.
 - **Texto simples, sem formatação.** Negrito/itálico exigiriam
   `NSAttributedString` e uma barra de formatação — custo alto pra uma nota que
   costuma viver minutos.

@@ -1,3 +1,69 @@
+# 🏁 SESSÃO 2026-07-29 (fim de manhã) — crítica de UX da nota rápida e os quatro fixes
+
+Sessão de auditoria, não de feature. `/impeccable critique` na nota rápida
+entregue de manhã deu **15/40 (Poor)** — nota concentrada em segurança do dado
+e controle, não em aparência (visualmente a feature já estava dentro do
+DESIGN.md). Quatro dos cinco achados foram fechados; o quinto virou brief.
+
+## O que foi feito
+
+Tudo em `fix/nota-rapida-ux` (`3d61617`), **não mergeado em `master`**.
+
+**P0 — a tecla ia pro app errado.** `mode` prioriza `.notification`/`.hud`
+acima de `.music`. Quando uma delas entrava, o `TextEditor` saía da árvore, o
+`.onDisappear` zerava o foco, `keyboardAllowed` caía e `KnoblerApp.swift:815`
+chamava `panel.resignKey()`. As teclas seguintes iam pro app frontmost, sem
+sinal nenhum, por até 5 s — e depois o `.onAppear` roubava o foco de volta no
+meio da palavra. Agora `typingNote` vence as duas no `mode`. **Esconder pelo
+`mode` não bastava**: o auto-dismiss de 5 s correria invisível e a notificação
+morreria sem ninguém ver, então ela também passou a ser enfileirada, com
+`resumePendingNotifications()` no fim da digitação.
+
+**P1 — desligar apagava sem volta**, por três caminhos (menu, monitor dono
+desconectado, quit). O `didSet` de `active` copia pro `NSPasteboard` antes de
+zerar; nota vazia ou só com espaço não encosta no clipboard.
+`applicationWillTerminate` desliga a nota pra cobrir o quit.
+
+**P1 — os pontinhos de página mentiam.** Ficavam visíveis e clicáveis com a
+nota aberta, mudando `vm.tab` por baixo do campo: o ponto de Mensagens acendia
+numa tela que seguia mostrando a nota. Saíram, e o eixo horizontal do gesto
+ficou de fora na tela dona (card fechado ainda pula faixa).
+
+**P2 — nem o campo vazio nem a nota cheia se anunciavam.** Placeholder no campo
+e ponto de 4 pt na asa do notch fechado.
+
+## Validação
+
+`tools/check.sh` **16 ok** (o `quicknotecheck` é novo — cobre copiar-antes-de-
+apagar, os dois casos de nota vazia, `hosted(by:)` e `typing(on:)`; validado por
+mutação: tirando a chamada do stash, o gate quebra na asserção certa).
+`tools/snapshot.sh` **62 PNGs**, exit 0 — o cenário `closed-note` é novo.
+
+**O screenshot manual achou dois bugs que o harness nunca pegaria** (o campo é
+um `ScrollView`): uma barra de rolagem do sistema parada dentro do card mesmo
+vazio, e o placeholder 8 pt abaixo de onde a primeira letra nasce — pularia na
+primeira tecla. Os dois só apareceram no app rodando de verdade.
+
+## Pendências e followups
+
+- **Branch não mergeada e não decidida.** `fix/nota-rapida-ux` está local e
+  pushada; falta merge em `master` ou PR.
+- **Brief do caminho de entrada rápido aguarda OK.** `/impeccable shape`
+  produziu o brief completo (atalho global configurável + puxão longo pra cima +
+  alcinha no topo, os três confirmados pelo usuário). **A única questão aberta é
+  o blink**: com o card aberto, chegar a −120 passa antes por −24, que fecha.
+  Recomendação registrada: gesto pra cima só liga a nota a partir do card
+  **fechado**, onde −24 é no-op. Nada disso foi implementado.
+- **Restos da crítica não atacados**: puxão longo pra baixo com a nota ligada é
+  gesto morto (não abre a cortina, correto, mas não dá feedback nenhum);
+  `noteEditorHeight` fixo em 120 sem indicação de que há texto acima; sem
+  limite de tamanho no colar.
+- **Mensagem recebida (`.message`) ainda interrompe a digitação** — ficou fora
+  do escopo do P0 de propósito (tem campo de teclado próprio), mas segue sendo
+  vetor de tecla no app errado.
+
+---
+
 # 🏁 SESSÃO 2026-07-29 (manhã) — histórico de notificações + nota rápida, **v0.13.0 publicada**
 
 Duas features do `IDEIAS.md` entregues juntas porque dividem o mesmo pedaço de

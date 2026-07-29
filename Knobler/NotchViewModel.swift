@@ -112,12 +112,23 @@ final class NotchViewModel: ObservableObject {
         case update
     }
 
-    /// Prioridade dos modos próprios: mensagem > ditado > notificação > HUD
-    /// > update > AirPods(card) > música (hover) > pomodoro > fechado. Ask é
-    /// derivado pelo NotchView a partir do AskStore compartilhado.
+    /// Digitando na nota rápida nesta tela — o compromisso mais forte que o
+    /// usuário faz com o notch, e por isso ganha de notificação e HUD.
+    var typingNote: Bool { QuickNote.shared.typing(on: displayID) }
+
+    /// Prioridade dos modos próprios: mensagem > ditado > nota (digitando) >
+    /// notificação > HUD > update > AirPods(card) > música (hover) > pomodoro
+    /// > fechado. Ask é derivado pelo NotchView a partir do AskStore
+    /// compartilhado.
     var mode: Mode {
         if incoming != nil { return .message }
         if dictation != nil { return .dictation }
+        // nota com o teclado nos dedos vence notificação e HUD: quando o campo
+        // sai da árvore, o `.onDisappear` zera o foco, `keyboardAllowed` cai e o
+        // painel larga a chave — as teclas seguintes vão pro app da frente sem
+        // sinal nenhum. Ditado e mensagem ainda passam na frente (ditado é
+        // pedido pelo usuário; mensagem tem campo de resposta próprio).
+        if typingNote { return .music }
         if activeNotification != nil { return .notification }
         if hud != nil { return .hud }
         // update nunca interrompe ditado, notificação ou HUD — só espera
@@ -163,9 +174,7 @@ final class NotchViewModel: ObservableObject {
                 // saiu da área — Esc solta o foco e aí o hover-out volta a
                 // valer. Só na tela dona: uma nota focada no monitor A não
                 // pode congelar o card do monitor B.
-                let digitandoAqui = QuickNote.shared.hosted(by: self.displayID)
-                    && QuickNote.shared.editing
-                guard !digitandoAqui else { return }
+                guard !self.typingNote else { return }
                 if self.expanded || self.peeking { self.lastCollapseAt = Date() }
                 self.expanded = false
                 self.peeking = false
@@ -273,11 +282,21 @@ final class NotchViewModel: ObservableObject {
                 return
             }
         }
-        if activeNotification == nil {
+        // digitando: enfileira em vez de mostrar. Só esconder pelo `mode` não
+        // bastaria — o auto-dismiss de 5s correria invisível e a notificação
+        // morreria sem ninguém ver.
+        if activeNotification == nil, !typingNote {
             show(notification)
         } else {
             queue.append(notification)
         }
+    }
+
+    /// Fim da digitação: solta a notificação que esperou. Chamado pela view
+    /// quando `QuickNote.editing` cai (Esc, clique fora, interruptor desligado).
+    func resumePendingNotifications() {
+        guard activeNotification == nil, !typingNote, !queue.isEmpty else { return }
+        show(queue.removeFirst())
     }
 
     func dismissActiveNotification() {
@@ -325,6 +344,10 @@ final class NotchViewModel: ObservableObject {
     // MARK: - HUD de som
 
     func showHUD(_ state: HUDState, duration: TimeInterval? = nil) {
+        // HUD é transitório: enquanto a nota tem o teclado ele não aparece e
+        // não espera fila — guardar um nível de volume de 3s atrás pra mostrar
+        // depois seria pior que não mostrar.
+        guard !typingNote else { return }
         hud = state
         hudWork?.cancel()
         let work = DispatchWorkItem { [weak self] in

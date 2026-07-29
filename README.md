@@ -32,7 +32,8 @@ Dynamic Island para o notch do Mac — nativo, Swift/SwiftUI, macOS 14.2+.
   embutida) e envia por AirDrop.
   → [detalhes](docs/shelf.md)
 - **Nota rápida**: campo de texto efêmero no card, ligado pelo menu da barra;
-  digitar segura o notch aberto. → [detalhes](docs/nota-rapida.md)
+  digitar segura o notch aberto e desligar copia o texto pro clipboard.
+  → [detalhes](docs/nota-rapida.md)
 - **Conta-gotas**: amostra qualquer cor da tela e copia em HEX.
   → [detalhes](docs/color-picker.md)
 - **Mensagens** com outros Macs na rede local (texto, foto, GIF).

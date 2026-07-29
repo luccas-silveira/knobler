@@ -6,6 +6,37 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- **Nota rápida, avisos nas duas pontas**: o campo vazio ganhou o placeholder
+  "Rascunho — some ao desligar" (o único lugar onde cabia dizer que o texto é
+  efêmero), e o notch fechado ganhou um pontinho de 4 pt na asa direita
+  enquanto houver texto guardado — antes dava pra fechar o card, esquecer, e
+  desligar achando que o campo estava vazio.
+
+### Fixed
+- **Nota rápida, teclado no meio da frase**: com o campo focado, notificação e
+  HUD deixaram de tomar o card. Antes eles tiravam o campo da tela, o painel
+  largava a janela chave e as teclas seguintes iam pro app da frente sem aviso
+  nenhum. A notificação agora espera na fila e aparece quando você solta o
+  campo (Esc, clique fora ou desligar o interruptor); o HUD de volume/brilho
+  fica de fora enquanto você digita. Ditado e mensagem recebida continuam
+  passando na frente.
+- **Nota rápida, texto apagado sem volta**: ao desligar, o texto vai pro
+  clipboard antes de ser apagado — cola com ⌘V se foi sem querer. Vale pros
+  três caminhos de perda (o interruptor do menu, desconectar o monitor dono e
+  sair do Knobler). Nota vazia, ou só com espaço e enter, não mexe no que você
+  tinha copiado.
+- **Nota rápida, barra de rolagem dentro do card**: quem usa "Mostrar barras de
+  rolagem: sempre" via um scroller cinza do sistema parado dentro do notch, com
+  o campo até vazio. Sumiu. E o placeholder estava 8 pt abaixo de onde a
+  primeira letra digitada nasce — pulava na primeira tecla; agora os dois saem
+  do mesmo ponto.
+- **Nota rápida, controle que não fazia nada**: com a nota aberta, os
+  pontinhos de página saíram do rodapé e o swipe horizontal deixou de trocar de
+  aba. Os dois mexiam em `tab` por baixo do campo, então o ponto de Mensagens
+  acendia numa tela que seguia mostrando a nota, e a troca só aparecia no
+  hover-out. Com o card fechado o swipe segue pulando faixa.
+
 ## [0.13.0] - 2026-07-29
 
 ### Added

@@ -45,7 +45,7 @@ estado em `Snapshots/*.png` — é o jeito de "ver" a UI sem abrir o app.
 sem mudança nenhuma de código: `closed-music`, `closed-music-external`,
 `expanded-activity-only` e `update-installing` (visualizador animado, barra de
 progresso). Neles o snapshot é inspeção visual, não detector de regressão — não
-gaste tempo investigando o diff. Os outros 57 são byte-idênticos entre rodadas.
+gaste tempo investigando o diff. Os outros 58 são byte-idênticos entre rodadas.
 
 ⚠️ **Qualquer view que dependa de um `NSView` real (janela/WindowServer de
 verdade) não renderiza via `ImageRenderer` offscreen** — vira o ícone de
@@ -65,7 +65,10 @@ cenário novo ao harness, desconfie de qualquer subview que envolva um
 desses. Por isso `settings-*.png`
 (7 painéis de Ajustes) e `mapping-editor.png` **não** são gerados por
 `tools/snapshot.sh` — são
-mantidos à mão: rode `Knobler.app/Contents/MacOS/Knobler --ajustes=<painel>`
+mantidos à mão — junto com `nota-placeholder.png` (campo da nota rápida: é um
+`TextEditor`, logo um `ScrollView`; a receita de captura está num comentário em
+`docs/nota-rapida.md`). Pros painéis:
+rode `Knobler.app/Contents/MacOS/Knobler --ajustes=<painel>`
 (painéis: `geral notch ditado pomodoro lembretes descanso webhooks
 mensagens`), tire o screenshot da janela real e salve em `docs/images/`
 (as imagens usadas pelos docs de usuário ficam ali, não em `Snapshots/` —
