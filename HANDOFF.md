@@ -1,3 +1,110 @@
+# 🏁 SESSÃO 2026-07-29 (noite) — cinco features, e o app foi quem achou os bugs
+
+Sessão de feature, **não publicada**: tudo está em `## [Unreleased]` do
+CHANGELOG. Cinco entregas, todas commitadas em `master` (5 commits à frente do
+`origin`, **sem push ainda**).
+
+## O que entrou
+
+| Feature | Commit | Onde ler |
+|---|---|---|
+| Preview da conversão do shelf | `66d5135` | `docs/shelf.md` |
+| Silêncio em reunião + estado do AirDrop | `c054e0d` | `docs/notifications.md`, `docs/shelf.md` |
+| Preview de link dentro do card | `690aa4b` | `docs/link-preview.md` |
+| Teclado no preview + histórico em disco | `2b6dc3a` | `docs/link-preview.md`, `docs/notifications.md` |
+
+**Preview da conversão**: converter pelo menu de contexto gravava às cegas ao
+lado do original. Agora converte pra pasta temporária e mostra miniatura, tamanho
+antes/depois e presets de Qualidade/Tamanho; Salvar move, Descartar não deixa
+rastro. PDF multipágina passou a converter todas.
+
+**Silêncio em reunião** (opt-in, Ajustes › Notch): evento com link de call em
+curso manda notificação de app/API/webhook direto pro histórico. Lembretes,
+Pomodoro e Ask continuam aparecendo — são coisas que o usuário agendou.
+
+**AirDrop**: atividade indeterminada enquanto envia, card no fim, e um
+`↗ Enviar por AirDrop…` no menu da barra com seletor de arquivo.
+
+**Preview de link**: arrastar link abre a página numa seção nova (Link) do card,
+16:9, com teclado e ⌘C/⌘V. Link **não** entra na prateleira (decisão do usuário).
+
+**Histórico em disco**: consequência direta do silêncio em reunião — ver abaixo.
+
+## O que a sessão ensinou
+
+**Os dois bugs do drop foram achados abrindo o app, não pelos gates.** O
+`shelfdropcheck` tinha 27 asserções verdes com a feature 100% inacessível:
+
+1. `onDrop(of:)` filtra os tipos **antes** do delegate. Eu atualizei o
+   `validateDrop` e esqueci a lista do modificador — link recusado em silêncio.
+2. O Chrome anuncia link como `com.apple.pasteboard.promised-file-url`, que
+   conforma a `public.file-url`. Filtrar por conformidade pescava o link e o
+   mandava pro caminho de arquivo, onde o `loadItem` devolvia nada.
+
+Lição pra próxima: **gate de lógica pura não alcança fiação de SwiftUI.** Toda
+feature que depende de `onDrop`, `onChange` ou modificador de view precisa de uma
+passada no app rodando antes de ser dada como pronta.
+
+**Uma decisão minha foi desmentida por medição.** Eu implementei os dois eixos de
+preset em vídeo; medindo um 1080x1920 real, `MediumQuality` devolveu 320x568 pra
+um pedido de 50% — os presets nomeados carregam teto de resolução próprio e o
+multiplicam pelo `renderSize`. Vídeo ficou só com o eixo de tamanho. A tabela das
+medições está na spec (`docs/superpowers/specs/2026-07-29-preview-conversao-design.md`).
+
+**Eu documentei um limite que não existia.** Escrevi que teclado não chegava no
+preview "porque o painel é nonactivating" — mas a nota rápida digita no mesmo
+painel desde sempre. Era uma linha faltando em `NotchView.keyboardAllowed`.
+Antes de chamar algo de limite da plataforma, procure quem no próprio app já faz
+aquilo.
+
+**Uma feature abriu buraco em outra.** O silêncio em reunião fez do histórico o
+único destino de uma notificação silenciada — e o histórico era só memória, por
+escolha registrada no cabeçalho do arquivo ("virar disco se alguém reclamar de
+perda num restart"). A premissa mudou antes de alguém reclamar. Isso virou a
+feature seguinte.
+
+## Validação
+
+- `./tools/check.sh` → **20 checks** (era 18 no começo da sessão). Gates novos:
+  `conversionpreviewcheck` e `shelfdropcheck`; `historycheck` e `sharingcheck`
+  ganharam casos.
+- `./tools/snapshot.sh` → **55 PNGs** (era 54), com `shelf-preview-imagem` novo e
+  hash estável entre rodadas.
+- Build Debug limpo.
+- **No app rodando**: conversão de imagem pra JPEG (usuário confirmou), preview
+  de link, silêncio em reunião ponta a ponta (evento de teste criado e apagado do
+  calendário), e histórico sobrevivendo a `pkill` + subir.
+- **Headless com arquivos reais**: `.mp4` 1080x1920 nos três presets e PDF de 6
+  páginas — foi o que pegou o problema do vídeo.
+
+## Pendências
+
+1. **Push não foi feito** — 5 commits locais à frente de `origin/master`.
+2. **Release não foi publicada.** Tudo em `## [Unreleased]`; a próxima é
+   **v0.16.0** (`./tools/release.sh minor`) — são features, não fixes.
+3. **AirDrop nunca foi testado ao vivo**: precisa de outro aparelho por perto. O
+   caminho de código está coberto por gate (rótulo, cancelamento), mas o envio
+   real não.
+4. **Teclado do preview de link não foi testado pelo usuário** — implementado e
+   compilando, mas o teste é digitar num campo de site de verdade.
+5. **Zoom do preview em 0,575** deixa texto em ~9 px. Se incomodar, baixar
+   `LinkPreview.larguraCSS` de 1280 pra 1024 dá 0,72 e ainda entrega layout
+   desktop. É um número só.
+6. **`NotchNotification` agora tem init manual de 16 parâmetros.** Campo novo
+   precisa entrar em três lugares (propriedade, `CodingKeys`, init). Esquecer a
+   `CodingKeys` não dá erro de compilação — o campo só não persiste.
+7. **VoiceOver segue fora**, por decisão explícita do usuário nesta sessão. O
+   código tem uma única ocorrência de `accessibility*`.
+
+## Estado da máquina do usuário
+
+- `silenciarEmReuniao` ficou **ligado** nos defaults (eu liguei pra testar).
+  `defaults delete com.zoi.knobler silenciarEmReuniao` volta ao padrão.
+- Build Debug de `/tmp/knobler-dd/` foi encerrada e o `/Applications/Knobler.app`
+  relançado no fim da sessão.
+
+---
+
 # 🏁 SESSÃO 2026-07-29 (fim de noite) — a limpeza das pendências herdadas
 
 Sessão de pendência, sem feature nova, fechada com **v0.15.0 publicada**. A

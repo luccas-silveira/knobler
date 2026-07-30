@@ -42,14 +42,26 @@ regras de domínio novas são implementadas.
 | Webhooks | `WebhookClient` + Keychain | Ajustes e notificações |
 | Agenda | `CalendarCountdown`, `ScheduleEngine` | notch e Ajustes |
 | Versão disponível e instalação | `Updater` | card do notch e Ajustes › Geral |
-| Notificações das últimas 24 h | `NotificationHistory.shared` | `HistoryListView` |
+| Notificações das últimas 24 h (em disco) | `NotificationHistory.shared` | `HistoryListView` |
 | Nota rápida (texto, foco, tela dona) | `QuickNote.shared` | `NotchView`, menu da barra |
+| Página do preview de link (tela dona) | `LinkPreview.shared` | `LinkPreviewView`, seção Link |
+| Conversão esperando confirmação | `ShelfStore.preview` | `ShelfPreviewView` |
 | Ordem-base das seções do card | `AppSettings.notchSectionOrder` | `NotchSectionOrder`, Ajustes › Notch |
 | Ordem efetiva, seção em foco e trava | `NotchViewModel` (`secoes`, `focus`, `focusLocked`) | `NotchView`, gestos, `GET /status` |
 
 O mesmo estado de Ask é injetado em todas as janelas. Não crie um store por
 monitor: uma resposta ou cancelamento precisa vencer uma única vez, mesmo com
 dois ou mais monitores.
+
+`LinkPreview` entra na mesma lista por um motivo próprio: ele carrega um
+`WKWebView`, e um por monitor significaria N cópias da mesma página gastando rede
+e CPU. Como a nota, ele tem tela dona (`hostDisplayID`), escolhida pelo ponteiro
+na hora de soltar o link.
+
+Duas seções seguram o card aberto contra o hover-out — a nota enquanto você
+digita e o link enquanto a página está aberta — e as duas cedem o scroll vertical
+ao conteúdo, como o histórico já fazia. Quem decide isso é `NotchViewModel`
+(`typingNote`, `linkAberto`) e o monitor de scroll no `AppDelegate`.
 
 `NotificationHistory` e `QuickNote` seguem a mesma regra e pelo mesmo motivo:
 `NotchViewModel.enqueue` roda uma vez por tela com a mesma notificação, então

@@ -30,8 +30,12 @@ Dynamic Island para o notch do Mac — nativo, Swift/SwiftUI, macOS 14.2+.
   5 ou 30 min sem abrir os Ajustes. → [detalhes](docs/reminders.md)
 - **Prateleira de arquivos**: arraste pro notch, screenshots caem sozinhos;
   botão direito converte (imagem, PDF, vídeo, Markdown — com tabela e imagem
-  embutida) e envia por AirDrop.
+  embutida) mostrando o resultado e os presets de qualidade/tamanho **antes** de
+  gravar, e envia por AirDrop com o estado no notch.
   → [detalhes](docs/shelf.md)
+- **Preview de link**: arraste um link do navegador e a página abre dentro do
+  card, com teclado — em 16:9 e com layout de desktop, não mobile.
+  → [detalhes](docs/link-preview.md)
 - **Nota rápida**: campo de texto efêmero no card, ligado pelo menu da barra;
   digitar segura o notch aberto e desligar copia o texto pro clipboard.
   → [detalhes](docs/nota-rapida.md)
@@ -41,6 +45,9 @@ Dynamic Island para o notch do Mac — nativo, Swift/SwiftUI, macOS 14.2+.
   → [detalhes](docs/messages.md)
 - **Notificações externas** (webhooks): link próprio por perfil, qualquer
   serviço publica no notch. → [detalhes](docs/webhooks.md)
+- **Histórico de 24 h** de tudo que virou card, sobrevivendo a reiniciar o app;
+  e **silêncio durante reuniões** (opt-in), que manda a notificação direto pro
+  histórico em vez de interromper. → [detalhes](docs/notifications.md)
 - **Bateria dos AirPods** por componente ao conectar.
   → [detalhes](docs/airpods.md)
 - **Espelho de câmera** antes de reuniões. → [detalhes](docs/mirror.md)

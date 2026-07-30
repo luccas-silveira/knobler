@@ -16,8 +16,6 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 
 - **Melhorar UI das perguntas do Claude**: Perguntas e respostas do Claude não aparecem inteiras no notch — truncam ou ficam cortadas. Melhorar a layout pra que conteúdo longo seja acessível (scroll, expansão, etc.).
 
-- **Preview de links**: Arrastar URL pro notch e mostrar preview (título, favicon, descrição). Notch se expande mostrando o site navegável dentro com opção de abrir no navegador.
-
 ---
 
 ## Mídia & Spotify
@@ -118,8 +116,6 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 
 ## Utilidades & Conversão
 
-- **Preview da conversão**: o shelf já converte imagem, PDF, vídeo e Markdown pelo menu de contexto, mas às cegas — mostrar o resultado antes de confirmar (e deixar escolher qualidade/resolução) seria o próximo passo.
-
 ---
 
 ## Acessibilidade & UX
@@ -145,3 +141,14 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 ## Descartadas
 
 - **Suporte a Windows**: Considerado mas descartado — foco é macOS nativo só.
+- **VoiceOver / acessibilidade**: descartado pelo dono do projeto em 2026-07-29.
+- **Pomodoro com metas diárias**, **webhook de saída** e **endpoint `/stats`**:
+  descartados em 2026-07-29.
+
+## Entregues
+
+- **Preview de links** → virou a seção Link do card (`docs/link-preview.md`).
+- **Preview da conversão** → `docs/shelf.md`.
+- **DND inteligente** → "silenciar durante reuniões" (`docs/notifications.md`).
+- **Progresso do AirDrop** → estado do envio no notch, sem percentual (a API do
+  sistema não expõe bytes transferidos).
