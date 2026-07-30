@@ -39,6 +39,32 @@ sistema deve ser revogada nos Ajustes do macOS quando necessário.
 - Chaves e tokens não devem ser gravados em `UserDefaults`, logs ou snapshots.
 - O histórico e mídias de Mensagens ficam no armazenamento local do app.
 
+### O que o app grava em disco
+
+Tudo em `~/Library/Application Support/Knobler/`, **sem cifra** — a proteção é a
+do FileVault e das permissões do seu usuário:
+
+| Arquivo | Conteúdo | Vida |
+|---|---|---|
+| `notificationHistory.json` | Título e **corpo em claro** das notificações das últimas 24 h, inclusive as que foram silenciadas durante reunião e nunca viraram card | podado na carga pela janela de 24 h; teto de 300 linhas |
+| `messages.json` | Histórico das Mensagens LAN, últimas 20 por peer | até apagar |
+| `peerNames.json` | Último nome visto de cada peer | até apagar |
+| `media/` | Fotos e GIFs recebidos nas Mensagens | apagado junto com a mensagem podada |
+| `avatars/` | Foto de perfil dos peers (`.jpg`) | até apagar |
+| `Arrastados/` | `.txt` gerado ao arrastar texto selecionado pro notch | até apagar |
+
+Preferências ficam em `UserDefaults` (domínio `com.zoi.knobler`) — inclui o que
+você configurou, **não** segredos.
+
+No Keychain, com ACL presa ao requisito de assinatura do app: os três segredos do
+pareamento de webhook (`deviceId`, `deviceSecret`, `publishToken`) e o token de
+cada perfil. Trocar a assinatura do app torna os itens ilegíveis — é o estado
+"Credenciais inacessíveis" descrito em [`docs/webhooks.md`](docs/webhooks.md).
+
+Para zerar: apagar a pasta acima, `defaults delete com.zoi.knobler` e remover os
+itens `com.zoi.knobler.webhook` do Keychain. Um backup do seu disco carrega tudo
+isso, incluindo corpos de notificação e conversas.
+
 ## Dependências e distribuição
 
 Reveja `Vendor/PROVENANCE.md` antes de atualizar o MediaRemote adapter. Valide

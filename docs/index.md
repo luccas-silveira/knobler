@@ -45,6 +45,8 @@ contratos e explicações para entender decisões.
 
 ## Desenvolver e manter
 
+- [Operação do relay](relay-operacao.md) — pm2, banco, limites e backup do
+  serviço de webhooks.
 - [Guia de desenvolvimento](development.md) — setup, build, checks, snapshots
   e release.
 - [Contribuição](../CONTRIBUTING.md) — fluxo de mudança e checklist.

@@ -42,6 +42,11 @@ antigo param de chegar, e é preciso atualizar o serviço externo.
 Distinguir "nunca pareado" de "pareado mas trancado" é decisão de
 `WebhookKeychainStore.pairingState()`, coberta pelo `webhookcheck`.
 
+## Operar o relay
+
+Manter o serviço de pé (pm2, banco, backup, limites) está em
+[Operação do relay](relay-operacao.md).
+
 ## Permissões
 
 Nenhuma permissão especial (usa rede normal, sem entitlement de sistema).
