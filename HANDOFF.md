@@ -1,3 +1,80 @@
+# 🏁 SESSÃO 2026-07-29 (noite, 2) — o roadmap não sobreviveu ao código
+
+Sessão **só de documentação** (commit `5ed1b22`): zero linha de Swift. O produto
+dela é uma ordem de implementação que agora corresponde ao que existe no repo, e
+a spec/plano/pesquisa do sync pela LAN.
+
+## O que foi feito
+
+Pedido inicial: ordenar o backlog do `IDEIAS.md` de forma que cada feature deixe
+pronta a peça da próxima. Saiu um `docs/ROADMAP.md` com 6 trilhas — escrito por
+dedução a partir de nomes de arquivo, **sem ler o código**. Ao começar a
+implementar a Trilha 1, ela caiu inteira:
+
+| O que o roadmap prometia criar | Onde já estava |
+|---|---|
+| "Camada de envio de webhooks" (`WebhookClient.send`) | **não existe** — o cliente é só entrada; e webhook de saída está em Descartadas |
+| Motor de template de payload | `relay/src/template.js` (`{{ dot.path }}`) + `MappingEditorView` |
+| Retry com backoff | `WebhookClient.scheduleReconnect()` (exponencial + jitter, cap 30 s) |
+| Fila offline com retry | `relay/src/db.js` — `enqueue`/`drainQueue`, dedupe, TTL 24 h, cap 50 |
+| "Card que cresce" | `AgentRequestCard` (expandir + `ScrollView` + "Ver detalhes") |
+| "Extrair sink do ditado" | `DictationDestination` (`.ask` / `.application`) |
+| Wrapper de persistência | padrão já repetido em `NotificationHistory` e `MessageStore` |
+
+Auditadas as 6 trilhas: **3 eram falsas**, 1 sobreviveu (a do Wire), 2 viraram
+itens soltos. `ROADMAP.md` reescrito com uma tabela do que **já existe**, pra o
+próximo roadmap não repetir o erro. `IDEIAS.md` podado (13 ideias descartadas
+pelo dono + as 4 que morreram com o webhook de saída).
+
+Depois, grilling sobre o item que sobrou grande — sync entre máquinas — e fase de
+pesquisa com experimento rodado nesta máquina.
+
+## Validação
+
+- `./tools/check.sh` → **20 checks ok** (o plano dizia 18; corrigido).
+- TLS-PSK provado por probe compilado e executado, não por memória: matriz de
+  versão/ciphersuite, metadata da conexão, e rejeição de PSK/identity errados.
+
+## O que a pesquisa provou (e derrubou)
+
+- **PSK não funciona em TLS 1.3.** `min = TLSv13` → `-9858: handshake failed` em
+  toda variação. Fecha em 1.2 negociando `TLS_PSK_WITH_AES_128_GCM_SHA256`
+  (0x00A8) — suite que o enum `tls_ciphersuite_t` do Swift **nem expõe** (zero
+  ocorrências de "PSK" no header). Fixar `min = max = .TLSv12` de propósito.
+- **Sem forward secrecy**: PSK puro deriva a sessão só do segredo. PSK vazado
+  depois torna tráfego gravado antes decifrável. Aceito + botão de rotação; a
+  alternativa era handshake ECDH caseiro.
+- **TOFU com certificado por dispositivo descartado por viabilidade**: não há API
+  pública no macOS pra gerar X.509 auto-assinado (`SecCertificateCreateWithData`
+  exige DER pronto). Era o desenho superior.
+- `NSBonjourServices` só declara `_knobler._tcp` — serviço novo precisa entrada.
+- O PSK no Keychain herda a ACL presa à assinatura (mesmo caso do webhook): troca
+  de assinatura trava o par nas duas máquinas. Aqui re-parear pode ser
+  automático, porque não invalida nada público.
+
+## Bloqueio de segurança registrado
+
+`LANMessaging.serve()` **não autentica nada**: qualquer host da LAN abre conexão
+e manda `.message`. Defesas são só UUID canônico no `from`, teto de 2000
+caracteres e validação dos bytes do anexo. Aceitável pra mensagem (pior caso é
+card de spam); **inaceitável** pra Ajustes, lembretes e histórico numa rede
+compartilhada. Por isso o passo 1 da trilha é pareamento, não a feature.
+
+## Pendências e followups
+
+- **Nada implementado.** O plano
+  (`docs/superpowers/plans/2026-07-29-sync-lan.md`) tem 7 tarefas; começar pela
+  Task 1 (HLC + merge puros + `tools/synccheck.swift`), que não toca rede.
+- **Não medido**: tempo de reconciliação com histórico cheio de mídia — decide se
+  precisa indicador de progresso no card.
+- **Não testado**: dois listeners Bonjour no mesmo processo (mensagens + sync).
+- **Ressalva registrada, decisão do dono**: escopo é os 3 tipos de dado com mídia
+  junto desde já. A mídia é a maior parte do esforço e o dado mais sensível;
+  "sob demanda depois" não custaria retrabalho se quiser cortar.
+- `CHANGELOG.md` intocado de propósito: sessão sem mudança de comportamento.
+
+---
+
 # 🏁 SESSÃO 2026-07-29 (noite) — cinco features, e o app foi quem achou os bugs
 
 Sessão de feature, **não publicada**: tudo está em `## [Unreleased]` do
