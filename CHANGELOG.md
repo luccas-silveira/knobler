@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-07-30
+
 ### Added
 - **Preview da conversão do shelf**: escolher um destino no menu "Converter" não
   grava mais nada de imediato. A prateleira entra em modo preview e mostra o que

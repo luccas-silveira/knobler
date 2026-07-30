@@ -53,8 +53,8 @@ targets:
         # Espelha a última release. NÃO editar à mão — o tools/release.sh é o
         # único escritor (ver VERSIONING.md). Build de release sobrescreve via
         # override na linha de comando do xcodebuild.
-        MARKETING_VERSION: "0.15.0"
-        CURRENT_PROJECT_VERSION: "0.15.0"
+        MARKETING_VERSION: "0.16.0"
+        CURRENT_PROJECT_VERSION: "0.16.0"
         # MESMA identidade que o tools/release.sh usa. O TCC ancora a permissão
         # de Acessibilidade no csreq da assinatura: se um build do xcodebuild
         # (outra identidade) for copiado por cima de uma instalação vinda do
