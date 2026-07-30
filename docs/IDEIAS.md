@@ -2,39 +2,18 @@
 
 Backlog de features futuras do Knobler — coisas que queremos explorar "eventualmente", sem timeline. Ideias são pitches curtos; quando uma vira interessante e pronta pra spec, ganha badge e link para a spec real.
 
+A **ordem** de implementação (agrupada por infra compartilhada) mora em
+[`ROADMAP.md`](ROADMAP.md).
+
 ---
 
 ## Notch & UI
-
-- **Tema claro no notch**: Modo claro automático durante o dia, escuro à noite baseado no horário ou sensor de luminosidade. Notch se adaptaria ao ambiente sem força manual.
 
 - **Notificações com ações**: Suporte a botões de ação direta no notch — aceitar/rejeitar, delete, archive. Hoje mostram só o título; com ações seria pra valer interativo. ⚠️ Mais caro do que parece: acionar a ação exige o `AXUIElement` do banner **vivo**, e o interceptor fecha o banner justamente pra o notch substituí-lo. Ou o balão do sistema fica na tela (duplicado com o card), ou não há ação. A infra de botão no card já existe (`actionTitles`/`actionToken`) — o nó é esse.
 
 - **Animations suave entre estados**: Transições mais fluidas quando o notch abre/fecha, especialmente a music tab entrando/saindo. Agora é um pouco abrupto.
 
-- **Gestos customizáveis no notch**: Permitir que swipes à esquerda/direita façam coisas diferentes em cada estado (close, voltar, skip track, etc.).
-
 - **Melhorar UI das perguntas do Claude**: Perguntas e respostas do Claude não aparecem inteiras no notch — truncam ou ficam cortadas. Melhorar a layout pra que conteúdo longo seja acessível (scroll, expansão, etc.).
-
----
-
-## Mídia & Spotify
-
-- **Podcast nativo no notch**: Mostrar podcast que está tocando via Apple Podcasts ou Spotify (cover, título, controles de play/pause/skip). Hoje só cobre músicas.
-
-- **Fila visual do Spotify**: Visualizar próximas 3-5 faixas enfileiradas no notch expandido — útil pra listar o que vem.
-
-- **Integração com YouTube Music**: Além de Spotify, suportar YouTube Music como fonte de now-playing (mesmos controles).
-
----
-
-## Ditado & Transcrição
-
-- **Editor inline de transcrição**: Editar a transcrição diretamente no notch antes de enviar/salvar (fix typos, remover fillers, etc.).
-
-- **Múltiplos idiomas simultâneos**: Detectar quando fala em português/inglês no meio da transcrição e processar cada parte com o modelo certo.
-
-- **Formatação avançada via IA**: Além de pontuação, a IA poderia sugerir estrutura (listas, parágrafos) e formatar como markdown automaticamente.
 
 ---
 
@@ -43,12 +22,6 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 - **Notificações customizáveis ao fim do pomodoro**: Além de áudio, executar webhook ou script (ex: `curl http://localhost:3000/pomodoro-end`).
 
 - **Integração com Calendario**: Ver próximo evento/reunião no notch durante pomodoro — útil pra saber quanto tempo falta até o próximo compromisso.
-
----
-
-## Lembretes & Notificações
-
-- **DND inteligente**: Silenciar notificações automaticamente quando você está em reunião (detecta calendário) ou em uma call (Zoom, Teams).
 
 ---
 
@@ -94,16 +67,6 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 
 ---
 
-## Câmera & Mirror
-
-- **Filtros no mirror**: Aplicar filtros visuais (blur background, efeitos, B&W) durante transmissão — útil pra conteúdo.
-
-- **Layout PiP do mirror**: Mostrar preview do mirror num canto pequeno do notch enquanto faz outras coisas (não full-screen).
-
-- **Controle de luz virtual**: Simular fotómetro do environment — aumentar/diminuir luz da câmera automaticamente baseado no ambiente.
-
----
-
 ## Performance & Infra
 
 - **Cache agressivo de imagens**: Cachear covers do Spotify, avatares das msgs, etc. por 1 semana — menos hits à rede.
@@ -111,20 +74,6 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 - **Compressão de dados dos webhooks**: Usar gzip na serialização de payloads grandes (histórico de msgs, stats).
 
 - **Profiling de memória**: Dashboard interno mostrando memory footprint do notch, GC stats, thread count — útil pra otimizar.
-
----
-
-## Utilidades & Conversão
-
----
-
-## Acessibilidade & UX
-
-- **VoiceOver support**: Fazer o notch acessível com Voice Over — descrições, interações por keystroke.
-
-- **Dark mode forçado**: Opção de forçar dark mode mesmo que macOS teja em light mode global.
-
-- **Teclado só**: Navegar o notch via arrow keys, Enter, Esc — useful se mouse falhar.
 
 ---
 
@@ -140,6 +89,19 @@ Backlog de features futuras do Knobler — coisas que queremos explorar "eventua
 
 ## Descartadas
 
+- **Tema claro no notch**: descartada em 2026-07-29 pelo dono do projeto.
+- **Gestos customizáveis no notch**: descartada em 2026-07-29 pelo dono do projeto.
+- **Podcast nativo no notch**: descartada em 2026-07-29 pelo dono do projeto.
+- **Fila visual do Spotify**: descartada em 2026-07-29 pelo dono do projeto.
+- **Integração com YouTube Music**: descartada em 2026-07-29 pelo dono do projeto.
+- **Editor inline de transcrição**: descartada em 2026-07-29 pelo dono do projeto.
+- **Múltiplos idiomas simultâneos**: descartada em 2026-07-29 pelo dono do projeto.
+- **Formatação avançada via IA**: descartada em 2026-07-29 pelo dono do projeto.
+- **Filtros no mirror**: descartada em 2026-07-29 pelo dono do projeto.
+- **Layout PiP do mirror**: descartada em 2026-07-29 pelo dono do projeto.
+- **Controle de luz virtual**: descartada em 2026-07-29 pelo dono do projeto.
+- **Dark mode forçado**: descartada em 2026-07-29 pelo dono do projeto.
+- **Teclado só**: descartada em 2026-07-29 pelo dono do projeto.
 - **Suporte a Windows**: Considerado mas descartado — foco é macOS nativo só.
 - **VoiceOver / acessibilidade**: descartado pelo dono do projeto em 2026-07-29.
 - **Pomodoro com metas diárias**, **webhook de saída** e **endpoint `/stats`**:

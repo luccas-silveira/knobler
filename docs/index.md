@@ -61,6 +61,7 @@ contratos e explicações para entender decisões.
 - [Handoff](../HANDOFF.md) — estado operacional da última sessão;
   [sessões anteriores](handoffs/2026-07.md) ficam arquivadas.
 - [Ideias](IDEIAS.md) — backlog do que ainda não virou feature.
+- [Trilhas de implementação](ROADMAP.md) — em que ordem o backlog sai, por substrato compartilhado.
 - [Specs e pesquisas](superpowers/specs/) — decisões de design e evidências.
 - [Planos de implementação](superpowers/plans/) — planos históricos; não são
   a fonte atual da arquitetura quando o código já mudou.
