@@ -66,12 +66,13 @@ de progresso do deploy) **não** entra: ela não é card, é uma faixa que vive
 no notch enquanto dura.
 
 ### Como abrir
-
 O histórico é uma **seção** do card aberto, como Música ou Pomodoro: abra o
 card (swipe de dois dedos pra baixo, ou hover) e clique no ícone de sino na
-faixa do rodapé — ou deslize na horizontal até chegar nele. Quando uma
-notificação acabou de passar, o histórico sobe sozinho pro foco por alguns
-segundos; depois disso a ordem volta a ser a dos Ajustes → Notch.
+faixa do rodapé — ou deslize na horizontal até chegar nele. O histórico agora é
+dividido em abas: **Geral** (notificações de apps e sistema) e **Mensagens**
+(específica para iMessage e SMS).
+Quando uma notificação acabou de passar, o histórico sobe sozinho pro foco por
+alguns segundos; depois disso a ordem volta a ser a dos Ajustes → Notch.
 
 Clicar num ícone trava o foco: nenhuma promoção o tira até o notch recolher.
 
