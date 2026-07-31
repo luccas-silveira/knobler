@@ -82,6 +82,7 @@ swift_check shelfdropcheck        $CONVERSAO Knobler/ShelfDrop.swift \
 swift_check historycheck          Knobler/NotchNotification.swift Knobler/NotificationHistory.swift Knobler/NotchGesture.swift tools/historycheck.swift
 swift_check sectionordercheck    Knobler/NotchSectionOrder.swift tools/sectionordercheck.swift
 swift_check quicknotecheck        Knobler/QuickNote.swift tools/quicknotecheck.swift
+swift_check annotationcheck      Knobler/AnnotationModel.swift tools/annotationcheck.swift
 # "tique não carimba": o VM inteiro sobe isolado, e por isso arrasta os tipos
 # que ele cita (Pomodoro, AirPods, notificação, Wire, Updater).
 swift_check eventoscheck          Knobler/NotchViewModel.swift Knobler/NotchSectionOrder.swift \
@@ -89,6 +90,7 @@ swift_check eventoscheck          Knobler/NotchViewModel.swift Knobler/NotchSect
   Knobler/NotificationHistory.swift Knobler/QuickNote.swift Knobler/Wire.swift \
   Knobler/LinkPreview.swift Knobler/LinkBrowser.swift \
   Knobler/Updater.swift \
+  Knobler/AnnotationModel.swift \
   Knobler/AppSettings.swift Knobler/Descanso.swift Knobler/Mirror.swift \
   Knobler/Reminders.swift Knobler/Peer.swift tools/eventoscheck.swift
 # Reminders traz o próprio @main atrás de -D (molde do Pomodoro), sem harness.

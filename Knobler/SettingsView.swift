@@ -309,6 +309,28 @@ struct NotchSettingsPane: View {
                     isOn: $settings.hideScreenshotPreview)
                     .disabled(!settings.screenshotsToShelf)
             }
+            Section("Anotação de tela") {
+                Picker("Ativação do Control direito", selection: $settings.annotationActivationMode) {
+                    Text("Pressionar e Segurar").tag(AnnotationActivationMode.pressAndHold)
+                    Text("Alternar").tag(AnnotationActivationMode.toggle)
+                }
+                Text("Desenha sobre a tela inteira como o DemoPro. O atalho é o Control direito, sem Command.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                SettingToggle(
+                    title: "Desvanecer automaticamente",
+                    subtitle: "Apaga cada anotação depois do atraso escolhido.",
+                    isOn: $settings.annotationAutoFade)
+                if settings.annotationAutoFade {
+                    HStack {
+                        Text("Atraso")
+                        Slider(value: $settings.annotationFadeSeconds, in: 0.5...30, step: 0.5)
+                        Text("\(settings.annotationFadeSeconds, specifier: "%.1f") s")
+                            .monospacedDigit()
+                            .frame(width: 52, alignment: .trailing)
+                    }
+                }
+            }
         }
         .formStyle(.grouped)
         .toggleStyle(.switch)

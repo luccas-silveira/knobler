@@ -70,6 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         [("Adiar 5 min", 5), ("30 min", 30)]
     private let breakScheduler = ScheduleEngine<ScreenBreak>()
     private let descanso = DescansoController()
+    private let annotation = AnnotationController()
     private let shelf = ShelfStore()
     private let screenshots = ScreenshotWatcher()
     private var screenshotPeekWork: DispatchWorkItem?
@@ -170,6 +171,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         setupStatusItem()
         placeWindows()
+        annotation.start()
 
         // notificações aparecem em TODAS as telas, como os HUDs
         let interceptor = NotificationInterceptor { [weak self] notch in
@@ -1064,6 +1066,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             addPomodoroItem(menu, "↺ Resetar", #selector(pomReset))
         }
         menu.addItem(.separator())
+        let annotationItem = menu.addItem(
+            withTitle: "✎ Anotar na tela", action: #selector(toggleAnnotation), keyEquivalent: "")
+        annotationItem.target = self
+        annotationItem.state = self.annotation.isActive ? .on : .off
+        let tools = NSMenu(title: "Ferramenta de anotação")
+        for tool in AnnotationTool.allCases {
+            let item = tools.addItem(withTitle: tool.title,
+                                     action: #selector(selectAnnotationTool(_:)), keyEquivalent: "")
+            item.target = self
+            item.tag = AnnotationTool.allCases.firstIndex(of: tool) ?? 0
+            item.state = annotation.selectedTool == tool ? .on : .off
+        }
+        let toolItem = menu.addItem(withTitle: "Ferramenta de anotação", action: nil, keyEquivalent: "")
+        toolItem.submenu = tools
+        let undo = menu.addItem(withTitle: "Desfazer anotação", action: #selector(undoAnnotation), keyEquivalent: "z")
+        undo.target = self
+        let redo = menu.addItem(withTitle: "Refazer anotação", action: #selector(redoAnnotation), keyEquivalent: "Z")
+        redo.target = self
+        let clear = menu.addItem(withTitle: "Apagar anotações", action: #selector(clearAnnotations), keyEquivalent: "")
+        clear.target = self
+        let color = menu.addItem(withTitle: "Cor da anotação…", action: #selector(pickAnnotationColor), keyEquivalent: "")
+        color.target = self
+        let backgrounds = NSMenu(title: "Fundo da anotação")
+        for background in AnnotationBackground.allCases {
+            let item = backgrounds.addItem(withTitle: background.title,
+                                            action: #selector(selectAnnotationBackground(_:)), keyEquivalent: "")
+            item.target = self
+            item.tag = AnnotationBackground.allCases.firstIndex(of: background) ?? 0
+            item.state = annotationBackground == background ? .on : .off
+        }
+        let backgroundItem = menu.addItem(withTitle: "Fundo da anotação", action: nil, keyEquivalent: "")
+        backgroundItem.submenu = backgrounds
         let nota = menu.addItem(
             withTitle: "✎ Nota rápida", action: #selector(toggleQuickNote), keyEquivalent: "")
         nota.target = self
@@ -1126,6 +1160,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         vm.focoPendente = .nota
         note.active = true
         vm.setExpandedDirect(true)
+    }
+
+    @objc private func toggleAnnotation() {
+        annotation.toggle()
+    }
+
+    @objc private func selectAnnotationTool(_ sender: NSMenuItem) {
+        guard sender.tag >= 0, sender.tag < AnnotationTool.allCases.count else { return }
+        annotation.select(tool: AnnotationTool.allCases[sender.tag])
+    }
+
+    @objc private func undoAnnotation() { annotation.undo() }
+    @objc private func redoAnnotation() { annotation.redo() }
+    @objc private func clearAnnotations() { annotation.clear() }
+
+    @objc private func pickAnnotationColor() {
+        ColorPicker.pick(format: .hex) { [weak self] color in
+            if let color { self?.annotation.setColor(color) }
+        }
+    }
+
+    private var annotationBackground: AnnotationBackground {
+        AnnotationBackground(rawValue: UserDefaults.standard.string(forKey: "annotationBackground") ?? "")
+            ?? .transparent
+    }
+
+    @objc private func selectAnnotationBackground(_ sender: NSMenuItem) {
+        guard sender.tag >= 0, sender.tag < AnnotationBackground.allCases.count else { return }
+        // O controller mantém o estado e atualiza as janelas já abertas.
+        annotation.setBackground(AnnotationBackground.allCases[sender.tag])
     }
 
     /// Manda a notificação pras telas — ou, em reunião, só pro histórico.

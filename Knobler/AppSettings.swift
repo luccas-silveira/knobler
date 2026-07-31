@@ -94,6 +94,16 @@ final class AppSettings: ObservableObject {
     @Published var hideScreenshotPreview: Bool {
         didSet { UserDefaults.standard.set(hideScreenshotPreview, forKey: "hideScreenshotPreview") }
     }
+    /// Modo do atalho de anotação; segue o DemoPro (pressionar e segurar por padrão).
+    @Published var annotationActivationMode: AnnotationActivationMode {
+        didSet { UserDefaults.standard.set(annotationActivationMode.rawValue, forKey: "annotationActivationMode") }
+    }
+    @Published var annotationAutoFade: Bool {
+        didSet { UserDefaults.standard.set(annotationAutoFade, forKey: "annotationAutoFade") }
+    }
+    @Published var annotationFadeSeconds: Double {
+        didSet { UserDefaults.standard.set(annotationFadeSeconds, forKey: "annotationFadeSeconds") }
+    }
     /// Recebe notificações externas via webhook (relay push.appzoi.com.br). Opt-in.
     @Published var webhookNotifications: Bool {
         didSet { UserDefaults.standard.set(webhookNotifications, forKey: "webhookNotifications") }
@@ -225,6 +235,11 @@ final class AppSettings: ObservableObject {
         formatModel = defaults.string(forKey: "formatModel") ?? "gemma3:4b"
         screenshotsToShelf = flag("screenshotsToShelf")
         hideScreenshotPreview = flag("hideScreenshotPreview")
+        annotationActivationMode = AnnotationActivationMode(
+            rawValue: defaults.string(forKey: "annotationActivationMode") ?? "") ?? .default
+        annotationAutoFade = defaults.bool(forKey: "annotationAutoFade")
+        let fade = defaults.double(forKey: "annotationFadeSeconds")
+        annotationFadeSeconds = fade == 0 ? 3 : min(30, max(0.5, fade))
         webhookNotifications = defaults.bool(forKey: "webhookNotifications") // default false: opt-in
         loadRemoteImages = flag("loadRemoteImages")                           // default true
         notchSectionOrder = NotchSectionOrder.sanear(

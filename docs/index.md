@@ -42,6 +42,7 @@ contratos e explicações para entender decisões.
 - [Webhooks](webhooks.md)
 - [AirPods](airpods.md)
 - [Espelho de câmera](mirror.md)
+- [Anotação de tela](annotation.md) — desenhe sobre apresentações e qualquer app
 
 ## Desenvolver e manter
 

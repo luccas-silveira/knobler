@@ -6,6 +6,13 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- **Anotação de tela inteira** inspirada no DemoPro: desenho livre, linhas,
+  setas, retângulos, elipses, texto, laser, holofote, borracha, undo/redo,
+  auto-fade, quadros transparente/branco/negro e persistência por monitor.
+  O atalho padrão é o Control direito, com modo Pressionar e Segurar ou
+  Alternar configurável.
+
 ## [0.16.0] - 2026-07-30
 
 ### Added
