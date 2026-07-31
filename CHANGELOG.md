@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-07-31
+
 ### Added
 - **Anotação de tela inteira** inspirada no DemoPro: desenho livre, linhas,
   setas, retângulos, elipses, texto, laser, holofote, borracha, undo/redo,
