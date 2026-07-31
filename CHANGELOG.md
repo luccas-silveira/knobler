@@ -6,6 +6,11 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Fixed
+- **Ativação da anotação de tela**: o atalho Control direito agora recupera o
+  event tap depois que a permissão de Acessibilidade é concedida, sem exigir
+  reiniciar o app.
+
 ## [0.16.1] - 2026-07-31
 
 ### Added

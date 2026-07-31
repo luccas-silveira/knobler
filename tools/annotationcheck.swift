@@ -10,9 +10,9 @@ struct AnnotationCheck {
         check(AnnotationTool.allCases.contains(.freehand), "freehand tool missing")
         check(AnnotationTool.allCases.contains(.arrow), "arrow tool missing")
         check(AnnotationTool.allCases.contains(.rectangle), "rectangle tool missing")
-        check(AnnotationShortcut.defaultKeyCode == 62, "right Control must be the default shortcut")
         check(AnnotationActivationMode.default == .pressAndHold, "DemoPro default must be press-and-hold")
         check(AnnotationBackground.allCases.count == 3, "annotation backgrounds missing")
+        check(AnnotationShortcut.defaultKeyCode == 62, "right Control key code must remain stable")
 
         var document = AnnotationDocument()
         document.append(.init(tool: .freehand, points: [AnnotationPoint(x: 1, y: 2), AnnotationPoint(x: 3, y: 4)]))

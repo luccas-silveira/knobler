@@ -117,6 +117,8 @@ final class AnnotationController: NSObject {
     private var screenObserver: Any?
     private var eventTap: CFMachPort?
     private var eventSource: CFRunLoopSource?
+    private var healthTimer: Timer?
+    private var trustedAtCreation = false
     private var keyMonitor: Any?
     private(set) var isActive = false
     var mode: AnnotationActivationMode { AppSettings.shared.annotationActivationMode }
@@ -127,7 +129,20 @@ final class AnnotationController: NSObject {
     func start() {
         refreshScreens()
         installScreenObserver()
-        installEventTap()
+        setupEventTap()
+        healthTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) {
+            [weak self] _ in
+            Task { @MainActor in self?.checkEventTapHealth() }
+        }
+    }
+
+    var diagnostics: [String: Any] {
+        [
+            "axTrusted": AXIsProcessTrusted(),
+            "tapExists": eventTap != nil,
+            "tapEnabled": eventTap.map { CGEvent.tapIsEnabled(tap: $0) } ?? false,
+            "isActive": isActive,
+        ]
     }
 
     func toggle() {
@@ -208,11 +223,9 @@ final class AnnotationController: NSObject {
         }
     }
 
-    private func installEventTap() {
-        guard AXIsProcessTrusted() else {
-            NSLog("knobler: annotation shortcut unavailable without Accessibility")
-            return
-        }
+    private func setupEventTap() {
+        guard eventTap == nil else { return }
+        trustedAtCreation = AXIsProcessTrusted()
         let flagsMask = CGEventMask(1 << CGEventType.flagsChanged.rawValue)
         let refcon = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
         eventTap = CGEvent.tapCreate(
@@ -224,6 +237,10 @@ final class AnnotationController: NSObject {
                 guard let refcon else { return Unmanaged.passRetained(event) }
                 let controller = Unmanaged<AnnotationController>
                     .fromOpaque(refcon).takeUnretainedValue()
+                if event.type == .tapDisabledByTimeout || event.type == .tapDisabledByUserInput {
+                    DispatchQueue.main.async { controller.enableEventTap() }
+                    return Unmanaged.passRetained(event)
+                }
                 if event.getIntegerValueField(.keyboardEventKeycode) == AnnotationShortcut.defaultKeyCode {
                     // NX_DEVICERCTLKEYMASK distingue o Control direito do esquerdo.
                     let pressed = event.flags.rawValue & 0x80 != 0
@@ -232,10 +249,51 @@ final class AnnotationController: NSObject {
                 return Unmanaged.passRetained(event)
             },
             userInfo: refcon)
-        guard let eventTap else { return }
+        guard let eventTap else {
+            NSLog("knobler: annotation CGEventTap indisponível (Acessibilidade?)")
+            return
+        }
         eventSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
         if let eventSource { CFRunLoopAddSource(CFRunLoopGetMain(), eventSource, .commonModes) }
         CGEvent.tapEnable(tap: eventTap, enable: true)
+    }
+
+    private func enableEventTap() {
+        guard let eventTap else {
+            if AXIsProcessTrusted() { setupEventTap() }
+            return
+        }
+        CGEvent.tapEnable(tap: eventTap, enable: true)
+    }
+
+    private func checkEventTapHealth() {
+        let trusted = AXIsProcessTrusted()
+        guard trusted else {
+            if eventTap != nil { teardownEventTap() }
+            return
+        }
+        guard let eventTap else {
+            setupEventTap()
+            return
+        }
+        if trusted != trustedAtCreation {
+            teardownEventTap()
+            setupEventTap()
+        } else if !CGEvent.tapIsEnabled(tap: eventTap) {
+            enableEventTap()
+        }
+    }
+
+    private func teardownEventTap() {
+        if let eventSource {
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), eventSource, .commonModes)
+        }
+        eventSource = nil
+        if let eventTap {
+            CGEvent.tapEnable(tap: eventTap, enable: false)
+            CFMachPortInvalidate(eventTap)
+        }
+        eventTap = nil
     }
 
     private func installScreenObserver() {

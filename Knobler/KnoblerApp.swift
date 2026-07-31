@@ -460,6 +460,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         apiServer.statusProvider = { [weak self] in
             var status = self?.volumeHUD.diagnostics ?? [:]
+            status["annotation"] = self?.annotation.diagnostics ?? [:]
             status["visualizerTapped"] = self?.tappedBundleID ?? "none"
             status["player"] = self?.media.activeBundleID ?? "none"
             status.merge(MirrorController.shared.diagnostics) { _, new in new }
