@@ -30,6 +30,8 @@ struct NotchView: View {
     var onKeyboardEligibilityChanged: ((Bool) -> Void)?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var agentRequestExpanded = false
+    /// Sessão da câmera já rodando — até lá o espelho mostra o spinner.
+    @State private var espelhoPronto = false
 
     /// A prioridade Ask é derivada do store compartilhado; o VM fornece apenas
     /// o modo dos demais subsistemas visuais.
@@ -289,8 +291,14 @@ struct NotchView: View {
             notifyKeyboardEligibility()
         }
         .onChange(of: vm.incoming?.allowReply) { _, _ in notifyKeyboardEligibility() }
-        .onChange(of: vm.focus) { _, _ in notifyKeyboardEligibility() }
-        .onChange(of: vm.expanded) { _, _ in notifyKeyboardEligibility() }
+        .onChange(of: vm.focus) { _, _ in
+            notifyKeyboardEligibility()
+            ligarEspelhoSeEmFoco()
+        }
+        .onChange(of: vm.expanded) { _, _ in
+            notifyKeyboardEligibility()
+            ligarEspelhoSeEmFoco()
+        }
         .onChange(of: note.active) { _, _ in notifyKeyboardEligibility() }
         // o teclado segue o dono, não só o interruptor
         .onChange(of: note.hostDisplayID) { _, _ in notifyKeyboardEligibility() }
@@ -985,8 +993,24 @@ struct NotchView: View {
     // MARK: - Espelho
 
     private var mirrorSection: some View {
-        MirrorPreviewView()
+        MirrorPreviewView(onReady: { espelhoPronto = true })
             .frame(height: 180)
+            .overlay {
+                if !espelhoPronto {
+                    ZStack {
+                        Color.black
+                        VStack(spacing: 8) {
+                            ProgressView().controlSize(.small).tint(.white)
+                            Text("Ligando a câmera…")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.5))
+                        }
+                    }
+                    .transition(.opacity)
+                }
+            }
+            .animation(.easeOut(duration: 0.2), value: espelhoPronto)
+            .onDisappear { espelhoPronto = false }
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(alignment: .topTrailing) {
                 Button { vm.mirrorOn = false } label: {
@@ -1064,6 +1088,13 @@ struct NotchView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    /// Abrir a aba do espelho já liga a câmera — sem exigir o clique. Só chega
+    /// aqui com a seção fixada: sem fixar, ela nem aparece na faixa desligada.
+    private func ligarEspelhoSeEmFoco() {
+        guard vm.expanded, vm.focus == .espelho, !vm.mirrorOn else { return }
+        MirrorController.activate(on: vm)
+    }
+
     /// Espelho fixado e desligado: o botão que já existe, centralizado.
     private var espelhoDesligado: some View {
         VStack(spacing: 6) {
@@ -1139,8 +1170,6 @@ struct NotchView: View {
                 Text("Nada tocando")
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.4))
-                mirrorButton
-                    .padding(.top, 4)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -1192,8 +1221,8 @@ struct NotchView: View {
         }
     }
 
-    // 5 itens distribuídos na largura toda:
-    // shuffle · backward · play/pause (maior) · forward · espelho
+    // 4 itens distribuídos na largura toda:
+    // shuffle · backward · play/pause (maior) · forward
     private func controls(_ state: MediaController.PlaybackState) -> some View {
         HStack(spacing: 0) {
             Button { media.toggleShuffle() } label: {
@@ -1224,8 +1253,6 @@ struct NotchView: View {
                     .font(.title3)
                     .foregroundStyle(.white)
             }
-            Spacer()
-            mirrorButton
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)

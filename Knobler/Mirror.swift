@@ -17,20 +17,29 @@ final class MirrorController {
     // ponytail: refcount porque dois monitores podem exibir o mesmo preview
     private var useCount = 0
 
+    /// Devolve a sessão na hora, ainda sem entrada: abrir a câmera custa cerca
+    /// de um segundo e, feito na main, congelava o card inteiro antes de ele
+    /// conseguir desenhar o "ligando…". A entrada entra depois, no background.
     func acquire() -> AVCaptureSession? {
         useCount += 1
         if let session { return session }
         let session = AVCaptureSession()
         session.sessionPreset = .medium
-        guard let device = Self.preferredDevice(),
-              let input = try? AVCaptureDeviceInput(device: device),
-              session.canAddInput(input) else {
-            NSLog("knobler mirror: câmera indisponível")
-            return nil
-        }
-        session.addInput(input)
         self.session = session
-        DispatchQueue.global(qos: .userInitiated).async { session.startRunning() }
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let device = Self.preferredDevice(),
+                  let input = try? AVCaptureDeviceInput(device: device),
+                  session.canAddInput(input) else {
+                // ponytail: sem câmera o preview fica no "ligando…" pra sempre.
+                // Vira estado de erro quando alguém sem webcam reclamar.
+                NSLog("knobler mirror: câmera indisponível")
+                return
+            }
+            session.addInput(input)
+            // soltaram o espelho enquanto a câmera abria — não liga nada
+            guard DispatchQueue.main.sync(execute: { self?.session === session }) else { return }
+            session.startRunning()
+        }
         return session
     }
 
@@ -118,6 +127,17 @@ final class MirrorController {
 
 /// Preview espelhado horizontalmente, como espelho de verdade.
 struct MirrorPreviewView: NSViewRepresentable {
+    /// Chamado quando a sessão começa a rodar — a câmera leva ~1 s pra acordar
+    /// e até lá o preview é um retângulo preto sem explicação.
+    var onReady: () -> Void = {}
+
+    final class Coordinator {
+        var token: NSObjectProtocol?
+        deinit { if let token { NotificationCenter.default.removeObserver(token) } }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
     final class PreviewNSView: NSView {
         var previewLayer: AVCaptureVideoPreviewLayer?
 
@@ -140,13 +160,23 @@ struct MirrorPreviewView: NSViewRepresentable {
             layer.connection?.isVideoMirrored = true
             view.layer?.addSublayer(layer)
             view.previewLayer = layer
+            if session.isRunning {
+                DispatchQueue.main.async { onReady() }
+            } else {
+                context.coordinator.token = NotificationCenter.default.addObserver(
+                    forName: .AVCaptureSessionDidStartRunning, object: session,
+                    queue: .main) { _ in onReady() }
+            }
+        } else {
+            // sem câmera não há o que esperar: solta a espera pra não travar no spinner
+            DispatchQueue.main.async { onReady() }
         }
         return view
     }
 
     func updateNSView(_ nsView: PreviewNSView, context: Context) {}
 
-    static func dismantleNSView(_ nsView: PreviewNSView, coordinator: ()) {
+    static func dismantleNSView(_ nsView: PreviewNSView, coordinator: Coordinator) {
         MirrorController.shared.release()
     }
 }

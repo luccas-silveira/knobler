@@ -6,6 +6,15 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Changed
+- **Espelho fixado liga sozinho**: abrir a aba do espelho no card já acende a
+  câmera, em vez de esperar o clique no botão.
+- **Player sem o ícone de câmera**: a fila de controles voltou a ser só mídia
+  (shuffle · anterior · play/pause · próxima), e o estado "Nada tocando" também
+  perdeu o botão do espelho.
+- **Espelho avisa que está ligando**: enquanto a sessão da câmera não sobe, o
+  preview mostra um spinner com "Ligando a câmera…" em vez de um retângulo preto.
+
 ## [0.17.0] - 2026-08-03
 
 ### Added
