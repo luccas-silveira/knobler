@@ -19,6 +19,13 @@ do Knobler.
   sozinho 15 minutos antes.
 - Pode ser desligado em Ajustes → Notch.
 
+## Durante o Pomodoro
+
+O Pomodoro toma o lugar da atividade no notch, então o countdown apareceria só
+depois do foco acabar. Pra evitar isso, o evento entra no próprio card do
+Pomodoro (linha abaixo do timer) e toma a pílula fechada nos últimos 5 minutos.
+Detalhes em [pomodoro.md](pomodoro.md).
+
 ## Permissões
 
 - **Calendário (acesso completo)** — *"Knobler mostra a contagem regressiva

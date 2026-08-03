@@ -92,8 +92,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var apiActivity: NotchActivity?
     private var calendarActivity: NotchActivity?
     private var airdropActivity: NotchActivity?
+    /// Espelha `pomodoro.runState != .idle` pra não recalcular a atividade a cada
+    /// tique do timer — só quando ele começa ou para.
+    private var pomodoroAtivo = false
     private var currentActivity: NotchActivity? {
-        airdropActivity ?? apiActivity ?? calendarActivity
+        // com o Pomodoro na tela o evento já mora no card dele: publicar a
+        // atividade também duplicaria a informação, e como ela se atualiza a cada
+        // 30s a seção subiria ao topo sem parar, tirando o Pomodoro da frente.
+        airdropActivity ?? apiActivity ?? (pomodoroAtivo ? nil : calendarActivity)
     }
 
     private func pushActivity() {
@@ -363,12 +369,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.calendarActivity = activity
             self?.pushActivity()
         }
+        calendar.onNextEvent = { [weak self] aviso in
+            self?.notches.values.forEach { $0.viewModel.calendarAviso = aviso }
+        }
         calendar.onMeeting = { [weak self] emReuniao in
             self?.emReuniao = emReuniao
         }
         pomodoro.configProvider = { AppSettings.shared.pomodoroConfig }
         pomodoro.onState = { [weak self] state in
-            self?.notches.values.forEach { $0.viewModel.pomodoro = state }
+            guard let self else { return }
+            self.notches.values.forEach { $0.viewModel.pomodoro = state }
+            // só nas bordas: `onState` chega a cada segundo, e republicar a
+            // atividade a cada tique carimbaria evento de seção sem parar
+            let ativo = state != nil   // parado chega como nil, não como .idle
+            guard ativo != self.pomodoroAtivo else { return }
+            self.pomodoroAtivo = ativo
+            self.pushActivity()
         }
         pomodoro.onPhaseEnd = { [weak self] ended, next in
             guard let self else { return }

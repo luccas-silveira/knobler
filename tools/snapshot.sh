@@ -11,6 +11,7 @@ swiftc -O -o build/snapshot \
   Knobler/Updater.swift \
   Knobler/AnnotationModel.swift \
   Knobler/Pomodoro.swift \
+  Knobler/CalendarAviso.swift \
   Knobler/Ask.swift \
   Knobler/AskModels.swift \
   Knobler/AskFeature.swift \

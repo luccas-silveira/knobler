@@ -115,11 +115,13 @@ struct NotchView: View {
     static let espelhoDesligadoHeight: CGFloat = 96
     static func alturaDaSecao(_ s: NotchSection, preview: Bool = false,
                               espelhoLigado: Bool = true,
-                              linkAberto: Bool = true) -> CGFloat {
+                              linkAberto: Bool = true,
+                              eventoProximo: Bool = false) -> CGFloat {
         switch s {
         case .musica: return 118
+        // a linha do próximo evento do calendário só existe quando há evento
+        case .pomodoro: return eventoProximo ? 150 : 128
         case .atividade: return 60
-        case .pomodoro: return 128
         case .shelf: return preview ? shelfPreviewHeight : 76
         case .espelho: return espelhoLigado ? 202 : espelhoDesligadoHeight
         case .mensagens: return 272
@@ -369,7 +371,8 @@ struct NotchView: View {
             let corpo = vm.focus.map {
                 Self.alturaDaSecao($0, preview: shelf.preview != nil,
                                    espelhoLigado: vm.mirrorOn,
-                                   linkAberto: linkAberto)
+                                   linkAberto: linkAberto,
+                                   eventoProximo: vm.calendarAviso != nil)
             } ?? 118
             let faixa = Self.sectionStripHeight + 8
             let chrome = topInset + 8 + 8 + 14
@@ -515,10 +518,25 @@ struct NotchView: View {
                 }
                 .padding(.leading, vm.hasRealNotch ? 14 : 16)
                 Spacer(minLength: 0)
-                Text(Self.mmss(p.remaining))
-                    .font(.system(size: 13, weight: .semibold, design: .rounded).monospacedDigit())
-                    .foregroundStyle(.white)
+                // nos últimos 5 min o evento vale mais que o timer: a largura da
+                // pílula é fixa, então um substitui o outro em vez de somar
+                if let aviso = vm.calendarAviso, aviso.urgente {
+                    HStack(spacing: 5) {
+                        Image(systemName: "calendar")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(tint)
+                        Text(aviso.quando)
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                    }
                     .padding(.trailing, vm.hasRealNotch ? 14 : 16)
+                } else {
+                    Text(Self.mmss(p.remaining))
+                        .font(.system(size: 13, weight: .semibold, design: .rounded).monospacedDigit())
+                        .foregroundStyle(.white)
+                        .padding(.trailing, vm.hasRealNotch ? 14 : 16)
+                }
             }
             .frame(height: vm.notchSize.height)
         }
@@ -574,6 +592,26 @@ struct NotchView: View {
                         .foregroundStyle(.white.opacity(0.55))
                 }
                 Spacer(minLength: 0)
+            }
+            if let aviso = vm.calendarAviso {
+                // o título é contexto, o tempo é o dado: pesos diferentes pra o
+                // olho pegar "em 4 min" sem ler a frase inteira
+                HStack(spacing: 6) {
+                    Image(systemName: "calendar")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.45))
+                    Text(aviso.titulo)
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.55))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Text(aviso.quando)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .lineLimit(1)
+                        .layoutPriority(1)   // o tempo nunca é o que trunca
+                    Spacer(minLength: 0)
+                }
             }
             pomodoroControls(p, tint: tint, focus: focus)
         }

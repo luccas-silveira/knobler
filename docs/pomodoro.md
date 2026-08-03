@@ -39,6 +39,27 @@ Virar fase (foco → pausa e vice-versa) é um evento: o card recém-aberto põe
 Pomodoro na frente por alguns segundos. O tique do relógio, não — senão ele
 moraria no topo pra sempre.
 
+## Próximo evento do calendário
+
+Enquanto o Pomodoro está ativo ele suprime a seção de atividade — que é onde o
+[countdown de calendário](calendar-countdown.md) normalmente mora. Pra você não
+ficar sem saber da reunião justamente durante o foco:
+
+- **No card**: uma linha entre o timer e os controles com o título do evento e
+  quanto falta ("Retrospectiva do time em 12 min"). Título comprido é cortado
+  com reticências, os botões não se mexem.
+- **Na pílula fechada**: nos últimos **5 minutos** o tempo restante da fase dá
+  lugar ao aviso do evento ("em 4 min"). Passado o evento, o timer volta.
+
+Vale a mesma janela de 15 minutos e o mesmo interruptor do countdown
+(Ajustes → Notch): desligado ali, nada disso aparece.
+
+Enquanto o Pomodoro está na tela, o anel de atividade do calendário fica
+calado — o evento já está aqui, e como a atividade se atualiza a cada 30 s ela
+subiria ao topo do card sem parar, tirando o timer da frente.
+
 ## Permissões
 
-Nenhuma permissão especial.
+O timer em si não pede nada. A linha do próximo evento depende da permissão de
+**Calendário**, a mesma do [countdown](calendar-countdown.md) — sem ela, o card
+fica como sempre foi.

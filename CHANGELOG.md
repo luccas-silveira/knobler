@@ -6,6 +6,21 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- **Próximo evento durante o Pomodoro**: o card de foco ganha uma linha com o
+  título do evento e quanto falta ("Retrospectiva em 12 min"), e nos últimos
+  5 minutos a pílula fechada troca o timer pelo aviso. Antes o countdown do
+  calendário sumia justamente durante o foco, porque o Pomodoro suprime a seção
+  de atividade. Respeita o mesmo interruptor de sempre (Ajustes → Notch); sem
+  evento à vista, nada muda.
+
+### Fixed
+- **Evento do calendário não disputa mais o card com o Pomodoro**: com o timer
+  ativo, o mesmo evento aparecia duas vezes (anel de atividade + card) e a seção
+  de atividade, que se atualiza a cada 30 s, subia ao topo sem parar — o
+  Pomodoro nunca ficava na frente. Agora a atividade do calendário fica calada
+  enquanto o Pomodoro está na tela, onde o evento já é mostrado.
+
 ### Changed
 - **Pergunta do agente não trunca mais**: expandido, resumo e detalhes moram no
   mesmo bloco rolável — antes o resumo era cortado em 160 caracteres e duas

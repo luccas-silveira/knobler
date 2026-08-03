@@ -219,6 +219,18 @@ let scenarios: [Scenario] = [
         vm.secoes = [.pomodoro, .musica]
         vm.focus = .pomodoro
     },
+    // Card do Pomodoro com a linha do próximo evento do calendário: título longo
+    // de propósito, pra provar que trunca em vez de empurrar os controles.
+    Scenario(name: "foco-pomodoro-evento", realNotch: true) { vm, media, _ in
+        media.injectPreview(state: fakeState(), artwork: fakeArtwork())
+        vm.pomodoro = PomodoroState(phase: .focus, runState: .running, remaining: 900,
+                                    completedFocus: 1, cyclesUntilLong: 4)
+        vm.calendarAviso = CalendarAviso(titulo: "Retrospectiva do time de produto",
+                                         faltam: 12 * 60)
+        vm.expanded = true
+        vm.secoes = [.pomodoro, .musica]
+        vm.focus = .pomodoro
+    },
     // O Pomodoro na FAIXA, não em foco: é o único cenário que desenha o anel do
     // tempo restante no ícone (`fatiaDoCiclo`). Sem ele nenhum PNG cobre esse
     // anel — os outros cenários de Pomodoro o deixam sempre em foco.
@@ -395,6 +407,11 @@ let scenarios: [Scenario] = [
     ) { _, _, _ in },
     Scenario(name: "pomodoro-focus", realNotch: true) { vm, _, _ in
         vm.pomodoro = PomodoroState(phase: .focus, runState: .running, remaining: 23 * 60 + 14, completedFocus: 1, cyclesUntilLong: 4)
+    },
+    // Últimos 5 min pro evento: a pílula cede o timer pro aviso do calendário.
+    Scenario(name: "pomodoro-evento", realNotch: true) { vm, _, _ in
+        vm.pomodoro = PomodoroState(phase: .focus, runState: .running, remaining: 23 * 60 + 14, completedFocus: 1, cyclesUntilLong: 4)
+        vm.calendarAviso = CalendarAviso(titulo: "Retrospectiva", faltam: 4 * 60)
     },
     Scenario(name: "pomodoro-break", realNotch: true) { vm, _, _ in
         vm.pomodoro = PomodoroState(phase: .shortBreak, runState: .running, remaining: 4 * 60 + 32, completedFocus: 1, cyclesUntilLong: 4)

@@ -12,6 +12,9 @@ import Foundation
 
 final class CalendarCountdown {
     var onActivity: ((NotchActivity?) -> Void)?
+    /// Mesmo evento do `onActivity`, cru — o card do Pomodoro suprime a seção de
+    /// atividade e precisa da informação por fora dela.
+    var onNextEvent: ((CalendarAviso?) -> Void)?
     /// true enquanto uma reunião com link de call está a ≤2min de começar —
     /// borda de subida abre o espelho, de descida fecha (reunião começou).
     var onMirrorMoment: ((Bool) -> Void)?
@@ -82,6 +85,7 @@ final class CalendarCountdown {
     @objc private func tick() {
         guard AppSettings.shared.calendarCountdown else {
             onActivity?(nil)
+            onNextEvent?(nil)
             onMirrorMoment?(false)
             onMeeting?(false)
             return
@@ -102,6 +106,7 @@ final class CalendarCountdown {
 
         guard let event = next else {
             onActivity?(nil)
+            onNextEvent?(nil)
             onMirrorMoment?(false)
             return
         }
@@ -110,18 +115,13 @@ final class CalendarCountdown {
 
         let remaining = event.startDate.timeIntervalSince(now)
         onMirrorMoment?(remaining > 0 && remaining <= mirrorLead && Self.hasCallLink(event))
-        let minutes = Int(ceil(remaining / 60))
-        let detail: String
-        switch minutes {
-        case ..<1: detail = "agora"
-        case 1: detail = "em 1 min"
-        default: detail = "em \(minutes) min"
-        }
+        let aviso = CalendarAviso(titulo: event.title ?? "Evento", faltam: remaining)
+        onNextEvent?(aviso)
 
         onActivity?(NotchActivity(
             id: "calendar",
-            title: event.title ?? "Evento",
-            detail: detail,
+            title: aviso.titulo,
+            detail: aviso.quando,
             // anel esvazia conforme chega a hora (cheio a 15min, vazio no início)
             progress: max(0, min(1, remaining / leadTime)),
             updatedAt: Date()

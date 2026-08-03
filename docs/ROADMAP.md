@@ -59,9 +59,6 @@ Não compartilham substrato com ninguém — o "roadmap" deles é escolher um e 
 - **Canal de notificações do desenvolvedor** — quase de graça: é um perfil de
   entrada no relay, que já tem fila e dedupe, e o `NotificationHistory` já
   persiste. Falta read/dismiss.
-- **Integração com Calendário no pomodoro** — `CalendarCountdown` já lê o
-  próximo evento e a permissão já é pedida. Barato.
-- **Cache de imagens em disco** — o de memória já existe; falta só disco + TTL.
 - **Notificações com ações** — ⚠️ travado no `AXUIElement` do banner vivo (ver
   `IDEIAS.md`); a infra de botão já está pronta.
 - **Apple Notes sync** — um `case` novo em `DictationDestination`.

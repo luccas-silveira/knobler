@@ -79,6 +79,9 @@ final class NotchViewModel: ObservableObject {
             marcarEvento(.pomodoro)
         }
     }
+    /// Próximo evento do calendário. Sem `didSet`: não é mudança de seção, só
+    /// alimenta a linha extra do card do Pomodoro e a pílula fechada.
+    @Published var calendarAviso: CalendarAviso?
     /// AirPods conectados: bateria por componente (nil = desconectado). Alimenta
     /// a faixa junto da música e o card dedicado no hover.
     @Published var airpods: AirPodsBattery?

@@ -19,8 +19,6 @@ A **ordem** de implementação (agrupada por infra compartilhada) mora em
 
 - **Notificações customizáveis ao fim do pomodoro**: Além de áudio, executar webhook ou script (ex: `curl http://localhost:3000/pomodoro-end`).
 
-- **Integração com Calendario**: Ver próximo evento/reunião no notch durante pomodoro — útil pra saber quanto tempo falta até o próximo compromisso.
-
 ---
 
 ## Mensagens LAN
@@ -65,8 +63,6 @@ A **ordem** de implementação (agrupada por infra compartilhada) mora em
 
 ## Performance & Infra
 
-- **Cache agressivo de imagens**: Cachear covers do Spotify, avatares das msgs, etc. por 1 semana — menos hits à rede.
-
 - **Compressão de dados dos webhooks**: Usar gzip na serialização de payloads grandes (histórico de msgs, stats).
 
 - **Profiling de memória**: Dashboard interno mostrando memory footprint do notch, GC stats, thread count — útil pra otimizar.
@@ -101,6 +97,13 @@ A **ordem** de implementação (agrupada por infra compartilhada) mora em
   configurar nada, e as Mensagens LAN abertas (sem chave) são um recurso, não um
   defeito a ser corrigido. Com ela caem também: typing indicator, reações, busca
   nas mensagens e lista de transmissão enquanto dependerem de canal pareado.
+- **Cache agressivo de imagens (em disco)**: descartada em 2026-08-03 depois de
+  auditar o código. A premissa estava errada: só existe **um** consumidor de
+  imagem de rede — o ícone de notificação de webhook (`RemoteAvatarLoader`, teto
+  de 512 KB, `NSCache` em memória já pronto). A capa do Spotify **não** vem da
+  rede (chega em base64 pelo MediaRemote) e as mídias das mensagens são locais.
+  Cache em disco só pouparia o redownload de um ícone pequeno após reiniciar o
+  app.
 - **Layout PiP do mirror**: descartada em 2026-07-29 pelo dono do projeto.
 - **Controle de luz virtual**: descartada em 2026-07-29 pelo dono do projeto.
 - **Dark mode forçado**: descartada em 2026-07-29 pelo dono do projeto.
@@ -112,6 +115,9 @@ A **ordem** de implementação (agrupada por infra compartilhada) mora em
 
 ## Entregues
 
+- **Integração com Calendário** → durante o Pomodoro, o próximo evento aparece
+  numa linha do card de foco e toma a pílula fechada nos últimos 5 min
+  (`docs/pomodoro.md`).
 - **Melhorar UI das perguntas do Claude** → resumo e detalhes num bloco rolável
   ao expandir o card, sem truncar (`docs/agent-requests.md`).
 - **Preview de links** → virou a seção Link do card (`docs/link-preview.md`).
