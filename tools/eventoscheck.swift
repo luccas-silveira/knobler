@@ -20,6 +20,10 @@ struct EventosCheck {
         // fixa-se a de fábrica antes do primeiro acesso ao AppSettings.shared.
         UserDefaults.standard.set(NotchSectionOrder.padrao.map(\.rawValue),
                                   forKey: "notchSectionOrder")
+        // idem pras fixadas: um teste que aborta no meio deixa a preferência
+        // gravada e contaminaria a rodada seguinte com uma seção a mais na
+        // lista — falha confusa, longe de quem a causou.
+        UserDefaults.standard.set([String](), forKey: "notchSectionsFixadas")
         testPomodoroTiqueNaoCarimba()
         testPomodoroFaseECorridaCarimbam()
         testAtividadeProgressoNaoCarimba()
@@ -33,6 +37,7 @@ struct EventosCheck {
         testFocarVizinhoCirculaNasDuasDirecoes()
         testFocoTravadoQuePerdeConteudo()
         testTravaDaNotaVenceAEscolhaManual()
+        testSwipeSaiDaNotaSemVoltar()
         testPedidoDeFocoComOCardJaAberto()
         testPedidoDeFocoSemConteudoEspera()
         testFecharOCardApagaOPedido()
@@ -317,6 +322,34 @@ struct EventosCheck {
         // sem conteúdo na nota a trava não age
         vm.recalcularSecoes(comConteudo(.musica), travadaNaNota: true)
         assert(vm.focus == .musica, "trava da nota agiu sem a nota na lista")
+    }
+
+    /// Swipe horizontal saindo da nota: o `handleScroll` derruba `editing`
+    /// ANTES de trocar o foco, então o recálculo seguinte não puxa o foco de
+    /// volta pela trava — e a nota continua ligada, com o texto onde estava.
+    static func testSwipeSaiDaNotaSemVoltar() {
+        let vm = NotchViewModel()
+        vm.displayID = 1
+        // instância própria, não a `shared`: desligar a nota despeja o texto no
+        // clipboard, e o check não pode encostar no clipboard da máquina.
+        let nota = QuickNote()
+        nota.hostDisplayID = 1
+        nota.active = true
+        nota.editing = true
+        vm.recalcularSecoes(comConteudo(.nota, .musica),
+                            travadaNaNota: nota.typing(on: vm.displayID))
+        assert(vm.focus == .nota, "não entrou focado na nota")
+
+        // o que o handleScroll passa a fazer no swipe
+        nota.editing = false
+        vm.focarVizinho(avancando: true)
+        assert(vm.focus == .musica, "swipe não saiu da nota: \(String(describing: vm.focus))")
+
+        // recálculo logo depois (onChange de outra seção) não pode puxar de volta
+        vm.recalcularSecoes(comConteudo(.nota, .musica),
+                            travadaNaNota: nota.typing(on: vm.displayID))
+        assert(vm.focus == .musica, "recálculo pós-swipe devolveu o foco pra nota")
+        assert(nota.active, "a nota foi encerrada ao sair da seção")
     }
 
     /// O slot `focoPendente` é um pedido de foco feito de fora. Três regras:
