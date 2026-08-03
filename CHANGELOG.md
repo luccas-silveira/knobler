@@ -6,6 +6,29 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- **Apagar o histórico**: cada linha ganha um `X` no hover e o topo da seção
+  ganha "Limpar". Antes só a poda de 24 h tirava algo da lista.
+
+### Changed
+- **Nota rápida não esconde mais a faixa de seções**: o rascunho deixou de ser
+  modo exclusivo — dá pra pular pra outra seção pelo rodapé sem perder o texto.
+- **Zona de escrita da nota** ganhou um fundo um tom acima do card, pra separar
+  o campo da moldura preta.
+
+### Fixed
+- **Player descentralizado**: o trio anterior/play/próxima agora fica no centro
+  do card; o shuffle virou sobreposição à esquerda em vez de empurrar a fila.
+- **Clique na faixa durante a nota** era desfeito pelo recálculo de seções, que
+  puxava o foco de volta pro campo.
+- **Espelho sem câmera** ficava em "Ligando a câmera…" pra sempre; agora mostra
+  "Câmera indisponível" quando abrir o dispositivo falha (sem webcam, USB fora,
+  câmera tomada por outro app). `GET /status` ganhou `mirrorFailed`.
+- **Rodapé do painel de Permissões** dizia que toda permissão é pedida no
+  primeiro uso — a acessibilidade é pedida na abertura.
+- **`X` do histórico** podia ficar aceso quando o ponteiro saía da lista por um
+  canto.
+
 ## [0.18.0] - 2026-08-03
 
 ### Added

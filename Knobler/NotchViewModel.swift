@@ -230,6 +230,12 @@ final class NotchViewModel: ObservableObject {
 
     func focar(_ section: NotchSection) {
         guard secoes.contains(section) else { return }
+        // sair da nota solta a trava AQUI, antes de trocar o foco: o
+        // `onDisappear` do TextEditor só zera depois da remontagem, e um
+        // `recalcularSecoes` no meio-tempo veria `travadaNaNota` ainda true e
+        // puxaria o foco de volta. Vale pro clique na faixa e pro swipe.
+        // Sair da seção não encerra a nota: `active` e `text` seguem intactos.
+        if focus == .nota, section != .nota { QuickNote.shared.editing = false }
         focoPendente = nil
         focus = section
         focusLocked = true

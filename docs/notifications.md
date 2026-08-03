@@ -97,6 +97,11 @@ app, revela a pasta do AirDrop) e recolhe o notch.
 
 Quando não há nada nas últimas 24 h, a seção mostra "Nada nas últimas 24 h".
 
+Pra apagar antes das 24 h: o `X` no fim da linha (aparece com o ponteiro em
+cima) tira só ela, e **Limpar**, no topo direito da seção, esvazia o histórico
+inteiro. Não pergunta nada e não tem desfazer — o arquivo em disco é reescrito
+na hora.
+
 Um webhook que atualiza o mesmo `webhookID` várias vezes (por exemplo, uma
 barra de progresso que muda 40 vezes) substitui a entrada anterior em vez de
 empilhar — vira uma linha só no histórico, não quarenta.

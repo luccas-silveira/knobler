@@ -467,8 +467,10 @@ struct PermissionsSettingsPane: View {
                         onChange: reload)
                 }
             } footer: {
-                Text("O Knobler pede cada permissão no primeiro uso do recurso, "
-                     + "não na abertura. Recusar só desliga aquele recurso.")
+                Text("A acessibilidade é pedida na abertura do Knobler — sem ela "
+                     + "o app não lê teclado nem notificações. As outras são "
+                     + "pedidas no primeiro uso do recurso, e recusar só desliga "
+                     + "aquele recurso.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }

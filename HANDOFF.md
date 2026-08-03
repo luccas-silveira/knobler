@@ -1,3 +1,51 @@
+# 🏁 SESSÃO 2026-08-03 (fim de tarde) — nota que não toma o card, player centrado, histórico que se apaga
+
+Micro-correções pedidas na tela, todas validadas no app Debug rodando.
+
+## O que foi feito
+
+**A nota rápida deixou de ser modo exclusivo.** A faixa de seções continua no
+rodapé com o rascunho em foco, e a altura do card soma a faixa sempre. Sair pela
+faixa não apaga nada: `active` e `text` seguem. A zona de escrita ganhou fundo
+`white 7%` (cantos 8) pra se separar da moldura preta — `alturaDaSecao(.nota)`
+subiu de +20 pra +28 por causa do padding.
+
+**Clique na faixa durante a nota era desfeito.** Só o swipe zerava
+`QuickNote.editing`; o clique não, e o `recalcularSecoes` seguinte via
+`travadaNaNota` ainda true e puxava o foco de volta. A trava agora cai dentro de
+`NotchViewModel.focar` — o caminho que clique e swipe atravessam. A linha
+duplicada no handler de scroll de `KnoblerApp` saiu.
+
+**Player descentralizado.** Era um `HStack` de 4 com Spacers iguais, então o
+play caía à direita do centro. O trio anterior/play/próxima virou um HStack
+centrado com espaçamento fixo e o shuffle virou `.overlay(alignment: .leading)`.
+
+**Apagar o histórico.** `NotificationHistory.remover(_:)` e `limpar()` (esta
+escreve na hora, sem esperar o debounce de 1 s). Na lista: `X` por linha, visível
+só no hover, e "Limpar" no topo direito. `historycheck` ganhou `testApagar`.
+
+**Espelho sem câmera não trava mais.** `MirrorController` virou `ObservableObject`
+com `falhou` publicado quando abrir o dispositivo falha; o preview troca o
+spinner por "Câmera indisponível". `GET /status` ganhou `mirrorFailed`.
+
+**Rodapé do painel de Permissões** corrigido: a acessibilidade é pedida na
+abertura, não no primeiro uso.
+
+## Estado
+
+- 22 checks verdes, 55 snapshots gerados, build Debug rodando.
+
+## Riscos e dívidas
+
+- **Nada disso entra no harness de snapshot** a não ser o player
+  (`music-expanded.png`, que confirma o trio centrado). Nota (`TextEditor`),
+  histórico populado (`ScrollView`) e espelho (câmera real) só têm teste manual.
+- **"Câmera indisponível" não foi visto de verdade**: a máquina tem webcam e não
+  dá pra desconectar a FaceTime HD. O caminho de erro está exercitado só por
+  leitura de código.
+
+---
+
 # 🏁 SESSÃO 2026-08-03 (tarde) — espelho que liga sozinho, link que se cola
 
 Quatro pedidos curtos do usuário, todos validados no app rodando. Saiu a

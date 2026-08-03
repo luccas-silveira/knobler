@@ -18,6 +18,7 @@ struct NotchView: View {
     @ObservedObject private var history = NotificationHistory.shared
     @ObservedObject private var note = QuickNote.shared
     @ObservedObject private var linkPreview = LinkPreview.shared
+    @ObservedObject private var mirror = MirrorController.shared
     /// Só pra saber se há conversa (o `hasMensagens` da ordem das seções). O
     /// store não tem singleton: quem injeta é o app (e o harness de snapshot).
     @EnvironmentObject private var messages: MessageStore
@@ -123,7 +124,7 @@ struct NotchView: View {
         case .espelho: return espelhoLigado ? 202 : espelhoDesligadoHeight
         case .mensagens: return 272
         case .historico: return HistoryListView.listHeight + 12
-        case .nota: return Self.noteEditorHeight + 20
+        case .nota: return Self.noteEditorHeight + 28  // +8 do padding da zona de escrita
         case .link: return linkAberto ? linkWebHeight + linkHeaderHeight : espelhoDesligadoHeight
         }
     }
@@ -370,8 +371,7 @@ struct NotchView: View {
                                    espelhoLigado: vm.mirrorOn,
                                    linkAberto: linkAberto)
             } ?? 118
-            // a nota é modo exclusivo: sem faixa, e sem o espaçamento dela
-            let faixa = vm.focus == .nota ? 0 : Self.sectionStripHeight + 8
+            let faixa = Self.sectionStripHeight + 8
             let chrome = topInset + 8 + 8 + 14
             return CGSize(
                 width: Self.larguraDoCard(vm.focus, padrao: expandedSize.width,
@@ -834,7 +834,11 @@ struct NotchView: View {
                         .allowsHitTesting(false)
                 }
             }
-            .padding(.horizontal, 4)
+            // zona de escrita um tom acima do fundo do card: sem isso o campo
+            // vazio é indistinguível da moldura preta
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
+            .background(RoundedRectangle(cornerRadius: 8).fill(.white.opacity(0.07)))
             // adota ANTES de pedir o foco: a seção fixada chega aqui com a nota
             // desligada, e sem dono o texto digitado não conta pro badge do
             // notch fechado nem sobrevive à guarda de hover.
@@ -888,9 +892,7 @@ struct NotchView: View {
             }
             .transition(.blurReplace)
             Spacer(minLength: 0)
-            // a nota é modo exclusivo: enquanto o teclado está nos dedos a faixa
-            // não pode oferecer um caminho pra fora do campo
-            if vm.focus != .nota { sectionStrip }
+            sectionStrip
         }
         .animation(.easeOut(duration: 0.3), value: vm.focus)
     }
@@ -1008,7 +1010,22 @@ struct NotchView: View {
         MirrorPreviewView(onReady: { espelhoPronto = true })
             .frame(height: 180)
             .overlay {
-                if !espelhoPronto {
+                // abrir o dispositivo pode falhar (sem webcam, USB fora, câmera
+                // tomada por outro app) — e aí o "ligando…" nunca sairia
+                if mirror.falhou {
+                    ZStack {
+                        Color.black
+                        VStack(spacing: 8) {
+                            Image(systemName: "video.slash")
+                                .font(.title2)
+                                .foregroundStyle(.white.opacity(0.4))
+                            Text("Câmera indisponível")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.5))
+                        }
+                    }
+                    .transition(.opacity)
+                } else if !espelhoPronto {
                     ZStack {
                         Color.black
                         VStack(spacing: 8) {
@@ -1022,6 +1039,7 @@ struct NotchView: View {
                 }
             }
             .animation(.easeOut(duration: 0.2), value: espelhoPronto)
+            .animation(.easeOut(duration: 0.2), value: mirror.falhou)
             .onDisappear { espelhoPronto = false }
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(alignment: .topTrailing) {
@@ -1274,33 +1292,22 @@ struct NotchView: View {
         }
     }
 
-    // 4 itens distribuídos na largura toda:
-    // shuffle · backward · play/pause (maior) · forward
+    // trio de transporte CENTRADO no card; o shuffle fica sobreposto à
+    // esquerda pra não empurrar o play pro lado direito (era um HStack de 4
+    // com Spacers iguais: o play caía fora do centro do card)
     private func controls(_ state: MediaController.PlaybackState) -> some View {
-        HStack(spacing: 0) {
-            Button { media.toggleShuffle() } label: {
-                Image(systemName: "shuffle")
-                    .font(.body)
-                    .foregroundStyle(state.shuffling ? .white : .white.opacity(0.45))
-                    .contentTransition(.symbolEffect(.replace))
-            }
-            // fonte sem shuffle (navegador) → botão apagado, layout estável
-            .disabled(!state.shuffleAvailable)
-            .opacity(state.shuffleAvailable ? 1 : 0.2)
-            Spacer()
+        HStack(spacing: 28) {
             Button { media.previousTrack() } label: {
                 Image(systemName: "backward.fill")
                     .font(.title3)
                     .foregroundStyle(.white)
             }
-            Spacer()
             Button { media.playPause() } label: {
                 Image(systemName: state.isPlaying ? "pause.fill" : "play.fill")
                     .font(.title)
                     .foregroundStyle(.white)
                     .frame(width: 30)
             }
-            Spacer()
             Button { media.nextTrack() } label: {
                 Image(systemName: "forward.fill")
                     .font(.title3)
@@ -1309,6 +1316,18 @@ struct NotchView: View {
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
+        .overlay(alignment: .leading) {
+            Button { media.toggleShuffle() } label: {
+                Image(systemName: "shuffle")
+                    .font(.body)
+                    .foregroundStyle(state.shuffling ? .white : .white.opacity(0.45))
+                    .contentTransition(.symbolEffect(.replace))
+            }
+            .buttonStyle(.plain)
+            // fonte sem shuffle (navegador) → botão apagado, layout estável
+            .disabled(!state.shuffleAvailable)
+            .opacity(state.shuffleAvailable ? 1 : 0.2)
+        }
     }
 
     // MARK: - Notificação

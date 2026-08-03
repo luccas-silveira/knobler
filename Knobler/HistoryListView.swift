@@ -26,6 +26,10 @@ struct HistoryListView: View {
         return f
     }()
 
+    /// Linha sob o ponteiro — só ela mostra o X, senão a lista vira um mural
+    /// de botões de apagar.
+    @State private var hovered: UUID?
+
     var body: some View {
         Group {
             if history.items.isEmpty {
@@ -34,13 +38,27 @@ struct HistoryListView: View {
                     .foregroundStyle(.white.opacity(0.45))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 6) {
-                        ForEach(history.items) { item in
-                            linha(item)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Spacer(minLength: 0)
+                        Button { history.limpar() } label: {
+                            Label("Limpar", systemImage: "trash")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.white.opacity(0.5))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 6) {
+                            ForEach(history.items) { item in
+                                linha(item)
+                            }
                         }
                     }
                 }
+                // o ponteiro pode sair da lista por um canto sem que o
+                // `onHover(false)` da linha chegue — e aí o X ficaria aceso
+                .onHover { if !$0 { hovered = nil } }
             }
         }
         .frame(height: Self.listHeight)
@@ -72,8 +90,19 @@ struct HistoryListView: View {
                 }
             }
             Spacer(minLength: 0)
+            // o X só existe na linha sob o ponteiro; o `frame` fixo segura o
+            // lugar dele pra linha não dançar no hover
+            Button { history.remover(item.id) } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+            .buttonStyle(.plain)
+            .opacity(hovered == item.id ? 1 : 0)
+            .frame(width: 12)
         }
         .contentShape(Rectangle())
+        .onHover { hovered = $0 ? item.id : (hovered == item.id ? nil : hovered) }
         .onTapGesture {
             NotchView.openSourceApp(item)
             onOpen()

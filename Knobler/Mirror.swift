@@ -10,8 +10,13 @@
 import AVFoundation
 import SwiftUI
 
-final class MirrorController {
+final class MirrorController: ObservableObject {
     static let shared = MirrorController()
+
+    /// Abrir o dispositivo falhou (sem webcam, USB fora, câmera tomada por
+    /// outro app). Sem isso o preview esperava pra sempre um
+    /// `AVCaptureSessionDidStartRunning` que nunca vem.
+    @Published private(set) var falhou = false
 
     private var session: AVCaptureSession?
     // ponytail: refcount porque dois monitores podem exibir o mesmo preview
@@ -26,13 +31,13 @@ final class MirrorController {
         let session = AVCaptureSession()
         session.sessionPreset = .medium
         self.session = session
+        falhou = false
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let device = Self.preferredDevice(),
                   let input = try? AVCaptureDeviceInput(device: device),
                   session.canAddInput(input) else {
-                // ponytail: sem câmera o preview fica no "ligando…" pra sempre.
-                // Vira estado de erro quando alguém sem webcam reclamar.
                 NSLog("knobler mirror: câmera indisponível")
+                DispatchQueue.main.async { self?.falhou = true }
                 return
             }
             session.addInput(input)
@@ -47,6 +52,7 @@ final class MirrorController {
         useCount = max(0, useCount - 1)
         guard useCount == 0, let session else { return }
         self.session = nil
+        falhou = false
         DispatchQueue.global(qos: .userInitiated).async { session.stopRunning() }
     }
 
@@ -121,6 +127,7 @@ final class MirrorController {
             "cameraDevice": Self.preferredDevice()?.localizedName ?? "none",
             "mirrorSessionRunning": session?.isRunning ?? false,
             "mirrorUseCount": useCount,
+            "mirrorFailed": falhou,
         ]
     }
 }

@@ -19,6 +19,7 @@ struct HistoryCheck {
         testMesmoIDUmaVez()
         testTetoDeLinhas()
         testPersistencia()
+        testApagar()
         testGesto()
         testZonaDoGesto()
         testInicioDeGesto()
@@ -46,6 +47,20 @@ struct HistoryCheck {
         h2.record(NotchNotification(appName: "A", title: "recente", body: ""))
         h2.prune(now: Date().addingTimeInterval(23 * 3600))
         assert(h2.items.count == 1, "23 h ainda está dentro da janela")
+    }
+
+    /// Apagar: uma linha some sem levar as outras; limpar esvazia tudo.
+    static func testApagar() {
+        let h = NotificationHistory()
+        h.record(NotchNotification(appName: "A", title: "fica", body: ""))
+        let alvo = NotchNotification(appName: "B", title: "some", body: "")
+        h.record(alvo)
+        h.remover(alvo.id)
+        assert(h.items.map(\.title) == ["fica"], "remover devia tirar só o alvo")
+        h.remover(alvo.id)  // idempotente
+        assert(h.items.count == 1, "remover id inexistente não muda nada")
+        h.limpar()
+        assert(h.items.isEmpty, "limpar devia esvaziar")
     }
 
     /// Barra de progresso que atualiza 40 vezes é UMA linha, não 40.

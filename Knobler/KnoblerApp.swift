@@ -794,16 +794,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             scrollActed = true
             if expanded {
                 // card aberto: horizontal anda um passo na faixa de seções —
-                // inclusive saindo da nota, que de outro jeito só teria como
-                // saída o interruptor do menu, e esse apaga o texto.
-                //
-                // `editing` cai AQUI, antes de trocar o foco. O `onDisappear`
-                // do TextEditor também zera, mas só depois que a view remonta,
-                // e um `recalcularSecoes` que rode nesse meio-tempo veria
-                // `travadaNaNota` ainda true e puxaria o foco de volta.
-                // Sair da seção não encerra a nota: `active` e `text` seguem
+                // inclusive saindo da nota. Soltar a trava do `editing` é do
+                // `focar`, que todo caminho de troca de seção atravessa. Sair
+                // da seção não encerra a nota: `active` e `text` seguem
                 // intactos, e o ícone continua na faixa pra voltar.
-                if vm.focus == .nota { QuickNote.shared.editing = false }
                 withAnimation(.easeOut(duration: 0.22)) {
                     vm.focarVizinho(avancando: scrollAccumX < 0)
                 }

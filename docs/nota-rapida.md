@@ -82,10 +82,10 @@ perder o clipboard, mas vale saber.
 - **Não sobrevive a reiniciar o Knobler.** A nota mora só em memória, junto
   com o resto do estado efêmero do notch — mas o texto vai pro clipboard ao
   sair, então dá pra colar de volta depois de abrir o app.
-- **Toma o card inteiro.** Com a nota ligada naquela tela, a faixa de seções
-  some do rodapé e o swipe horizontal não troca de seção — o card é da nota, e
-  nada oferece um caminho pra fora do campo de texto. Com o notch fechado o
-  swipe horizontal continua pulando faixa, normal.
+- **Abre sempre na frente.** Ligar a nota puxa o foco pra ela, e enquanto o
+  campo está em edição o card não troca de seção sozinho. A faixa do rodapé
+  continua no lugar: clicar num ícone (ou o swipe horizontal) sai do campo sem
+  apagar nada — `active` e o texto seguem, e o ícone da nota traz de volta.
 - **Texto simples, sem formatação.** Negrito/itálico exigiriam
   `NSAttributedString` e uma barra de formatação — custo alto pra uma nota que
   costuma viver minutos.

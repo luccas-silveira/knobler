@@ -75,6 +75,22 @@ final class NotificationHistory: ObservableObject {
         scheduleSave()
     }
 
+    /// Apaga um item pelo id (swipe/botão da linha).
+    func remover(_ id: UUID) {
+        guard items.contains(where: { $0.id == id }) else { return }
+        items.removeAll { $0.id == id }
+        scheduleSave()
+    }
+
+    /// Esvazia o histórico. Escreve na hora: apagar é o tipo de ação que o
+    /// usuário espera ver sumir do disco mesmo se o app morrer no segundo
+    /// seguinte.
+    func limpar() {
+        guard !items.isEmpty else { return }
+        items.removeAll()
+        flush()
+    }
+
     /// Poda na escrita — a lista só muda quando algo entra, então não há timer.
     /// O pior caso é ver um item de 24 h e 1 min se nada chegou desde então.
     func prune(now: Date = Date()) {
