@@ -28,8 +28,6 @@ struct EventosCheck {
         testMensagemCarimba()
         testEstadoDasSecoes()
         testFocoInicialEhAPrimeira()
-        testFocoInicialPulaFixadaVazia()
-        testFocoCaiNaPrimeiraQuandoNadaTemConteudo()
         testFocarTravaESobreviveAoRecalculo()
         testRecolherSoltaATrava()
         testFocarVizinhoCirculaNasDuasDirecoes()
@@ -41,6 +39,9 @@ struct EventosCheck {
         testPublicarAltura()
         // estes mexem na preferência salva; ficam por último pra não desarrumar
         // a ordem de fábrica que os testes acima assumem.
+        testFocoInicialPulaFixadaVazia()
+        testFocoCaiNaPrimeiraQuandoNadaTemConteudo()
+        testFocoTravadoQuePerdeConteudoNaoCaiNaFixadaVazia()
         testOrdemSalvaPassaPorSanear()
         testOrdemPersistidaSobreviveAoRoundTrip()
         testBaseQueChegaNoOrdenarNaoTemDuplicata()
@@ -260,6 +261,30 @@ struct EventosCheck {
         vm.recalcularSecoes(comConteudo(.musica), travadaNaNota: false)
         assert(vm.focus == .musica, "o card ficou sem foco quando a seção travada sumiu")
         assert(!vm.focusLocked, "a trava deveria cair junto com a seção")
+    }
+
+    /// O foco travado que perde conteúdo não pode cair numa fixada vazia —
+    /// mesma regra do foco automático inicial, agora no ramo de fallback.
+    static func testFocoTravadoQuePerdeConteudoNaoCaiNaFixadaVazia() {
+        // ordem-base com a fixada na frente: sem isso `secoes.first` já seria
+        // `.musica` e o teste não distinguiria o bug do achado 3.
+        AppSettings.shared.notchSectionOrder = NotchSectionOrder.sanear(salva: ["nota", "musica", "pomodoro"])
+        AppSettings.shared.notchSectionsFixadas = [.nota]
+        let vm = NotchViewModel()
+        vm.recalcularSecoes([
+            NotchSectionState(section: .nota, hasContent: false, lastEvent: nil),
+            NotchSectionState(section: .musica, hasContent: true, lastEvent: nil),
+            NotchSectionState(section: .pomodoro, hasContent: true, lastEvent: nil),
+        ], travadaNaNota: false)
+        vm.focar(.pomodoro)
+        vm.recalcularSecoes([
+            NotchSectionState(section: .nota, hasContent: false, lastEvent: nil),
+            NotchSectionState(section: .musica, hasContent: true, lastEvent: nil),
+        ], travadaNaNota: false)
+        assert(vm.focus == .musica, "foco travado caiu na fixada vazia ao perder conteúdo: \(String(describing: vm.focus))")
+        assert(!vm.focusLocked, "a trava deveria cair junto com a seção")
+        AppSettings.shared.notchSectionsFixadas = []
+        AppSettings.shared.notchSectionOrder = NotchSectionOrder.padrao
     }
 
     static func testTravaDaNotaVenceAEscolhaManual() {

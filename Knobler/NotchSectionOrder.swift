@@ -80,7 +80,7 @@ enum NotchSectionOrder {
     ///   - travadaNaNota: usuário digitando na nota nesta tela.
     static func ordenar(base: [NotchSection],
                         estados: [NotchSectionState],
-                        fixadas: Set<NotchSection> = [],
+                        fixadas: Set<NotchSection>,
                         agora: Date,
                         travadaNaNota: Bool) -> [NotchSection] {
         // duplicata em `estados` é bug de quem chama, mas aqui não pode virar

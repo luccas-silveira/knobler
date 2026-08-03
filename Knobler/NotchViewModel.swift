@@ -219,7 +219,7 @@ final class NotchViewModel: ObservableObject {
         let inicial = secoes.first(where: { comConteudo.contains($0) }) ?? secoes.first
         guard !focusLocked, let primeira = inicial else {
             // o foco travado pode ter perdido o conteúdo enquanto isso
-            if let f = focus, !secoes.contains(f) { focus = secoes.first; focusLocked = false }
+            if let f = focus, !secoes.contains(f) { focus = inicial; focusLocked = false }
             return
         }
         focus = primeira

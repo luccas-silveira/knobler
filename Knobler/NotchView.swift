@@ -837,7 +837,7 @@ struct NotchView: View {
                 case .mensagens: MessagesView(vm: vm)
                 case .espelho: if vm.mirrorOn { mirrorSection } else { espelhoDesligado }
                 case .shelf: ShelfRowView(shelf: shelf, vm: vm, onAirDrop: vm.onAirDrop)
-                case .link: if linkPreview.url != nil { LinkPreviewView(preview: linkPreview) }
+                case .link: if linkPreview.hosted(by: vm.displayID) { LinkPreviewView(preview: linkPreview) }
                            else { vazio("globe", "Nenhum link copiado") }
                 case .atividade:
                     if let a = vm.activity { activityRow(a) }
