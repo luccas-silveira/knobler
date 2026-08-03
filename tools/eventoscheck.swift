@@ -28,6 +28,8 @@ struct EventosCheck {
         testMensagemCarimba()
         testEstadoDasSecoes()
         testFocoInicialEhAPrimeira()
+        testFocoInicialPulaFixadaVazia()
+        testFocoCaiNaPrimeiraQuandoNadaTemConteudo()
         testFocarTravaESobreviveAoRecalculo()
         testRecolherSoltaATrava()
         testFocarVizinhoCirculaNasDuasDirecoes()
@@ -176,6 +178,37 @@ struct EventosCheck {
         assert(vm.secoes == [.musica, .pomodoro], "ordem inesperada: \(vm.secoes)")
         assert(vm.focus == .musica, "foco inicial deveria ser a primeira da lista")
         assert(!vm.focusLocked, "foco automático não pode nascer travado")
+    }
+
+    /// Fixada vazia entra na ordem, mas não rouba o foco: o card abre no
+    /// primeiro conteúdo real.
+    static func testFocoInicialPulaFixadaVazia() {
+        UserDefaults.standard.set(["nota", "musica"], forKey: "notchSectionOrder")
+        UserDefaults.standard.set(["nota"], forKey: "notchSectionsFixadas")
+        AppSettings.shared.notchSectionOrder = NotchSectionOrder.sanear(salva: ["nota", "musica"])
+        AppSettings.shared.notchSectionsFixadas = [.nota]
+        let vm = NotchViewModel()
+        vm.recalcularSecoes([
+            NotchSectionState(section: .nota, hasContent: false, lastEvent: nil),
+            NotchSectionState(section: .musica, hasContent: true, lastEvent: nil),
+        ], travadaNaNota: false)
+        assert(vm.secoes == [.nota, .musica], "ordem errada: \(vm.secoes)")
+        assert(vm.focus == .musica, "foco caiu na fixada vazia: \(String(describing: vm.focus))")
+        // restaura o estado de fábrica pros testes seguintes
+        AppSettings.shared.notchSectionsFixadas = []
+        AppSettings.shared.notchSectionOrder = NotchSectionOrder.padrao
+    }
+
+    /// Só fixadas vazias: o card ainda precisa focar alguma coisa.
+    static func testFocoCaiNaPrimeiraQuandoNadaTemConteudo() {
+        AppSettings.shared.notchSectionsFixadas = [.nota, .musica]
+        let vm = NotchViewModel()
+        vm.recalcularSecoes([
+            NotchSectionState(section: .musica, hasContent: false, lastEvent: nil),
+            NotchSectionState(section: .nota, hasContent: false, lastEvent: nil),
+        ], travadaNaNota: false)
+        assert(vm.focus == vm.secoes.first, "sem conteúdo o foco não é o primeiro")
+        AppSettings.shared.notchSectionsFixadas = []
     }
 
     static func testFocarTravaESobreviveAoRecalculo() {

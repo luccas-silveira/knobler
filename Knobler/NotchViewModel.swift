@@ -194,6 +194,7 @@ final class NotchViewModel: ObservableObject {
     func recalcularSecoes(_ estados: [NotchSectionState], travadaNaNota: Bool) {
         secoes = NotchSectionOrder.ordenar(base: AppSettings.shared.notchSectionOrder,
                                            estados: estados,
+                                           fixadas: AppSettings.shared.notchSectionsFixadas,
                                            agora: Date(),
                                            travadaNaNota: travadaNaNota)
         // a trava da nota vence até a escolha manual anterior — e descarta o
@@ -211,7 +212,12 @@ final class NotchViewModel: ObservableObject {
             focar(pedido)
             return
         }
-        guard !focusLocked, let primeira = secoes.first else {
+        // uma seção fixada aparece vazia; abrir o card em cima dela mostraria
+        // "Nada tocando" com música parada, então o foco procura o primeiro
+        // conteúdo real e só cai no primeiro da lista quando não há nenhum.
+        let comConteudo = Set(estados.filter(\.hasContent).map(\.section))
+        let inicial = secoes.first(where: { comConteudo.contains($0) }) ?? secoes.first
+        guard !focusLocked, let primeira = inicial else {
             // o foco travado pode ter perdido o conteúdo enquanto isso
             if let f = focus, !secoes.contains(f) { focus = secoes.first; focusLocked = false }
             return

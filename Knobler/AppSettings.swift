@@ -137,6 +137,14 @@ final class AppSettings: ObservableObject {
         }
     }
 
+    /// Seções que aparecem no card aberto mesmo sem conteúdo. Vazio = padrão.
+    @Published var notchSectionsFixadas: Set<NotchSection> {
+        didSet {
+            UserDefaults.standard.set(notchSectionsFixadas.map(\.rawValue).sorted(),
+                                      forKey: "notchSectionsFixadas")
+        }
+    }
+
     /// Nome que os outros veem nas Mensagens LAN. Começa com o do macOS.
     @Published var displayName: String {
         didSet { UserDefaults.standard.set(displayName, forKey: "displayName") }
@@ -244,6 +252,8 @@ final class AppSettings: ObservableObject {
         loadRemoteImages = flag("loadRemoteImages")                           // default true
         notchSectionOrder = NotchSectionOrder.sanear(
             salva: defaults.stringArray(forKey: "notchSectionOrder") ?? [])
+        notchSectionsFixadas = NotchSectionOrder.sanearFixadas(
+            salvas: defaults.stringArray(forKey: "notchSectionsFixadas") ?? [])
 
         if let data = defaults.data(forKey: "reminders"),
            let decoded = try? JSONDecoder().decode([Reminder].self, from: data) {
