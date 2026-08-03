@@ -183,8 +183,6 @@ struct EventosCheck {
     /// Fixada vazia entra na ordem, mas não rouba o foco: o card abre no
     /// primeiro conteúdo real.
     static func testFocoInicialPulaFixadaVazia() {
-        UserDefaults.standard.set(["nota", "musica"], forKey: "notchSectionOrder")
-        UserDefaults.standard.set(["nota"], forKey: "notchSectionsFixadas")
         AppSettings.shared.notchSectionOrder = NotchSectionOrder.sanear(salva: ["nota", "musica"])
         AppSettings.shared.notchSectionsFixadas = [.nota]
         let vm = NotchViewModel()
@@ -207,6 +205,7 @@ struct EventosCheck {
             NotchSectionState(section: .musica, hasContent: false, lastEvent: nil),
             NotchSectionState(section: .nota, hasContent: false, lastEvent: nil),
         ], travadaNaNota: false)
+        assert(Set(vm.secoes) == [.nota, .musica], "as duas fixadas deveriam ter entrado: \(vm.secoes)")
         assert(vm.focus == vm.secoes.first, "sem conteúdo o foco não é o primeiro")
         AppSettings.shared.notchSectionsFixadas = []
     }
