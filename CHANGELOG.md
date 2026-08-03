@@ -27,6 +27,17 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 - **`Knobler --permissoes`**: relatório headless com o estado das oito
   permissões e o caminho do bundle, pra suporte remoto.
 
+### Changed
+- **Nota rápida**: o swipe horizontal agora sai da nota como sai de qualquer
+  outra seção, sem encerrá-la — o texto continua lá quando você volta. E o
+  card deixou de ficar congelado enquanto o campo está focado: com o mouse
+  fora, ele encolhe depois de 3 segundos.
+
+### Fixed
+- **Nota rápida fixada**: com a seção fixada nos Ajustes, o campo aparecia sem
+  a nota estar ligada e não aceitava teclado. Entrar na seção agora liga a nota
+  na tela em que você está.
+
 ## [0.16.2] - 2026-07-31
 
 ### Fixed

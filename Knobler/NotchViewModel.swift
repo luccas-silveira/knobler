@@ -297,6 +297,11 @@ final class NotchViewModel: ObservableObject {
     // ponytail: delays fixos anti-flicker; virar preferência se incomodar
     private let openDelay: TimeInterval = 0.18
     private let closeDelay: TimeInterval = 0.30
+    /// Digitando na nota o card ainda fecha com o mouse fora, só que devagar:
+    /// tempo de voltar com o ponteiro sem perder o campo de vista.
+    private let closeDelayDigitando: TimeInterval = 3.0
+    /// Quanto o card espera antes de encolher depois que o mouse sai.
+    var atrasoDeFechar: TimeInterval { typingNote ? closeDelayDigitando : closeDelay }
     /// Janela pós-fechar em que enter é ignorado: o frame encolhendo debaixo
     /// do mouse dispara enter de novo e reabre em loop sem isso.
     private let reopenCooldown: TimeInterval = 0.45
@@ -321,17 +326,17 @@ final class NotchViewModel: ObservableObject {
         guard inside else {
             let work = DispatchWorkItem { [weak self] in
                 guard let self else { return }
-                // digitar na nota não pode ser interrompido por um mouse que
-                // saiu da área — Esc solta o foco e aí o hover-out volta a
-                // valer. Só na tela dona: uma nota focada no monitor A não
-                // pode congelar o card do monitor B.
-                guard !self.typingNote, !self.linkAberto else { return }
+                // o link aberto congela o card: a página é navegável e o mouse
+                // sai dela o tempo todo. A nota não congela mais — só ganha um
+                // atraso maior (ver `atrasoDeFechar`), senão o card ficaria
+                // aberto pra sempre depois de um clique no campo.
+                guard !self.linkAberto else { return }
                 if self.expanded || self.peeking { self.lastCollapseAt = Date() }
                 self.expanded = false
                 self.peeking = false
             }
             pendingWork = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + closeDelay, execute: work)
+            DispatchQueue.main.asyncAfter(deadline: .now() + atrasoDeFechar, execute: work)
             return
         }
 

@@ -39,6 +39,7 @@ struct EventosCheck {
         testTravaDaNotaVenceAEscolhaManual()
         testSwipeSaiDaNotaSemVoltar()
         testAdotarLigaANotaNestaTela()
+        testAtrasoDeFecharComANotaEmFoco()
         testPedidoDeFocoComOCardJaAberto()
         testPedidoDeFocoSemConteudoEspera()
         testFecharOCardApagaOPedido()
@@ -351,6 +352,24 @@ struct EventosCheck {
                             travadaNaNota: nota.typing(on: vm.displayID))
         assert(vm.focus == .musica, "recálculo pós-swipe devolveu o foco pra nota")
         assert(nota.active, "a nota foi encerrada ao sair da seção")
+    }
+
+    /// Digitando na nota o card não congela mais com o mouse fora: só espera
+    /// mais antes de encolher.
+    static func testAtrasoDeFecharComANotaEmFoco() {
+        let vm = NotchViewModel()
+        vm.displayID = 7
+        assert(vm.atrasoDeFechar < 1, "atraso normal virou longo: \(vm.atrasoDeFechar)")
+        let nota = QuickNote.shared
+        nota.hostDisplayID = 7
+        nota.active = true
+        nota.editing = true
+        assert(vm.atrasoDeFechar == 3, "digitando deveria esperar 3 s: \(vm.atrasoDeFechar)")
+        // parar de digitar devolve o fechamento rápido
+        nota.editing = false
+        assert(vm.atrasoDeFechar < 1, "parou de digitar e o atraso continuou longo")
+        // texto vazio: desligar aqui não encosta no clipboard da máquina
+        nota.active = false
     }
 
     /// A seção nota FIXADA entra no card com a nota desligada; abrir a seção

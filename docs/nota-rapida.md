@@ -32,13 +32,15 @@ estava vazio.
 
 ![Notch fechado com o pontinho da nota na asa direita](images/closed-note.png)
 
-## Segurar o card aberto pra digitar
+## Tirar o mouse enquanto digita
 
-O card normalmente fecha quando o mouse sai de cima do notch. Com o foco no
-campo de texto, isso muda: **digitar segura o card aberto**, mesmo com o
-cursor do mouse em outro canto da tela. **Esc** solta o foco do campo — depois
-disso, tirar o mouse fecha o card normalmente, e o texto volta na próxima vez
-que você abrir (hover ou gesto).
+O card fecha quando o mouse sai de cima do notch — com o foco no campo de
+texto também, só que **depois de 3 segundos** em vez dos 0,3 s de sempre. É
+tempo de voltar com o ponteiro sem perder o campo de vista. **Esc** solta o
+foco e devolve o fechamento rápido.
+
+Fechar não apaga nada: o texto volta na próxima vez que você abrir (hover ou
+gesto).
 
 Enquanto o campo está focado, **notificação e HUD não tomam o card**. A
 notificação espera na fila e aparece assim que você solta o campo; o HUD de
