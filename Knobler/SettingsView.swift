@@ -233,12 +233,28 @@ struct NotchSettingsPane: View {
     var body: some View {
         Form {
             Section("Ordem das seções do card") {
-                Text("A ordem em repouso. Algo que acabou de acontecer sobe sozinho por alguns segundos.")
+                Text("A ordem em repouso. Algo que acabou de acontecer sobe sozinho por alguns segundos. O alfinete mantém a seção no card mesmo sem conteúdo.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 List {
                     ForEach(settings.notchSectionOrder, id: \.self) { s in
-                        Label(s.titulo, systemImage: s.simbolo)
+                        HStack {
+                            Label(s.titulo, systemImage: s.simbolo)
+                            Spacer()
+                            Button {
+                                if settings.notchSectionsFixadas.contains(s) {
+                                    settings.notchSectionsFixadas.remove(s)
+                                } else {
+                                    settings.notchSectionsFixadas.insert(s)
+                                }
+                            } label: {
+                                Image(systemName: settings.notchSectionsFixadas.contains(s)
+                                      ? "pin.fill" : "pin.slash")
+                            }
+                            .buttonStyle(.borderless)
+                            .help(settings.notchSectionsFixadas.contains(s)
+                                  ? "Sempre no card" : "Só quando tem conteúdo")
+                        }
                     }
                     .onMove { origem, destino in
                         settings.notchSectionOrder.move(fromOffsets: origem, toOffset: destino)
