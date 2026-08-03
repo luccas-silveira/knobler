@@ -56,7 +56,7 @@ Fixar só faz sentido se a seção vazia desenha algo. Quatro não desenham:
 | `pomodoro` | `if let p` → nada | Botão "Iniciar Pomodoro" |
 | `espelho` | exige `mirrorOn` | `mirrorButton` ("Ligar espelho"), já existente |
 | `musica` | "Nada tocando", mas só quando atividade/shelf/espelho estão vazios | "Nada tocando" sempre que a seção for renderizada |
-| `link` | `LinkPreviewView(preview: nil)` — a verificar | Se sair em branco: "Nenhum link copiado" |
+| `link` | `WKWebView` sem URL → área em branco | Ícone + "Nenhum link copiado" enquanto não há URL carregada |
 
 `shelf`, `historico`, `nota` e `mensagens` já têm estado vazio adequado.
 
