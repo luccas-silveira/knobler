@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-08-03
+
 ### Added
 - **Barra de endereço no preview de link**: sem página aberta, a seção Link
   mostra um campo já focado — cole (⌘V) e tecle Enter. Antes só arrastar um
