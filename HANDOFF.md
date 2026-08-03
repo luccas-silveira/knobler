@@ -1,3 +1,85 @@
+# 🏁 SESSÃO 2026-08-03 (noite, tarde) — calendário no Pomodoro
+
+Dois itens soltos do roadmap escolhidos pelo dono: **calendário no pomodoro** e
+**cache de imagens em disco**. O segundo morreu na exploração (ver abaixo).
+
+## O que foi feito
+
+O `CalendarCountdown` já lia o próximo evento, mas só publicava como *live
+activity* — e a seção de atividade é justamente a que o Pomodoro suprime. Durante
+o foco, quando saber "falta 8 min pra reunião" mais importa, a informação sumia.
+
+Agora o card de foco ganha uma linha com o título do evento e quanto falta, e nos
+últimos **5 minutos** a pílula fechada troca o timer pelo aviso. Sem toggle novo:
+vale o mesmo `calendarCountdown` (Ajustes → Notch) e a mesma janela de 15 min.
+
+`CalendarAviso` (novo) mora num arquivo sem dependência nenhuma **de propósito** —
+é o que deixa o `calendariocheck` compilar a formatação isolada, sem arrastar
+`AppSettings`/`NotificationRules`. A string "em N min" passou a ter uma fonte só:
+o `NotchActivity.detail` também a consome.
+
+`alturaDaSecao(.pomodoro)` vai de 128 para 150 com evento — no mesmo diff da
+linha nova, senão o conteúdo sai da moldura em silêncio (modo de falha clássico
+do `NotchView`).
+
+**Correção que só o teste ao vivo achou**: com o Pomodoro ativo o mesmo evento
+aparecia duas vezes (anel de atividade + card), e a seção de atividade — que se
+atualiza a cada 30 s e carimba evento — subia ao topo sem parar, então o Pomodoro
+**nunca** ficava na frente. `currentActivity` agora cala a atividade do calendário
+enquanto o Pomodoro está na tela, e `pushActivity()` só recalcula nas bordas
+idle↔ativo (`onState` chega a cada segundo; republicar a cada tique carimbaria
+evento de seção pra sempre).
+
+## Validação
+
+- `./tools/check.sh` → **23 checks ok** (novo: `calendariocheck`).
+- Builds Debug e Release ok; Release instalada em `/Applications` (`ditto`),
+  assinatura `Knobler Local Signing` confirmada.
+- `tools/snapshot.sh`: dois cenários novos, `foco-pomodoro-evento` e
+  `pomodoro-evento`.
+- **Ao vivo, com evento real no Calendário** (calendário local `Knobler QA`,
+  apagado no fim): pílula trocando o timer aos 4/3/2/1 min, no foco e na pausa;
+  timer intacto fora dos 5 min; linha no card aberto com a tipografia final;
+  `GET /status` devolvendo `focus: "pomodoro"` — antes era sempre `"atividade"`.
+
+## Receita: como abrir o card do Pomodoro por automação
+
+Custou meia sessão, fica registrado. **Hover sintético não expande a pílula do
+Pomodoro** e o gesto de puxar **não é sintetizável** (`handleScroll` usa
+`addLocalMonitorForEvents`, que não vê `CGEvent` postado por fora). O que funciona:
+
+1. cursor no notch (`CGWarpMouseCursorPosition` em passos pequenos, x = `midX` da
+   tela — 864 aqui; errar o centro foi a causa de metade das tentativas falhas);
+2. `screencapture -x ~/Desktop/qualquer.png` — a captura cai na prateleira e
+   dispara `peekShelf()`, que abre o card; **mouse em cima segura aberto**;
+3. `GET /status` pra confirmar (`mode: music`, `focus: pomodoro`), nunca o palpite.
+
+Lembrar que a ordem das seções é **congelada na abertura** do card
+(`NotchViewModel`): mudar o estado com o card já aberto não põe a seção nova na
+faixa.
+
+## Cache de imagens em disco — descartado
+
+A premissa do roadmap estava errada. Existe **um** consumidor de imagem de rede:
+o ícone de notificação de webhook (`RemoteAvatarLoader`, teto de 512 KB, `NSCache`
+já pronto). A capa do Spotify **não** vem da rede (base64 pelo MediaRemote) e as
+mídias das mensagens são locais. Registrado em `IDEIAS.md`.
+
+## Pendências e followups
+
+- **Suspeita não investigada**: no modo pílula do Pomodoro o hover não expande o
+  card, embora `setHover` tenha caminho explícito pra isso ("com Pomodoro ativo
+  abre o card direto"). Ou o comentário está desatualizado, ou há caso não
+  coberto. Não toquei.
+- A folga vazia embaixo do card do Pomodoro é anterior a esta sessão (altura fixa
+  por seção); a linha nova não a criou.
+- `Pomodoro.selfCheck()` continua órfão do `check.sh` (existe atrás de
+  `#if POMODORO_SELFCHECK`, ninguém o roda).
+- Sem release nesta sessão, por decisão do dono: `## [Unreleased]` do CHANGELOG
+  acumula esta feature e a do card de pergunta.
+
+---
+
 # 🏁 SESSÃO 2026-08-03 (fim de noite) — card de pergunta para de truncar
 
 Item solto do roadmap escolhido pelo dono: **UI das perguntas do Claude**.

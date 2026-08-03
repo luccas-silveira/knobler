@@ -41,6 +41,14 @@ moraria no topo pra sempre.
 
 ## Próximo evento do calendário
 
+![Card de foco com o próximo evento](images/pomodoro-evento-card.png)
+
+*A linha do evento entra entre o timer e os controles.*
+
+![Pílula fechada nos últimos 5 minutos](images/pomodoro-evento-pilula.png)
+
+*Faltando 5 minutos ou menos, o aviso toma o lugar do tempo restante.*
+
 Enquanto o Pomodoro está ativo ele suprime a seção de atividade — que é onde o
 [countdown de calendário](calendar-countdown.md) normalmente mora. Pra você não
 ficar sem saber da reunião justamente durante o foco:
