@@ -42,6 +42,18 @@ foco e devolve o fechamento rápido.
 Fechar não apaga nada: o texto volta na próxima vez que você abrir (hover ou
 gesto).
 
+## Sair da nota sem perdê-la
+
+O swipe horizontal de dois dedos sobre o notch anda uma seção, e isso vale
+**também** com a nota em foco: você sai pra Música, Prateleira, o que estiver
+na faixa, e volta pela faixa de ícones ou pelo swipe de volta — o texto
+continua onde estava. Só o interruptor do menu encerra a nota.
+
+Se você **fixar** a seção Nota em Ajustes › Notch (o alfinete), ela fica
+sempre no card, mesmo com o interruptor desligado. Entrar na seção liga a
+nota na tela em que você está; se ela já estava ligada em outro monitor, o
+dono migra pra cá com o texto.
+
 Enquanto o campo está focado, **notificação e HUD não tomam o card**. A
 notificação espera na fila e aparece assim que você solta o campo; o HUD de
 volume/brilho simplesmente não aparece durante a digitação. Ditado e mensagem

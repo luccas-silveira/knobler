@@ -58,10 +58,16 @@ dois ou mais monitores.
 e CPU. Como a nota, ele tem tela dona (`hostDisplayID`), escolhida pelo ponteiro
 na hora de soltar o link.
 
-Duas seções seguram o card aberto contra o hover-out — a nota enquanto você
-digita e o link enquanto a página está aberta — e as duas cedem o scroll vertical
-ao conteúdo, como o histórico já fazia. Quem decide isso é `NotchViewModel`
-(`typingNote`, `linkAberto`) e o monitor de scroll no `AppDelegate`.
+Só o link segura o card aberto contra o hover-out (a página é navegável e o
+mouse sai dela o tempo todo). A nota apenas atrasa: `atrasoDeFechar` sobe de
+0,3 s pra 3 s enquanto o campo está focado, e `fecharPorHoverOut` derruba o
+`editing` junto com o `expanded` — sem isso o card não sairia da tela, porque
+`mode` devolve `.music` enquanto `typingNote` for true e o campo desenhado
+seguraria o `editing` que sustenta o modo. As duas seções cedem o scroll
+vertical ao conteúdo, como o histórico já fazia. Quem decide isso é
+`NotchViewModel` (`typingNote`, `linkAberto`) e o monitor de scroll no
+`AppDelegate` — que também deixa o swipe horizontal sair da nota, soltando a
+digitação antes de trocar a seção.
 
 `NotificationHistory` e `QuickNote` seguem a mesma regra e pelo mesmo motivo:
 `NotchViewModel.enqueue` roda uma vez por tela com a mesma notificação, então

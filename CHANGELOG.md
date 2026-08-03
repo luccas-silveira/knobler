@@ -28,6 +28,9 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   permissões e o caminho do bundle, pra suporte remoto.
 
 ### Changed
+- **Foco inicial do card**: passa a ser a primeira seção **com conteúdo**, e não
+  a primeira da lista — sem isso, fixar a Música faria o card abrir em "Nada
+  tocando" toda vez.
 - **Nota rápida**: o swipe horizontal agora sai da nota como sai de qualquer
   outra seção, sem encerrá-la — o texto continua lá quando você volta. E o
   card deixou de ficar congelado enquanto o campo está focado: com o mouse

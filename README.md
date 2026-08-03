@@ -37,7 +37,8 @@ Dynamic Island para o notch do Mac — nativo, Swift/SwiftUI, macOS 14.2+.
   card, com teclado — em 16:9 e com layout de desktop, não mobile.
   → [detalhes](docs/link-preview.md)
 - **Nota rápida**: campo de texto efêmero no card, ligado pelo menu da barra;
-  digitar segura o notch aberto e desligar copia o texto pro clipboard.
+  com o mouse fora ele encolhe em 3 s (em vez dos 0,3 s de sempre) e desligar
+  copia o texto pro clipboard.
   → [detalhes](docs/nota-rapida.md)
 - **Conta-gotas**: amostra qualquer cor da tela e copia em HEX.
   → [detalhes](docs/color-picker.md)
@@ -54,7 +55,8 @@ Dynamic Island para o notch do Mac — nativo, Swift/SwiftUI, macOS 14.2+.
 - **Card com foco único**: o card aberto mostra uma seção de cada vez (música,
   atividade, Pomodoro, prateleira, histórico, Mensagens…) e deixa as outras como
   ícones no rodapé. A ordem em repouso é sua, arrastável em Ajustes › Notch, e o
-  que acabou de acontecer sobe sozinho por alguns segundos.
+  que acabou de acontecer sobe sozinho por alguns segundos. Seção sem conteúdo
+  some do card — a não ser que você a fixe com o alfinete, ali mesmo nos Ajustes.
 - **Gestos**: dois dedos pra baixo abre, pra cima fecha. Com o notch fechado o
   horizontal pula faixa; com o card aberto, anda um passo na faixa de seções.
 - **Multi-monitor**: notch real no MacBook, ilha simulada nos externos.

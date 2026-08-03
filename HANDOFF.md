@@ -1,3 +1,67 @@
+# 🏁 SESSÃO 2026-08-03 — seções fixadas, e a nota que prendia o card
+
+Uma feature pedida em uma frase ("escolher as funções fixadas no notch") que
+expôs três bugs de interação na nota rápida — todos achados com o app rodando e
+log real, não com leitura de código.
+
+## O que foi feito
+
+**Seções fixadas** (`v0.17.0`): alfinete por linha em Ajustes › Notch. Seção
+fixada aparece no card mesmo sem conteúdo, na posição da ordem-base.
+`NotchSectionOrder.ordenar` ganhou o parâmetro `fixadas`;
+`AppSettings.notchSectionsFixadas` persiste (chave homônima, padrão vazio, sem
+migração). Estados vazios novos: atividade, Pomodoro, Link e espelho desligado.
+Foi executada por subagentes (5 tasks, spec + plano em `docs/superpowers/`).
+
+**Foco inicial passou a ser a primeira seção COM conteúdo.** Sem isso, fixar a
+Música abre o card em "Nada tocando" toda vez.
+
+**A nota rápida deixou de ser uma armadilha.** Três bugs, nesta ordem:
+
+| Sintoma | Causa real |
+|---|---|
+| "perdi o texto ao sair" | não havia saída: o swipe era engolido com a nota em foco (`KnoblerApp.swift`, gate `vm.focus != .nota`) e a única saída era o interruptor, que apaga |
+| "seção fixada não aceita teclado" | `keyboardAllowed` exigia `noteVisible`, mas a seção fixada desenha o campo antes de a nota ter dono → `QuickNote.adotar(_:)` |
+| "não encolhe com o mouse fora" | `mode` devolve `.music` enquanto `typingNote`; zerar só o `expanded` deixava o card na tela, e o campo desenhado segurava o `editing` que sustentava o modo |
+
+O card agora encolhe 3 s depois de o mouse sair (0,3 s no resto), e
+`fecharPorHoverOut()` derruba `editing` junto. Só o **link** ainda congela o
+card contra o hover-out.
+
+## Como os bugs foram achados
+
+`NSLog` temporário em `keyboardAllowed`, `setHover` e no work de fechar; app
+Debug rodado com stdout em arquivo; o usuário reproduziu o gesto real. Os dois
+últimos bugs eram invisíveis na leitura do código — o log mostrou
+`fechar work rodou` seguido do card ainda aberto. **Vale repetir a receita:**
+
+```bash
+APP=~/Library/Developer/Xcode/DerivedData/Knobler-*/Build/Products/Debug/Knobler.app/Contents/MacOS/Knobler
+nohup "$APP" > /tmp/knb.log 2>&1 &
+```
+
+O menu da barra é acionável por AppleScript (`System Events` → `menu bar item 1
+of menu bar 1`), o que dá pra ligar a nota sem tocar no mouse. Clique e scroll
+sintéticos **não** funcionaram nesta máquina (3 monitores).
+
+## Estado
+
+- 22 checks verdes; `eventoscheck` ganhou 6 casos novos (fixadas, swipe, adotar,
+  atraso de fechar, hover-out).
+- O harness agora zera `notchSectionsFixadas` no `main()`: um teste que aborta
+  no meio contaminava a rodada seguinte.
+- Instalado em `/Applications` e validado no app rodando.
+
+## Pendências deixadas de propósito
+
+- **Persistência da nota em disco** — o usuário adiou explicitamente ("persistência
+  vemos depois"). A nota continua morrendo com o app.
+- **Link fixado não reabre o último link**: a seção mostra "Nenhum link copiado".
+- `docs/images/settings-notch.png` foi recapturado com o alfinete ainda como
+  botão; hoje é um checkbox. Vale refazer na próxima captura de painéis.
+- Harness de snapshot não cobre os quatro estados vazios novos (são `Image` +
+  `Text`, a lógica de quando aparecem está travada por asserção).
+
 # 🏁 SESSÃO 2026-07-29 (noite, 2) — o roadmap não sobreviveu ao código
 
 Sessão **só de documentação** (commit `5ed1b22`): zero linha de Swift. O produto
