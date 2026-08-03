@@ -47,6 +47,20 @@ final class QuickNote: ObservableObject {
         active && id != nil && hostDisplayID == id
     }
 
+    /// Esta tela assume a nota. É o que a seção fixada chama ao entrar em foco:
+    /// fixada, ela aparece no card com a nota desligada, e o campo desenhado
+    /// sem dono não recebe teclado (`keyboardAllowed` mede a hospedagem) nem
+    /// conta pro badge do notch fechado.
+    ///
+    /// Ligada em OUTRA tela, o dono migra pra cá com o texto: a nota é uma só,
+    /// e quem abriu a seção está olhando esta tela. Migrar não passa pelo
+    /// `didSet` de `active`, então nada é apagado nem despejado no clipboard.
+    func adotar(_ id: CGDirectDisplayID?) {
+        guard let id, !hosted(by: id) else { return }
+        hostDisplayID = id
+        if !active { active = true }
+    }
+
     /// Digitando nesta tela agora. Enquanto for true, notificação e HUD não
     /// tomam o card: tirar o campo da tela derruba o foco do teclado junto, e
     /// as teclas seguintes cairiam no app da frente sem nenhum aviso.

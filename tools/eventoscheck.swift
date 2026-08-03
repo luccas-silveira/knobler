@@ -38,6 +38,7 @@ struct EventosCheck {
         testFocoTravadoQuePerdeConteudo()
         testTravaDaNotaVenceAEscolhaManual()
         testSwipeSaiDaNotaSemVoltar()
+        testAdotarLigaANotaNestaTela()
         testPedidoDeFocoComOCardJaAberto()
         testPedidoDeFocoSemConteudoEspera()
         testFecharOCardApagaOPedido()
@@ -350,6 +351,33 @@ struct EventosCheck {
                             travadaNaNota: nota.typing(on: vm.displayID))
         assert(vm.focus == .musica, "recálculo pós-swipe devolveu o foco pra nota")
         assert(nota.active, "a nota foi encerrada ao sair da seção")
+    }
+
+    /// A seção nota FIXADA entra no card com a nota desligada; abrir a seção
+    /// adota a tela, senão o campo fica desenhado sem dono — sem teclado e sem
+    /// badge no notch fechado.
+    static func testAdotarLigaANotaNestaTela() {
+        let nota = QuickNote()
+        assert(!nota.hosted(by: 1), "nota nasceu hospedada")
+        nota.adotar(1)
+        assert(nota.active, "adotar não ligou a nota")
+        assert(nota.hosted(by: 1), "adotar não deu o dono pra tela")
+
+        // ligada em outra tela: o dono migra COM o texto, sem passar pelo
+        // didSet de `active` (que apagaria e despejaria no clipboard)
+        nota.text = "rascunho"
+        nota.adotar(2)
+        assert(nota.hosted(by: 2), "o dono não migrou")
+        assert(nota.text == "rascunho", "migrar apagou o texto")
+        assert(!nota.hosted(by: 1), "a tela antiga continuou dona")
+
+        // idempotente: adotar de novo na mesma tela não mexe em nada
+        nota.adotar(2)
+        assert(nota.text == "rascunho", "adotar repetido apagou o texto")
+        // sem tela não há o que adotar
+        let orfa = QuickNote()
+        orfa.adotar(nil)
+        assert(!orfa.active, "adotar(nil) ligou a nota sem dono")
     }
 
     /// O slot `focoPendente` é um pedido de foco feito de fora. Três regras:

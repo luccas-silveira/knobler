@@ -49,8 +49,12 @@ struct NotchView: View {
             || vm.incoming?.allowReply == true
             || (vm.focus == .mensagens && vm.expanded)
             // o campo da nota só existe na árvore quando ela é a seção em foco —
-            // pedir a janela-chave fora disso engoliria as teclas em silêncio
-            || (noteVisible && vm.expanded && vm.focus == .nota)
+            // pedir a janela-chave fora disso engoliria as teclas em silêncio.
+            // Não mede `noteVisible` de propósito: com a seção FIXADA o campo é
+            // desenhado antes de a nota ter dono, e o `adotar` do `noteSection`
+            // só corre depois — exigir hospedagem aqui deixaria o campo na tela
+            // sem teclado nenhum, que é pior que o silêncio que a guarda evita.
+            || (vm.expanded && vm.focus == .nota)
             // a página do preview tem campo de busca, login e formulário: sem a
             // janela-chave o site fica só de leitura
             || (vm.focus == .link && vm.expanded
@@ -811,7 +815,13 @@ struct NotchView: View {
                 }
             }
             .padding(.horizontal, 4)
-            .onAppear { noteFocused = true }
+            // adota ANTES de pedir o foco: a seção fixada chega aqui com a nota
+            // desligada, e sem dono o texto digitado não conta pro badge do
+            // notch fechado nem sobrevive à guarda de hover.
+            .onAppear {
+                note.adotar(vm.displayID)
+                noteFocused = true
+            }
             .onChange(of: noteFocused) { _, focused in note.editing = focused }
             // Esc precisa liberar o foco explicitamente: TextEditor não
             // garante isso por padrão, e a guarda de hover em
