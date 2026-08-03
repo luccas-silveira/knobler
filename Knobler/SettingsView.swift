@@ -431,19 +431,48 @@ struct PermissionsSettingsPane: View {
     /// pro Ajustes do Sistema, mexe lá e volta esperando ver o novo estado.
     @State private var statuses: [Permission: PermissionStatus] = [:]
 
+    /// Recalculado junto com os status: mudar de lugar exige relançar o app, mas
+    /// tirar a quarentena não — e o usuário volta ao painel esperando ver limpo.
+    @State private var installIssue: Permission.InstallIssue?
+
     var body: some View {
         Form {
+            if let issue = installIssue {
+                Section {
+                    InstallIssueRow(issue: issue)
+                }
+            }
             Section {
                 ForEach(Permission.allCases) { permission in
                     PermissionRow(
                         permission: permission,
-                        status: statuses[permission] ?? .naoVerificada)
+                        status: statuses[permission] ?? .naoVerificada,
+                        onChange: reload)
                 }
             } footer: {
                 Text("O Knobler pede cada permissão no primeiro uso do recurso, "
                      + "não na abertura. Recusar só desliga aquele recurso.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            }
+
+            Section {
+                Text("O Ajustes do Sistema só lista um app depois que ele pede a "
+                     + "permissão. Se o Knobler não estiver na lista, abra o painel, "
+                     + "clique em + e arraste o app a partir do Finder.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                HStack {
+                    Button("Revelar o Knobler no Finder") {
+                        Permission.revealAppInFinder()
+                    }
+                    Button("Copiar diagnóstico") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(Permission.diagnostico(), forType: .string)
+                    }
+                }
+            } header: {
+                Text("Não achou o Knobler na lista?")
             }
         }
         .formStyle(.grouped)
@@ -455,12 +484,47 @@ struct PermissionsSettingsPane: View {
     private func reload() {
         statuses = Dictionary(uniqueKeysWithValues:
             Permission.allCases.map { ($0, $0.status) })
+        installIssue = Permission.installIssue
+    }
+}
+
+/// A instalação está num estado em que conceder permissão não adianta — isso
+/// vem antes de qualquer linha de permissão, senão o usuário fica tentando
+/// conceder algo que o TCC vai descartar.
+private struct InstallIssueRow: View {
+    let issue: Permission.InstallIssue
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+                .font(.system(size: 13))
+                .frame(width: 16)
+                .padding(.top, 1)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Instalação fora do lugar").bold()
+                Text(issue.mensagem)
+                    .font(.caption)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(issue.comoResolver)
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            Button("Revelar") { Permission.revealAppInFinder() }
+        }
+        .padding(.vertical, 2)
     }
 }
 
 private struct PermissionRow: View {
     let permission: Permission
     let status: PermissionStatus
+    /// Rechecagem imediata após o balão — sem isso o badge só atualiza quando o
+    /// app volta ao foco, e ele nunca perdeu o foco.
+    let onChange: () -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -482,6 +546,15 @@ private struct PermissionRow: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 8)
+            // Balão do sistema quando ele ainda pode aparecer; o Ajustes do
+            // Sistema é o fallback (permissão já negada, ou sem API de pedido).
+            if permission.canRequest {
+                Button("Permitir") { permission.request(completion: onChange) }
+                    .buttonStyle(.borderedProminent)
+            }
+            // O "Abrir" fica mesmo com o "Permitir" ao lado: a Acessibilidade não
+            // distingue negada de nunca pedida, então o balão pode ser um no-op
+            // silencioso e o Ajustes do Sistema precisa continuar a um clique.
             Button("Abrir") { NSWorkspace.shared.open(permission.settingsURL) }
         }
         .padding(.vertical, 2)

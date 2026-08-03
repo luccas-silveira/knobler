@@ -64,9 +64,18 @@ toggle **Verificar atualizações automaticamente** desliga a checagem de vez.
 
 *Permissões — o que o app usa, o estado de cada uma e o que quebra sem ela.*
 
-O painel **Permissões** lista as oito permissões que o Knobler pode usar, com o
-estado atual de cada uma e o botão **Abrir**, que leva direto ao painel certo do
-Ajustes do Sistema.
+O painel **Permissões** lista as oito permissões que o Knobler pode usar e o
+estado atual de cada uma. Onde o macOS ainda aceita o pedido, aparece o botão
+**Permitir**, que abre o balão do sistema ali mesmo — sem sair do app. O botão
+**Abrir** leva ao painel certo do Ajustes do Sistema e continua sempre presente.
+
+O **Permitir** só aparece em *Acessibilidade*, *Microfone*, *Câmera* e
+*Calendários*, e só enquanto o estado for *Não solicitada*: o macOS mostra o
+balão uma vez por app: depois que a permissão foi negada, a chamada não faz
+nada e o Ajustes do Sistema é o único caminho. As outras quatro não têm API de
+pedido — o Bluetooth é pedido pelo monitor dos AirPods na abertura, e Rede
+local, Arquivos e pastas e Gravação de áudio do sistema só disparam o balão no
+primeiro uso real do recurso.
 
 O Knobler pede cada permissão **no primeiro uso do recurso**, não na abertura —
 o microfone só quando você segura a ⌥ direita pela primeira vez, a câmera só ao
@@ -82,6 +91,22 @@ O **Bluetooth** é pedido na abertura junto com o monitor dos AirPods, que sobe
 com o app quando **AirPods no notch** está ligado (o padrão) — o macOS pede
 assim que o Knobler pergunta quais dispositivos estão pareados. Desligue a opção
 em Ajustes › Notch se preferir não conceder.
+
+Na **primeira abertura** o painel se apresenta sozinho. O Knobler roda como
+agente (sem ícone no Dock, sem janela), então sem isso não há de onde partir pra
+achar as permissões.
+
+O painel também detecta **instalação fora do lugar** — app translocado pelo
+Gatekeeper, rodando de fora de `/Applications`, ou ainda com a marca de
+quarentena. Nesses estados o macOS descarta a concessão e o app **não aparece**
+na lista do Ajustes do Sistema; um aviso no topo diz qual é o caso e como
+resolver, e reaparece a cada abertura enquanto durar.
+
+No rodapé, **Revelar o Knobler no Finder** existe pro caminho manual: o Ajustes
+do Sistema só lista um app depois que ele pede a permissão, então quando o
+Knobler não estiver na lista, abra o painel, clique em **+** e arraste o app.
+**Copiar diagnóstico** copia o mesmo relatório de `Knobler --permissoes` (estado
+das oito permissões + caminho do bundle), para suporte remoto.
 
 Três permissões não expõem status ao app — **Rede local**, **Arquivos e pastas**
 e **Gravação de áudio do sistema**. O macOS não oferece API para consultá-las, só

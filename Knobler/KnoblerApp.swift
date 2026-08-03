@@ -20,6 +20,11 @@ enum KnoblerMain {
         }
         // Self-check headless do shim de exceção (sem UI): prova que o crash-proofing
         // do installTap funciona no binário compilado.
+        // Diagnóstico de permissões (suporte remoto): imprime e sai, sem UI.
+        if CommandLine.arguments.contains("--permissoes") {
+            print(Permission.diagnostico())
+            exit(0)
+        }
         if CommandLine.arguments.contains("--selfcheck") {
             let ok = MicRecorder.exceptionGuardWorks()
                 && DictationController._clipboardSelfCheck()
@@ -535,6 +540,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let pane = arg.split(separator: "=").last
                 .flatMap { SettingsPane(rawValue: String($0)) }
             showSettings(pane: pane)
+        } else {
+            apresentarPermissoesSeNecessario()
+        }
+    }
+
+    /// O app é LSUIElement: sem janela e sem ícone no Dock, quem instala não tem
+    /// onde procurar as permissões. Na primeira abertura (e sempre que a
+    /// instalação estiver num estado que invalida o TCC) o painel se apresenta
+    /// sozinho, uma vez.
+    private func apresentarPermissoesSeNecessario() {
+        let chave = "onboarding.permissoes.apresentado"
+        let jaViu = UserDefaults.standard.bool(forKey: chave)
+        guard !jaViu || Permission.installIssue != nil else { return }
+        UserDefaults.standard.set(true, forKey: chave)
+        // Depois do prompt do sistema, senão as duas janelas brigam pelo foco.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            self?.showSettings(pane: .permissoes)
         }
     }
 

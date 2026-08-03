@@ -6,6 +6,25 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- **Painel de Permissões na primeira abertura**: o app roda como agente, sem
+  janela nem ícone no Dock, então quem instalava não tinha de onde partir pra
+  achar as permissões. Agora o painel se apresenta sozinho uma vez.
+- **Diagnóstico de instalação**: o painel detecta app translocado pelo
+  Gatekeeper, rodando de fora de `/Applications` ou ainda em quarentena — os
+  estados em que o macOS descarta a concessão e o Knobler **não aparece** na
+  lista do Ajustes do Sistema. Mostra a causa, o passo de correção, e reaparece
+  a cada abertura enquanto durar.
+- **Conceder sem sair do app**: botão *Permitir* nas linhas de Acessibilidade,
+  Microfone, Câmera e Calendários abre o balão do sistema direto no painel, em
+  vez de mandar o usuário pro Ajustes do Sistema. Só enquanto o macOS ainda
+  aceita o pedido — depois de negada, o balão não aparece mais e o *Abrir*
+  continua ao lado.
+- **Saída manual quando o app não está na lista**: botão *Revelar o Knobler no
+  Finder*, pra arrastar pro **+** do Ajustes do Sistema.
+- **`Knobler --permissoes`**: relatório headless com o estado das oito
+  permissões e o caminho do bundle, pra suporte remoto.
+
 ## [0.16.2] - 2026-07-31
 
 ### Fixed

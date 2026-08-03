@@ -32,6 +32,45 @@ Pra confirmar que era isso, o motivo fica no relatório de falha:
 ls -t ~/Library/Logs/DiagnosticReports/Knobler* | head -1 | xargs grep -o '"namespace":"TCC"[^]]*]'
 ```
 
+## O Knobler não aparece na lista do Ajustes do Sistema
+
+Sintoma: instalação nova, o usuário abre Ajustes do Sistema → Privacidade e
+Segurança → Acessibilidade (ou Microfone, Câmera…) e o Knobler simplesmente não
+está lá para ser marcado.
+
+Comece pelo diagnóstico — ele roda sem UI e serve para pedir por mensagem a quem
+está com o problema:
+
+```bash
+/Applications/Knobler.app/Contents/MacOS/Knobler --permissoes
+```
+
+A linha `instalação:` é a que decide:
+
+| Leitura | Causa | Correção |
+| --- | --- | --- |
+| `ok` | A instalação está sadia; ver abaixo | Adicionar à mão pelo **+** |
+| `translocado` | O Gatekeeper está rodando uma cópia temporária read-only; a entrada do TCC aponta pra um caminho fantasma | Mover para `/Applications`, `xattr -dr com.apple.quarantine`, reabrir |
+| `emQuarentena` | Instalado pelo `.zip` sem remover a marca do Gatekeeper | `xattr -dr com.apple.quarantine /Applications/Knobler.app` |
+| `foraDeApplications(...)` | Rodando do Downloads/DerivedData; a permissão gruda naquele caminho | Mover para `/Applications` e abrir de lá |
+
+O app avisa sozinho: nesses três estados o painel **Ajustes → Permissões** abre
+a cada inicialização com a causa e o passo de correção no topo.
+
+Com a instalação sadia, a razão é outra e é do próprio macOS: **o Ajustes do
+Sistema só lista um app depois que ele pede a permissão**. Como o Knobler roda
+como agente (`LSUIElement`), o usuário que fechou o diálogo da abertura fica sem
+nada visível. Duas saídas, ambas no painel **Ajustes → Permissões**:
+
+- Botão **Pedir**, na linha da Acessibilidade — reabre o diálogo do sistema
+  enquanto o TCC ainda não tiver decisão gravada.
+- Botão **Revelar o Knobler no Finder** — abre o Finder com o app selecionado;
+  no painel do Ajustes do Sistema clique em **+** e arraste o app pra lista.
+
+Se o Knobler aparece na lista **marcado** e mesmo assim nada funciona, a entrada
+é de uma assinatura antiga: veja
+[Reconceder a Acessibilidade](#reconceder-a-acessibilidade).
+
 ## O app está aberto, mas o notch não aparece
 
 1. Confirme se o processo está ativo:

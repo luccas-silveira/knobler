@@ -82,6 +82,7 @@ swift_check shelfdropcheck        $CONVERSAO Knobler/ShelfDrop.swift \
 swift_check historycheck          Knobler/NotchNotification.swift Knobler/NotificationHistory.swift Knobler/NotchGesture.swift tools/historycheck.swift
 swift_check sectionordercheck    Knobler/NotchSectionOrder.swift tools/sectionordercheck.swift
 swift_check quicknotecheck        Knobler/QuickNote.swift tools/quicknotecheck.swift
+swift_check permissioncheck       Knobler/Permissions.swift tools/permissioncheck.swift
 swift_check annotationcheck      Knobler/AnnotationModel.swift tools/annotationcheck.swift
 # "tique não carimba": o VM inteiro sobe isolado, e por isso arrasta os tipos
 # que ele cita (Pomodoro, AirPods, notificação, Wire, Updater).
