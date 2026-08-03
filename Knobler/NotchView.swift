@@ -835,11 +835,19 @@ struct NotchView: View {
                 case .historico: HistoryListView(history: history,
                                                  onOpen: { vm.setExpandedDirect(false) })
                 case .mensagens: MessagesView(vm: vm)
-                case .espelho: mirrorSection
+                case .espelho: if vm.mirrorOn { mirrorSection } else { espelhoDesligado }
                 case .shelf: ShelfRowView(shelf: shelf, vm: vm, onAirDrop: vm.onAirDrop)
-                case .link: LinkPreviewView(preview: linkPreview)
-                case .atividade: if let a = vm.activity { activityRow(a) }
-                case .pomodoro: if let p = vm.pomodoro { pomodoroSection(p) }
+                case .link: if linkPreview.url != nil { LinkPreviewView(preview: linkPreview) }
+                           else { vazio("globe", "Nenhum link copiado") }
+                case .atividade:
+                    if let a = vm.activity { activityRow(a) }
+                    else { vazio("arrow.triangle.2.circlepath", "Nenhuma atividade") }
+                case .pomodoro:
+                    // ponytail: texto, não botão. `Pomodoro.startNext()` só sai
+                    // de `.waiting`; não existe "iniciar do zero" no VM hoje.
+                    // Vira ação quando alguém pedir.
+                    if let p = vm.pomodoro { pomodoroSection(p) }
+                    else { vazio("timer", "Pomodoro parado") }
                 case .musica, .none: musicSection
                 }
             }
@@ -1027,6 +1035,31 @@ struct NotchView: View {
         .buttonStyle(.plain)
     }
 
+    /// Desenho comum de seção fixada e vazia. Mesma altura da seção cheia:
+    /// uma altura só evita um segundo eixo de casos no `alturaDaSecao`.
+    private func vazio(_ simbolo: String, _ texto: String) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: simbolo)
+                .font(.title2)
+                .foregroundStyle(.white.opacity(0.4))
+            Text(texto)
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.4))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Espelho fixado e desligado: o botão que já existe, centralizado.
+    private var espelhoDesligado: some View {
+        VStack(spacing: 6) {
+            Image(systemName: "person.crop.square")
+                .font(.title2)
+                .foregroundStyle(.white.opacity(0.4))
+            mirrorButton
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
     private func activityRow(_ activity: NotchActivity) -> some View {
         HStack(spacing: 10) {
             ActivityRingView(progress: activity.progress)
@@ -1083,7 +1116,7 @@ struct NotchView: View {
             .frame(maxWidth: .infinity)
             // troca de faixa: capa e textos fazem crossfade em vez de pop
             .animation(.easeOut(duration: 0.3), value: state.title)
-        } else if vm.activity == nil, shelf.items.isEmpty, !vm.mirrorOn {
+        } else {
             VStack(spacing: 6) {
                 Image(systemName: "music.note")
                     .font(.title2)
