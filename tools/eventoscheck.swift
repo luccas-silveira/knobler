@@ -40,6 +40,7 @@ struct EventosCheck {
         testSwipeSaiDaNotaSemVoltar()
         testAdotarLigaANotaNestaTela()
         testAtrasoDeFecharComANotaEmFoco()
+        testFecharPorHoverOutSoltaADigitacao()
         testPedidoDeFocoComOCardJaAberto()
         testPedidoDeFocoSemConteudoEspera()
         testFecharOCardApagaOPedido()
@@ -368,6 +369,27 @@ struct EventosCheck {
         // parar de digitar devolve o fechamento rápido
         nota.editing = false
         assert(vm.atrasoDeFechar < 1, "parou de digitar e o atraso continuou longo")
+        // texto vazio: desligar aqui não encosta no clipboard da máquina
+        nota.active = false
+    }
+
+    /// Fechar por hover-out com a nota focada tem que soltar a digitação junto:
+    /// `mode` devolve `.music` enquanto `typingNote` for true, então zerar só o
+    /// `expanded` deixaria o card na tela — e o campo, ainda desenhado, seguraria
+    /// `editing` pra sempre.
+    static func testFecharPorHoverOutSoltaADigitacao() {
+        let vm = NotchViewModel()
+        vm.displayID = 9
+        vm.expanded = true
+        let nota = QuickNote.shared
+        nota.hostDisplayID = 9
+        nota.active = true
+        nota.editing = true
+        assert(vm.mode == .music, "digitando o modo deveria ser o card aberto")
+        vm.fecharPorHoverOut()
+        assert(!vm.expanded, "o card não encolheu")
+        assert(!nota.editing, "a digitação continuou segurando o card")
+        assert(vm.mode != .music, "modo continuou no card aberto: \(vm.mode)")
         // texto vazio: desligar aqui não encosta no clipboard da máquina
         nota.active = false
     }

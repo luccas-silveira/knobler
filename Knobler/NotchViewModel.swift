@@ -319,22 +319,29 @@ final class NotchViewModel: ObservableObject {
     /// Pausado: tempo de espiada antes de abrir o card completo.
     private let peekDwell: TimeInterval = 0.8
 
+    /// Encolhe o card depois que o mouse saiu e o atraso venceu.
+    ///
+    /// `editing` cai AQUI, junto: `mode` devolve `.music` enquanto `typingNote`
+    /// for true (a nota com teclado nos dedos vence notificação e HUD), então
+    /// zerar só o `expanded` deixaria o card desenhado — e o `onDisappear` do
+    /// campo, que zeraria `editing`, nunca correria porque a view continua na
+    /// árvore. Card segurando a digitação, digitação segurando o card.
+    func fecharPorHoverOut() {
+        // o link aberto congela o card: a página é navegável e o mouse sai dela
+        // o tempo todo. A nota não congela mais — só ganha um atraso maior.
+        guard !linkAberto else { return }
+        if typingNote { QuickNote.shared.editing = false }
+        if expanded || peeking { lastCollapseAt = Date() }
+        expanded = false
+        peeking = false
+    }
+
     func setHover(_ inside: Bool) {
         hovering = inside
         pendingWork?.cancel()
 
         guard inside else {
-            let work = DispatchWorkItem { [weak self] in
-                guard let self else { return }
-                // o link aberto congela o card: a página é navegável e o mouse
-                // sai dela o tempo todo. A nota não congela mais — só ganha um
-                // atraso maior (ver `atrasoDeFechar`), senão o card ficaria
-                // aberto pra sempre depois de um clique no campo.
-                guard !self.linkAberto else { return }
-                if self.expanded || self.peeking { self.lastCollapseAt = Date() }
-                self.expanded = false
-                self.peeking = false
-            }
+            let work = DispatchWorkItem { [weak self] in self?.fecharPorHoverOut() }
             pendingWork = work
             DispatchQueue.main.asyncAfter(deadline: .now() + atrasoDeFechar, execute: work)
             return
