@@ -6,6 +6,11 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- **Barra de endereço no preview de link**: sem página aberta, a seção Link
+  mostra um campo já focado — cole (⌘V) e tecle Enter. Antes só arrastar um
+  link do navegador abria uma página. Aceita `exemplo.com` sem esquema.
+
 ### Changed
 - **Espelho fixado liga sozinho**: abrir a aba do espelho no card já acende a
   câmera, em vez de esperar o clique no botão.
@@ -14,6 +19,10 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   perdeu o botão do espelho.
 - **Espelho avisa que está ligando**: enquanto a sessão da câmera não sobe, o
   preview mostra um spinner com "Ligando a câmera…" em vez de um retângulo preto.
+
+### Fixed
+- **Abrir o espelho congelava o card por ~1 s**: a entrada de vídeo era criada
+  na main thread. A sessão agora sobe vazia e recebe a câmera em background.
 
 ## [0.17.0] - 2026-08-03
 

@@ -8,6 +8,9 @@ janela e sem barra de navegador.
 - **Arrastar um link** (da barra de endereços, de um link numa página, ou um
   texto selecionado que seja só uma URL) → o card abre na seção **Link** com a
   página carregada.
+- **Colar um link**: com a seção **Link** em foco e nenhuma página aberta, o
+  card mostra uma barra de endereço já focada. ⌘V, Enter, e a página abre.
+  `exemplo.com` sem `https://` também vale.
 - O link **não** entra na prateleira. Ela é pra arquivo que você vai usar
   depois, e um atalho por link espiado empurraria pra fora o que estava lá (a
   capacidade é 8). Um `.webloc` que venha do Finder, esse sim, abre aqui pelo

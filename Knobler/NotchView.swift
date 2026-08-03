@@ -32,6 +32,9 @@ struct NotchView: View {
     @State private var agentRequestExpanded = false
     /// Sessão da câmera já rodando — até lá o espelho mostra o spinner.
     @State private var espelhoPronto = false
+    /// Barra de endereço da seção Link enquanto nenhuma página está aberta.
+    @State private var linkDigitado = ""
+    @FocusState private var linkFocado: Bool
 
     /// A prioridade Ask é derivada do store compartilhado; o VM fornece apenas
     /// o modo dos demais subsistemas visuais.
@@ -59,9 +62,12 @@ struct NotchView: View {
             || (vm.expanded && vm.focus == .nota)
             // a página do preview tem campo de busca, login e formulário: sem a
             // janela-chave o site fica só de leitura
-            || (vm.focus == .link && vm.expanded
-                && linkPreview.hosted(by: vm.displayID))
+            // sem página aberta a seção mostra a barra de endereço, que também
+            // precisa do teclado — por isso não mede `hosted`
+            || (vm.focus == .link && vm.expanded)
     }
+
+    private var linkAberto: Bool { linkPreview.hosted(by: vm.displayID) }
 
     private func notifyKeyboardEligibility() {
         onKeyboardEligibilityChanged?(keyboardAllowed)
@@ -93,9 +99,11 @@ struct NotchView: View {
     static var linkWebHeight: CGFloat { (linkContentWidth * 9 / 16).rounded() }
     static let linkHeaderHeight: CGFloat = 24
 
-    /// Largura do card por seção em foco: só o link foge do padrão.
-    static func larguraDoCard(_ focus: NotchSection?, padrao: CGFloat) -> CGFloat {
-        focus == .link ? linkCardWidth : padrao
+    /// Largura do card por seção em foco: só o link foge do padrão — e só
+    /// quando tem página. A barra de endereço sozinha não pede 780 pt.
+    static func larguraDoCard(_ focus: NotchSection?, padrao: CGFloat,
+                              linkAberto: Bool = true) -> CGFloat {
+        focus == .link && linkAberto ? linkCardWidth : padrao
     }
 
     /// A prateleira é a única seção com duas alturas: a grade de itens é uma
@@ -105,7 +113,8 @@ struct NotchView: View {
     /// meio card vazio.
     static let espelhoDesligadoHeight: CGFloat = 96
     static func alturaDaSecao(_ s: NotchSection, preview: Bool = false,
-                              espelhoLigado: Bool = true) -> CGFloat {
+                              espelhoLigado: Bool = true,
+                              linkAberto: Bool = true) -> CGFloat {
         switch s {
         case .musica: return 118
         case .atividade: return 60
@@ -115,7 +124,7 @@ struct NotchView: View {
         case .mensagens: return 272
         case .historico: return HistoryListView.listHeight + 12
         case .nota: return Self.noteEditorHeight + 20
-        case .link: return linkWebHeight + linkHeaderHeight
+        case .link: return linkAberto ? linkWebHeight + linkHeaderHeight : espelhoDesligadoHeight
         }
     }
 
@@ -182,7 +191,8 @@ struct NotchView: View {
                 expandedContent
                     // largura fixa: o texto não pode refluir enquanto a forma anima
                     .frame(width: Self.larguraDoCard(vm.focus,
-                                                     padrao: expandedSize.width) - 44)
+                                                     padrao: expandedSize.width,
+                                                     linkAberto: linkAberto) - 44)
                     .padding(.top, topInset + 8)
                     .padding(.bottom, 14)
                     // o conteúdo cresce junto com a moldura, ancorado no topo
@@ -357,13 +367,15 @@ struct NotchView: View {
             // lá lê como saída e fecha o card.
             let corpo = vm.focus.map {
                 Self.alturaDaSecao($0, preview: shelf.preview != nil,
-                                   espelhoLigado: vm.mirrorOn)
+                                   espelhoLigado: vm.mirrorOn,
+                                   linkAberto: linkAberto)
             } ?? 118
             // a nota é modo exclusivo: sem faixa, e sem o espaçamento dela
             let faixa = vm.focus == .nota ? 0 : Self.sectionStripHeight + 8
             let chrome = topInset + 8 + 8 + 14
             return CGSize(
-                width: Self.larguraDoCard(vm.focus, padrao: expandedSize.width),
+                width: Self.larguraDoCard(vm.focus, padrao: expandedSize.width,
+                                          linkAberto: linkAberto),
                 height: chrome + corpo + faixa)
         case .notification:
             let hasActions = vm.activeNotification?.actionTitles.isEmpty == false
@@ -861,7 +873,7 @@ struct NotchView: View {
                 case .espelho: if vm.mirrorOn { mirrorSection } else { espelhoDesligado }
                 case .shelf: ShelfRowView(shelf: shelf, vm: vm, onAirDrop: vm.onAirDrop)
                 case .link: if linkPreview.hosted(by: vm.displayID) { LinkPreviewView(preview: linkPreview) }
-                           else { vazio("globe", "Nenhum link copiado") }
+                           else { linkVazio }
                 case .atividade:
                     if let a = vm.activity { activityRow(a) }
                     else { vazio("arrow.triangle.2.circlepath", "Nenhuma atividade") }
@@ -1086,6 +1098,47 @@ struct NotchView: View {
                 .foregroundStyle(.white.opacity(0.4))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Sem link aberto a seção vira barra de endereço: colar (⌘V) e Enter.
+    /// Arrastar do navegador continua valendo — isto é a via sem mouse.
+    private var linkVazio: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "globe")
+                .font(.title2)
+                .foregroundStyle(.white.opacity(0.4))
+            TextField("Cole um link e tecle Enter", text: $linkDigitado)
+                .textFieldStyle(.plain)
+                .font(.subheadline)
+                .foregroundStyle(.white)
+                .focused($linkFocado)
+                .onSubmit { abrirLinkDigitado() }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color.white.opacity(0.08), in: Capsule())
+                .frame(maxWidth: 420)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // o app não tem menu bar: sem este monitor o ⌘V não chega ao campo
+        .onAppear {
+            linkPreview.instalarAtalhos()
+            linkFocado = true
+        }
+        .onDisappear {
+            linkPreview.removerAtalhos()
+            linkDigitado = ""
+        }
+    }
+
+    /// Aceita `exemplo.com` além da URL completa — quem cola do navegador traz
+    /// o esquema, quem digita não.
+    private func abrirLinkDigitado() {
+        let texto = linkDigitado.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !texto.isEmpty else { return }
+        let comEsquema = texto.contains("://") ? texto : "https://" + texto
+        guard let url = URL(string: comEsquema) else { return }
+        linkDigitado = ""
+        linkPreview.abrir(url, on: vm.displayID)
     }
 
     /// Abrir a aba do espelho já liga a câmera — sem exigir o clique. Só chega

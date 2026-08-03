@@ -111,7 +111,7 @@ final class LinkPreview: ObservableObject {
     /// deixa o responder chain resolver — é o `WKWebView` que executa.
     ///
     /// Molde: `DescansoController.installEscMonitor`.
-    private func instalarAtalhos() {
+    func instalarAtalhos() {
         guard atalhoMonitor == nil else { return }
         atalhoMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             guard event.modifierFlags.contains(.command),
@@ -131,7 +131,7 @@ final class LinkPreview: ObservableObject {
         }
     }
 
-    private func removerAtalhos() {
+    func removerAtalhos() {
         guard let atalhoMonitor else { return }
         NSEvent.removeMonitor(atalhoMonitor)
         self.atalhoMonitor = nil
