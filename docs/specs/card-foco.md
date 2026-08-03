@@ -50,10 +50,12 @@ fechar.
 
 1. Ordem-base vem dos Ajustes (drag-to-reorder), painel **Notch**.
 2. Seções sem conteúdo (sem música, shelf vazio, pomodoro idle) saem da lista
-   inteira — não aparecem nem como ícone.
+   inteira — não aparecem nem como ícone —, a não ser que estejam fixadas em
+   Ajustes › Notch (`AppSettings.notchSectionsFixadas`); aí ficam na posição
+   da ordem-base mesmo vazias.
 3. Qualquer seção com **evento de transição** nos últimos **10 s** sobe pro
    topo, mantendo entre si a ordem de recência (mais recente primeiro).
-4. O foco inicial é a primeira da lista resultante.
+4. O foco inicial é a primeira seção **com conteúdo** da lista resultante.
 
 ### Evento de transição
 

@@ -7,6 +7,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 ## [Unreleased]
 
 ### Added
+- **Seções fixadas**: o alfinete em Ajustes › Notch mantém uma seção no card aberto
+  mesmo sem conteúdo.
 - **Painel de Permissões na primeira abertura**: o app roda como agente, sem
   janela nem ícone no Dock, então quem instalava não tinha de onde partir pra
   achar as permissões. Agora o painel se apresenta sozinho uma vez.

@@ -85,7 +85,8 @@ que é o que dá noção de posição na faixa.
 A ordem sai de três camadas, nesta sequência:
 
 1. **Ordem-base** — arrastável em Ajustes › Notch (`AppSettings.notchSectionOrder`).
-2. **Conteúdo** — seção sem conteúdo não entra na faixa.
+2. **Conteúdo** — seção sem conteúdo não entra na faixa, a não ser que esteja
+   fixada em Ajustes › Notch (`AppSettings.notchSectionsFixadas`).
 3. **Evento recente** — `NotchSectionOrder.ordenar` promove pro topo a seção
    cujo último evento (música trocou, atividade chegou, mensagem entrou) ainda
    está dentro da janela de promoção. Passado o prazo, a ordem volta à base.

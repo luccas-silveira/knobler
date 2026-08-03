@@ -25,7 +25,15 @@ da própria feature, linkada abaixo.
     calendário, **silêncio durante reuniões**, visualizador de áudio, API local,
     AirPods, screenshots na prateleira, espelho de câmera. Traz também a **ordem das seções do card
     aberto**: uma lista arrastável que define quem aparece primeiro quando não
-    há evento recente promovendo ninguém. Ver `docs/huds.md`, `docs/notifications.md`,
+    há evento recente promovendo ninguém.
+
+    O alfinete de cada linha fixa a seção: ela aparece no card mesmo sem conteúdo
+    (Nota rápida vazia, Pomodoro parado, Música sem tocar). Sem alfinete — o padrão
+    — a seção só entra quando tem algo a mostrar. Fixada e vazia, a seção fica na
+    posição escolhida aqui, mas não recebe o foco na abertura do card: o foco vai
+    pra primeira seção com conteúdo real.
+
+    Ver `docs/huds.md`, `docs/notifications.md`,
     `docs/calendar-countdown.md`, `docs/now-playing.md`, `docs/local-api.md`,
     `docs/airpods.md`, `docs/shelf.md`, `docs/mirror.md`.
   - **Ditado** — ver `docs/dictation.md`.
