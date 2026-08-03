@@ -17,6 +17,9 @@ struct SectionOrderCheck {
         testEventoRecenteSobe()
         testEventoAntigoNaoSobe()
         testSemConteudoSai()
+        testFixadaVaziaApareceNaPosicaoDaBase()
+        testNaoFixadaVaziaContinuaFora()
+        testSanearFixadasDescartaDesconhecida()
         testMaisRecentePrimeiro()
         testNotaTravaTudo()
         testEstadoRepetidoNaoDerruba()
@@ -41,6 +44,7 @@ struct SectionOrderCheck {
             estados: [viva(.musica, haSegundos: nil),
                       viva(.shelf, haSegundos: nil),
                       viva(.atividade, haSegundos: nil)],
+            fixadas: [],
             agora: agora, travadaNaNota: false)
         assert(out == [.shelf, .musica, .atividade], "ordem-base não respeitada: \(out)")
     }
@@ -52,6 +56,7 @@ struct SectionOrderCheck {
             estados: [viva(.musica, haSegundos: nil),
                       viva(.shelf, haSegundos: nil),
                       viva(.atividade, haSegundos: 3)],
+            fixadas: [],
             agora: agora, travadaNaNota: false)
         assert(out == [.atividade, .shelf, .musica], "evento de 3 s não promoveu: \(out)")
     }
@@ -64,6 +69,7 @@ struct SectionOrderCheck {
             estados: [viva(.musica, haSegundos: nil),
                       viva(.shelf, haSegundos: nil),
                       viva(.atividade, haSegundos: 30)],
+            fixadas: [],
             agora: agora, travadaNaNota: false)
         assert(out == [.shelf, .musica, .atividade], "evento de 30 s promoveu: \(out)")
     }
@@ -75,8 +81,40 @@ struct SectionOrderCheck {
             estados: [viva(.musica, haSegundos: nil),
                       NotchSectionState(section: .shelf, hasContent: false, lastEvent: nil),
                       viva(.atividade, haSegundos: nil)],
+            fixadas: [],
             agora: agora, travadaNaNota: false)
         assert(out == [.musica, .atividade], "seção vazia sobreviveu: \(out)")
+    }
+
+    /// Seção fixada aparece mesmo vazia, na posição da ordem-base.
+    static func testFixadaVaziaApareceNaPosicaoDaBase() {
+        let out = NotchSectionOrder.ordenar(
+            base: [.musica, .nota, .shelf],
+            estados: [viva(.musica, haSegundos: nil),
+                      NotchSectionState(section: .nota, hasContent: false, lastEvent: nil),
+                      viva(.shelf, haSegundos: nil)],
+            fixadas: [.nota],
+            agora: agora, travadaNaNota: false)
+        assert(out == [.musica, .nota, .shelf], "fixada vazia fora da posição-base: \(out)")
+    }
+
+    /// Não fixada e sem conteúdo continua fora — o padrão não muda.
+    static func testNaoFixadaVaziaContinuaFora() {
+        let out = NotchSectionOrder.ordenar(
+            base: [.musica, .nota, .shelf],
+            estados: [viva(.musica, haSegundos: nil),
+                      NotchSectionState(section: .nota, hasContent: false, lastEvent: nil),
+                      viva(.shelf, haSegundos: nil)],
+            fixadas: [],
+            agora: agora, travadaNaNota: false)
+        assert(out == [.musica, .shelf], "vazia não fixada entrou: \(out)")
+    }
+
+    /// `rawValue` desconhecido (versão futura, disco corrompido) é descartado;
+    /// duplicata some no Set.
+    static func testSanearFixadasDescartaDesconhecida() {
+        let out = NotchSectionOrder.sanearFixadas(salvas: ["nota", "chapeu", "nota"])
+        assert(out == [.nota], "sanearFixadas não filtrou: \(out)")
     }
 
     /// Duas promovidas: a mais recente vem primeiro.
@@ -86,6 +124,7 @@ struct SectionOrderCheck {
             estados: [viva(.musica, haSegundos: nil),
                       viva(.atividade, haSegundos: 8),
                       viva(.shelf, haSegundos: 2)],
+            fixadas: [],
             agora: agora, travadaNaNota: false)
         assert(out == [.shelf, .atividade, .musica], "recência entre promovidas errada: \(out)")
     }
@@ -99,6 +138,7 @@ struct SectionOrderCheck {
             estados: [viva(.musica, haSegundos: nil),
                       viva(.atividade, haSegundos: 1),
                       viva(.nota, haSegundos: 600)],
+            fixadas: [],
             agora: agora, travadaNaNota: true)
         assert(out.first == .nota, "nota não travou o foco: \(out)")
     }
@@ -116,6 +156,7 @@ struct SectionOrderCheck {
                       // se a última não vencesse, `atividade` sumiria da lista
                       NotchSectionState(section: .atividade, hasContent: false, lastEvent: nil),
                       viva(.atividade, haSegundos: 3)],
+            fixadas: [],
             agora: agora, travadaNaNota: false)
         assert(out == [.atividade, .shelf, .musica], "duplicata: última entrada não venceu: \(out)")
     }

@@ -75,10 +75,12 @@ enum NotchSectionOrder {
     /// - Parameters:
     ///   - base: ordem escolhida nos Ajustes.
     ///   - estados: o que cada seção tem a dizer agora.
+    ///   - fixadas: seções que o usuário quer ver mesmo vazias.
     ///   - agora: injetado pra que o teste não dependa do relógio.
     ///   - travadaNaNota: usuário digitando na nota nesta tela.
     static func ordenar(base: [NotchSection],
                         estados: [NotchSectionState],
+                        fixadas: Set<NotchSection> = [],
                         agora: Date,
                         travadaNaNota: Bool) -> [NotchSection] {
         // duplicata em `estados` é bug de quem chama, mas aqui não pode virar
@@ -88,7 +90,11 @@ enum NotchSectionOrder {
         // seções fora da `base` (versão salva antiga) entram no fim, senão
         // sumiriam da UI sem ninguém perceber
         let ordemBase = base + padrao.filter { !base.contains($0) }
-        let visiveis = ordemBase.filter { porSecao[$0]?.hasContent == true }
+        // fixada aparece vazia, na posição da ordem-base: sem `lastEvent`
+        // recente ela não é promovida, então cai onde o usuário a deixou.
+        let visiveis = ordemBase.filter {
+            porSecao[$0]?.hasContent == true || fixadas.contains($0)
+        }
 
         let promovidas = visiveis
             .filter { s in
@@ -122,5 +128,11 @@ enum NotchSectionOrder {
             vistas.append(s)
         }
         return vistas + padrao.filter { !vistas.contains($0) }
+    }
+
+    /// Lê as fixadas do UserDefaults sem confiar nelas. Diferente de `sanear`,
+    /// não completa nada: conjunto vazio é o estado de fábrica.
+    static func sanearFixadas(salvas: [String]) -> Set<NotchSection> {
+        Set(salvas.compactMap(NotchSection.init(rawValue:)))
     }
 }
