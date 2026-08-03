@@ -1,3 +1,46 @@
+# 🏁 SESSÃO 2026-08-03 (tarde) — espelho que liga sozinho, link que se cola
+
+Quatro pedidos curtos do usuário, todos validados no app rodando. Saiu a
+`v0.18.0`.
+
+## O que foi feito
+
+**Espelho fixado liga sozinho** (`NotchView.ligarEspelhoSeEmFoco`, chamado no
+`onChange` de `vm.focus` e de `vm.expanded`). O `expanded` também entra porque
+recolher o card desliga a câmera — na reabertura o `focus` não muda.
+
+**Abrir a câmera congelava o card por ~1 s.** Causa: `MirrorController.acquire()`
+criava o `AVCaptureDeviceInput` na main thread. A sessão agora sobe vazia e
+recebe a entrada no background; o preview mostra spinner + "Ligando a câmera…"
+até o `AVCaptureSessionDidStartRunning`. Sem isso o spinner nem chegava a ser
+desenhado — foi por isso que a primeira tentativa "não mostrou nada".
+
+**Ícone de câmera saiu do player** (fila de controles e estado "Nada tocando").
+O espelho agora se liga pela própria seção.
+
+**Barra de endereço na seção Link.** Sem página, a seção mostra um `TextField`
+já focado: ⌘V + Enter. `keyboardAllowed` deixou de exigir `linkPreview.hosted`
+(o campo existe antes de haver página) e os atalhos de edição do `LinkPreview`
+(⌘C/⌘V/⌘X/⌘A — o app não tem menu bar) passaram a `internal` pra serem
+instalados também pelo campo. `alturaDaSecao`/`larguraDoCard` ganharam
+`linkAberto`: os 780 pt são do preview, não da barra.
+
+## Estado
+
+- `v0.18.0` publicada (tag, GitHub Release, cask) e instalada em
+  `/Applications`, rodando em 3 monitores.
+- 22 checks verdes.
+
+## Riscos e dívidas
+
+- **Sem câmera utilizável o espelho fica no "Ligando a câmera…" pra sempre**
+  (`ponytail:` em `Mirror.swift`). Vira estado de erro quando alguém sem webcam
+  reclamar.
+- Nada disso tem check automatizado: espelho e link dependem de `NSView` real e
+  ficam fora do harness de snapshot.
+
+---
+
 # 🏁 SESSÃO 2026-08-03 — seções fixadas, e a nota que prendia o card
 
 Uma feature pedida em uma frase ("escolher as funções fixadas no notch") que

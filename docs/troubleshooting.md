@@ -247,6 +247,11 @@ A falha do formatter deve devolver o transcript bruto; ela não deve impedir o
 ## Câmera ou espelho não aparece
 
 - Dê acesso à Câmera.
+- O espelho só tem seção própria depois de ligado: fixe **Espelho** em
+  Ajustes › Notch pra chegar nele sem depender da API local.
+- "Ligando a câmera…" parado por mais de alguns segundos = nenhuma entrada de
+  vídeo utilizável. Confira `GET /status` (`cameraDevice`) e o console
+  (`knobler mirror: câmera indisponível`).
 - Abra o espelho e escolha a câmera pelo menu quando houver mais de uma.
 - Se um dispositivo USB sumiu, volte para “Automática”; a preferência usa
   `uniqueID`, não índice.
