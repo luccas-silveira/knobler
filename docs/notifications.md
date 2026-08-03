@@ -69,9 +69,11 @@ no notch enquanto dura.
 
 O histórico é uma **seção** do card aberto, como Música ou Pomodoro: abra o
 card (swipe de dois dedos pra baixo, ou hover) e clique no ícone de sino na
-faixa do rodapé — ou deslize na horizontal até chegar nele. Quando uma
-notificação acabou de passar, o histórico sobe sozinho pro foco por alguns
-segundos; depois disso a ordem volta a ser a dos Ajustes → Notch.
+faixa do rodapé — ou deslize na horizontal até chegar nele. É uma lista só, sem
+abas: iMessage e SMS têm a seção **Mensagens**, separada, com as conversas de
+verdade (ver [`messages.md`](messages.md)).
+Quando uma notificação acabou de passar, o histórico sobe sozinho pro foco por
+alguns segundos; depois disso a ordem volta a ser a dos Ajustes → Notch.
 
 Clicar num ícone trava o foco: nenhuma promoção o tira até o notch recolher.
 
@@ -83,9 +85,8 @@ já fecha o card. Com o histórico em foco, o scroll vertical pertence à lista
 com o histórico vazio o gesto continua valendo pra fechar. Clicar numa linha
 também recolhe o notch, junto com abrir a origem.
 
-A nota rápida é modo exclusivo: com a nota em foco a faixa some e o swipe
-horizontal fica desligado — o card é da nota, e nada oferece um caminho pra
-fora do campo de texto.
+A nota rápida deixou de ser modo exclusivo: com o rascunho em foco a faixa
+continua no rodapé, e sair por ela (ou pelo swipe horizontal) não apaga o texto.
 
 ### O que aparece em cada linha
 
