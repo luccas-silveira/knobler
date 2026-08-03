@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-08-03
+
 ### Added
 - **Seções fixadas**: o alfinete em Ajustes › Notch mantém uma seção no card aberto
   mesmo sem conteúdo.
