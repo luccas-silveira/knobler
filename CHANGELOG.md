@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.18.1] - 2026-08-03
+
 ### Added
 - **Apagar o histórico**: cada linha ganha um `X` no hover e o topo da seção
   ganha "Limpar". Antes só a poda de 24 h tirava algo da lista.
