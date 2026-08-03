@@ -4,6 +4,9 @@ Ordem em que o backlog do [`IDEIAS.md`](IDEIAS.md) deve ser implementado. O
 critério é **substrato compartilhado**: cada feature deixa pronta a peça que a
 próxima consome.
 
+⚠️ Com a Trilha A descartada (2026-08-03), o que sobra é a lista de itens soltos
+— não há mais sequência obrigatória: escolha um e faça.
+
 ⚠️ A primeira versão deste arquivo (2026-07-29) foi escrita **sem ler o código** e
 errou em quase tudo: inventou uma camada de envio de webhooks que não existe e
 prometeu criar quatro substratos que já estavam escritos. Auditado contra o
@@ -32,25 +35,22 @@ payload, gzip e o webhook de fim de pomodoro.
 
 ---
 
-## Trilha A — Canal autenticado na LAN
+## Trilha A — descartada
 
-A única sequência real: o passo 1 é pré-requisito de segurança dos outros, e
-não existe no código.
+O canal autenticado na LAN e o **sync entre máquinas** foram implementados em
+2026-08-03 e **revertidos no mesmo dia**, a pedido do dono do projeto. Não foi
+falha técnica: o handshake TLS-PSK barrava a chave errada, o merge convergia e os
+gates passavam. Foi decisão de produto — pareamento por chave é burocracia demais
+pra este app, e Mensagens LAN sem chave é o comportamento desejado, não uma
+brecha a fechar.
 
-1. **Pareamento + TLS-PSK em serviço Bonjour próprio** — `LANMessaging.serve()`
-   hoje não autentica ninguém. Spec:
-   [`2026-07-29-sync-lan-design.md`](superpowers/specs/2026-07-29-sync-lan-design.md).
-   Deixa pronto: canal autenticado, `Frame` genérico, `SyncPacket` versionado.
-2. **Sync entre máquinas** (lembretes + Ajustes com allowlist + histórico com
-   mídia) — LWW-Element-Set com HLC e tombstones. Consome o passo 1 inteiro.
-3. **Typing indicator** — primeiro `case` leve fora da thread. Depois do canal,
-   porque evento de peer não pareado é ruído injetável.
-4. **Reações às mensagens** — mesmo canal do passo 3, agora persistido no
-   `MessageStore`; botão no card já existe.
-5. **Busca nas mensagens** (`/messages/search?q=`) — índice no `MessageStore`.
-   Deixa pronto: consulta sobre o store.
-6. **Lista de transmissão** — multi-seleção de peers + fan-out do send. Por
-   último: aproveita a seleção e o store indexado.
+Cai junto tudo o que dependia do canal pareado: typing indicator, reações às
+mensagens, busca nas mensagens e lista de transmissão. Se alguma delas voltar,
+volta **sem** exigir pareamento — ou não volta.
+
+A spec do desenho segue em
+[`2026-07-29-sync-lan-design.md`](superpowers/specs/2026-07-29-sync-lan-design.md)
+como registro do que foi pensado e por quê; não é mais um plano.
 
 ## Itens soltos
 
@@ -62,8 +62,6 @@ Não compartilham substrato com ninguém — o "roadmap" deles é escolher um e 
 - **Integração com Calendário no pomodoro** — `CalendarCountdown` já lê o
   próximo evento e a permissão já é pedida. Barato.
 - **Cache de imagens em disco** — o de memória já existe; falta só disco + TTL.
-- **UI das perguntas do Claude** — ajuste de layout no `AgentRequestCard`, que já
-  expande e já rola.
 - **Notificações com ações** — ⚠️ travado no `AXUIElement` do banner vivo (ver
   `IDEIAS.md`); a infra de botão já está pronta.
 - **Apple Notes sync** — um `case` novo em `DictationDestination`.

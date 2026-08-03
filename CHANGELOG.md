@@ -6,6 +6,12 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Changed
+- **Pergunta do agente não trunca mais**: expandido, resumo e detalhes moram no
+  mesmo bloco rolável — antes o resumo era cortado em 160 caracteres e duas
+  linhas mesmo com o card aberto. "Ver tudo" aparece agora também quando só o
+  resumo é comprido, sem detalhes anexos.
+
 ## [0.18.1] - 2026-08-03
 
 ### Added

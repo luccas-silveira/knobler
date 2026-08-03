@@ -1,3 +1,85 @@
+# 🏁 SESSÃO 2026-08-03 (fim de noite) — card de pergunta para de truncar
+
+Item solto do roadmap escolhido pelo dono: **UI das perguntas do Claude**.
+
+## O que foi feito
+
+`AgentRequestCard` cortava o resumo em 160 caracteres e duas linhas — e mantinha
+o corte mesmo expandido (`lineLimit(4)` sobre um texto já truncado na string).
+Só os detalhes ganhavam bloco rolável, e a altura do card em `NotchView` só
+crescia quando havia `details`, então resumo comprido sem anexo não tinha como
+aparecer inteiro de jeito nenhum.
+
+Agora, expandido, resumo e detalhes dividem **um** bloco rolável (176 pt de
+teto). O botão passa a aparecer também quando só o resumo é comprido
+(`> 110` caracteres), com o rótulo "Ver tudo"; com detalhes anexos segue "Ver
+detalhes". Fechado, nada mudou: duas linhas e o resumo com reticências.
+`NotchView` soma 156 pt à altura quando o card está expandido e há o que
+expandir.
+
+## Validação
+
+- `./tools/check.sh` → 22 checks ok.
+- Build Debug e Release ok.
+- `tools/snapshot.sh` regenerado; `agent-permission-expanded.png` lido: resumo
+  inteiro dentro do bloco, botões no lugar.
+- Instalado em `/Applications/Knobler.app` (Release, `ditto`), assinatura
+  confirmada `Knobler Local Signing` — Acessibilidade preservada. `GET /status`
+  responde com `tapEnabled: true`.
+
+## Pendências e followups
+
+- O bloco expandido tem altura fixa: conteúdo curto deixa folga vazia embaixo.
+  Medir o texto de verdade só se incomodar.
+- `agent-permission-expanded.png` continua sendo o único snapshot que cobre esse
+  card; a variante "resumo longo sem detalhes" não tem cenário no harness.
+- Roadmap: sobraram calendário no pomodoro, cache de imagens em disco, canal de
+  notificações do dev e o resto dos itens soltos.
+
+---
+
+# 🏁 SESSÃO 2026-08-03 (noite) — sync entre Macs: feito e revertido
+
+Trilha A do roadmap (canal pareado + sync) foi implementada inteira e **revertida
+no mesmo dia**, a pedido do dono do projeto. Nada disso está no código.
+
+## O que foi construído (e não existe mais)
+
+Canal Bonjour próprio `_knobler-sync._tcp` sobre TLS 1.2 com PSK de 256 bits,
+chave em base32 no Keychain, painel de pareamento nos Ajustes; merge
+LWW-Element-Set com relógio híbrido e lápides; lembretes, Ajustes com allowlist
+explícita e histórico de mensagens com mídia em duas fases. Gate `synccheck`
+(23 checks) e um harness de fio (`synclive`) que provava, com Bonjour e TLS de
+verdade, que os dois lados convergiam e que **PSK errada não passava do
+handshake**.
+
+## Por que caiu
+
+Decisão de produto, não falha técnica. Nas palavras do dono: Mensagens LAN
+abertas **não** são um problema a ser corrigido, pareamento por chave engessa um
+app que se usa sem configurar nada, e o campo único de chave não serve pra quem
+quer falar com mais gente. O sync de histórico de mensagens, em particular, foi
+escopo que eu ampliei seguindo a spec — não foi pedido.
+
+## Estado
+
+- Working tree limpa, 22 checks verdes, build Debug ok — igual ao início da
+  sessão. Nada commitado em momento algum.
+- `docs/IDEIAS.md` e `docs/ROADMAP.md`: item movido pra descartadas, Trilha A
+  encerrada (caem junto typing indicator, reações, busca e lista de transmissão
+  enquanto dependerem de canal pareado). A spec de 29/07 ganhou aviso no topo.
+- O diff completo ficou no scratchpad da sessão (`sync-revertido.patch` +
+  `sync-revertido-novos.tgz`), caso um dia isso volte. **Não sobrevive à
+  limpeza do /tmp** — se importa, resgate agora.
+
+## Lição
+
+O grilling de 29/07 desenhou o canal antes de alguém perguntar se pareamento era
+aceitável no produto. Toda a sequência da Trilha A pendia dessa premissa não
+verificada.
+
+---
+
 # 🏁 SESSÃO 2026-08-03 (fim de tarde) — nota que não toma o card, player centrado, histórico que se apaga
 
 Micro-correções pedidas na tela, todas validadas no app Debug rodando.

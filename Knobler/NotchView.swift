@@ -394,9 +394,11 @@ struct NotchView: View {
             return CGSize(width: 380, height: topInset + 72)
         case .question:
             if let request = agentRequestStore.state.active, askStore.state.active == nil {
-                let detailsHeight: CGFloat = agentRequestExpanded && request.details?.isEmpty == false
-                    ? 144 : 0
-                return CGSize(width: 460, height: topInset + 116 + detailsHeight)
+                // expandido troca as 2 linhas do resumo (~34) pelo bloco rolável
+                // com resumo + detalhes (176 + padding)
+                let expandable = request.details?.isEmpty == false || request.summary.count > 110
+                let extra: CGFloat = agentRequestExpanded && expandable ? 156 : 0
+                return CGSize(width: 460, height: topInset + 116 + extra)
             }
             guard let ask = askStore.state.active else {
                 return CGSize(width: 460, height: topInset + 120)

@@ -3,7 +3,13 @@
 Sincronizar lembretes, Ajustes e histórico de mensagens (com mídia) entre os
 Macs do mesmo usuário, pela rede local, sem servidor central.
 
-Decidido em 2026-07-29 numa sessão de grilling. Ainda **não implementado**.
+⚠️ **Descartada em 2026-08-03.** Foi implementada (canal TLS-PSK, merge com HLC
+e tombstones, Ajustes com allowlist, mensagens com mídia em duas fases, gates
+verdes) e revertida no mesmo dia por decisão de produto: pareamento por chave é
+burocracia demais pra este app, e Mensagens LAN sem chave é o comportamento
+desejado. Este documento fica como registro do desenho, não como plano.
+
+Decidido em 2026-07-29 numa sessão de grilling.
 
 ## Por que não é o item do backlog como estava escrito
 

@@ -19,30 +19,26 @@ struct AgentRequestCard: View {
         return String(request.summary.prefix(limit - 1)) + "…"
     }
 
+    /// Fechado corta o resumo em duas linhas; só vale expandir se houver mais
+    /// texto do que isso — resumo comprido ou detalhes.
+    private var hasMoreToShow: Bool {
+        request.details?.isEmpty == false || request.summary.count > 110
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             header
-            Text(summary)
-                .font(.footnote)
-                .foregroundStyle(.white.opacity(0.82))
-                .lineLimit(expanded ? 4 : 2)
-            if expanded, let details = request.details, !details.isEmpty {
-                Group {
-                    if detailsSelectable {
-                        ScrollView {
-                            detailsText(details).textSelection(.enabled)
-                        }
-                    } else {
-                        detailsText(details).lineLimit(8)
-                    }
-                }
-                .frame(maxHeight: 128, alignment: .topLeading)
-                .padding(7)
-                .background(RoundedRectangle(cornerRadius: 8).fill(.white.opacity(0.07)))
+            if expanded {
+                expandedBody
+            } else {
+                Text(summary)
+                    .font(.footnote)
+                    .foregroundStyle(.white.opacity(0.82))
+                    .lineLimit(2)
             }
             HStack(spacing: 6) {
-                if request.details?.isEmpty == false {
-                    Button(expanded ? "Ocultar detalhes" : "Ver detalhes") {
+                if hasMoreToShow {
+                    Button(expanded ? "Ocultar" : (request.details?.isEmpty == false ? "Ver detalhes" : "Ver tudo")) {
                         expanded.toggle()
                     }
                     .buttonStyle(.plain)
@@ -65,6 +61,37 @@ struct AgentRequestCard: View {
             }
         }
         .foregroundStyle(.white)
+    }
+
+    /// Expandido, resumo e detalhes moram no mesmo bloco rolável: texto longo
+    /// fica acessível inteiro em vez de truncar na segunda linha.
+    private var expandedBody: some View {
+        Group {
+            if detailsSelectable {
+                ScrollView { expandedContent.textSelection(.enabled) }
+            } else {
+                // ImageRenderer não desenha ScrollView; no harness corta por linhas.
+                expandedContent
+            }
+        }
+        .frame(maxHeight: 176, alignment: .topLeading)
+        .padding(7)
+        .background(RoundedRectangle(cornerRadius: 8).fill(.white.opacity(0.07)))
+    }
+
+    private var expandedContent: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(request.summary)
+                .font(.footnote)
+                .foregroundStyle(.white.opacity(0.82))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(detailsSelectable ? nil : 5)
+            if let details = request.details, !details.isEmpty {
+                detailsText(details)
+                    .lineLimit(detailsSelectable ? nil : 8)
+            }
+        }
     }
 
     private var header: some View {

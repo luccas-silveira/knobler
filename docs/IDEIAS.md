@@ -13,8 +13,6 @@ A **ordem** de implementação (agrupada por infra compartilhada) mora em
 
 - **Animations suave entre estados**: Transições mais fluidas quando o notch abre/fecha, especialmente a music tab entrando/saindo. Agora é um pouco abrupto.
 
-- **Melhorar UI das perguntas do Claude**: Perguntas e respostas do Claude não aparecem inteiras no notch — truncam ou ficam cortadas. Melhorar a layout pra que conteúdo longo seja acessível (scroll, expansão, etc.).
-
 ---
 
 ## Pomodoro & Produtividade
@@ -48,8 +46,6 @@ A **ordem** de implementação (agrupada por infra compartilhada) mora em
 ## Backend & API
 
 - **Persistência de estado**: Salvar estado do notch (se tava aberto, qual tab) entre restarts — restaura o contexto.
-
-- **Sync entre máquinas**: Se você tiver Knobler em múltiplos Macs, sincronizar Ajustes, reminders, histórico de mensagens via endpoint central.
 
 - **Canal de notificações do desenvolvedor**: Rota endpoint que permite o time enviar notificações pro usuário (novas features, updates críticos, avisos). Notificação aparece no notch e fica persistida; user pode marcar como read/dismiss.
 
@@ -98,6 +94,13 @@ A **ordem** de implementação (agrupada por infra compartilhada) mora em
 - **Múltiplos idiomas simultâneos**: descartada em 2026-07-29 pelo dono do projeto.
 - **Formatação avançada via IA**: descartada em 2026-07-29 pelo dono do projeto.
 - **Filtros no mirror**: descartada em 2026-07-29 pelo dono do projeto.
+- **Sync entre máquinas** (e o pareamento por chave que ela exigia): descartada
+  em 2026-08-03 pelo dono do projeto, depois de implementada e revertida. O
+  motivo não foi técnico — funcionou, com o canal TLS-PSK e o merge convergindo.
+  Foi de produto: pareamento por chave é burocracia pra um app que se usa sem
+  configurar nada, e as Mensagens LAN abertas (sem chave) são um recurso, não um
+  defeito a ser corrigido. Com ela caem também: typing indicator, reações, busca
+  nas mensagens e lista de transmissão enquanto dependerem de canal pareado.
 - **Layout PiP do mirror**: descartada em 2026-07-29 pelo dono do projeto.
 - **Controle de luz virtual**: descartada em 2026-07-29 pelo dono do projeto.
 - **Dark mode forçado**: descartada em 2026-07-29 pelo dono do projeto.
@@ -109,6 +112,8 @@ A **ordem** de implementação (agrupada por infra compartilhada) mora em
 
 ## Entregues
 
+- **Melhorar UI das perguntas do Claude** → resumo e detalhes num bloco rolável
+  ao expandir o card, sem truncar (`docs/agent-requests.md`).
 - **Preview de links** → virou a seção Link do card (`docs/link-preview.md`).
 - **Preview da conversão** → `docs/shelf.md`.
 - **DND inteligente** → "silenciar durante reuniões" (`docs/notifications.md`).

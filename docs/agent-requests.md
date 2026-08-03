@@ -13,6 +13,14 @@ terminal — vence; o outro lado vira no-op.
 - Sem API, sem token, payload estranho ou tempo esgotado: nenhuma decisão sai
   do notch e o prompt nativo do agente continua valendo.
 
+## O card
+
+Fechado, o card mostra cabeçalho (agente, tipo, título, origem), o resumo em
+duas linhas e os botões de decisão. Quando há mais texto do que isso — detalhes
+anexos (diff, comando) ou um resumo comprido — aparece **Ver detalhes** / **Ver
+tudo**: o card cresce e resumo e detalhes passam a dividir um mesmo bloco
+rolável, sem truncar. **Ocultar** volta ao tamanho compacto.
+
 ## Claude Code
 
 Dois hooks, instalados por `tools/claude-hook/install.sh`:
