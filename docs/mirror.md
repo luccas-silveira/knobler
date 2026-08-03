@@ -16,7 +16,10 @@ chamada de verdade.
 - Fixe **Espelho** em Ajustes › Notch (o alfinete na linha): a seção passa a
   ficar sempre na faixa do rodapé, e **abrir a aba já acende a câmera** — não
   há botão pra clicar. Enquanto a sessão sobe (cerca de um segundo), o preview
-  mostra "Ligando a câmera…".
+  mostra "Ligando a câmera…"; se abrir o dispositivo falhar — nenhuma webcam, o
+  USB caiu, outro app está com a câmera — ele troca por **"Câmera
+  indisponível"** em vez de girar pra sempre. Fechar e reabrir a seção tenta de
+  novo.
 - Sem fixar, o espelho só aparece na faixa quando já está ligado — pela API
   local (`POST /mirror`) ou por um atalho que a chame.
 - Recolher o notch desliga o espelho: a câmera nunca fica ligada escondida.

@@ -217,7 +217,9 @@ atuais incluem `notches`, `player`, `visualizerTapped`, `dictation`, `ask`,
 `micInUse` e `lanMessaging`. Cada entrada de `notches` traz também `focus`: o
 identificador da seção que o card aberto está mostrando (`musica`, `atividade`,
 `pomodoro`, `shelf`, `espelho`, `mensagens`, `historico`, `nota`, `link`), ou string
-vazia quando não há seção em foco.
+vazia quando não há seção em foco. O espelho reporta `cameraAuth`,
+`cameraDevice`, `mirrorSessionRunning`, `mirrorUseCount` e `mirrorFailed` —
+este último é `true` quando abrir o dispositivo de vídeo falhou.
 
 ```bash
 curl -sS http://127.0.0.1:4477/status | jq .

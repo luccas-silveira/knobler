@@ -15,7 +15,8 @@ Dynamic Island para o notch do Mac — nativo, Swift/SwiftUI, macOS 14.2+.
   nativo. → [detalhes](docs/huds.md)
 - **Notificações do sistema** interceptadas e exibidas no notch (Acessibilidade),
   com **histórico das últimas 24 h**: uma seção do card aberto, a um clique na
-  faixa do rodapé.
+  faixa do rodapé — cada linha se apaga pelo `X`, ou tudo de uma vez em
+  "Limpar".
   → [detalhes](docs/notifications.md)
 - **Countdown de calendário**: próximo evento entra 15min antes com anel regressivo.
   → [detalhes](docs/calendar-countdown.md)
