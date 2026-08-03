@@ -241,19 +241,20 @@ struct NotchSettingsPane: View {
                         HStack {
                             Label(s.titulo, systemImage: s.simbolo)
                             Spacer()
-                            Button {
-                                if settings.notchSectionsFixadas.contains(s) {
-                                    settings.notchSectionsFixadas.remove(s)
-                                } else {
-                                    settings.notchSectionsFixadas.insert(s)
+                            // checkbox nativo, não `Button` com ícone: dentro de
+                            // uma `List` com `.onMove` o botão disputa o gesto de
+                            // arrastar com a reordenação da linha. O checkbox é o
+                            // controle que o NSTableView já sabe hospedar.
+                            Toggle(isOn: Binding(
+                                get: { settings.notchSectionsFixadas.contains(s) },
+                                set: { fixar in
+                                    if fixar { settings.notchSectionsFixadas.insert(s) }
+                                    else { settings.notchSectionsFixadas.remove(s) }
+                                })) {
+                                    Image(systemName: "pin.fill")
                                 }
-                            } label: {
-                                Image(systemName: settings.notchSectionsFixadas.contains(s)
-                                      ? "pin.fill" : "pin.slash")
-                            }
-                            .buttonStyle(.borderless)
-                            .help(settings.notchSectionsFixadas.contains(s)
-                                  ? "Sempre no card" : "Só quando tem conteúdo")
+                                .toggleStyle(.checkbox)
+                                .help("Sempre no card, mesmo sem conteúdo")
                         }
                     }
                     .onMove { origem, destino in

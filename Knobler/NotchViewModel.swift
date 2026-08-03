@@ -206,16 +206,19 @@ final class NotchViewModel: ObservableObject {
             focoPendente = nil
             return
         }
-        // o pedido só é consumido quando a seção pedida de fato entrou na
-        // ordem; sem conteúdo ainda, ele espera o próximo recálculo
-        if let pedido = focoPendente, secoes.contains(pedido) {
+        let comConteudo = Set(estados.filter(\.hasContent).map(\.section))
+        // o pedido só é consumido quando a seção pedida entrou na ordem E tem o
+        // que mostrar; sem conteúdo ainda, ele espera o próximo recálculo. A
+        // presença na ordem não basta desde que existe seção fixada: fixada
+        // aparece vazia, e consumir o pedido nela abriria o card no vazio em vez
+        // de esperar a mensagem/anexo que motivou o pedido.
+        if let pedido = focoPendente, secoes.contains(pedido), comConteudo.contains(pedido) {
             focar(pedido)
             return
         }
         // uma seção fixada aparece vazia; abrir o card em cima dela mostraria
         // "Nada tocando" com música parada, então o foco procura o primeiro
         // conteúdo real e só cai no primeiro da lista quando não há nenhum.
-        let comConteudo = Set(estados.filter(\.hasContent).map(\.section))
         let inicial = secoes.first(where: { comConteudo.contains($0) }) ?? secoes.first
         guard !focusLocked, let primeira = inicial else {
             // o foco travado pode ter perdido o conteúdo enquanto isso

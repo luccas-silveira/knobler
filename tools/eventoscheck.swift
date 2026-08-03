@@ -42,6 +42,7 @@ struct EventosCheck {
         testFocoInicialPulaFixadaVazia()
         testFocoCaiNaPrimeiraQuandoNadaTemConteudo()
         testFocoTravadoQuePerdeConteudoNaoCaiNaFixadaVazia()
+        testPedidoDeFocoEmFixadaVaziaEspera()
         testOrdemSalvaPassaPorSanear()
         testOrdemPersistidaSobreviveAoRoundTrip()
         testBaseQueChegaNoOrdenarNaoTemDuplicata()
@@ -285,6 +286,25 @@ struct EventosCheck {
         assert(!vm.focusLocked, "a trava deveria cair junto com a seção")
         AppSettings.shared.notchSectionsFixadas = []
         AppSettings.shared.notchSectionOrder = NotchSectionOrder.padrao
+    }
+
+    /// Pedido de foco numa seção FIXADA e vazia espera: fixada está na ordem
+    /// sem ter o que mostrar, e consumir o pedido nela abriria o card no vazio
+    /// em vez de esperar a mensagem que motivou o pedido.
+    static func testPedidoDeFocoEmFixadaVaziaEspera() {
+        AppSettings.shared.notchSectionsFixadas = [.mensagens]
+        let vm = NotchViewModel()
+        vm.focoPendente = .mensagens
+        vm.recalcularSecoes(comConteudo(.musica), travadaNaNota: false)
+        assert(vm.secoes.contains(.mensagens), "a fixada deveria estar na ordem")
+        assert(vm.focus == .musica,
+               "o pedido foi consumido na fixada vazia: \(String(describing: vm.focus))")
+        assert(vm.focoPendente == .mensagens, "o pedido deveria continuar esperando")
+        // agora com conteúdo, o pedido é consumido
+        vm.recalcularSecoes(comConteudo(.musica, .mensagens), travadaNaNota: false)
+        assert(vm.focus == .mensagens, "o pedido não foi consumido com conteúdo")
+        assert(vm.focoPendente == nil, "o pedido consumido deveria ter sido apagado")
+        AppSettings.shared.notchSectionsFixadas = []
     }
 
     static func testTravaDaNotaVenceAEscolhaManual() {

@@ -95,13 +95,17 @@ struct NotchView: View {
     /// A prateleira é a única seção com duas alturas: a grade de itens é uma
     /// linha, o preview de conversão empilha presets e botões.
     static let shelfPreviewHeight: CGFloat = 112
-    static func alturaDaSecao(_ s: NotchSection, preview: Bool = false) -> CGFloat {
+    /// Espelho fixado e desligado é ícone + botão: os 202 da câmera deixariam
+    /// meio card vazio.
+    static let espelhoDesligadoHeight: CGFloat = 96
+    static func alturaDaSecao(_ s: NotchSection, preview: Bool = false,
+                              espelhoLigado: Bool = true) -> CGFloat {
         switch s {
         case .musica: return 118
         case .atividade: return 60
         case .pomodoro: return 128
         case .shelf: return preview ? shelfPreviewHeight : 76
-        case .espelho: return 202
+        case .espelho: return espelhoLigado ? 202 : espelhoDesligadoHeight
         case .mensagens: return 272
         case .historico: return HistoryListView.listHeight + 12
         case .nota: return Self.noteEditorHeight + 20
@@ -340,7 +344,8 @@ struct NotchView: View {
             // metade de baixo do card cai fora do `.onHover` — mover o mouse pra
             // lá lê como saída e fecha o card.
             let corpo = vm.focus.map {
-                Self.alturaDaSecao($0, preview: shelf.preview != nil)
+                Self.alturaDaSecao($0, preview: shelf.preview != nil,
+                                   espelhoLigado: vm.mirrorOn)
             } ?? 118
             // a nota é modo exclusivo: sem faixa, e sem o espaçamento dela
             let faixa = vm.focus == .nota ? 0 : Self.sectionStripHeight + 8
