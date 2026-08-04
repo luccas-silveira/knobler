@@ -45,6 +45,12 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   árvore.
 
 ### Changed
+- **Doc de notificações externas reescrito**: `docs/webhooks.md` passa a começar
+  pelo assistente como porta única (os cinco passos e o escape "Outro serviço
+  (sem preset)"), com seções novas de Presets (o que é, por que o mesmo serviço
+  aparece por caminho, reaplicar é manual) e de Filtros no template (os três,
+  um exemplo cada, falha suave). Imagens do painel e do editor recapturadas e
+  uma do passo Serviço criada.
 - A linha do perfil de webhook mostra estado em vez de "Campos mapeados":
   "Esperando o primeiro envio" / "Sem mapa — último webhook há 3 min" /
   "Último webhook há 3 min". Clicar nela retoma a configuração.

@@ -127,7 +127,13 @@ mensagens permissoes`), tire o screenshot da janela real e salve em
 (as imagens usadas pelos docs de usuário ficam ali, não em `Snapshots/` —
 `Snapshots/` é gitignored e serve só de QA visual local). `screencapture -l<windowID>`
 captura a sombra própria do macOS (PNG com alpha) — corte pra
-`802x554+55+37` antes de salvar (bordas reais da janela, sem halo). Numa tela
+`802x554+55+37` antes de salvar (bordas reais da janela, sem halo).
+⚠️ `-l` **reescala** a janela: num sheet o PNG sai com a janela-mãe em volta, e
+coordenada de clique tirada dessa imagem erra o alvo. Pra automatizar clique +
+captura use `screencapture -R x,y,w,h` com os bounds de
+`CGWindowListCopyWindowInfo` e `sips -z` pra 1x. Clique sintético: SwiftUI só
+responde com `CGWarpMouseCursorPosition` **mais** eventos `.mouseMoved` em
+passos pequenos antes do down/up. Numa tela
 Retina o PNG sai em @2x: o corte equivalente é
 `sips -c 1108 1604 --cropOffset 74 110` seguido de `sips -z 554 802`.
 

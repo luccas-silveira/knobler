@@ -221,3 +221,14 @@ app e sem tentativa-e-erro.
 - **Entrega e segurança do transporte** (HMAC por perfil, fila no relay quando o
   Mac está offline, roteamento entre múltiplos Macs). Mesma razão: entrega, não
   configuração.
+- [Fase 5 — docs, imagens e release](tickets/021-fase-docs-release.md) — a prévia
+  já usava os três filtros desde a Fase 1; sobrou o doc e as imagens.
+  `docs/webhooks.md` reescrito com o assistente como porta única mais as seções
+  **Presets** e **Filtros no template**; `settings-webhooks.png` e
+  `mapping-editor.png` recapturadas e `assistente-servico.png` criada. O fluxo
+  foi enfim exercitado no app rodando — criar perfil, preset, POST real,
+  "Recebido", mapa salvo e card no notch —, o que fecha a pendência de validação
+  aberta na Fase 2. Desvio de receita de captura: `screencapture -l<id>` reescala
+  a janela (as coordenadas de clique tiradas dessa imagem erram o alvo); usar
+  `-R` com os bounds de `CGWindowListCopyWindowInfo`. 34 checks ok. Notion (011,
+  022) segue travado e fora deste release.
