@@ -44,13 +44,17 @@ Dynamic Island para o notch do Mac — nativo, Swift/SwiftUI, macOS 14.2+.
   → [detalhes](docs/nota-rapida.md)
 - **Conta-gotas**: amostra qualquer cor da tela e copia em HEX.
   → [detalhes](docs/color-picker.md)
+- **Anotação de tela**: segure o Control esquerdo e desenhe sobre qualquer app —
+  9 ferramentas, cores, quadro branco/negro, desfazer e apagar, tudo numa seção
+  do próprio card. O traço fica na tela sem bloquear cliques e sobrevive a
+  reiniciar o app. → [detalhes](docs/annotation.md)
 - **Mensagens** com outros Macs na rede local (texto, foto, GIF).
   → [detalhes](docs/messages.md)
 - **Notificações externas** (webhooks): link próprio por perfil, qualquer
   serviço publica no notch. → [detalhes](docs/webhooks.md)
 - **Histórico de 24 h** de tudo que virou card, sobrevivendo a reiniciar o app;
-  e **silêncio durante reuniões** (opt-in), que manda a notificação direto pro
-  histórico em vez de interromper. → [detalhes](docs/notifications.md)
+  e **silêncio durante reuniões e chamadas** (opt-in), que manda a notificação
+  direto pro histórico em vez de interromper. → [detalhes](docs/notifications.md)
 - **Avisos do desenvolvedor**: recados sobre o próprio Knobler (novidade,
   manutenção, problema descoberto) como card no notch, lidos de um JSON público
   do repositório. Desliga em Ajustes › Geral. → [detalhes](docs/avisos.md)

@@ -61,7 +61,6 @@ Não compartilham substrato com ninguém — o "roadmap" deles é escolher um e 
 - **WhatsApp Web** — ⚠️ se for mais um destino de ditado, está descartado junto
   com Apple Notes e Claude API (ver `IDEIAS.md`): o ditado só escreve no campo
   selecionado. Só sobrevive como envio a partir do notch, sem tocar o ditado.
-- **Progresso do AirDrop no notch** — isolado.
 - **Profiling de memória** — isolado.
 - **Animações suaves entre estados** — **último de tudo**: toca todos os estados,
   feito antes é refeito a cada view nova.

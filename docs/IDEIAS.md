@@ -141,6 +141,8 @@ A **ordem** de implementação (agrupada por infra compartilhada) mora em
   ao expandir o card, sem truncar (`docs/agent-requests.md`).
 - **Preview de links** → virou a seção Link do card (`docs/link-preview.md`).
 - **Preview da conversão** → `docs/shelf.md`.
-- **DND inteligente** → "silenciar durante reuniões" (`docs/notifications.md`).
+- **DND inteligente** → "silenciar durante reuniões" e, desde a v0.21.0, também
+  durante chamadas — microfone aceso há mais de 20 s conta como call
+  (`docs/notifications.md`).
 - **Progresso do AirDrop** → estado do envio no notch, sem percentual (a API do
   sistema não expõe bytes transferidos).

@@ -1,3 +1,65 @@
+# 🏁 SESSÃO 2026-08-04 — painel Desenho → v0.21.0
+
+Fecha a anotação de tela: a seção do card (feita na madrugada, nunca commitada)
+saiu junto com um painel de Ajustes próprio e os padrões do traço.
+
+## O que foi feito
+
+**Painel Desenho nos Ajustes** (`SettingsView.swift`). `SettingsPane.desenho`
+novo, entre `notch` e `ditado`. A seção "Anotação de tela" **saiu** de
+`NotchSettingsPane` — não duplicar. Cinco blocos: Ativação, Padrões do traço,
+Fundo, Desvanecer, Atalhos. A tabela de atalhos é **derivada** de
+`AnnotationTool.key`, não escrita à mão — ferramenta nova aparece sozinha.
+
+⚠️ `ColorPicker` do SwiftUI precisa ser qualificado (`SwiftUI.ColorPicker`): o
+projeto tem um `ColorPicker` próprio (o conta-gotas) que sombreia o do
+framework. O erro é `'ColorPicker' cannot be constructed because it has no
+accessible initializers` — não parece um conflito de nome à primeira vista.
+
+**Padrões do traço persistidos** (`AppSettings.swift`, `AnnotationController.swift`).
+`annotationDefaultTool`, `annotationDefaultColor` (hex) e `annotationLineWidth`
+(1–24 pt, era fixa em 6 dentro de `AnnotationStyle`). O controller lê as três no
+init e `refreshScreens()` aplica cor e espessura ao state de cada monitor — é
+por onde um display recém-plugado herda o estado corrente. `setLineWidth` novo,
+espelhando `setColor`. `/status` ganhou `annotation.lineWidth`.
+
+`AnnotationColor.hex` / `init?(hex:)` moram em **extension**, não no corpo do
+struct: um `init` lá dentro apagaria o memberwise `init(red:green:blue:alpha:)`
+que meio mundo usa.
+
+**Release v0.21.0** — o commit levou junto as três frentes que estavam soltas na
+árvore desde ontem (silêncio em chamadas, seção Anotação, painel Desenho).
+Commit único de propósito: os arquivos estavam entrelaçados e picar por hunk
+deixaria commits que não compilam.
+
+## Validação
+
+- `./tools/check.sh` → 25 ok. `annotationcheck` ganhou 5 asserções de hex.
+  ⚠️ Round-trip de cor compara **hex**, não `Double`: `0.82` não sobrevive ao
+  arredondamento pra byte (`0xD1` → `0.8196…`), então `AnnotationColor(hex:) == .yellow` é falso.
+- Release build instalada e rodando; `--ajustes=desenho` abre no painel novo.
+- Persistência provada por fora: `defaults write annotationLineWidth 18` +
+  `annotationDefaultTool arrow` → relaunch → `/status` reflete os dois. Defaults
+  restaurados no fim.
+- `foco-anotacao.png` byte-idêntico depois da mudança.
+- **A queixa "o lápis só aparece depois de desenhar" já estava resolvida**: o
+  `.anotacao: true` em `NotchViewModel.estadoDasSecoes` é de ontem e ainda não
+  estava commitado — a build de `/Applications` (21:46) não tinha. Confirmado no
+  app real: card aberto sem nenhum traço mostra o lápis na faixa.
+
+## Pendências e followups
+
+- `docs/images/settings-desenho.png` foi capturado com `screencapture -R` na
+  geometria da janela + 1 pt de borda (802×554, o mesmo dos outros painéis), num
+  monitor @1x. Numa tela Retina o corte é outro — ver a receita no `CLAUDE.md`.
+- `annotationBackground` continua em UserDefaults cru dentro do controller, fora
+  do `AppSettings`. Migrar só se outra coisa precisar ler.
+- Pendências antigas seguem abertas: hover não expande a pílula do Pomodoro,
+  folga vazia embaixo do card do Pomodoro, `Pomodoro.selfCheck()` órfão do
+  `check.sh`, Link fixado não reabre o último link.
+
+---
+
 # 🏁 SESSÃO 2026-08-03 (noite, 2ª) — avisos do desenvolvedor → v0.20.0
 
 Feature nova de ponta a ponta, mais uma limpeza de backlog. Fecha o item "canal
