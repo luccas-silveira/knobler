@@ -153,6 +153,9 @@ struct MappingEditorView: View {
     /// não tem mapping. Payload real e edição do usuário sempre vencem — o
     /// preset nunca sobrescreve mapa salvo (006).
     var preset: WebhookPreset?
+    /// JSON de exemplo já colado no assistente (008) — semeia a árvore enquanto
+    /// nenhum payload de verdade chegou.
+    var exemplo: JSONValue?
     var onClose: () -> Void
 
     @State private var title = ""
@@ -162,6 +165,9 @@ struct MappingEditorView: View {
     @State private var icon = ""
     @State private var sound = false
     @State private var root: JSONValue?
+    @State private var fonte: FonteDaArvore = .nenhuma
+    @State private var avisoDeColagem: String?
+    @State private var ultimoPayloadAt: Double?
     @State private var origem: [String: Any]?
     @State private var loading = true
     @State private var saving = false
@@ -182,6 +188,7 @@ struct MappingEditorView: View {
         }
         .frame(minWidth: 640, minHeight: 480)
         .task { await load() }
+        .task { await acompanharPayload() }
     }
 
     // MARK: cabeçalho / rodapé
@@ -284,6 +291,14 @@ struct MappingEditorView: View {
             }
             .padding([.horizontal, .top])
 
+            if let aviso = avisoDeColagem {
+                avisoInline(aviso)
+            }
+
+            if let faixa = fonte.faixa {
+                faixaDeExemplo(faixa)
+            }
+
             if let root {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 2) {
@@ -299,10 +314,75 @@ struct MappingEditorView: View {
                     Text("Mande um webhook de teste para o link deste perfil e clique em Recarregar.")
                         .font(.callout).foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
+                    Text("Ou monte o mapa agora, colando um JSON de exemplo.")
+                        .font(.caption).foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
+                    botaoColar
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding()
             }
+        }
+    }
+
+    /// Um clique: lê o clipboard, parseia e monta a árvore (008). Sem campo de
+    /// texto — o payload real tem quilobytes e ninguém revisa isso digitando.
+    private var botaoColar: some View {
+        Button {
+            colarExemplo()
+        } label: {
+            Label("Colar JSON de exemplo", systemImage: "doc.on.clipboard")
+        }
+        .controlSize(.small)
+    }
+
+    private func avisoInline(_ texto: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(texto, systemImage: "exclamationmark.triangle")
+                .font(.callout).foregroundStyle(.orange)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Button("Colar de novo") { colarExemplo() }
+                Button("Descartar") { avisoDeColagem = nil }
+            }
+            .controlSize(.small)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 8).fill(.quinary))
+        .padding(.horizontal)
+    }
+
+    private func faixaDeExemplo(_ texto: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "doc.on.clipboard").foregroundStyle(.secondary)
+            Text(texto).font(.caption).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            if fonte.podeDescartar {
+                Button("Descartar") {
+                    root = nil
+                    fonte = .nenhuma
+                }
+                .buttonStyle(.borderless).controlSize(.small)
+            }
+        }
+        .padding(8)
+        .background(RoundedRectangle(cornerRadius: 8).fill(.quinary))
+        .padding(.horizontal)
+    }
+
+    private func colarExemplo() {
+        switch ExemploColado.avaliar(NSPasteboard.general.string(forType: .string)) {
+        case .arvore(let v):
+            root = v
+            fonte = .exemplo
+            avisoDeColagem = nil
+            // ponytail: o auto-mapeamento de 005 (Fase 4) entra aqui quando existir.
+        case .invalido(let trecho):
+            avisoDeColagem = ExemploColado.mensagemDeErro(trecho)   // árvore anterior fica intacta
+        case .vazio:
+            avisoDeColagem = ExemploColado.mensagemDeErro("")
         }
     }
 
@@ -331,10 +411,15 @@ struct MappingEditorView: View {
         }
         icon = detail.icon ?? ""
         // árvore a partir do último payload capturado
+        ultimoPayloadAt = detail.lastPayloadAt
         if let payload = detail.lastPayload, let data = payload.data(using: .utf8),
            let any = try? JSONSerialization.jsonObject(with: data) {
             root = JSONValue.from(any)
-        } else {
+            fonte = .real
+        } else if let exemplo, fonte == .nenhuma {
+            root = exemplo
+            fonte = .exemplo
+        } else if fonte != .exemplo {
             root = nil
         }
     }
@@ -343,10 +428,26 @@ struct MappingEditorView: View {
     /// (title/body/url/id/sound/icon) — evita perder edições não salvas ao clicar "Recarregar".
     private func reloadPayload() async {
         guard let detail = await client.getProfile(profile.id) else { return }
-        if let payload = detail.lastPayload, let data = payload.data(using: .utf8),
-           let any = try? JSONSerialization.jsonObject(with: data) {
-            root = JSONValue.from(any)
+        aplicar(detail)
+    }
+
+    /// Polling de 2s enquanto o sheet está aberto (007): payload real vence o
+    /// exemplo colado e troca a árvore sozinho — é o instante que se esperava.
+    private func acompanharPayload() async {
+        while !Task.isCancelled {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard !Task.isCancelled, let detail = await client.getProfile(profile.id) else { continue }
+            guard detail.lastPayloadAt != ultimoPayloadAt else { continue }
+            aplicar(detail)
         }
+    }
+
+    private func aplicar(_ detail: WebhookClient.ProfileDetail) {
+        ultimoPayloadAt = detail.lastPayloadAt
+        guard let payload = detail.lastPayload, let data = payload.data(using: .utf8),
+              let any = try? JSONSerialization.jsonObject(with: data) else { return }
+        root = JSONValue.from(any)
+        fonte = fonte.comPayloadReal
     }
 
     private func save() async {

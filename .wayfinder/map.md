@@ -56,6 +56,16 @@ app e sem tentativa-e-erro.
   `assistentecheck` (32 checks). A legenda precisa de `lastPayloadAt` por perfil;
   como `GET /profiles` não o devolve, o app faz um `GET /profiles/:id` por linha
   (N+1 anotado no código) em vez de mexer no relay já implantado.
+- [Fase 3 — colar JSON de exemplo](tickets/019-fase-colar-json.md) — 008 no ar:
+  `Knobler/WebhookExemplo.swift` (puro, sem SwiftUI) com o parse do clipboard, o
+  trecho de ~80 caracteres do aviso e a `FonteDaArvore`, cujo `comPayloadReal`
+  é a precedência "real vence o exemplo"; gate `exemplocheck` (33 checks). O
+  botão está no estado vazio do editor e no passo Primeiro envio (que passa a
+  deixar continuar com exemplo colado). Desvio pequeno de 008: o editor não
+  tinha polling — só "Recarregar" —, então ganhou o mesmo laço de 2s do
+  assistente, senão "troca sozinho" seria mentira. O disparo do auto-mapeamento
+  ao colar fica marcado com `// ponytail:` no editor: 005 é a Fase 4 (020).
+
 - [Payload de webhook do GoHighLevel](tickets/001-payload-webhook-ghl.md) — são
   dois sistemas: o de Marketplace tem envelope estável e dedupe (`webhookId`); o
   de workflow tem corpo customizável e variável por gatilho, então preset de

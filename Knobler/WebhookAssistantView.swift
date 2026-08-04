@@ -28,6 +28,8 @@ struct WebhookAssistantView: View {
     @State private var profileID: String?
     @State private var lastPayloadAt: Double?
     @State private var criando = false
+    @State private var exemplo: JSONValue?          // só local, some ao fechar o sheet (008)
+    @State private var avisoDeColagem: String?
 
     private var preset: WebhookPreset? { presetID.flatMap(WebhookPresets.by(id:)) }
     private var link: String? { profileID.flatMap { client.link(for: $0) } }
@@ -40,6 +42,7 @@ struct WebhookAssistantView: View {
                     client: client,
                     profile: .init(id: id, name: nome, hasMapping: false, icon: nil),
                     preset: preset,
+                    exemplo: exemplo,
                     onClose: onClose)
             } else {
                 trilha
@@ -106,7 +109,7 @@ struct WebhookAssistantView: View {
     private var podeContinuar: Bool {
         switch passo {
         case .nome: return !nome.trimmingCharacters(in: .whitespaces).isEmpty && !criando
-        case .primeiroEnvio: return lastPayloadAt != nil
+        case .primeiroEnvio: return lastPayloadAt != nil || exemplo != nil
         default: return true
         }
     }
@@ -242,6 +245,41 @@ struct WebhookAssistantView: View {
                  + "painel retoma daqui.")
                 .font(.caption).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            if lastPayloadAt == nil {
+                Divider().frame(maxWidth: 520)
+                Text(exemplo == nil
+                     ? "Sem esperar: cole um JSON de exemplo do serviço e monte o mapa agora."
+                     : "Exemplo colado — dá pra montar o mapa. Quando o envio de verdade chegar, ele troca o exemplo.")
+                    .font(.callout).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: 520, alignment: .leading)
+                Button {
+                    colarExemplo()
+                } label: {
+                    Label(exemplo == nil ? "Colar JSON de exemplo" : "Colar outro JSON",
+                          systemImage: "doc.on.clipboard")
+                }
+                .controlSize(.small)
+                if let avisoDeColagem {
+                    Label(avisoDeColagem, systemImage: "exclamationmark.triangle")
+                        .font(.caption).foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: 520, alignment: .leading)
+                }
+            }
+        }
+    }
+
+    private func colarExemplo() {
+        switch ExemploColado.avaliar(NSPasteboard.general.string(forType: .string)) {
+        case .arvore(let v):
+            exemplo = v
+            avisoDeColagem = nil
+        case .invalido(let trecho):
+            avisoDeColagem = ExemploColado.mensagemDeErro(trecho)
+        case .vazio:
+            avisoDeColagem = ExemploColado.mensagemDeErro("")
         }
     }
 

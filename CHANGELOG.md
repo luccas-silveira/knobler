@@ -28,6 +28,13 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   espera o webhook chegar de verdade e o Mapa já é o editor, com os campos
   semeados pela receita. Fechar no meio não perde nada: o perfil fica esperando
   e a linha dele no painel retoma de onde parou.
+- **Colar JSON de exemplo**: dá pra montar o mapa sem esperar webhook nenhum —
+  um clique lê o JSON que estiver copiado e monta a árvore. O exemplo é só local
+  (some ao fechar) e vem marcado por uma faixa; quando o payload de verdade
+  chega, ele troca o exemplo sozinho e avisa. Clipboard que não é JSON vira
+  aviso inline com o começo do que foi lido, sem mexer na árvore que já estava
+  na tela. Botão no estado vazio do editor e no passo Primeiro envio do
+  assistente.
 
 ### Changed
 - A linha do perfil de webhook mostra estado em vez de "Campos mapeados":
