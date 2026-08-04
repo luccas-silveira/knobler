@@ -2,7 +2,7 @@
 
 - map: ../map.md
 - label: wayfinder:task
-- status: in-progress
+- status: closed
 - assignee: claude (sessão 2026-08-04)
 - blocked-by: — (015 fechado)
 
@@ -27,7 +27,7 @@ Implementar no `relay/` tudo que o app vai precisar, antes de tocar no app.
 Fecha quando `./tools/check.sh` passa com os gates novos e o relay está no ar
 com os campos aditivos.
 
-## Resolução (2026-08-04) — código pronto, **falta deploy**
+## Resolução (2026-08-04) — implementado e **no ar**
 
 - `relay/src/template.js`: `FILTROS` é um objeto com a lista fechada
   (`semHifens`, `data`, `quill`); `render()` faz `expr.split('|')` e aplica o
@@ -46,5 +46,12 @@ com os campos aditivos.
   máquina (node v26 local vs `engines <21`, e o npm bloqueia install scripts).
   O SQL novo foi validado à parte contra `node:sqlite` (ALTER duplicado ignorado,
   `payload_count` chega a 2 depois de dois `storeLastPayload`).
-- **Pendente**: deploy em `push.appzoi.com.br` (`docs/relay-operacao.md`).
-  Nada no app depende disso ainda; a fase seguinte depende.
+- **Deploy feito** (2026-08-04) na VPS `root@147.79.87.179`, dir
+  `/opt/knobler-relay` (não é checkout git — arquivos copiados). Receita:
+  backup (`cp -a src src.bak.202608041340` e `sqlite3 .backup` →
+  `relay.db.bak.202608041640`), `rsync -a --delete` de `relay/src/` e
+  `relay/test/`, `npm test` na VPS = **48/48** (node 18.19.1 — inclui `db` e
+  `server`, que não rodam local), `pm2 restart knobler-relay`.
+  Conferido: `PRAGMA table_info(profiles)` mostra `last_payload_at` e
+  `payload_count`; `https://push.appzoi.com.br/health` →
+  `{"ok":true,"online":2}`; nenhum log de "migração de perfis falhou".

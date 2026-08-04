@@ -36,7 +36,9 @@ app e sem tentativa-e-erro.
 - [Fase 0 — relay](tickets/016-fase-relay.md) — implementada: filtros em
   `render()` (lista fechada, falha suave), `lastPayloadAt`/`payloadCount` em
   `GET /profiles/:id` por `ALTER TABLE` solto, e os quatro testes herméticos do
-  relay entraram no `tools/check.sh` (nunca tinham rodado na CI). Falta o deploy.
+  relay entraram no `tools/check.sh` (nunca tinham rodado na CI). **No ar**:
+  deploy por rsync em `/opt/knobler-relay`, `npm test` 48/48 na VPS, colunas
+  conferidas no banco de produção e `/health` público ok.
 - [Payload de webhook do GoHighLevel](tickets/001-payload-webhook-ghl.md) — são
   dois sistemas: o de Marketplace tem envelope estável e dedupe (`webhookId`); o
   de workflow tem corpo customizável e variável por gatilho, então preset de
