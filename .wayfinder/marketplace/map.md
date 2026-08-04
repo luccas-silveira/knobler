@@ -151,6 +151,22 @@ propósito.
   o `sectionordercheck` seguir rodando sem subir o app; dois casos novos no gate
   do piloto.
 
+- [A API local quando o plugin está desligado](tickets/008-api-local-com-plugin-desligado.md)
+  — o medo era maior que o problema: **uma rota só é de plugin** (`POST /mirror`,
+  do Espelho); o resto da API é de fábrica ou é o canal de agentes, e a cobaia
+  (Pomodoro) não tem rota, então isto não trava o piloto. Rota de peça
+  desinstalada responde **`404` com `plugin` no corpo** — código que script
+  antigo já trata, mais o id que deixa o outro lado dizer "instale o Espelho" em
+  vez de "erro desconhecido"; sem o guard a rota **mentiria** `{"ok":true}`,
+  porque chamar callback vazio não dá erro. No `GET /status` os campos de peça
+  desligada **somem de graça** (cada serviço põe o próprio campo, e o doc já diz
+  que o schema não é contrato), e entra **um campo `plugins`** com a lista de ids
+  de 005, pra o script perguntar uma vez em vez de descobrir batendo em rota. A
+  fronteira estável/opcional vira **marca no título da rota** (`(plugin: X)`),
+  não seção nova. **A API não instala plugin** — as rotas antigas não têm
+  autenticação, então seria qualquer processo local ligando microfone e câmera
+  sem a pessoa ver. Custo total: um `guard`, uma linha e três de doc.
+
 ## Not yet specified
 
 - **Permissões por plugin.** Hoje nenhuma permissão é pedida no launch, e o painel

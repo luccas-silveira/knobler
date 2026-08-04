@@ -4,7 +4,7 @@
 - label: wayfinder:grilling
 - status: open
 - assignee: —
-- blocked-by: 008 (003, 004, 005, 006, 007 e 010 fechados)
+- blocked-by: — (003, 004, 005, 006, 007, 008 e 010 fechados)
 
 ## Question
 
