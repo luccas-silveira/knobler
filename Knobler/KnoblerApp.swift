@@ -973,6 +973,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             } else {
                 let viewModel = NotchViewModel()
                 viewModel.displayID = id
+                viewModel.restaurarFocoSalvo()
                 let panel = NotchWindow(
                     contentRect: .zero,
                     styleMask: [.borderless, .nonactivatingPanel],

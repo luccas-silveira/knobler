@@ -44,6 +44,8 @@ struct EventosCheck {
         testPedidoDeFocoComOCardJaAberto()
         testPedidoDeFocoSemConteudoEspera()
         testFecharOCardApagaOPedido()
+        testFocoSobreviveAoRelaunch()
+        testFocoVazioNaoApagaOSalvo()
         testPublicarAltura()
         // estes mexem na preferência salva; ficam por último pra não desarrumar
         // a ordem de fábrica que os testes acima assumem.
@@ -448,6 +450,41 @@ struct EventosCheck {
         vm.recalcularSecoes(comConteudo(.musica, .mensagens), travadaNaNota: false)
         assert(vm.focus == .mensagens, "o pedido guardado não foi honrado")
         assert(vm.focoPendente == nil, "o pedido honrado deveria ter esvaziado o slot")
+    }
+
+    /// O foco atravessa o relaunch. O que este check guarda é o acoplamento
+    /// entre as duas pontas: gravar o `focus` no disco e restaurá-lo pelo slot
+    /// `focoPendente` — quem trocar a restauração por `focus = salvo` direto
+    /// perde a espera por conteúdo e abre o card no vazio.
+    static func testFocoSobreviveAoRelaunch() {
+        UserDefaults.standard.removeObject(forKey: NotchViewModel.focoSalvoKey)
+        let antes = NotchViewModel()
+        antes.expanded = true
+        antes.recalcularSecoes(comConteudo(.musica, .mensagens), travadaNaNota: false)
+        antes.focar(.mensagens)
+        assert(UserDefaults.standard.string(forKey: NotchViewModel.focoSalvoKey) == "mensagens",
+               "a escolha do usuário não chegou no disco")
+
+        // relaunch: a seção salva ainda não tem conteúdo, então o pedido espera
+        let depois = NotchViewModel()
+        depois.restaurarFocoSalvo()
+        depois.expanded = true
+        depois.recalcularSecoes(comConteudo(.musica), travadaNaNota: false)
+        assert(depois.focus == .musica, "a restauração abriu o card numa seção vazia")
+        assert(depois.focoPendente == .mensagens, "o foco salvo foi descartado cedo demais")
+        depois.recalcularSecoes(comConteudo(.musica, .mensagens), travadaNaNota: false)
+        assert(depois.focus == .mensagens, "o foco salvo não foi restaurado")
+    }
+
+    /// Perder todo o conteúdo zera o `focus` — e esse nil não pode apagar a
+    /// escolha gravada, senão o relaunch seguinte abre no automático.
+    static func testFocoVazioNaoApagaOSalvo() {
+        UserDefaults.standard.set("mensagens", forKey: NotchViewModel.focoSalvoKey)
+        let vm = NotchViewModel()
+        vm.recalcularSecoes([], travadaNaNota: false)
+        assert(vm.focus == nil, "pré-condição: sem seção não há foco")
+        assert(UserDefaults.standard.string(forKey: NotchViewModel.focoSalvoKey) == "mensagens",
+               "o foco vazio apagou a escolha salva")
     }
 
     static func testFecharOCardApagaOPedido() {

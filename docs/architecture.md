@@ -118,6 +118,13 @@ alvo de clique da faixa. Clique num ícone ou swipe horizontal chamam
 de mensagem, por exemplo). A nota rápida é modo exclusivo: com ela em foco a
 faixa some.
 
+O `focus` é gravado no `UserDefaults` (`notchFocus`, chave única — não por
+monitor) e volta na composição das janelas via `restaurarFocoSalvo()`, que o
+enfileira como `focoPendente` em vez de escrever no `focus`: assim a restauração
+herda a espera por conteúdo e nunca abre o card numa seção vazia. Foco nil (sem
+seção nenhuma) não apaga a chave. O `expanded` **não** é restaurado de propósito
+— o card abre por hover.
+
 A altura do card é derivada do foco (`NotchView.alturaDaSecao`, que o
 `currentSize` consome) e publicada em `NotchViewModel.alturaAtual`, que o
 monitor de scroll — fora do SwiftUI — usa pra delimitar a zona do gesto junto

@@ -41,10 +41,6 @@ A **ordem** de implementação (agrupada por infra compartilhada) mora em
 
 ---
 
-## Backend & API
-
-- **Persistência de estado**: Salvar estado do notch (se tava aberto, qual tab) entre restarts — restaura o contexto.
-
 ---
 
 ## Integrações Externas
@@ -116,6 +112,11 @@ A **ordem** de implementação (agrupada por infra compartilhada) mora em
   identidade local. Virou "silenciar durante chamadas", pelo microfone.
 
 ## Entregues
+
+- **Persistência de estado** → só a seção em foco atravessa o restart, pelo slot
+  `focoPendente` que já esperava seção com conteúdo. A outra metade do pitch —
+  restaurar o card **aberto** — foi cortada de propósito: o card abre por hover,
+  e um card sozinho na tela ao ligar o Mac é ruído, não contexto.
 
 - **Silenciar durante chamadas** → o gate de silêncio passou a aceitar um segundo
   gatilho: microfone em uso há mais de 20 s (`docs/notifications.md`). O limiar é

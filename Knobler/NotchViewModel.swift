@@ -174,7 +174,16 @@ final class NotchViewModel: ObservableObject {
     /// `internal` e não `private(set)`: o harness de snapshot monta a lista à
     /// mão pra capturar cenários que não dá pra provocar offscreen.
     @Published var secoes: [NotchSection] = []
-    @Published var focus: NotchSection?
+    @Published var focus: NotchSection? {
+        // o foco atravessa o relaunch; ver `restaurarFocoSalvo()`. Só grava
+        // valor real: perder as seções (nenhum conteúdo) zera o foco, e gravar
+        // esse nil apagaria a escolha do usuário sem que ele tenha escolhido.
+        didSet {
+            guard let focus, focus != oldValue else { return }
+            UserDefaults.standard.set(focus.rawValue, forKey: Self.focoSalvoKey)
+        }
+    }
+    static let focoSalvoKey = "notchFocus"
     /// Escolha manual do usuário (clique na faixa ou swipe): nenhuma promoção
     /// tira o foco até o notch recolher.
     @Published private(set) var focusLocked = false
@@ -196,6 +205,18 @@ final class NotchViewModel: ObservableObject {
     ///    `expanded` e ela não acontece;
     /// 3. fechar o card apaga o pedido (ver o `didSet` de `expanded`).
     var focoPendente: NotchSection?
+
+    /// Reenfileira o foco da sessão anterior como pedido pendente. Não é o
+    /// `focus` direto de propósito: `focoPendente` já espera a seção existir E
+    /// ter conteúdo, então a restauração nunca abre o card numa seção vazia —
+    /// e a trava da nota e uma escolha manual seguem vencendo o pedido.
+    ///
+    /// Chave única, não por monitor: dois notches restauram o mesmo foco.
+    /// Chave por `displayID` quando alguém reclamar.
+    func restaurarFocoSalvo() {
+        focoPendente = UserDefaults.standard.string(forKey: Self.focoSalvoKey)
+            .flatMap(NotchSection.init(rawValue:))
+    }
 
     func recalcularSecoes(_ estados: [NotchSectionState], travadaNaNota: Bool) {
         secoes = NotchSectionOrder.ordenar(base: AppSettings.shared.notchSectionOrder,
