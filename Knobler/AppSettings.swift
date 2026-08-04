@@ -108,6 +108,14 @@ final class AppSettings: ObservableObject {
     @Published var webhookNotifications: Bool {
         didSet { UserDefaults.standard.set(webhookNotifications, forKey: "webhookNotifications") }
     }
+    /// Novidades e avisos do desenvolvedor (JSON público, buscado a cada 24 h).
+    /// Opt-out: nasce ligado, porque um canal desligado por padrão não tem
+    /// alcance — e sem alcance não vale o código. Desligar silencia os avisos
+    /// normais; os **críticos** (falha que perde dado, problema de segurança)
+    /// continuam chegando, e o rótulo em Ajustes diz isso.
+    @Published var avisosDoDesenvolvedor: Bool {
+        didSet { UserDefaults.standard.set(avisosDoDesenvolvedor, forKey: "avisosDoDesenvolvedor") }
+    }
     /// Baixa o avatar remoto das notificações de webhook (expõe o IP do Mac ao remetente).
     @Published var loadRemoteImages: Bool {
         didSet { UserDefaults.standard.set(loadRemoteImages, forKey: "loadRemoteImages") }
@@ -249,6 +257,7 @@ final class AppSettings: ObservableObject {
         let fade = defaults.double(forKey: "annotationFadeSeconds")
         annotationFadeSeconds = fade == 0 ? 3 : min(30, max(0.5, fade))
         webhookNotifications = defaults.bool(forKey: "webhookNotifications") // default false: opt-in
+        avisosDoDesenvolvedor = flag("avisosDoDesenvolvedor")                 // default true
         loadRemoteImages = flag("loadRemoteImages")                           // default true
         notchSectionOrder = NotchSectionOrder.sanear(
             salva: defaults.stringArray(forKey: "notchSectionOrder") ?? [])

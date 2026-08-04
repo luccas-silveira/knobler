@@ -6,6 +6,15 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- **Avisos do desenvolvedor**: novidades e recados sobre o Knobler chegam como
+  card no notch. O app lê um JSON público do repositório uma vez por dia — sem
+  servidor, sem identificador do Mac na requisição, sem canal de volta. Cada
+  aviso aparece uma vez só e respeita "silenciar durante reuniões". Desliga em
+  Ajustes → Geral; avisos **críticos** (segurança, falha que perde dado)
+  continuam chegando mesmo desligado, e o rótulo do interruptor diz isso.
+  Ver [`docs/avisos.md`](docs/avisos.md).
+
 ## [0.19.0] - 2026-08-03
 
 ### Added

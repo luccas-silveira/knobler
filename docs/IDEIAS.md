@@ -45,15 +45,9 @@ A **ordem** de implementação (agrupada por infra compartilhada) mora em
 
 - **Persistência de estado**: Salvar estado do notch (se tava aberto, qual tab) entre restarts — restaura o contexto.
 
-- **Canal de notificações do desenvolvedor**: Rota endpoint que permite o time enviar notificações pro usuário (novas features, updates críticos, avisos). Notificação aparece no notch e fica persistida; user pode marcar como read/dismiss.
-
 ---
 
 ## Integrações Externas
-
-- **Apple Notes sync**: Enviar nota criada via ditado direto pro Apple Notes (em vez de só local).
-
-- **Integração com Claude API**: Ditado vai pro Claude, resposta vem no notch — QA rápido sem abrir browser.
 
 - **WhatsApp Web**: Enviar mensagens via WhatsApp direto do notch (parse da URL, login headless).
 
@@ -100,6 +94,11 @@ A **ordem** de implementação (agrupada por infra compartilhada) mora em
   rede (chega em base64 pelo MediaRemote) e as mídias das mensagens são locais.
   Cache em disco só pouparia o redownload de um ícone pequeno após reiniciar o
   app.
+- **Apple Notes sync** e **Integração com Claude API**: descartadas em 2026-08-03
+  pelo dono do projeto. As duas eram destino novo de ditado, e a regra é: o
+  ditado só escreve no **campo de texto que a pessoa tem selecionado** — nunca
+  num app terceiro, num arquivo ou numa API. Qualquer pitch futuro que crie um
+  `case` novo em `DictationDestination` bate nessa regra antes de qualquer coisa.
 - **Layout PiP do mirror**: descartada em 2026-07-29 pelo dono do projeto.
 - **Controle de luz virtual**: descartada em 2026-07-29 pelo dono do projeto.
 - **Dark mode forçado**: descartada em 2026-07-29 pelo dono do projeto.
@@ -111,6 +110,13 @@ A **ordem** de implementação (agrupada por infra compartilhada) mora em
 
 ## Entregues
 
+- **Canal de notificações do desenvolvedor** → virou os avisos do
+  desenvolvedor (`docs/avisos.md`), mas **não** pelo relay: `webhookNotifications`
+  é opt-in e nasce desligado, então um broadcast só alcançaria quem já pareou.
+  Virou polling de um JSON público do repo, que alcança 100% da base sem infra
+  nova. O "read/dismiss" do pitch original colapsou em um: o aviso aparece uma
+  vez e o id fica registrado. Um estado "não lido" separado pediria badge e
+  contador no histórico — não se paga num canal que emite uma vez por mês.
 - **Wizard de primeira execução** + **Dicas de hotkeys** → viraram um só: a
   janela de boas-vindas, com o passo do que é o app e o dos dois atalhos
   globais, versionada por passo (`docs/onboarding.md`). O "minimal setup" do

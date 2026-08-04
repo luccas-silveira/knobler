@@ -30,6 +30,7 @@ contratos e explicações para entender decisões.
 - [Now Playing](now-playing.md)
 - [HUDs](huds.md)
 - [Notificações](notifications.md)
+- [Avisos do desenvolvedor](avisos.md) — recados sobre o próprio Knobler
 - [Countdown de calendário](calendar-countdown.md)
 - [Ditado](dictation.md)
 - [Pomodoro](pomodoro.md)

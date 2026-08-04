@@ -65,6 +65,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let lanMessaging = LANMessaging()
     private var lanCancellables = Set<AnyCancellable>()
     private let dictation = DictationController()
+    private let devAvisos = DevAvisosController()
+    /// Botões dos avisos do desenvolvedor: token do card → URLs (só https).
+    /// Existe porque o `actionToken` normal resolve num `AXUIElement` vivo do
+    /// interceptor, e um aviso vindo de JSON não tem banner nenhum atrás.
+    private var avisoActionURLs: [UUID: [String]] = [:]
     private let calendar = CalendarCountdown()
     /// Reunião com link de call acontecendo agora (vem do `CalendarCountdown`).
     private var emReuniao = false
@@ -287,6 +292,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 }
             }
         Updater.shared.start()
+
+        // Avisos do desenvolvedor: JSON público a cada 24 h. Passa pelo
+        // `publicar` como qualquer coisa vinda de fora — logo respeita o
+        // silêncio de reunião, inclusive o crítico (silenciar não descarta: o
+        // card está no Histórico quando a call acabar).
+        devAvisos.ligadoProvider = { AppSettings.shared.avisosDoDesenvolvedor }
+        devAvisos.onAviso = { [weak self] aviso in
+            guard let self else { return }
+            // som antes do publicar: em reunião o card não aparece, e um bipe
+            // sem card na tela é pior que silêncio
+            let card = self.notificacao(de: aviso)
+            self.publicar(card)
+            if aviso.som, !self.emReuniao || !AppSettings.shared.silenciarEmReuniao {
+                NSSound(named: "Pop")?.play()   // mesmo som do webhook
+            }
+        }
+        devAvisos.start()
 
         // pontinho laranja enquanto algum app usa o microfone
         micMonitor.onChange = { [weak self] inUse in
@@ -968,7 +990,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 // Nos dois casos o card sai de todas as telas.
                 viewModel.onNotificationAction = { [weak self] token, index in
                     guard let self else { return }
-                    if let reminder = AppSettings.shared.reminders.first(where: { $0.id == token }),
+                    if let urls = self.avisoActionURLs.removeValue(forKey: token) {
+                        // só https chega aqui (DevAvisos.saneadas), mas a guarda
+                        // fica: é o último ponto antes de abrir o navegador
+                        if urls.indices.contains(index), let url = URL(string: urls[index]),
+                           url.scheme?.lowercased() == "https" {
+                            NSWorkspace.shared.open(url)
+                        }
+                    } else if let reminder = AppSettings.shared.reminders.first(where: { $0.id == token }),
                        Self.snoozeOptions.indices.contains(index) {
                         self.snooze(reminder, by: Self.snoozeOptions[index].minutes)
                     } else {
@@ -1315,6 +1344,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
         NotificationHistory.shared.record(notification)
+    }
+
+    /// Aviso do desenvolvedor → card. O `actionToken` aqui não é o handle do
+    /// interceptor: é só a chave que liga os botões deste card às URLs em
+    /// `avisoActionURLs`. O card só renderiza botão quando há token
+    /// (`NotchView.swift:1401`), então sem ação não geramos nenhum.
+    private func notificacao(de aviso: Aviso) -> NotchNotification {
+        let token = aviso.acoes.isEmpty ? nil : UUID()
+        if let token {
+            // teto de segurança: cada aviso deixa uma entrada, e só o clique a
+            // consome. Sem isto um feed rajado vazaria memória devagar.
+            if avisoActionURLs.count > 20 { avisoActionURLs.removeAll() }
+            avisoActionURLs[token] = aviso.acoes.map(\.url)
+        }
+        return NotchNotification(
+            appName: "Knobler",
+            title: aviso.titulo,
+            body: aviso.corpo,
+            iconEmoji: aviso.iconEmoji ?? (aviso.critico ? "🚨" : "📣"),
+            actionTitles: aviso.acoes.map(\.titulo),
+            actionToken: token,
+            actionURLs: aviso.acoes.map(\.url),
+            // mesmo id substitui em vez de empilhar, igual ao webhook
+            webhookID: "aviso:\(aviso.id)")
     }
 
     /// Conta-gotas: lupa nativa, HEX no clipboard, card no notch com os outros
