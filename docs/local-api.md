@@ -214,10 +214,14 @@ não responde e o Codex mostra a aprovação nativa. Detalhes em
 
 Retorna diagnóstico do app. O schema é deliberadamente extensível; campos
 atuais incluem `notches`, `player`, `visualizerTapped`, `dictation`, `ask`,
-`micInUse` e `lanMessaging`. Cada entrada de `notches` traz também `focus`: o
+`micInUse`, `silenciando` e `lanMessaging`. `silenciando` é `true` quando a
+notificação que chegar agora vai direto pro histórico em vez de virar card (ver
+[`notifications.md`](notifications.md)). Cada entrada de `notches` traz também `focus`: o
 identificador da seção que o card aberto está mostrando (`musica`, `atividade`,
-`pomodoro`, `shelf`, `espelho`, `mensagens`, `historico`, `nota`, `link`), ou string
-vazia quando não há seção em foco. O espelho reporta `cameraAuth`,
+`pomodoro`, `shelf`, `espelho`, `mensagens`, `historico`, `nota`, `link`,
+`anotacao`), ou string vazia quando não há seção em foco. A anotação de tela
+reporta em `annotation`: `axTrusted`, `tapExists`, `tapEnabled`, `isActive`,
+`tool`, `background` e `lineWidth`. O espelho reporta `cameraAuth`,
 `cameraDevice`, `mirrorSessionRunning`, `mirrorUseCount` e `mirrorFailed` —
 este último é `true` quando abrir o dispositivo de vídeo falhou.
 

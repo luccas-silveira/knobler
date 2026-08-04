@@ -73,6 +73,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let calendar = CalendarCountdown()
     /// Reunião com link de call acontecendo agora (vem do `CalendarCountdown`).
     private var emReuniao = false
+    /// Instante em que o microfone acendeu; `nil` = apagado. Vira "chamada em
+    /// curso" depois do limiar de `NotificationRules.micIndicaChamada`.
+    private var micDesde: Date?
     private let pomodoro = Pomodoro()
     private let reminderScheduler = ReminderScheduler()
     /// Botões de adiamento no card do lembrete. Dois: o "já já" e o "mais tarde".
@@ -80,7 +83,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         [("Adiar 5 min", 5), ("30 min", 30)]
     private let breakScheduler = ScheduleEngine<ScreenBreak>()
     private let descanso = DescansoController()
-    private let annotation = AnnotationController()
+    private let annotation = AnnotationController.shared
     private let shelf = ShelfStore()
     private let screenshots = ScreenshotWatcher()
     private var screenshotPeekWork: DispatchWorkItem?
@@ -304,7 +307,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             // sem card na tela é pior que silêncio
             let card = self.notificacao(de: aviso)
             self.publicar(card)
-            if aviso.som, !self.emReuniao || !AppSettings.shared.silenciarEmReuniao {
+            if aviso.som, !self.silenciando {
                 NSSound(named: "Pop")?.play()   // mesmo som do webhook
             }
         }
@@ -312,8 +315,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         // pontinho laranja enquanto algum app usa o microfone
         micMonitor.onChange = { [weak self] inUse in
+            guard let self else { return }
+            // marca desde quando está aceso — o gate de silêncio só considera
+            // chamada depois do limiar
+            self.micDesde = inUse ? (self.micDesde ?? Date()) : nil
             let show = inUse && AppSettings.shared.micIndicator
-            self?.notches.values.forEach { $0.viewModel.micInUse = show }
+            self.notches.values.forEach { $0.viewModel.micInUse = show }
         }
         micMonitor.start()
 
@@ -511,6 +518,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             status["player"] = self?.media.activeBundleID ?? "none"
             status.merge(MirrorController.shared.diagnostics) { _, new in new }
             status["micInUse"] = self?.micMonitor.isRunning ?? false
+            status["silenciando"] = self?.silenciando ?? false
             status["notches"] = (self?.notches ?? [:]).map { id, notch in
                 let mode: NotchViewModel.Mode = self?.askStore?.state.active != nil
                     || self?.agentRequestStore?.state.active != nil
@@ -1200,38 +1208,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             addPomodoroItem(menu, "↺ Resetar", #selector(pomReset))
         }
         menu.addItem(.separator())
-        let annotationItem = menu.addItem(
-            withTitle: "✎ Anotar na tela", action: #selector(toggleAnnotation), keyEquivalent: "")
-        annotationItem.target = self
-        annotationItem.state = self.annotation.isActive ? .on : .off
-        let tools = NSMenu(title: "Ferramenta de anotação")
-        for tool in AnnotationTool.allCases {
-            let item = tools.addItem(withTitle: tool.title,
-                                     action: #selector(selectAnnotationTool(_:)), keyEquivalent: "")
-            item.target = self
-            item.tag = AnnotationTool.allCases.firstIndex(of: tool) ?? 0
-            item.state = annotation.selectedTool == tool ? .on : .off
-        }
-        let toolItem = menu.addItem(withTitle: "Ferramenta de anotação", action: nil, keyEquivalent: "")
-        toolItem.submenu = tools
-        let undo = menu.addItem(withTitle: "Desfazer anotação", action: #selector(undoAnnotation), keyEquivalent: "z")
-        undo.target = self
-        let redo = menu.addItem(withTitle: "Refazer anotação", action: #selector(redoAnnotation), keyEquivalent: "Z")
-        redo.target = self
-        let clear = menu.addItem(withTitle: "Apagar anotações", action: #selector(clearAnnotations), keyEquivalent: "")
-        clear.target = self
-        let color = menu.addItem(withTitle: "Cor da anotação…", action: #selector(pickAnnotationColor), keyEquivalent: "")
-        color.target = self
-        let backgrounds = NSMenu(title: "Fundo da anotação")
-        for background in AnnotationBackground.allCases {
-            let item = backgrounds.addItem(withTitle: background.title,
-                                            action: #selector(selectAnnotationBackground(_:)), keyEquivalent: "")
-            item.target = self
-            item.tag = AnnotationBackground.allCases.firstIndex(of: background) ?? 0
-            item.state = annotationBackground == background ? .on : .off
-        }
-        let backgroundItem = menu.addItem(withTitle: "Fundo da anotação", action: nil, keyEquivalent: "")
-        backgroundItem.submenu = backgrounds
+        // a anotação inteira (ligar, ferramentas, cores, fundo) mora na seção
+        // Anotação do card — o menu não duplica nada disso.
         let nota = menu.addItem(
             withTitle: "✎ Nota rápida", action: #selector(toggleQuickNote), keyEquivalent: "")
         nota.target = self
@@ -1299,36 +1277,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         vm.setExpandedDirect(true)
     }
 
-    @objc private func toggleAnnotation() {
-        annotation.toggle()
-    }
-
-    @objc private func selectAnnotationTool(_ sender: NSMenuItem) {
-        guard sender.tag >= 0, sender.tag < AnnotationTool.allCases.count else { return }
-        annotation.select(tool: AnnotationTool.allCases[sender.tag])
-    }
-
-    @objc private func undoAnnotation() { annotation.undo() }
-    @objc private func redoAnnotation() { annotation.redo() }
-    @objc private func clearAnnotations() { annotation.clear() }
-
-    @objc private func pickAnnotationColor() {
-        ColorPicker.pick(format: .hex) { [weak self] color in
-            if let color { self?.annotation.setColor(color) }
-        }
-    }
-
-    private var annotationBackground: AnnotationBackground {
-        AnnotationBackground(rawValue: UserDefaults.standard.string(forKey: "annotationBackground") ?? "")
-            ?? .transparent
-    }
-
-    @objc private func selectAnnotationBackground(_ sender: NSMenuItem) {
-        guard sender.tag >= 0, sender.tag < AnnotationBackground.allCases.count else { return }
-        // O controller mantém o estado e atualiza as janelas já abertas.
-        annotation.setBackground(AnnotationBackground.allCases[sender.tag])
-    }
-
     /// Manda a notificação pras telas — ou, em reunião, só pro histórico.
     ///
     /// Só passa por aqui o que chega **de fora**: app interceptado, API local e
@@ -1339,11 +1287,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Silenciar nunca descarta: o `record` roda igual, e o card silenciado está
     /// na seção Histórico quando a reunião acabar.
     private func publicar(_ notification: NotchNotification) {
-        guard emReuniao, AppSettings.shared.silenciarEmReuniao else {
+        guard silenciando else {
             notches.values.forEach { $0.viewModel.enqueue(notification) }
             return
         }
         NotificationHistory.shared.record(notification)
+    }
+
+    /// Silêncio em curso: reunião no calendário, ou microfone aceso há tempo o
+    /// bastante pra ser uma chamada. Cada gatilho tem o seu interruptor.
+    ///
+    /// ponytail: o ditado do próprio Knobler também acende o microfone, e não há
+    /// código aqui pra descontar isso — ele dura segundos, fica abaixo do limiar,
+    /// e mesmo se passasse o card iria pro Histórico do mesmo jeito.
+    private var silenciando: Bool {
+        let settings = AppSettings.shared
+        if emReuniao, settings.silenciarEmReuniao { return true }
+        return settings.silenciarComMicrofone
+            && NotificationRules.micIndicaChamada(desde: micDesde, agora: Date())
     }
 
     /// Aviso do desenvolvedor → card. O `actionToken` aqui não é o handle do

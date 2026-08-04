@@ -108,7 +108,19 @@ A **ordem** de implementação (agrupada por infra compartilhada) mora em
 - **Pomodoro com metas diárias**, **webhook de saída** e **endpoint `/stats`**:
   descartados em 2026-07-29.
 
+- **Foco do macOS como sinal de silêncio**: descartado em 2026-08-03 por custo de
+  permissão. O banco de estado (`~/Library/DoNotDisturb/DB/Assertions.json`) é
+  protegido por TCC — exigiria Acesso Total ao Disco — e a API oficial
+  (`INFocusStatusCenter`) exige a capability restrita *Communication
+  Notifications*, com provisioning profile da Apple, enquanto o app assina com
+  identidade local. Virou "silenciar durante chamadas", pelo microfone.
+
 ## Entregues
+
+- **Silenciar durante chamadas** → o gate de silêncio passou a aceitar um segundo
+  gatilho: microfone em uso há mais de 20 s (`docs/notifications.md`). O limiar é
+  o que separa call de teste de microfone — e é o que derruba a objeção antiga
+  ("o ditado acende o mic"), já que o ditado dura menos que isso.
 
 - **Canal de notificações do desenvolvedor** → virou os avisos do
   desenvolvedor (`docs/avisos.md`), mas **não** pelo relay: `webhookNotifications`

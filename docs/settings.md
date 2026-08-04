@@ -22,7 +22,7 @@ da própria feature, linkada abaixo.
 - Painéis e onde encontrar os detalhes de cada um:
   - **Geral** — login automático, versão do app, atualizações.
   - **Notch** — liga/desliga individualmente HUDs, notificações, countdown de
-    calendário, **silêncio durante reuniões**, visualizador de áudio, API local,
+    calendário, **silêncio durante reuniões e chamadas**, visualizador de áudio, API local,
     AirPods, screenshots na prateleira, espelho de câmera. Traz também a **ordem das seções do card
     aberto**: uma lista arrastável que define quem aparece primeiro quando não
     há evento recente promovendo ninguém.
@@ -36,6 +36,9 @@ da própria feature, linkada abaixo.
     Ver `docs/huds.md`, `docs/notifications.md`,
     `docs/calendar-countdown.md`, `docs/now-playing.md`, `docs/local-api.md`,
     `docs/airpods.md`, `docs/shelf.md`, `docs/mirror.md`.
+  - **Desenho** — modo do Control esquerdo, padrões do traço (ferramenta, cor e
+    espessura), quadro de fundo, auto-fade e a tabela de atalhos. As ferramentas
+    em si ficam na seção Anotação do card. Ver `docs/annotation.md`.
   - **Ditado** — ver `docs/dictation.md`.
   - **Pomodoro** — ver `docs/pomodoro.md`.
   - **Lembretes** — ver `docs/reminders.md`.

@@ -12,10 +12,10 @@ dois passos:
 1. **O Knobler mora no notch** — o notch responde ao mouse, o acesso é o ícone
    da barra de menus, e Mensagens anuncia este Mac na rede local com o nome do
    computador (editável em Ajustes → Mensagens).
-2. **Dois atalhos globais** — ⌥ direita segura pra ditar, Control direito abre
+2. **Dois atalhos globais** — ⌥ direita segura pra ditar, Control esquerdo abre
    a anotação de tela.
 
-![Passo 2: "Dois atalhos globais", com ⌥ direita pro ditado e Control direito pra anotação](images/boas-vindas-2.png)
+![Passo 2: "Dois atalhos globais", com ⌥ direita pro ditado e Control esquerdo pra anotação](images/boas-vindas-2.png)
 
 <!-- As duas imagens são MANUAIS: NSWindow real não renderiza no
      tools/snapshot.sh. Pra refazer: build Release, rodar o app de

@@ -14,7 +14,7 @@ import SwiftUI
 // MARK: - Painéis
 
 enum SettingsPane: String, CaseIterable, Identifiable {
-    case geral, notch, ditado, pomodoro, lembretes, descanso, webhooks, mensagens
+    case geral, notch, desenho, ditado, pomodoro, lembretes, descanso, webhooks, mensagens
     case permissoes
     var id: String { rawValue }
 
@@ -22,6 +22,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         switch self {
         case .geral: return "Geral"
         case .notch: return "Notch"
+        case .desenho: return "Desenho"
         case .ditado: return "Ditado"
         case .pomodoro: return "Pomodoro"
         case .lembretes: return "Lembretes"
@@ -36,6 +37,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         switch self {
         case .geral: return "gearshape.fill"
         case .notch: return "macbook.gen2"
+        case .desenho: return "pencil.tip.crop.circle"
         case .ditado: return "mic.fill"
         case .pomodoro: return "timer"
         case .lembretes: return "bell.badge.fill"
@@ -50,6 +52,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         switch self {
         case .geral: return .gray
         case .notch: return .black
+        case .desenho: return .yellow
         case .ditado: return .blue
         case .pomodoro: return .red
         case .lembretes: return .orange
@@ -109,6 +112,7 @@ struct SettingsView: View {
         switch router.pane {
         case .geral: GeneralSettingsPane()
         case .notch: NotchSettingsPane()
+        case .desenho: DesenhoSettingsPane()
         case .ditado: DictationSettingsPane()
         case .pomodoro: PomodoroSettingsPane()
         case .lembretes: RemindersView()
@@ -311,6 +315,8 @@ struct NotchSettingsPane: View {
                     subtitle: "Abre a câmera 2 min antes de eventos com link de call.",
                     isOn: $settings.mirrorBeforeMeetings)
                     .disabled(!settings.calendarCountdown)
+            }
+            Section("Silenciar") {
                 SettingToggle(
                     title: "Silenciar durante reuniões",
                     subtitle: "Em evento com link de call, notificação de app, "
@@ -318,6 +324,12 @@ struct NotchSettingsPane: View {
                         + "Lembretes e Pomodoro continuam aparecendo.",
                     isOn: $settings.silenciarEmReuniao)
                     .disabled(!settings.calendarCountdown)
+                SettingToggle(
+                    title: "Silenciar durante chamadas",
+                    subtitle: "Mesma coisa enquanto algum app estiver usando o "
+                        + "microfone — pega a call que não está no calendário. "
+                        + "Nada se perde: fica no histórico.",
+                    isOn: $settings.silenciarComMicrofone)
             }
             Section("Capturas de tela") {
                 SettingToggle(
@@ -330,14 +342,71 @@ struct NotchSettingsPane: View {
                     isOn: $settings.hideScreenshotPreview)
                     .disabled(!settings.screenshotsToShelf)
             }
-            Section("Anotação de tela") {
-                Picker("Ativação do Control direito", selection: $settings.annotationActivationMode) {
+        }
+        .formStyle(.grouped)
+        .toggleStyle(.switch)
+    }
+}
+
+// MARK: - Desenho
+
+/// Ajustes da anotação de tela. As ferramentas em si moram na seção Anotação do
+/// card (`AnnotationDeckView`) — aqui ficam só os padrões e o comportamento.
+struct DesenhoSettingsPane: View {
+    @ObservedObject var settings = AppSettings.shared
+    @ObservedObject var annotation = AnnotationController.shared
+
+    var body: some View {
+        Form {
+            Section("Ativação") {
+                Picker("Ativação do Control esquerdo", selection: $settings.annotationActivationMode) {
                     Text("Pressionar e Segurar").tag(AnnotationActivationMode.pressAndHold)
                     Text("Alternar").tag(AnnotationActivationMode.toggle)
                 }
-                Text("Desenha sobre a tela inteira como o DemoPro. O atalho é o Control direito, sem Command.")
+                Text("Desenha sobre a tela inteira como o DemoPro. O atalho é o Control esquerdo, sem Command.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+            Section("Padrões do traço") {
+                Picker("Ferramenta", selection: Binding(
+                    get: { settings.annotationDefaultTool },
+                    set: { settings.annotationDefaultTool = $0; annotation.select(tool: $0) })) {
+                        // borracha de fora: nascer apagando não é um padrão útil
+                        ForEach(AnnotationTool.allCases.filter { $0 != .eraser }, id: \.self) {
+                            Label($0.title, systemImage: $0.symbol).tag($0)
+                        }
+                    }
+                // qualificado: o projeto tem um `ColorPicker` próprio (o painel
+                // nativo que o deck do card abre), e ele sombreia o do SwiftUI.
+                SwiftUI.ColorPicker("Cor", selection: Binding(
+                    get: { Color(cor: settings.annotationDefaultColor) },
+                    set: { nova in
+                        let cor = AnnotationColor(nova)
+                        settings.annotationDefaultColor = cor
+                        annotation.setColor(cor)
+                    }), supportsOpacity: false)
+                HStack {
+                    Text("Espessura")
+                    Slider(value: Binding(
+                        get: { settings.annotationLineWidth },
+                        set: { settings.annotationLineWidth = $0; annotation.setLineWidth($0) }),
+                           in: 1...24, step: 1)
+                    Text("\(Int(settings.annotationLineWidth)) pt")
+                        .monospacedDigit()
+                        .frame(width: 52, alignment: .trailing)
+                }
+            }
+            Section("Fundo") {
+                Picker("Quadro", selection: Binding(
+                    get: { annotation.background },
+                    set: { annotation.setBackground($0) })) {
+                        ForEach(AnnotationBackground.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                Text("O quadro cobre a tela atrás do traço. Vale pra todos os monitores.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section("Desvanecer") {
                 SettingToggle(
                     title: "Desvanecer automaticamente",
                     subtitle: "Apaga cada anotação depois do atraso escolhido.",
@@ -352,9 +421,46 @@ struct NotchSettingsPane: View {
                     }
                 }
             }
+            Section("Atalhos enquanto desenha") {
+                ForEach(Self.atalhos, id: \.tecla) { atalho in
+                    HStack {
+                        Text(atalho.tecla).monospaced()
+                            .frame(width: 60, alignment: .leading)
+                        Text(atalho.acao).foregroundStyle(.secondary)
+                    }
+                    .font(.caption)
+                }
+            }
         }
         .formStyle(.grouped)
         .toggleStyle(.switch)
+    }
+
+    /// As teclas das ferramentas saem do próprio enum — só as fixas são escritas
+    /// aqui, e elas vivem no `installKeyMonitor` do controller.
+    private static let atalhos: [(tecla: String, acao: String)] =
+        AnnotationTool.allCases.map { (String($0.key), $0.title) } + [
+            ("U", "Desfazer"), ("R", "Refazer"), ("X", "Apagar tudo"),
+            ("W", "Quadro branco"), ("K", "Quadro negro"),
+            ("Esc", "Para de desenhar (o traço fica)"),
+            ("Delete", "Apagar tudo"),
+            ("⌘Z / ⇧⌘Z", "Desfazer / refazer"),
+        ]
+}
+
+private extension Color {
+    init(cor: AnnotationColor) {
+        self.init(red: cor.red, green: cor.green, blue: cor.blue, opacity: cor.alpha)
+    }
+}
+
+private extension AnnotationColor {
+    init(_ color: Color) {
+        let rgb = NSColor(color).usingColorSpace(.deviceRGB) ?? .yellow
+        self.init(red: Double(rgb.redComponent),
+                  green: Double(rgb.greenComponent),
+                  blue: Double(rgb.blueComponent),
+                  alpha: Double(rgb.alphaComponent))
     }
 }
 

@@ -19,6 +19,7 @@ struct NotchView: View {
     @ObservedObject private var note = QuickNote.shared
     @ObservedObject private var linkPreview = LinkPreview.shared
     @ObservedObject private var mirror = MirrorController.shared
+    @ObservedObject private var annotation = AnnotationController.shared
     /// Só pra saber se há conversa (o `hasMensagens` da ordem das seções). O
     /// store não tem singleton: quem injeta é o app (e o harness de snapshot).
     @EnvironmentObject private var messages: MessageStore
@@ -128,6 +129,7 @@ struct NotchView: View {
         case .historico: return HistoryListView.listHeight + 12
         case .nota: return Self.noteEditorHeight + 28  // +8 do padding da zona de escrita
         case .link: return linkAberto ? linkWebHeight + linkHeaderHeight : espelhoDesligadoHeight
+        case .anotacao: return AnnotationDeckView.alturaDaGrade
         }
     }
 
@@ -927,6 +929,7 @@ struct NotchView: View {
                     // Vira ação quando alguém pedir.
                     if let p = vm.pomodoro { pomodoroSection(p) }
                     else { vazio("timer", "Pomodoro parado") }
+                case .anotacao: AnnotationDeckView(annotation: annotation)
                 case .musica, .none: musicSection
                 }
             }
@@ -1015,6 +1018,12 @@ struct NotchView: View {
         // espelho: ligado/desligado já é a presença do ícone na faixa.
         // mensagens: o sinal seria a contagem de não-lidas, que não existe hoje
         // (o store guarda a conversa, não o "lido") — melhor nada que inventar.
+        case .anotacao:
+            if annotation.isActive || annotation.temTinta {
+                Circle().fill(.white.opacity(0.8))
+                    .frame(width: 3, height: 3)
+                    .offset(x: 6, y: -6)
+            }
         case .espelho, .mensagens:
             EmptyView()
         }
@@ -1797,6 +1806,11 @@ private struct AberturaDoCard: ViewModifier {
     }
 
     private func recalcular() {
+        // desenhando: o card abre direto no deck — é o painel de controle da
+        // anotação, e cair na música obrigaria dois cliques em toda ida.
+        if AnnotationController.shared.isActive || AnnotationController.shared.temTinta {
+            vm.focoPendente = .anotacao
+        }
         vm.recalcularSecoes(
             vm.estadoDasSecoes(hasMusic: hasMusic,
                                hasShelf: hasShelf,

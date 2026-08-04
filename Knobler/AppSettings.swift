@@ -47,6 +47,11 @@ final class AppSettings: ObservableObject {
     @Published var silenciarEmReuniao: Bool {
         didSet { UserDefaults.standard.set(silenciarEmReuniao, forKey: "silenciarEmReuniao") }
     }
+    /// Mesmo silenciamento, mas disparado pelo microfone em uso — pega a call
+    /// improvisada, que não está no calendário. Não depende da contagem.
+    @Published var silenciarComMicrofone: Bool {
+        didSet { UserDefaults.standard.set(silenciarComMicrofone, forKey: "silenciarComMicrofone") }
+    }
     /// Espelho abre sozinho 2min antes de evento com link de call
     /// (requer a contagem do calendário ligada).
     @Published var mirrorBeforeMeetings: Bool {
@@ -103,6 +108,21 @@ final class AppSettings: ObservableObject {
     }
     @Published var annotationFadeSeconds: Double {
         didSet { UserDefaults.standard.set(annotationFadeSeconds, forKey: "annotationFadeSeconds") }
+    }
+    /// Ferramenta com que o desenho nasce a cada lançamento.
+    @Published var annotationDefaultTool: AnnotationTool {
+        didSet { UserDefaults.standard.set(annotationDefaultTool.rawValue, forKey: "annotationDefaultTool") }
+    }
+    /// Cor com que o desenho nasce. Guardada em hex (#RRGGBB) porque é o que o
+    /// deck já fala — `ColorPicker.pick(format: .hex)`.
+    @Published var annotationDefaultColor: AnnotationColor {
+        didSet {
+            UserDefaults.standard.set(annotationDefaultColor.hex, forKey: "annotationDefaultColor")
+        }
+    }
+    /// Espessura do traço, em pontos.
+    @Published var annotationLineWidth: Double {
+        didSet { UserDefaults.standard.set(annotationLineWidth, forKey: "annotationLineWidth") }
     }
     /// Recebe notificações externas via webhook (relay push.appzoi.com.br). Opt-in.
     @Published var webhookNotifications: Bool {
@@ -240,6 +260,7 @@ final class AppSettings: ObservableObject {
         // opt-in: engolir card sem o usuário ter pedido é o tipo de surpresa que
         // faz perder notificação e culpar o app
         silenciarEmReuniao = defaults.bool(forKey: "silenciarEmReuniao")
+        silenciarComMicrofone = defaults.bool(forKey: "silenciarComMicrofone")  // idem
         mirrorBeforeMeetings = flag("mirrorBeforeMeetings")
         mirrorDeviceID = defaults.string(forKey: "mirrorDeviceID") ?? ""  // "" = automática
         micIndicator = flag("micIndicator")
@@ -256,6 +277,12 @@ final class AppSettings: ObservableObject {
         annotationAutoFade = defaults.bool(forKey: "annotationAutoFade")
         let fade = defaults.double(forKey: "annotationFadeSeconds")
         annotationFadeSeconds = fade == 0 ? 3 : min(30, max(0.5, fade))
+        annotationDefaultTool = AnnotationTool(
+            rawValue: defaults.string(forKey: "annotationDefaultTool") ?? "") ?? .freehand
+        annotationDefaultColor = AnnotationColor(
+            hex: defaults.string(forKey: "annotationDefaultColor") ?? "") ?? .yellow
+        let largura = defaults.double(forKey: "annotationLineWidth")
+        annotationLineWidth = largura == 0 ? AnnotationStyle().lineWidth : min(24, max(1, largura))
         webhookNotifications = defaults.bool(forKey: "webhookNotifications") // default false: opt-in
         avisosDoDesenvolvedor = flag("avisosDoDesenvolvedor")                 // default true
         loadRemoteImages = flag("loadRemoteImages")                           // default true

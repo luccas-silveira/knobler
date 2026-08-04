@@ -58,6 +58,7 @@ relaunch no caminho.
 | Nota rápida (texto, foco, tela dona) | `QuickNote.shared` | `NotchView`, menu da barra |
 | Página do preview de link (tela dona) | `LinkPreview.shared` | `LinkPreviewView`, seção Link |
 | Conversão esperando confirmação | `ShelfStore.preview` | `ShelfPreviewView` |
+| Overlay de anotação, ferramenta, cor e espessura correntes | `AnnotationController.shared` (um painel por monitor) | seção Anotação do card, Ajustes › Desenho, `GET /status` |
 | Ordem-base das seções do card | `AppSettings.notchSectionOrder` | `NotchSectionOrder`, Ajustes › Notch |
 | Ordem efetiva, seção em foco e trava | `NotchViewModel` (`secoes`, `focus`, `focusLocked`) | `NotchView`, gestos, `GET /status` |
 
@@ -95,7 +96,7 @@ disputavam foco escrevendo no mesmo `editing`.
 
 O card do notch aberto **não empilha** conteúdo. Ele mostra uma seção de cada
 vez (Música, Atividade, Pomodoro, Prateleira, Espelho, Mensagens, Histórico,
-Nota rápida, Link) e resume **todas** as ativas — a em foco inclusive — numa faixa de
+Nota rápida, Link, Anotação) e resume **todas** as ativas — a em foco inclusive — numa faixa de
 ícones no rodapé, cada um com um sinal vivo mínimo (anel de progresso, contagem,
 ponto de "tocando"). O ícone da seção em foco fica aceso e os outros apagados,
 que é o que dá noção de posição na faixa.

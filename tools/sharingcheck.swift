@@ -20,7 +20,24 @@ struct SharingCheck {
         testAirDropLabel()
         testAirDropCancel()
         testSilenciarEmReuniao()
+        testMicIndicaChamada()
         print("✅ sharingcheck ok")
+    }
+
+    /// O limiar é o que separa "estou numa call" de "abri a aba e o navegador
+    /// testou o microfone por um segundo".
+    static func testMicIndicaChamada() {
+        let acendeu = Date(timeIntervalSince1970: 2_000_000)
+        func chamada(_ segundos: TimeInterval, desde: Date? = acendeu) -> Bool {
+            NotificationRules.micIndicaChamada(
+                desde: desde, agora: acendeu.addingTimeInterval(segundos))
+        }
+
+        assert(!chamada(0, desde: nil), "microfone apagado nunca é chamada")
+        assert(!chamada(0), "acabou de acender: não é chamada")
+        assert(!chamada(5), "cinco segundos é teste de microfone, não call")
+        assert(chamada(20), "no limiar em ponto já conta")
+        assert(chamada(600), "dez minutos de microfone é call")
     }
 
     /// Silenciar o notch por engano é pior que não silenciar: você perde a

@@ -45,4 +45,17 @@ enum NotificationRules {
         guard !isAllDay, temLinkDeCall else { return false }
         return start <= agora && end > agora
     }
+
+    /// Microfone ligado há tempo suficiente pra ser uma chamada de verdade.
+    ///
+    /// O limiar existe porque abrir uma aba de reunião, testar o mic nos Ajustes
+    /// ou gravar um áudio de WhatsApp acende o microfone por segundos — silenciar
+    /// por causa disso engoliria card sem motivo. `desde` é o instante em que o
+    /// microfone acendeu; `nil` = apagado.
+    static func micIndicaChamada(
+        desde: Date?, agora: Date, limiar: TimeInterval = 20
+    ) -> Bool {
+        guard let desde else { return false }
+        return agora.timeIntervalSince(desde) >= limiar
+    }
 }

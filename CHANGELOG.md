@@ -6,6 +6,45 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- **Silenciar durante chamadas**: com a opção ligada (Ajustes → Notch →
+  Silenciar), notificação de app, API, webhook e avisos param de virar card
+  enquanto algum app estiver usando o microfone há mais de 20 s — pega a call que
+  não está no calendário. Nada se perde: vai pro Histórico, igual ao silêncio de
+  reuniões. Opt-in, sem permissão nova.
+  Ver [`docs/notifications.md`](docs/notifications.md).
+- `GET /status` passa a expor `silenciando`, indicando se a próxima notificação
+  vira card ou vai direto pro histórico.
+- **Seção Anotação no card**: ferramentas, cores, desfazer/refazer, apagar e os
+  quadros branco/negro viraram uma página do notch, com botão pra ligar e
+  desligar o desenho. O card fica acima do overlay, então dá pra trocar de
+  ferramenta sem sair — e ele abre direto nessa seção enquanto você desenha.
+  Ver [`docs/annotation.md`](docs/annotation.md).
+- **Atalhos de anotação** no mapa do DemoPro enquanto o overlay está ligado:
+  `'` texto, `S` livre, `Q` linha, `A` seta, `Z` retângulo, `E` elipse,
+  `L` laser, `H` holofote, `B` borracha, `U` desfazer, `R` refazer,
+  `X` apagar, `W` quadro branco, `K` quadro negro.
+- **Painel Desenho nos Ajustes**: painel próprio na sidebar, com o modo do
+  Control esquerdo, o quadro de fundo, o auto-fade e a tabela de atalhos — que
+  antes viviam espremidos em Ajustes → Notch.
+  Ver [`docs/annotation.md`](docs/annotation.md).
+- **Padrões do traço**: ferramenta, cor e **espessura** (1–24 pt, era fixa em 6)
+  agora são configuráveis e sobrevivem ao relançamento. A seção Anotação do card
+  continua mudando o traço da sessão; o painel define com o que ele nasce.
+- `GET /status` passa a expor `annotation.tool`, `annotation.background` e
+  `annotation.lineWidth`.
+
+### Changed
+- **Anotação de tela**: o atalho passa a ser o **Control esquerdo** (era o
+  direito) — teclados sem a tecla da direita deixavam o recurso inacessível.
+  A tecla agora liga só o desenho: soltar o Control **não** apaga nem esconde
+  o que já foi desenhado, que fica na tela (sem bloquear cliques) até
+  "Apagar tudo". Ver [`docs/annotation.md`](docs/annotation.md).
+
+### Removed
+- Os itens de anotação do menu da barra (ferramenta, cor, fundo, desfazer,
+  apagar e "Anotar na tela"): tudo isso agora mora na seção Anotação do card.
+
 ## [0.20.0] - 2026-08-03
 
 ### Added

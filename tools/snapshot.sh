@@ -10,6 +10,9 @@ swiftc -O -o build/snapshot \
   Knobler/AirPodsBattery.swift \
   Knobler/Updater.swift \
   Knobler/AnnotationModel.swift \
+  Knobler/AnnotationController.swift \
+  Knobler/AnnotationDeckView.swift \
+  Knobler/ColorPicker.swift \
   Knobler/Pomodoro.swift \
   Knobler/CalendarAviso.swift \
   Knobler/Ask.swift \

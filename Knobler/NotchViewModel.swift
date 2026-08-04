@@ -154,6 +154,9 @@ final class NotchViewModel: ObservableObject {
             .historico: hasHistory,
             .nota: hasNota,
             .link: hasLink,
+            // a anotação é uma PÁGINA fixa do card: as ferramentas moram aqui,
+            // não no menu da barra, então a seção não pode depender de estado.
+            .anotacao: true,
         ]
         return NotchSection.allCases.map {
             NotchSectionState(section: $0,

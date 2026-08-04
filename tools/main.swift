@@ -242,6 +242,12 @@ let scenarios: [Scenario] = [
         vm.secoes = [.musica, .pomodoro]
         vm.focus = .musica
     },
+    // o "streamdeck" da anotação: ferramentas, cores e ações no card
+    Scenario(name: "foco-anotacao", realNotch: true) { vm, _, _ in
+        vm.expanded = true
+        vm.secoes = [.anotacao, .musica]
+        vm.focus = .anotacao
+    },
     Scenario(name: "foco-shelf", realNotch: true) { vm, _, _ in
         fakeShelfFiles().forEach { currentShelf.add($0) }
         vm.expanded = true
@@ -672,7 +678,7 @@ renderMessageScenario("messages-incoming", realNotch: true) { vm, _, _ in
 // mínimo: até um NavigationSplitView vazio quebra do mesmo jeito). Esses 9
 // PNGs são capturados manualmente: rodar
 //   Knobler.app/Contents/MacOS/Knobler --ajustes=<painel>
-// (painéis: geral, notch, ditado, pomodoro, lembretes, descanso, webhooks,
+// (painéis: geral, notch, desenho, ditado, pomodoro, lembretes, descanso, webhooks,
 // mensagens) e tirar o screenshot da janela real. mapping-editor.png sai de
 // dentro do painel "webhooks" clicando "…" → "Mapear campos…" num perfil.
 

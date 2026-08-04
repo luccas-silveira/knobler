@@ -111,7 +111,11 @@ private final class AnnotationPanel: NSPanel {
 }
 
 @MainActor
-final class AnnotationController: NSObject {
+final class AnnotationController: NSObject, ObservableObject {
+    /// Uma instância só, como AskStore/QuickNote: a seção Anotação do card é
+    /// desenhada em toda janela de notch e precisa falar com o mesmo overlay.
+    static let shared = AnnotationController()
+
     private var panels: [CGDirectDisplayID: AnnotationPanel] = [:]
     private var states: [CGDirectDisplayID: AnnotationOverlayState] = [:]
     private var screenObserver: Any?
@@ -120,11 +124,20 @@ final class AnnotationController: NSObject {
     private var healthTimer: Timer?
     private var trustedAtCreation = false
     private var keyMonitor: Any?
-    private(set) var isActive = false
+    @Published private(set) var isActive = false
     var mode: AnnotationActivationMode { AppSettings.shared.annotationActivationMode }
-    private(set) var selectedTool: AnnotationTool = .freehand
-    private(set) var background: AnnotationBackground = AnnotationBackground(
+    @Published private(set) var selectedTool = AppSettings.shared.annotationDefaultTool
+    @Published private(set) var background: AnnotationBackground = AnnotationBackground(
         rawValue: UserDefaults.standard.string(forKey: "annotationBackground") ?? "") ?? .transparent
+    /// Cor corrente dos botões da seção — o `style` real mora em cada state.
+    @Published private(set) var selectedColor = AppSettings.shared.annotationDefaultColor
+    /// Espessura corrente do traço, idem.
+    @Published private(set) var lineWidth = AppSettings.shared.annotationLineWidth
+    /// Tem tinta em alguma tela? O card usa isto pra abrir no deck: enquanto há
+    /// desenho na tela, a anotação é o contexto — mesmo com o Control solto.
+    /// ponytail: recalculado nas transições (ligar/desligar/apagar), não
+    /// observado. O auto-fade pode deixá-lo `true` por um card; ninguém morre.
+    @Published private(set) var temTinta = false
 
     func start() {
         refreshScreens()
@@ -142,6 +155,9 @@ final class AnnotationController: NSObject {
             "tapExists": eventTap != nil,
             "tapEnabled": eventTap.map { CGEvent.tapIsEnabled(tap: $0) } ?? false,
             "isActive": isActive,
+            "tool": selectedTool.rawValue,
+            "background": background.rawValue,
+            "lineWidth": lineWidth,
         ]
     }
 
@@ -159,18 +175,26 @@ final class AnnotationController: NSObject {
         }
         panels.values.first?.makeKeyAndOrderFront(nil)
         installKeyMonitor()
+        atualizarTinta()
     }
 
     func end() {
         guard isActive else { return }
         isActive = false
-        panels.values.forEach {
-            $0.ignoresMouseEvents = true
-            $0.orderOut(nil)
-        }
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
         keyMonitor = nil
         states.values.forEach { $0.commitDraft() }
+        // soltar o Control só desliga o desenho: a tinta continua na tela até
+        // o "Apagar tudo". O painel some apenas quando não sobrou nada nele.
+        panels.forEach { displayID, panel in
+            panel.ignoresMouseEvents = true
+            if states[displayID]?.document.elements.isEmpty ?? true { panel.orderOut(nil) }
+        }
+        atualizarTinta()
+    }
+
+    private func atualizarTinta() {
+        temTinta = states.values.contains { !$0.document.elements.isEmpty }
     }
 
     func state(for displayID: CGDirectDisplayID) -> AnnotationOverlayState? {
@@ -184,15 +208,28 @@ final class AnnotationController: NSObject {
 
     func undo() { states.values.forEach { $0.undo() } }
     func redo() { states.values.forEach { $0.redo() } }
-    func clear() { states.values.forEach { $0.clear() } }
+    func clear() {
+        states.values.forEach { $0.clear() }
+        if !isActive { panels.values.forEach { $0.orderOut(nil) } }
+        atualizarTinta()
+    }
 
     func setColor(_ color: NSColor) {
         guard let rgb = color.usingColorSpace(.deviceRGB) else { return }
-        let value = AnnotationColor(red: Double(rgb.redComponent),
-                                    green: Double(rgb.greenComponent),
-                                    blue: Double(rgb.blueComponent),
-                                    alpha: Double(rgb.alphaComponent))
-        states.values.forEach { $0.style.color = value }
+        setColor(AnnotationColor(red: Double(rgb.redComponent),
+                                 green: Double(rgb.greenComponent),
+                                 blue: Double(rgb.blueComponent),
+                                 alpha: Double(rgb.alphaComponent)))
+    }
+
+    func setColor(_ color: AnnotationColor) {
+        selectedColor = color
+        states.values.forEach { $0.style.color = color }
+    }
+
+    func setLineWidth(_ width: Double) {
+        lineWidth = width
+        states.values.forEach { $0.style.lineWidth = width }
     }
 
     func setBackground(_ background: AnnotationBackground) {
@@ -210,7 +247,24 @@ final class AnnotationController: NSObject {
                 return nil
             }
             if event.keyCode == 51 { self.clear(); return nil } // Delete
-            return event
+            // atalhos de ferramenta/ação, no mapa do DemoPro. Com Command a
+            // tecla é do sistema (⌘Q, ⌘Z…) e não vira ferramenta.
+            guard !event.modifierFlags.contains(.command),
+                  let letra = event.charactersIgnoringModifiers?.lowercased().first
+            else { return event }
+            if let tool = AnnotationTool.allCases.first(where: { $0.key == letra }) {
+                self.select(tool: tool)
+                return nil
+            }
+            switch letra {
+            case "u": self.undo()
+            case "r": self.redo()
+            case "x": self.clear()
+            case "w": self.setBackground(self.background == .white ? .transparent : .white)
+            case "k": self.setBackground(self.background == .black ? .transparent : .black)
+            default: return event
+            }
+            return nil
         }
     }
 
@@ -242,8 +296,8 @@ final class AnnotationController: NSObject {
                     return Unmanaged.passRetained(event)
                 }
                 if event.getIntegerValueField(.keyboardEventKeycode) == AnnotationShortcut.defaultKeyCode {
-                    // NX_DEVICERCTLKEYMASK distingue o Control direito do esquerdo.
-                    let pressed = event.flags.rawValue & 0x80 != 0
+                    // o keycode já identifica a tecla; a flag só diz se desceu ou subiu.
+                    let pressed = event.flags.contains(.maskControl)
                     DispatchQueue.main.async { controller.rightControlChanged(pressed) }
                 }
                 return Unmanaged.passRetained(event)
@@ -316,6 +370,8 @@ final class AnnotationController: NSObject {
             let id = Self.displayID(screen)
             let state = states[id] ?? AnnotationOverlayState(displayID: id)
             state.tool = selectedTool
+            state.style.color = selectedColor
+            state.style.lineWidth = lineWidth
             states[id] = state
             let panel = panels[id] ?? makePanel(state: state)
             panel.setFrame(screen.frame, display: true)
@@ -335,7 +391,9 @@ final class AnnotationController: NSObject {
         panel.backgroundColor = Self.nsColor(background)
         panel.hasShadow = false
         panel.hidesOnDeactivate = false
-        panel.level = .screenSaver
+        // logo ABAIXO da NotchWindow (.mainMenu + 3): o card do notch é o painel
+        // de controle da anotação e precisa continuar clicável por cima da tinta.
+        panel.level = .mainMenu + 2
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         panel.acceptsMouseMovedEvents = true
         panel.contentView = NSHostingView(rootView: AnnotationCanvasView(state: state))

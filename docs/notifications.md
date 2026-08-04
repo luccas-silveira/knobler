@@ -29,13 +29,14 @@ só um espelho:
 
 O `Fechar`/`Limpar` do próprio alerta nunca vira botão do card.
 
-## Silêncio durante reuniões
+## Silêncio durante reuniões e chamadas
 
-Com **Ajustes › Notch › Silenciar durante reuniões** ligado, notificação de app,
+Com **Ajustes › Notch › Silenciar durante reuniões** ou **Silenciar durante
+chamadas** ligado, notificação de app,
 da API local, de webhook e os [avisos do desenvolvedor](avisos.md) **não viram
-card** enquanto uma reunião acontece. Ela não some: vai direto pro Histórico, e
-está lá quando a reunião acabar. Vale inclusive pro aviso marcado como crítico —
-interromper uma call é pior do que ler o recado 40 min depois.
+card** enquanto a reunião ou a chamada acontece. Ela não some: vai direto pro
+Histórico, e está lá quando acabar. Vale inclusive pro aviso marcado como
+crítico — interromper uma call é pior do que ler o recado 40 min depois.
 
 Continuam aparecendo normalmente: **lembretes**, **Pomodoro**, perguntas do
 Claude e o conta-gotas. São coisas que você mesmo agendou — engoli-las seria
@@ -46,10 +47,21 @@ perder o alarme que você pediu, não filtrar ruído.
 "Almoço" e "Aniversário da Ana" não silenciam nada. Evento de dia inteiro também
 não — senão um aniversário calaria o notch o dia todo.
 
-A opção é **opt-in** e depende da contagem do calendário estar ligada, que é
-quem sabe o que está em curso. Microfone em uso foi recusado como sinal: o
-ditado do próprio Knobler o acende, e o notch silenciaria toda vez que você
-falasse.
+"Chamada" é qualquer app usando o **microfone** há mais de 20 s — pega a call que
+não está na agenda: Meet mandado no chat, FaceTime, Discord, ligação de
+WhatsApp. Os 20 s existem porque abrir uma aba de reunião, testar o microfone nos
+Ajustes ou gravar um áudio acende o microfone por segundos, e silenciar por causa
+disso engoliria card à toa. O ditado do próprio Knobler também acende o
+microfone, mas dura menos que o limiar.
+
+As duas opções são **opt-in** e independentes. A de reuniões depende da contagem
+do calendário estar ligada, que é quem sabe o que está em curso; a de chamadas
+não depende de nada — o microfone é lido do CoreAudio, sem permissão.
+
+O modo **Foco do macOS** foi avaliado como sinal e recusado: o banco que guarda o
+estado (`~/Library/DoNotDisturb/DB`) exige Acesso Total ao Disco, e a API oficial
+(`INFocusStatusCenter`) exige uma capability restrita da Apple. Nenhum dos dois
+se paga pra um app que hoje só pede Acessibilidade.
 
 ## Permissões
 

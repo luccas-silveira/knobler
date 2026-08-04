@@ -107,7 +107,7 @@ primeira execução" e "Dicas de hotkeys".
 Uma `NSWindow` própria na primeira abertura, com dois passos informativos: onde
 o app vive (o notch responde ao mouse, não há Dock nem janela, o acesso é a
 barra de menus, e Mensagens te anuncia na rede local) e os dois atalhos globais
-(⌥ direita = ditado, Control direito = anotação). Ela **não escreve** em
+(⌥ direita = ditado, Control esquerdo = anotação). Ela **não escreve** em
 `AppSettings` — o "minimal setup" do pedido original não existia: ditado e API
 já nascem ligados, Mensagens não tem toggle, Spotify não tem login.
 

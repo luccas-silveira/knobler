@@ -121,7 +121,7 @@ mantidos à mão — junto com `nota-placeholder.png` (campo da nota rápida: é
 `TextEditor`, logo um `ScrollView`; a receita de captura está num comentário em
 `docs/nota-rapida.md`). Pros painéis:
 rode `Knobler.app/Contents/MacOS/Knobler --ajustes=<painel>`
-(painéis: `geral notch ditado pomodoro lembretes descanso webhooks
+(painéis: `geral notch desenho ditado pomodoro lembretes descanso webhooks
 mensagens permissoes`), tire o screenshot da janela real e salve em
 `docs/images/`
 (as imagens usadas pelos docs de usuário ficam ali, não em `Snapshots/` —

@@ -73,9 +73,9 @@ struct OnboardingView: View {
                 linha("mic.fill", "⌥ direita — ditado",
                       "Segure a tecla Option do lado direito pra falar; solte pra "
                       + "transcrever no lugar onde o cursor está.")
-                linha("pencil.tip.crop.circle", "Control direito — anotação",
-                      "Um toque na tecla Control do lado direito desenha por cima "
-                      + "da tela. Esc sai.")
+                linha("pencil.tip.crop.circle", "Control esquerdo — anotação",
+                      "Um toque na tecla Control do lado esquerdo desenha por cima "
+                      + "da tela. Esc para de desenhar; o traço fica até apagar.")
             }
         default:
             EmptyView()
