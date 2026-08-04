@@ -90,10 +90,12 @@ o microfone só quando você segura a ⌥ direita pela primeira vez, a câmera s
 abrir o espelho, a rede local só ao pôr a seção Mensagens em foco. Recusar não
 quebra o app: só desliga aquele recurso.
 
-Duas fogem dessa regra. A **Acessibilidade** é pedida na abertura porque sem ela
-o `CGEventTap` nem chega a ser criado — a ⌥ direita nunca chega ao app e não
-existe "primeiro uso" que dê pra esperar, o ditado ficaria impossível de
-acionar. É também a permissão que os HUDs de volume e brilho usam.
+Duas fogem dessa regra. A **Acessibilidade** é pedida por este painel, que se
+abre sozinho na primeira execução (logo depois da [janela de
+boas-vindas](onboarding.md)) — sem ela o `CGEventTap` nem chega a ser criado, a
+⌥ direita nunca chega ao app e não existe "primeiro uso" que dê pra esperar, o
+ditado ficaria impossível de acionar. É também a permissão que os HUDs de volume
+e brilho usam.
 
 O **Bluetooth** é pedido na abertura junto com o monitor dos AirPods, que sobe
 com o app quando **AirPods no notch** está ligado (o padrão) — o macOS pede

@@ -147,10 +147,11 @@ Permissões** (ver [`docs/settings.md`](docs/settings.md)).
 | Arquivos e pastas | ler as capturas de tela que vão pra prateleira |
 | Gravação de áudio do sistema | visualizador reagindo ao áudio real do player |
 
-Duas são pedidas na abertura; o resto só no primeiro uso do recurso. A
-Acessibilidade porque sem ela o `CGEventTap` não existe e o gatilho do ditado
-nunca chega ao app. O Bluetooth logo depois, no registro do monitor de AirPods,
-se o recurso estiver ligado em Ajustes › Notch.
+Duas fogem da regra do primeiro uso. A Acessibilidade é pedida pelo painel
+Permissões, que abre sozinho na primeira execução (depois da janela de
+boas-vindas): sem ela o `CGEventTap` não existe e o gatilho do ditado nunca
+chega ao app. O Bluetooth é pedido na abertura, no registro do monitor de
+AirPods, se o recurso estiver ligado em Ajustes › Notch.
 
 O Knobler **não** pede Automação (não usa Apple Events) e **não** pede Gravação
 de Tela.

@@ -7,6 +7,12 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 ## [Unreleased]
 
 ### Added
+- **Janela de boas-vindas na primeira abertura**: dois passos informativos —
+  onde o app vive (notch + ícone da barra de menus, sem Dock nem janela) e os
+  dois atalhos globais (⌥ direita pro ditado, Control direito pra anotação).
+  Cada passo é versionado: quem já usava o Knobler vê só o dos atalhos, e uma
+  versão futura com passo novo mostra só o que é novo. Reabre pelo menu da
+  barra → **Boas-vindas…**. Ver [`docs/onboarding.md`](docs/onboarding.md).
 - **Próximo evento durante o Pomodoro**: o card de foco ganha uma linha com o
   título do evento e quanto falta ("Retrospectiva em 12 min"), e nos últimos
   5 minutos a pílula fechada troca o timer pelo aviso. Antes o countdown do
@@ -22,6 +28,10 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   enquanto o Pomodoro está na tela, onde o evento já é mostrado.
 
 ### Changed
+- **Acessibilidade deixa de ser pedida no launch**: quem pede agora é o painel
+  Permissões, que abre depois da janela de boas-vindas — antes o balão do
+  sistema e a janela do app disputavam o foco na primeira abertura. Concedida a
+  permissão, ditado e notificações religam em poucos segundos, sem reabrir o app.
 - **Pergunta do agente não trunca mais**: expandido, resumo e detalhes moram no
   mesmo bloco rolável — antes o resumo era cortado em 160 caracteres e duas
   linhas mesmo com o card aberto. "Ver tudo" aparece agora também quando só o
