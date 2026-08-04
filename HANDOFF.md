@@ -1,3 +1,100 @@
+# 🏁 SESSÃO 2026-08-03 (noite, 2ª) — avisos do desenvolvedor → v0.20.0
+
+Feature nova de ponta a ponta, mais uma limpeza de backlog. Fecha o item "canal
+de notificações do desenvolvedor" do `IDEIAS.md`.
+
+## Limpeza de backlog antes
+
+**Apple Notes sync** e **Integração com Claude API** foram descartadas pelo dono
+do projeto. As duas eram destino novo de ditado, e ficou gravada a regra que as
+mata: **o ditado só escreve no campo de texto que a pessoa tem selecionado** —
+nunca num app terceiro, num arquivo ou numa API. Qualquer pitch futuro que crie
+um `case` novo em `DictationDestination` bate nisso primeiro. **WhatsApp Web**
+ficou marcado no `ROADMAP.md`: como estava descrito lá ("mais um destino de
+ditado") cai na mesma regra; só sobrevive como envio a partir do notch.
+
+## O que foi feito
+
+`Knobler/DevAvisos.swift`: o app baixa um `avisos.json` público do repo no
+launch (+45 s) e a cada 24 h, e cada aviso vira card no notch. Publicar = editar
+o JSON e commitar no `master`. Sem servidor, sem deploy.
+
+**Não foi pelo relay, como o ROADMAP previa.** `webhookNotifications` é opt-in e
+nasce desligado (`AppSettings.swift`), então um broadcast pelo relay só
+alcançaria quem já pareou — provavelmente a minoria. Polling alcança 100% da
+base sem infra nova.
+
+**Timer próprio, não carona no `Updater.check()`:** lá existe um
+`guard force || automatic`, e quem desligasse "verificar atualizações" perderia
+junto os avisos críticos.
+
+O card entra por `AppDelegate.publicar` — o mesmo funil de tudo que vem de fora —
+e por isso respeita "silenciar durante reuniões" **inclusive o crítico**
+(silenciar não descarta: fica no Histórico). Toggle em Ajustes › Geral, opt-out;
+desligado silencia os normais e os críticos passam, e o rótulo diz isso.
+
+Guardas de fronteira, já que é JSON remoto virando UI clicável: tetos de 64 KB /
+10 avisos / 80 / 400 chars / 2 ações, ações **só em https**, `versaoSchema`
+desconhecido descarta o arquivo inteiro. Faixa de versão malformada **falha
+fechada** — `isNewer` devolve false pra lixo, então um typo em `minVersao`
+viraria aviso pra toda a base; por isso `versionComponents` deixou de ser
+`private` no `Updater`.
+
+`actionURLs` novo no `NotchNotification`: o `actionToken` normal resolve num
+`AXUIElement` vivo do interceptor, e um aviso vindo de JSON não tem banner atrás.
+Não persiste, pela carona do `actionTitles`.
+
+**Corte deliberado:** o "read/dismiss" do pitch original colapsou em um. O aviso
+aparece uma vez e o id fica em `avisos.vistos` (últimos 100). Estado "não lido"
+separado pediria badge e contador no histórico — não se paga num canal que emite
+uma vez por mês.
+
+## Validação
+
+- `./tools/check.sh` → **25 checks ok** (novo: `avisoscheck`).
+- **Teste de mutação**: removi o `critico ||` do filtro e o gate falhou. O check
+  pega a regressão, não é decoração.
+- **Integração real** contra `python3 -m http.server`: toggle off silenciando o
+  normal e deixando o crítico passar, `minVersao: "1.0.0"` filtrando, ação
+  `file:///etc/passwd` descartada com só a `https` sobrevivendo, segunda rodada
+  sem repetir nada.
+- **Ao vivo, na tela**: o card renderizou com emoji, título, corpo e o botão
+  "Ver release"; `avisos.vistos` gravou o id e o ciclo seguinte não repetiu.
+- Builds Debug e Release ok.
+
+## Pendências e followups
+
+- ⚠️ **O clique no botão do aviso não foi provado ao vivo.** Automatizar o
+  clique falhou (a janela de 45 s entre launch e disparo torna o alvo instável —
+  o clique caiu na toolbar do app de trás). O caminho reusa o
+  `onNotificationAction` que os lembretes já usam; o que é novo é o lookup em
+  `avisoActionURLs`. Se o primeiro aviso real tiver botão morto, é ali.
+- `avisos.json` está **vazio** (`{"versaoSchema":1,"avisos":[]}`). Nenhum aviso
+  publicado ainda.
+- ⚠️ Publicar aviso é **irreversível**: o app que já baixou não reconsulta por
+  24 h e o `raw` do GitHub ainda cacheia. Apagar a linha não desfaz — corrigir é
+  publicar outro `id`. Reciclar `id` é pior: quem viu o antigo não recebe o novo.
+- O `/Applications/Knobler.app` da máquina do dono continua sendo a build local
+  de uma branch anterior. `brew upgrade --cask knobler` alinha com a 0.20.0.
+- `graphify-out/` segue o de 28/jul: um arquivo novo não paga os ~640k tokens.
+
+## Release
+
+**v0.20.0 publicada** (`tools/release.sh minor`): tag `v0.20.0`, release no
+GitHub, `Knobler-0.20.0.zip` (sha256 `d4a9b4e0…`), cask bumpado no tap. A branch
+`feat/avisos-desenvolvedor` foi merjada em `master` com `--no-ff`. Espelhado em
+`zoi-tech/knobler` (remote `zoi`, não `zoi-tech`).
+
+## Documentação
+
+`docs/avisos.md` novo (uso + seção de publicação pra mantenedores, com a receita
+de teste local). Atualizados: `README.md` (feature + linha na tabela "o que sai
+da sua máquina"), `docs/index.md`, `docs/settings.md`, `docs/architecture.md`
+(diagrama + ownership), `docs/notifications.md` (o aviso no silêncio de reunião),
+`docs/troubleshooting.md` (seção "nunca recebi um aviso"), `docs/development.md`
+(a lista de gates virou ponteiro pro `check.sh` em vez de cópia que envelhece),
+`CHANGELOG.md`, `docs/IDEIAS.md` e `docs/ROADMAP.md`.
+
 # 🏁 SESSÃO 2026-08-03 (noite) — janela de boas-vindas → v0.19.0
 
 Execução do plano escrito na sessão anterior

@@ -286,6 +286,24 @@ A falha do formatter deve devolver o transcript bruto; ela não deve impedir o
   Keychain.
 - Use o diagnóstico do app e os logs do processo; não cole tokens em issues.
 
+## Nunca recebi um aviso do desenvolvedor
+
+Provavelmente não há nenhum publicado — o canal é raro por natureza. Antes de
+suspeitar de defeito:
+
+- O app só consulta **uma vez por dia** (e ~45 s depois de abrir). Um aviso
+  publicado agora pode levar até 24 h.
+- Cada aviso aparece **uma vez só**. Se você já o viu, ele não volta — o
+  registro fica em `avisos.vistos`.
+- Um aviso pode ser dirigido a uma **faixa de versão**: "atualize, a 0.19 tem um
+  bug" não é enviado a quem já está na 0.20.
+- Com **Silenciar durante reuniões** ativo e uma reunião acontecendo, o aviso
+  foi direto pro Histórico — role a seção Histórico do card.
+- Se o interruptor **Ajustes › Geral › Avisos do desenvolvedor** está desligado,
+  só os críticos chegam.
+
+Ver [Avisos do desenvolvedor](avisos.md).
+
 ## Logs úteis
 
 ```bash

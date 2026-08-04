@@ -49,11 +49,14 @@ Um comando roda todos os self-checks — é exatamente o que a CI executa:
 ./tools/check.sh --com-ambiente   # inclui o gate do Codex, que exige a CLI
 ```
 
-Cobre: `askcheck`, `updatercheck`, `agentrequestcheck`, `airpodscheck`,
-`wirecheck`, `webhookcheck`, `colorpickercheck`, `imageconvertercheck`,
-`documentconvertercheck`, `sharingcheck`, o hook do Claude, a ponte do Codex e o
-e2e de solicitações de agente. Sai com código 1 se qualquer um falhar. Ao adicionar um
-self-check novo, inclua-o no script — ele é a lista canônica.
+São 25 gates hoje — a lista viva está no próprio `tools/check.sh`, que é a fonte
+canônica (uma cópia aqui só envelheceria). Sai com código 1 se qualquer um
+falhar. Ao adicionar um self-check novo, inclua-o no script, senão a CI não o vê.
+
+Um deles não é hermético no sentido usual: o `avisoscheck` também valida o
+`avisos.json` publicado neste repo (schema, ids únicos, faixa de versão, ações
+só em https). É de propósito — publicar um aviso é irreversível, e o gate é a
+única rede antes da base inteira. Ver [Avisos do desenvolvedor](avisos.md).
 
 Exige `jq` e `node`, que **não** vêm num macOS limpo (`brew install jq node`) —
 os hooks do Claude e as pontes do Codex dependem deles. O script confere isso na

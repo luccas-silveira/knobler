@@ -51,6 +51,9 @@ Dynamic Island para o notch do Mac — nativo, Swift/SwiftUI, macOS 14.2+.
 - **Histórico de 24 h** de tudo que virou card, sobrevivendo a reiniciar o app;
   e **silêncio durante reuniões** (opt-in), que manda a notificação direto pro
   histórico em vez de interromper. → [detalhes](docs/notifications.md)
+- **Avisos do desenvolvedor**: recados sobre o próprio Knobler (novidade,
+  manutenção, problema descoberto) como card no notch, lidos de um JSON público
+  do repositório. Desliga em Ajustes › Geral. → [detalhes](docs/avisos.md)
 - **Bateria dos AirPods** por componente ao conectar.
   → [detalhes](docs/airpods.md)
 - **Espelho de câmera** antes de reuniões: fixe a seção e abrir a aba já acende
@@ -166,6 +169,7 @@ de Tela.
 | Quando | Para onde | Como desligar |
 |---|---|---|
 | Checagem de update, 1×/dia | API do GitHub | Ajustes › Geral |
+| Avisos do desenvolvedor, 1×/dia | `avisos.json` no repo (arquivo estático, nenhum identificador do Mac vai junto) | Ajustes › Geral — avisos críticos passam mesmo assim |
 | Notificações externas | o relay que você configurar | desligado por padrão |
 | Ditado em nuvem | Deepgram | desligado por padrão (o ditado roda local) |
 | Formatação do transcript | o endpoint que você configurar (padrão: `localhost`) | desligado por padrão |

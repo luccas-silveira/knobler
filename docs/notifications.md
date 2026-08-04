@@ -32,8 +32,10 @@ O `Fechar`/`Limpar` do próprio alerta nunca vira botão do card.
 ## Silêncio durante reuniões
 
 Com **Ajustes › Notch › Silenciar durante reuniões** ligado, notificação de app,
-da API local e de webhook **não vira card** enquanto uma reunião acontece. Ela
-não some: vai direto pro Histórico, e está lá quando a reunião acabar.
+da API local, de webhook e os [avisos do desenvolvedor](avisos.md) **não viram
+card** enquanto uma reunião acontece. Ela não some: vai direto pro Histórico, e
+está lá quando a reunião acabar. Vale inclusive pro aviso marcado como crítico —
+interromper uma call é pior do que ler o recado 40 min depois.
 
 Continuam aparecendo normalmente: **lembretes**, **Pomodoro**, perguntas do
 Claude e o conta-gotas. São coisas que você mesmo agendou — engoli-las seria
