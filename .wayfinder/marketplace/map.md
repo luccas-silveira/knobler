@@ -136,6 +136,21 @@ propósito.
   promessa. Efeito: desinstalar/reinstalar não toca em disco, logo "reinstalar
   reencontra o dado" sai sem código e sem gate novo.
 
+- [Ordem das seções quando a peça entra e sai](tickets/010-ordem-das-secoes-quando-a-peca-entra-e-sai.md)
+  — **a ordem salva nunca é tocada**: instalar e desinstalar não escrevem em
+  `notchSectionOrder` nem em `notchSectionsFixadas`. Três das quatro perguntas
+  saem de graça do código que já existe — `sanear` mantém a seção na lista salva
+  (o enum não encolheu, decisão de 003) e `ordenar` só exibe quem tem conteúdo,
+  então peça que não nasce some da tela sozinha e **reinstalar devolve a seção no
+  lugar exato de antes**. Peça nova cai no fim da ordem personalizada, igual a
+  qualquer seção de versão nova. Duas linhas de código novas: o **editor de ordem
+  esconde** a seção de peça desinstalada (002: "a opção some, sem avisar") e a
+  **fixação é ignorada, não apagada** (007: desinstalar não apaga nada) — senão a
+  faixa apareceria vazia, já que fixada passa por cima de `hasContent`. O filtro
+  entra como parâmetro de `ordenar`, não como consulta ao registro lá dentro, pra
+  o `sectionordercheck` seguir rodando sem subir o app; dois casos novos no gate
+  do piloto.
+
 ## Not yet specified
 
 - **Permissões por plugin.** Hoje nenhuma permissão é pedida no launch, e o painel
