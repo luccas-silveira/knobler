@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-08-04
+
 ### Added
 - **Silenciar durante chamadas**: com a opção ligada (Ajustes → Notch →
   Silenciar), notificação de app, API, webhook e avisos param de virar card
