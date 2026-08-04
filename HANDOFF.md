@@ -1,3 +1,87 @@
+# 🏁 SESSÃO 2026-08-03 (noite) — janela de boas-vindas
+
+Execução do plano escrito na sessão anterior
+(`docs/superpowers/plans/2026-08-03-boas-vindas.md`), na branch
+`feat/boas-vindas`. Fecha dois itens do `IDEIAS.md` de uma vez: "Wizard de
+primeira execução" e "Dicas de hotkeys".
+
+## O que foi feito
+
+Uma `NSWindow` própria na primeira abertura, com dois passos informativos: onde
+o app vive (o notch responde ao mouse, não há Dock nem janela, o acesso é a
+barra de menus, e Mensagens te anuncia na rede local) e os dois atalhos globais
+(⌥ direita = ditado, Control direito = anotação). Ela **não escreve** em
+`AppSettings` — o "minimal setup" do pedido original não existia: ditado e API
+já nascem ligados, Mensagens não tem toggle, Spotify não tem login.
+
+Cada passo carrega `criadoEm`/`revisadoEm`; `onboarding.versao` guarda o que a
+instalação já viu. Passo novo numa versão futura aparece sozinho, marcado
+"Novo"/"Atualizado"; **lista filtrada vazia = a janela não abre**. Quem já tinha
+a chave velha `onboarding.permissoes.apresentado` migra pra versão 1 e vê só os
+atalhos. Tudo isso vive em `Knobler/Onboarding.swift`, sem SwiftUI e sem
+`AppSettings`, pra o `onboardingcheck` compilar isolado (mesma razão do
+`CalendarAviso`).
+
+`Permission.promptAccessibilityOnce()` **saiu** do
+`applicationDidFinishLaunching` — quem pede Acessibilidade agora é o painel
+Permissões, encadeado no fechamento da janela. Há um comentário no lugar da
+linha removida, senão ela volta.
+
+**Desvio consciente do plano:** o painel Permissões só é encadeado quando
+`versaoVista == 0`. Quem só está vendo um passo novo já passou por aquele painel
+e não devia levá-lo na cara de novo.
+
+**Bug que só a captura achou:** o `NSHostingView` adota o fitting size do
+conteúdo e o `setContentSize` não o segura — a janela nascia com **4666 pt** de
+altura. A rootView leva `.frame(width: 800, height: 520)`.
+
+## Validação
+
+- `./tools/check.sh` → **24 checks ok** (novo: `onboardingcheck`, que cobre o
+  filtro, a migração da chave legada e o esquecimento de subir `versaoAtual` —
+  o erro que reabriria a janela em todo launch).
+- Builds Debug e Release ok.
+- **Ao vivo** (build Release rodando de `~/Applications`, defaults da máquina
+  restaurados no fim): instalação zerada abre os dois passos e o painel
+  Permissões vem depois; relançar não abre nada; base migrada
+  (`onboarding.permissoes.apresentado = true`) vê **só** os atalhos com o selo
+  "NOVO", e fechar não traz Permissões; menu → "Boas-vindas…" abre os dois
+  passos; `--boas-vindas` fecha **sem** gravar versão.
+- Rodar de `/tmp` mostrou o outro caminho funcionando: `installIssue =
+  foraDeApplications` manda direto pro painel Permissões, sem passar pela
+  janela.
+
+## Achados do teste de instalação limpa
+
+O dono zerou a máquina de verdade (domínio `com.zoi.knobler`, Application
+Support e TCC) e subiu a build como instalação nova. Três defeitos vieram à
+tona, todos **anteriores** ao wizard — ele só os deixou visíveis:
+
+1. **Calendário pedia permissão no launch.** `CalendarCountdown.start()`
+   chamava `requestFullAccessToEvents` sem condição: o balão do EventKit subia
+   por cima da janela de boas-vindas, e contra a regra do app de pedir no
+   primeiro uso. Agora só liga se o acesso já existe; se não, repolla a cada
+   3 s e liga sozinho quando a concessão chega. Quem pede é o painel Permissões.
+2. **Rede local nunca virava "concedida" num Mac sozinho.** A prova positiva era
+   achar um peer. Qualquer resultado do browser serve — inclusive o próprio
+   anúncio, e sem a permissão o Bonjour não devolve nada.
+3. **"Ainda não usada" lia como defeito.** Virou "Sem status até usar", e Rede
+   local e Arquivos e pastas ganharam um botão **Verificar** que força o
+   primeiro uso na hora (liga o Bonjour, lê a Mesa). O áudio do sistema fica de
+   fora: só um player tocando cria o tap.
+
+Verificado ao vivo pelo dono: os três resolvidos, wizard sem balão por cima.
+
+## O que ficou de fora
+
+- **Cenário 6 do plano** (conceder Acessibilidade e ver o ⚠ sumir em ~3 s sem
+  relaunch) não foi rodado: exigiria revogar a permissão real da máquina do
+  dono. O comportamento é o de sempre — os três consumidores repolam o trust a
+  cada 3 s —, só mudou quem dispara o pedido.
+- Branch `feat/boas-vindas` **não** foi merjada nem publicada em release.
+
+---
+
 # 🏁 SESSÃO 2026-08-03 (noite, tarde) — calendário no Pomodoro
 
 Dois itens soltos do roadmap escolhidos pelo dono: **calendário no pomodoro** e

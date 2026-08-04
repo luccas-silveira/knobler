@@ -4,7 +4,8 @@
 //
 //  Próximo evento do calendário vira live activity: entra 15min antes,
 //  anel esvazia até a hora, "agora" no início e some 1min depois.
-//  EventKit com acesso completo (prompt na 1ª execução); negado = fica quieto.
+//  EventKit com acesso completo. NÃO pede a permissão: espera a concessão que
+//  vem do painel Permissões; sem ela, fica quieto.
 //
 
 import EventKit
@@ -24,6 +25,8 @@ final class CalendarCountdown {
 
     private let store = EKEventStore()
     private var timer: Timer?
+    /// Repolla o status enquanto a permissão não vem (ver `start()`).
+    private var aguardando: Timer?
     private let leadTime: TimeInterval = 15 * 60
     private let mirrorLead: TimeInterval = 2 * 60
     private let lingerAfterStart: TimeInterval = 60
@@ -59,15 +62,23 @@ final class CalendarCountdown {
         return callHosts.contains { haystack.contains($0) }
     }
 
+    /// **Não pede permissão.** Pedir aqui punha o balão do Calendário na tela no
+    /// launch, por cima da janela de boas-vindas — e contra a regra do app, que
+    /// é pedir no primeiro uso. Quem pede é o painel Permissões
+    /// (`Permission.request`); aqui só esperamos a concessão chegar.
     func start() {
-        store.requestFullAccessToEvents { [weak self] granted, _ in
-            DispatchQueue.main.async {
-                guard granted else {
-                    NSLog("knobler calendar: acesso negado — countdown desligado")
-                    return
-                }
-                self?.beginPolling()
-            }
+        guard EKEventStore.authorizationStatus(for: .event) != .fullAccess else {
+            beginPolling()
+            return
+        }
+        // Mesmo molde dos consumidores de Acessibilidade: repolla o status e se
+        // liga sozinho quando o usuário concede, sem relaunch. Sem callback, que
+        // o EventKit só dá a quem pede.
+        aguardando = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] t in
+            guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else { return }
+            t.invalidate()
+            self?.aguardando = nil
+            self?.beginPolling()
         }
     }
 

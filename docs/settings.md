@@ -83,17 +83,25 @@ balão uma vez por app: depois que a permissão foi negada, a chamada não faz
 nada e o Ajustes do Sistema é o único caminho. As outras quatro não têm API de
 pedido — o Bluetooth é pedido pelo monitor dos AirPods na abertura, e Rede
 local, Arquivos e pastas e Gravação de áudio do sistema só disparam o balão no
-primeiro uso real do recurso.
+primeiro uso real do recurso. Essas três também não têm API de **consulta**: até
+a feature rodar uma vez, o painel mostra *Sem status até usar* — não é defeito,
+é tudo que o macOS conta. Em *Rede local* e *Arquivos e pastas* há um botão
+**Verificar** que usa a permissão de leve (liga o Bonjour, lê a Mesa) e resolve
+o estado na hora; a *Gravação de áudio do sistema* não tem — ela só se prova
+com um player tocando. A contagem regressiva do calendário espera a
+concessão vinda daqui e liga sozinha quando ela chega, sem reabrir o app.
 
 O Knobler pede cada permissão **no primeiro uso do recurso**, não na abertura —
 o microfone só quando você segura a ⌥ direita pela primeira vez, a câmera só ao
 abrir o espelho, a rede local só ao pôr a seção Mensagens em foco. Recusar não
 quebra o app: só desliga aquele recurso.
 
-Duas fogem dessa regra. A **Acessibilidade** é pedida na abertura porque sem ela
-o `CGEventTap` nem chega a ser criado — a ⌥ direita nunca chega ao app e não
-existe "primeiro uso" que dê pra esperar, o ditado ficaria impossível de
-acionar. É também a permissão que os HUDs de volume e brilho usam.
+Duas fogem dessa regra. A **Acessibilidade** é pedida por este painel, que se
+abre sozinho na primeira execução (logo depois da [janela de
+boas-vindas](onboarding.md)) — sem ela o `CGEventTap` nem chega a ser criado, a
+⌥ direita nunca chega ao app e não existe "primeiro uso" que dê pra esperar, o
+ditado ficaria impossível de acionar. É também a permissão que os HUDs de volume
+e brilho usam.
 
 O **Bluetooth** é pedido na abertura junto com o monitor dos AirPods, que sobe
 com o app quando **AirPods no notch** está ligado (o padrão) — o macOS pede
@@ -118,5 +126,6 @@ das oito permissões + caminho do bundle), para suporte remoto.
 
 Três permissões não expõem status ao app — **Rede local**, **Arquivos e pastas**
 e **Gravação de áudio do sistema**. O macOS não oferece API para consultá-las, só
-para usá-las. Elas aparecem como *Ainda não usada* até o recurso rodar uma vez;
-a partir daí o painel mostra o resultado real.
+para usá-las. Elas aparecem como *Sem status até usar* até o recurso rodar uma vez;
+a partir daí o painel mostra o resultado real. O botão **Verificar** (só nas
+duas primeiras) força esse primeiro uso na hora.

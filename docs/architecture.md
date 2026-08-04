@@ -42,6 +42,7 @@ regras de domínio novas são implementadas.
 | Webhooks | `WebhookClient` + Keychain | Ajustes e notificações |
 | Agenda | `CalendarCountdown`, `ScheduleEngine` | notch e Ajustes |
 | Próximo evento reduzido ao que a UI usa | `CalendarAviso` (sem dependências, por isso testável isolado) | card e pílula do Pomodoro |
+| Passos de boas-vindas já vistos | `Onboarding` (sem dependências, por isso testável isolado) | `OnboardingView`, `AppDelegate` |
 | Versão disponível e instalação | `Updater` | card do notch e Ajustes › Geral |
 | Notificações das últimas 24 h (em disco) | `NotificationHistory.shared` | `HistoryListView` |
 | Nota rápida (texto, foco, tela dona) | `QuickNote.shared` | `NotchView`, menu da barra |

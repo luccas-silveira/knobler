@@ -102,6 +102,11 @@ final class LANMessaging: ObservableObject {
             }
         }
         browser.browseResultsChangedHandler = { [weak self] results, _ in
+            // Qualquer resultado prova o "sim" — inclusive o nosso próprio
+            // serviço, que o browser enxerga. Sem a permissão o browse não
+            // devolve nada; esperar aparecer um peer de verdade deixava um Mac
+            // sozinho na rede eternamente em "ainda não usada".
+            if !results.isEmpty { Permission.record(.redeLocal, worked: true) }
             self?.updatePeers(results)
         }
         browser.start(queue: .main)
@@ -121,8 +126,6 @@ final class LANMessaging: ObservableObject {
             let name = txt["name"] ?? id
             found.append(Peer(id: id, name: name, endpoint: r.endpoint))
         }
-        // achar peer é a única prova positiva de que a Rede Local foi liberada
-        if !found.isEmpty { Permission.record(.redeLocal, worked: true) }
         peers = found.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 

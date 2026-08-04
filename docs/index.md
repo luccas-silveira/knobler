@@ -26,6 +26,7 @@ contratos e explicações para entender decisões.
 
 ## Usar as features
 
+- [Boas-vindas](onboarding.md) — a janela da primeira abertura
 - [Now Playing](now-playing.md)
 - [HUDs](huds.md)
 - [Notificações](notifications.md)

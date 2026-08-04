@@ -7,6 +7,12 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 ## [Unreleased]
 
 ### Added
+- **Janela de boas-vindas na primeira abertura**: dois passos informativos —
+  onde o app vive (notch + ícone da barra de menus, sem Dock nem janela) e os
+  dois atalhos globais (⌥ direita pro ditado, Control direito pra anotação).
+  Cada passo é versionado: quem já usava o Knobler vê só o dos atalhos, e uma
+  versão futura com passo novo mostra só o que é novo. Reabre pelo menu da
+  barra → **Boas-vindas…**. Ver [`docs/onboarding.md`](docs/onboarding.md).
 - **Próximo evento durante o Pomodoro**: o card de foco ganha uma linha com o
   título do evento e quanto falta ("Retrospectiva em 12 min"), e nos últimos
   5 minutos a pílula fechada troca o timer pelo aviso. Antes o countdown do
@@ -15,6 +21,20 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   evento à vista, nada muda.
 
 ### Fixed
+- **Calendário não pede permissão no launch**: o balão do EventKit subia na
+  abertura — por cima da janela de boas-vindas, e contra a regra de pedir no
+  primeiro uso. Quem pede agora é o painel Permissões; o countdown fica quieto
+  até a concessão e liga sozinho quando ela chega, sem reabrir o app.
+- **Rede local agora aparece como concedida sem depender de outro Mac**: a prova
+  era achar um peer, então quem estava sozinho na rede ficava para sempre em
+  "ainda não usada". O próprio serviço anunciado já basta — sem a permissão o
+  Bonjour não devolve nada.
+- **Botão "Verificar" nas permissões sem status**: Rede local e Arquivos e
+  pastas ganham um botão que usa a permissão de leve (liga o Bonjour, lê a Mesa)
+  e resolve o estado na hora, em vez de esperar o recurso rodar por acaso.
+- **Permissão sem status não parece mais defeito**: Rede local, Arquivos e
+  Gravação de áudio do sistema não têm API de consulta no macOS; o painel agora
+  diz "Sem status até usar" em vez de "Ainda não usada".
 - **Evento do calendário não disputa mais o card com o Pomodoro**: com o timer
   ativo, o mesmo evento aparecia duas vezes (anel de atividade + card) e a seção
   de atividade, que se atualiza a cada 30 s, subia ao topo sem parar — o
@@ -22,6 +42,10 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   enquanto o Pomodoro está na tela, onde o evento já é mostrado.
 
 ### Changed
+- **Acessibilidade deixa de ser pedida no launch**: quem pede agora é o painel
+  Permissões, que abre depois da janela de boas-vindas — antes o balão do
+  sistema e a janela do app disputavam o foco na primeira abertura. Concedida a
+  permissão, ditado e notificações religam em poucos segundos, sem reabrir o app.
 - **Pergunta do agente não trunca mais**: expandido, resumo e detalhes moram no
   mesmo bloco rolável — antes o resumo era cortado em 160 caracteres e duas
   linhas mesmo com o card aberto. "Ver tudo" aparece agora também quando só o

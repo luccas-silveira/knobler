@@ -170,9 +170,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private static let simulatedNotchSize = CGSize(width: 190, height: 30)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Única permissão pedida no launch — as outras esperam o primeiro uso
-        // real da feature (ver Permissions.swift).
-        Permission.promptAccessibilityOnce()
+        // Nenhuma permissão é pedida no launch: quem pede Acessibilidade é o
+        // painel Permissões, aberto depois da janela de boas-vindas — duas
+        // janelas disputando foco foi o bug que criou o asyncAfter original.
+        // Até lá o interceptor de notificação e o gatilho do ditado ficam
+        // mudos, mas os três consumidores repolam o trust a cada 3 s e se
+        // religam sozinhos, sem relaunch. Não recoloque o prompt aqui.
         #if DEBUG
         Permission._selfCheck()
         #endif
@@ -556,24 +559,88 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let pane = arg.split(separator: "=").last
                 .flatMap { SettingsPane(rawValue: String($0)) }
             showSettings(pane: pane)
+        } else if CommandLine.arguments.contains("--boas-vindas") {
+            // modo de captura: mostra tudo e não grava nada
+            mostrarBoasVindas(paraVersao: 0, gravando: false)
         } else {
-            apresentarPermissoesSeNecessario()
+            apresentarBoasVindasSeNecessario()
         }
     }
 
     /// O app é LSUIElement: sem janela e sem ícone no Dock, quem instala não tem
-    /// onde procurar as permissões. Na primeira abertura (e sempre que a
-    /// instalação estiver num estado que invalida o TCC) o painel se apresenta
-    /// sozinho, uma vez.
-    private func apresentarPermissoesSeNecessario() {
-        let chave = "onboarding.permissoes.apresentado"
-        let jaViu = UserDefaults.standard.bool(forKey: chave)
-        guard !jaViu || Permission.installIssue != nil else { return }
-        UserDefaults.standard.set(true, forKey: chave)
-        // Depois do prompt do sistema, senão as duas janelas brigam pelo foco.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
-            self?.showSettings(pane: .permissoes)
+    /// onde procurar nem o app nem as permissões. A janela de boas-vindas conta
+    /// isso na primeira abertura; o painel Permissões vem logo depois que ela
+    /// fecha, e é ele quem pede Acessibilidade.
+    ///
+    /// Passo novo numa versão futura reabre a janela só com ele — quem já viu o
+    /// resto não revê (ver `Onboarding.versaoAtual`).
+    private func apresentarBoasVindasSeNecessario() {
+        // Saúde da instalação é problema de agora, não novidade: vai direto pro
+        // painel, sem passar pelo wizard nem pelo versionamento.
+        if Permission.installIssue != nil {
+            showSettings(pane: .permissoes)
+            return
         }
+        let vista = Onboarding.versaoVista()
+        guard !Onboarding.visiveis(paraVersao: vista).isEmpty else { return }
+        // Permissões só na primeira execução de verdade: quem só está vendo um
+        // passo novo já passou por esse painel.
+        mostrarBoasVindas(paraVersao: vista, gravando: true, depoisPermissoes: vista == 0)
+    }
+
+    private var onboardingWindow: NSWindow?
+    private var onboardingObserver: NSObjectProtocol?
+
+    private func mostrarBoasVindas(paraVersao vista: Int,
+                                   gravando: Bool,
+                                   depoisPermissoes: Bool = false) {
+        if onboardingWindow == nil {
+            let window = NSWindow(
+                contentRect: .zero,
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
+            window.title = "Bem-vindo ao Knobler"
+            window.contentView = NSHostingView(rootView: OnboardingView(
+                passos: Onboarding.visiveis(paraVersao: vista),
+                mostrarNovidade: vista > 0,
+                aoConcluir: { [weak window] in window?.close() },
+                aoIgnorar: { [weak window] in window?.close() }
+            )
+            // O NSHostingView adota o fitting size do conteúdo e o setContentSize
+            // abaixo não o segura: sem esta moldura a janela nasce com milhares
+            // de pontos de altura (o texto de cada linha se estica sem limite).
+            .frame(width: 800, height: 520))
+            window.isReleasedWhenClosed = false
+            window.setContentSize(NSSize(width: 800, height: 520))
+            window.center()
+            onboardingWindow = window
+            // Nenhuma janela do projeto tem delegate: o X e os dois botões caem
+            // todos aqui, e a versão é gravada num lugar só.
+            onboardingObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.willCloseNotification, object: window, queue: .main
+            ) { [weak self] _ in
+                guard let self else { return }
+                if let obs = self.onboardingObserver {
+                    NotificationCenter.default.removeObserver(obs)
+                }
+                self.onboardingObserver = nil
+                self.onboardingWindow = nil
+                // No modo de captura (--boas-vindas) tirar print não pode
+                // queimar o onboarding da máquina.
+                guard gravando else { return }
+                Onboarding.marcarVisto()
+                if depoisPermissoes { self.showSettings(pane: .permissoes) }
+            }
+        }
+        onboardingWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// Porta de volta: quem pede de propósito quer ver tudo.
+    @objc private func openOnboarding() {
+        mostrarBoasVindas(paraVersao: 0, gravando: true)
     }
 
     /// Compõe o domínio Ask com o gateway HTTP antes que o listener possa
@@ -1149,6 +1216,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             withTitle: "↗ Enviar por AirDrop…", action: #selector(sendAirDrop), keyEquivalent: "")
         airdrop.target = self
         menu.addItem(.separator())
+        let boasVindas = menu.addItem(
+            withTitle: "Boas-vindas…", action: #selector(openOnboarding), keyEquivalent: "")
+        boasVindas.target = self
         let settings = menu.addItem(
             withTitle: "Ajustes…", action: #selector(openSettings), keyEquivalent: ",")
         settings.target = self
@@ -1312,7 +1382,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             )
             window.title = "Ajustes do Knobler"
             window.contentView = NSHostingView(
-                rootView: SettingsView(router: settingsRouter, webhookClient: webhookClient))
+                rootView: SettingsView(router: settingsRouter, webhookClient: webhookClient)
+                    // o painel Permissões liga o Bonjour pra sondar a Rede local
+                    .environmentObject(lanMessaging))
             window.isReleasedWhenClosed = false
             window.setContentSize(NSSize(width: 800, height: 520))
             window.contentMinSize = NSSize(width: 720, height: 470)
