@@ -76,7 +76,11 @@ Verificado ao vivo pelo dono: os três resolvidos, wizard sem balão por cima.
 
 **v0.19.0 publicada** (`tools/release.sh minor`): tag `v0.19.0`, release no
 GitHub, `Knobler-0.19.0.zip` (sha256 `97ec384d…`) e cask bumpado no tap. A
-branch `feat/boas-vindas` foi merjada em `master` com `--no-ff` antes disso.
+branch `feat/boas-vindas` foi merjada em `master` com `--no-ff` antes disso e
+ficou mantida no local, a pedido do dono. O espelho `zoi-tech/knobler`, que
+estava indisponível em julho, aceitou o push desta vez (`master` + `v0.19.0`).
+O `graphify-out/` segue o de 28/jul: dois arquivos novos não pagam os ~640k
+tokens de uma regeneração.
 
 ⚠️ O `/Applications/Knobler.app` da máquina do dono é a build local da branch
 (assinatura `Knobler Local Signing`), **não** a do release. Um `brew upgrade
