@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-08-03
+
 ### Added
 - **Avisos do desenvolvedor**: novidades e recados sobre o Knobler chegam como
   card no notch. O app lê um JSON público do repositório uma vez por dia — sem
