@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-08-04
+
 ### Added
 - **Foco do card entre reinícios**: a seção onde você deixou o card (Música,
   Mensagens, Nota…) volta na primeira abertura depois de reiniciar o app. Se a
