@@ -85,6 +85,7 @@ swift_check quicknotecheck        Knobler/QuickNote.swift tools/quicknotecheck.s
 swift_check permissioncheck       Knobler/Permissions.swift tools/permissioncheck.swift
 swift_check annotationcheck      Knobler/AnnotationModel.swift tools/annotationcheck.swift
 swift_check calendariocheck       Knobler/CalendarAviso.swift tools/calendariocheck.swift
+swift_check onboardingcheck       Knobler/Onboarding.swift tools/onboardingcheck.swift
 # "tique não carimba": o VM inteiro sobe isolado, e por isso arrasta os tipos
 # que ele cita (Pomodoro, AirPods, notificação, Wire, Updater).
 swift_check eventoscheck          Knobler/NotchViewModel.swift Knobler/NotchSectionOrder.swift \
