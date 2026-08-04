@@ -2,8 +2,8 @@
 
 - map: ../map.md
 - label: wayfinder:task
-- status: open
-- assignee: —
+- status: closed
+- assignee: claude (sessão 2026-08-04)
 - blocked-by: — (009 fechado)
 
 ## Question
@@ -37,3 +37,42 @@ Entregar:
 
 `xcodegen generate` depois de criar o arquivo novo. Ninguém consulta o
 `PluginHost` ainda — isso é a F2.
+
+## Resolução (2026-08-04)
+
+Executado. O app compila, `./tools/check.sh` dá **35 ok** (era 34) e **nada
+mudou na tela** — ninguém consulta o `PluginHost` ainda.
+
+### O que entrou
+
+- **`Knobler/Plugin.swift`** (só `Foundation`, como o `Onboarding`): `PluginID`
+  com os 11 ids de 002, `struct Plugin` (id, nome, descrição, símbolo, seção,
+  painel, rotas, permissão, `nascer`), `protocol PluginServico`,
+  `struct PluginDeps`, `PluginRegistry` (array literal + gate `completo`),
+  `PluginsInstalados` e o `PluginHost`. Cópia do protótipo 003, com três
+  diferenças: `PluginDeps` só tem `instalado(_:)` (o `publicar` do protótipo era
+  dublê; o de verdade entra na F2), `struct PluginDeFabrica` pras 4 fichas
+  decorativas, e o host lê/grava o `UserDefaults` sozinho.
+- **As 15 fichas.** Nome, frase e símbolo vieram do protótipo da vitrine (006) —
+  a F4 bate o martelo. Só o Pomodoro tem `nascer` de verdade (`{ _ in Pomodoro() }`);
+  as outras 10 têm `nascer` vazio. `extension Pomodoro: PluginServico` com
+  `parar() { reset() }` — o `reset()` que já existia invalida o `Timer` de 1 s e
+  publica idle, então "morrer" saiu sem código novo.
+- **O instalado**: chave `pluginsInstalados` (lista de ids) + migração na chave
+  `plugins.migracao` com o truque de versão do `Onboarding`. Id órfão é ignorado
+  na leitura **e preservado na gravação** — `gravar` recolhe os ids que este
+  build não conhece e regrava junto, senão a primeira desinstalação apagaria a
+  peça de outra versão.
+- **`tools/plugincheck.swift`** + linha em `tools/check.sh`. Seis casos: registro
+  cobre todos os ids; seção citada na ficha existe no `NotchSection`; defaults
+  vazio vira os 11; a migração roda uma vez só; id desconhecido é ignorado calado
+  e não é apagado; peça desligada não nasce (e desinstalar mata o serviço e
+  persiste).
+- Linha em `## [Unreleased]` do `CHANGELOG.md`. Sem release — é a F5.
+
+### Desvio do ticket
+
+O gate compila **três** arquivos, não dois: entrou `Knobler/NotchSectionOrder.swift`
+junto de `Plugin.swift` e `Pomodoro.swift`. Custo zero (é Foundation puro) e paga
+o assert que 003 pediu — a ficha cita a seção por string, e erro de digitação aí
+só apareceria na tela.

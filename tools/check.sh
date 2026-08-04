@@ -73,6 +73,9 @@ swift_check assistentecheck   Knobler/WebhookAssistant.swift tools/assistenteche
 swift_check exemplocheck      Knobler/WebhookTemplate.swift Knobler/WebhookExemplo.swift tools/exemplocheck.swift
 swift_check automapcheck      Knobler/WebhookTemplate.swift Knobler/WebhookPresets.swift Knobler/WebhookAutoMap.swift tools/automapcheck.swift
 swift_check colorpickercheck  Knobler/ColorPicker.swift tools/colorpickercheck.swift
+# a máquina de peças; NotchSectionOrder entra só pra conferir o nome da seção da ficha
+swift_check plugincheck       Knobler/Plugin.swift Knobler/Pomodoro.swift \
+  Knobler/NotchSectionOrder.swift tools/plugincheck.swift
 CONVERSAO="Knobler/FileConverter.swift Knobler/ImageConverter.swift Knobler/DocumentConverter.swift Knobler/VideoConverter.swift"
 swift_check imageconvertercheck    $CONVERSAO tools/imageconvertercheck.swift
 swift_check documentconvertercheck $CONVERSAO tools/documentconvertercheck.swift

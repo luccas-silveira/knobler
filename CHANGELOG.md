@@ -6,6 +6,14 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- **Base do marketplace de plugins**: a ficha de cada feature (nome, frase,
+  símbolo, superfícies que ocupa) e a lista de quem está instalado
+  (`pluginsInstalados`), com migração que dá os 11 plugins pra todo mundo uma
+  vez só. Nada muda na tela — é a fundação pro Pomodoro virar a primeira peça
+  que pode ser instalada e desinstalada. Gate novo `plugincheck` em
+  `tools/check.sh`.
+
 ## [0.22.0] - 2026-08-04
 
 ### Added

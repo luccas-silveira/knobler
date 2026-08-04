@@ -190,6 +190,17 @@ propósito.
   da F4. Custo: os 15 nomes/frases/símbolos são batidos na F4. Release MINOR
   única no fim da F5.
 
+- [Fase 1 — a peça, o registro e o instalado](tickets/011-fase-1-peca-e-instalado.md)
+  — **executada**: `Knobler/Plugin.swift` (só `Foundation`) com as 15 fichas, o
+  registro literal e o `PluginHost`; o instalado como lista de ids em
+  `pluginsInstalados` com a migração de uma vez só em `plugins.migracao`; gate
+  novo `plugincheck` (6 casos) em `tools/check.sh`. Só o Pomodoro tem `nascer`
+  de verdade — as outras 10 fichas ficam com `nascer` vazio, e é isso que mantém
+  o registro compilando antes da conversão. Duas coisas que o desenho não previa:
+  `gravar` precisa **preservar** o id órfão (a regra "não apaga" de 005 morreria
+  na primeira desinstalação), e `parar()` do Pomodoro saiu de graça no `reset()`
+  que já existia. O app compila e **nada mudou na tela** — a fiação é a F2.
+
 ## Not yet specified
 
 - **Permissões por plugin.** Hoje nenhuma permissão é pedida no launch, e o painel
