@@ -1,0 +1,159 @@
+{
+  "auto_id": "d8e9382d-99ec-4d79-bc4a-9646bd2a0e46:main",
+  "trigger_id": "6954dd13-7db2-4817-9fe7-dba3d463f26c",
+  "date": "2026-08-04T15:04:00.876Z",
+  "payload": {
+    "id": "86ajvvnpa",
+    "name": "Knobler captura 010",
+    "content": "{\"ops\":[{\"insert\":\"Tarefa de teste para capturar o payload da automação \"},{\"insert\":\"Call webhook\",\"attributes\":{\"bold\":true}},{\"insert\":\" do ClickUp (ticket 010).\\n\"}]}",
+    "lower_name": "knobler captura 010",
+    "html_content": null,
+    "text_content": "Tarefa de teste para capturar o payload da automação Call webhook do ClickUp (ticket 010).",
+    "content_size": "small",
+    "sprint_points": null,
+    "coverimage": null,
+    "priority": "2",
+    "personal_priority": [],
+    "draft_uuid": null,
+    "custom_id": null,
+    "custom_type": null,
+    "status_id": "p901313929324_0h9D6Zm2",
+    "workspace_id": "9007072151",
+    "subcategory": "901327950786",
+    "direct_parent": null,
+    "root_parent": null,
+    "merged_to": null,
+    "subtask_sort": null,
+    "subtask_sort_dir": null,
+    "reccurence": {
+      "v1": {
+        "recurring": false,
+        "recur_type": null,
+        "recur_next": null,
+        "recur_new_status": null,
+        "recur_due_date": null,
+        "recur_data": null,
+        "recur_rule": null,
+        "recur_task": null,
+        "recur_skip_missed": false,
+        "recur_on_status": null,
+        "recur_on": null,
+        "recur_copy_original": false,
+        "recur_time": false,
+        "recur_immediately": false,
+        "recur_until": null,
+        "recur_dst": null,
+        "recur_tz_offset": null,
+        "recur_tz": null,
+        "recur_daily": false,
+        "recur_ignore_today": false
+      },
+      "v2": {
+        "set_time": false,
+        "create_new_task": false,
+        "periodically": false,
+        "simple_settings": false,
+        "ignore_weekends": false,
+        "recur_on_schedule": false,
+        "reschedule_on_due_date_change": false
+      }
+    },
+    "privacy": {
+      "private": false,
+      "public": false,
+      "public_token": null,
+      "public_permission_level": null,
+      "public_fields": null,
+      "public_share_expires_on": null,
+      "public_sharing": false,
+      "seo_optimized": false,
+      "made_public_by": null,
+      "made_public_time": null
+    },
+    "templating": {
+      "template": false,
+      "original_subcat": null,
+      "template_name": null,
+      "team_id": null,
+      "template_field_ids": null,
+      "permanent_template_id": null,
+      "visibility": null
+    },
+    "states": {
+      "is_archived": false,
+      "is_deleted": false,
+      "is_encrypted": false
+    },
+    "time_mgmt": {
+      "is_summary_task": false,
+      "start_date": null,
+      "start_date_time": false,
+      "date_closed": null,
+      "date_created": "1785855839804",
+      "date_updated": "1785855839804",
+      "due_date": "1786384800000",
+      "due_date_time": true,
+      "date_deleted": null,
+      "date_active": null,
+      "date_unstarted": null,
+      "date_done": null,
+      "date_delegated": null,
+      "time_estimate": null,
+      "time_estimate_string": null,
+      "time_spent": null,
+      "sent_due_date_notif": false,
+      "duration": {},
+      "duration_is_elapsed": false
+    },
+    "checklists": [],
+    "ownership": {
+      "created_by_email": null,
+      "owner": 81976356,
+      "creator": 81976356,
+      "deleted_by": null,
+      "source": "api",
+      "delegator": null,
+      "form_id": null,
+      "merged_to": null
+    },
+    "subtask_ids": [],
+    "tags": [],
+    "fields": [],
+    "lists": [
+      {
+        "list_id": "901327950786",
+        "type": "home"
+      }
+    ],
+    "users": [
+      {
+        "userid": 81976356,
+        "type": "owner"
+      },
+      {
+        "userid": 81976356,
+        "type": "creator"
+      }
+    ],
+    "groups": [],
+    "related_tasks": [],
+    "related_tasks_count": {
+      "dependsOn": 0,
+      "dependedBy": 0
+    },
+    "attachments": [],
+    "docs": [],
+    "_version_vector": {
+      "workspace_id": 9007072151,
+      "object_type": "task",
+      "object_id": "86ajvvnpa",
+      "vector": [
+        {
+          "master_id": 19,
+          "version": 1785855839874000,
+          "deleted": false
+        }
+      ]
+    }
+  }
+}
