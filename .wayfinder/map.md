@@ -65,6 +65,19 @@ app e sem tentativa-e-erro.
   tinha polling — só "Recarregar" —, então ganhou o mesmo laço de 2s do
   assistente, senão "troca sozinho" seria mentira. O disparo do auto-mapeamento
   ao colar fica marcado com `// ponytail:` no editor: 005 é a Fase 4 (020).
+- [Fase 4 — auto-mapeamento](tickets/020-fase-auto-mapeamento.md) — 005 no ar:
+  `Knobler/WebhookAutoMap.swift` (puro, sem SwiftUI) com `sugerir(arvore:preset:
+  vazios:)` — preset primeiro (a dica só casa se **todos** os seus `{{caminho}}`
+  existirem como folha, o que cobre a URL de dois tokens do GHL de workflow),
+  heurística de nome de chave no que sobrar (largura, só string/número, array
+  pelo índice 0, profundidade máxima 4, URL só com valor `http`); gate
+  `automapcheck` (34 checks). "Campo preenchido nunca é sobrescrito" virou
+  invariante da assinatura (o parâmetro `vazios` é a única entrada), e "ícone
+  nunca é chutado" é invariante do tipo (`TemplateField` não tem ícone). Dispara
+  em `load()`, no polling por `lastPayloadAt` novo e ao colar JSON; banner no
+  topo do editor com "Limpar sugestões", que some ao primeiro toque. Um desvio:
+  o casamento de forma é literal — as dicas com buraco são só do Notion (011/022,
+  fora do release), e o ponto de entrada está marcado com `// ponytail:`.
 
 - [Payload de webhook do GoHighLevel](tickets/001-payload-webhook-ghl.md) — são
   dois sistemas: o de Marketplace tem envelope estável e dedupe (`webhookId`); o

@@ -41,6 +41,7 @@ swiftc -O -o build/snapshot \
   Knobler/WebhookTemplate.swift \
   Knobler/WebhookExemplo.swift \
   Knobler/WebhookPresets.swift \
+  Knobler/WebhookAutoMap.swift \
   Knobler/WebhookAssistant.swift \
   Knobler/WebhookAssistantView.swift \
   Knobler/AppSettings.swift \

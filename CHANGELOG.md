@@ -35,6 +35,14 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   aviso inline com o começo do que foi lido, sem mexer na árvore que já estava
   na tela. Botão no estado vazio do editor e no passo Primeiro envio do
   assistente.
+- **Auto-mapeamento dos campos**: quando a árvore do payload aparece (webhook de
+  verdade ou JSON colado), os campos que estiverem **vazios** são preenchidos
+  sozinhos — primeiro pela receita do serviço, depois por um chute a partir dos
+  nomes de chave (`title`/`name`/`full_name` viram título, `text_content` vira
+  corpo, e por aí). Campo que você já escreveu nunca é sobrescrito, o ícone
+  nunca é chutado, e um aviso não-bloqueante no topo oferece "Limpar sugestões".
+  Payload que não dá pra reconhecer deixa os campos vazios e convida a clicar na
+  árvore.
 
 ### Changed
 - A linha do perfil de webhook mostra estado em vez de "Campos mapeados":

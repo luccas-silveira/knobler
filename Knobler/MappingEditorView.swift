@@ -169,6 +169,9 @@ struct MappingEditorView: View {
     @State private var avisoDeColagem: String?
     @State private var ultimoPayloadAt: Double?
     @State private var origem: [String: Any]?
+    /// O que o auto-mapeamento (005) chutou nesta árvore. `nil` = ainda não
+    /// rodou (sem banner); vazio = rodou e nada casou (banner do convite).
+    @State private var sugestao: [TemplateField: String]?
     @State private var loading = true
     @State private var saving = false
     @StateObject private var router = InsertionRouter()
@@ -176,6 +179,7 @@ struct MappingEditorView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
+            if mostraBannerDoChute { bannerDoChute }
             Divider()
             HSplitView {
                 leftPane
@@ -214,6 +218,69 @@ struct MappingEditorView: View {
                 .disabled(saving)
         }
         .padding()
+    }
+
+    // MARK: auto-mapeamento (005)
+
+    /// Chuta os campos VAZIOS a partir da árvore que está na tela. Roda uma vez
+    /// por árvore nova (payload real ou JSON colado) — nunca por cima do que o
+    /// usuário está digitando.
+    private func autoMapear() {
+        let vazios = Set(TemplateField.allCases.filter {
+            valorDoCampo($0).trimmingCharacters(in: .whitespaces).isEmpty
+        })
+        guard !vazios.isEmpty else { sugestao = nil; return }   // nada a chutar, nada a anunciar
+        let chute = AutoMap.sugerir(arvore: root, preset: preset, vazios: vazios)
+        for (campo, template) in chute { escreverCampo(campo, template) }
+        sugestao = chute
+    }
+
+    private func valorDoCampo(_ campo: TemplateField) -> String {
+        switch campo {
+        case .title: return title
+        case .body:  return body_
+        case .url:   return url
+        case .id:    return idField
+        }
+    }
+
+    private func escreverCampo(_ campo: TemplateField, _ v: String) {
+        switch campo {
+        case .title: title = v
+        case .body:  body_ = v
+        case .url:   url = v
+        case .id:    idField = v
+        }
+    }
+
+    /// O banner some ao primeiro toque em qualquer campo sugerido.
+    private var mostraBannerDoChute: Bool {
+        guard let sugestao else { return false }
+        guard !sugestao.isEmpty else { return root != nil }
+        return sugestao.allSatisfy { valorDoCampo($0.key) == $0.value }
+    }
+
+    private var bannerDoChute: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "wand.and.stars").foregroundStyle(.secondary)
+            Text(sugestao?.isEmpty == false
+                 ? "Preenchi os campos vazios a partir deste payload — confira e edite."
+                 : "Não reconheci este payload — clique num valor da árvore pra inserir.")
+                .font(.callout).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            if sugestao?.isEmpty == false {
+                Button("Limpar sugestões") {
+                    // só o que o chute preencheu e o usuário não editou
+                    for (campo, template) in sugestao ?? [:] where valorDoCampo(campo) == template {
+                        escreverCampo(campo, "")
+                    }
+                    sugestao = nil
+                }
+                .buttonStyle(.borderless).controlSize(.small)
+            }
+        }
+        .padding(.horizontal).padding(.bottom, 8)
     }
 
     // MARK: painel esquerdo — campos + preview
@@ -378,7 +445,7 @@ struct MappingEditorView: View {
             root = v
             fonte = .exemplo
             avisoDeColagem = nil
-            // ponytail: o auto-mapeamento de 005 (Fase 4) entra aqui quando existir.
+            autoMapear()                                       // 005: uma vez por árvore nova
         case .invalido(let trecho):
             avisoDeColagem = ExemploColado.mensagemDeErro(trecho)   // árvore anterior fica intacta
         case .vazio:
@@ -422,6 +489,7 @@ struct MappingEditorView: View {
         } else if fonte != .exemplo {
             root = nil
         }
+        autoMapear()
     }
 
     /// Recarrega só a árvore do último payload capturado, sem tocar nos campos
@@ -448,6 +516,7 @@ struct MappingEditorView: View {
               let any = try? JSONSerialization.jsonObject(with: data) else { return }
         root = JSONValue.from(any)
         fonte = fonte.comPayloadReal
+        autoMapear()   // chaveado pelo lastPayloadAt: uma vez por payload novo
     }
 
     private func save() async {

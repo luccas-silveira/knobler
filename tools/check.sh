@@ -71,6 +71,7 @@ swift_check templatecheck     Knobler/WebhookTemplate.swift tools/templatecheck.
 swift_check presetcheck       Knobler/WebhookTemplate.swift Knobler/WebhookPresets.swift tools/presetcheck.swift
 swift_check assistentecheck   Knobler/WebhookAssistant.swift tools/assistentecheck.swift
 swift_check exemplocheck      Knobler/WebhookTemplate.swift Knobler/WebhookExemplo.swift tools/exemplocheck.swift
+swift_check automapcheck      Knobler/WebhookTemplate.swift Knobler/WebhookPresets.swift Knobler/WebhookAutoMap.swift tools/automapcheck.swift
 swift_check colorpickercheck  Knobler/ColorPicker.swift tools/colorpickercheck.swift
 CONVERSAO="Knobler/FileConverter.swift Knobler/ImageConverter.swift Knobler/DocumentConverter.swift Knobler/VideoConverter.swift"
 swift_check imageconvertercheck    $CONVERSAO tools/imageconvertercheck.swift
