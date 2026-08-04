@@ -56,15 +56,11 @@ como registro do que foi pensado e por quê; não é mais um plano.
 
 Não compartilham substrato com ninguém — o "roadmap" deles é escolher um e fazer.
 
-- **Canal de notificações do desenvolvedor** — quase de graça: é um perfil de
-  entrada no relay, que já tem fila e dedupe, e o `NotificationHistory` já
-  persiste. Falta read/dismiss.
 - **Notificações com ações** — ⚠️ travado no `AXUIElement` do banner vivo (ver
   `IDEIAS.md`); a infra de botão já está pronta.
-- **Apple Notes sync** — um `case` novo em `DictationDestination`.
-- **Integração com Claude API** — trocar `formatEndpoint`/`formatModel`; está
-  mais perto de configuração que de feature.
-- **WhatsApp Web** — mais um destino de ditado.
+- **WhatsApp Web** — ⚠️ se for mais um destino de ditado, está descartado junto
+  com Apple Notes e Claude API (ver `IDEIAS.md`): o ditado só escreve no campo
+  selecionado. Só sobrevive como envio a partir do notch, sem tocar o ditado.
 - **Progresso do AirDrop no notch** — isolado.
 - **Profiling de memória** — isolado.
 - **Animações suaves entre estados** — **último de tudo**: toca todos os estados,

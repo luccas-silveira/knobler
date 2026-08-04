@@ -19,7 +19,8 @@ KnoblerMain
        │    ├─ CalendarCountdown / Pomodoro / ScheduleEngine
        │    ├─ MirrorController / ScreenshotWatcher / ShelfStore
        │    ├─ LANMessaging / WebhookClient
-       │    └─ Updater ── GitHub Releases + brew/zip
+       │    ├─ Updater ── GitHub Releases + brew/zip
+       │    └─ DevAvisosController ── avisos.json no repo (24 h)
        └─ uma NotchWindow + NotchViewModel por display
              └─ NotchView e cards SwiftUI
 ```
@@ -52,6 +53,7 @@ relaunch no caminho.
 | Próximo evento reduzido ao que a UI usa | `CalendarAviso` (sem dependências, por isso testável isolado) | card e pílula do Pomodoro |
 | Passos de boas-vindas já vistos | `Onboarding` (sem dependências, por isso testável isolado) | `OnboardingView`, `AppDelegate` |
 | Versão disponível e instalação | `Updater` | card do notch e Ajustes › Geral |
+| Avisos do desenvolvedor já mostrados | `DevAvisos` (sem dependências, por isso testável isolado) + `avisos.vistos` | card do notch, via `AppDelegate.publicar` |
 | Notificações das últimas 24 h (em disco) | `NotificationHistory.shared` | `HistoryListView` |
 | Nota rápida (texto, foco, tela dona) | `QuickNote.shared` | `NotchView`, menu da barra |
 | Página do preview de link (tela dona) | `LinkPreview.shared` | `LinkPreviewView`, seção Link |

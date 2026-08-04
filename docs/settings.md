@@ -61,6 +61,12 @@ rodando fora de `/Applications` — o botão vira **Ver release** e abre a pági
 navegador. **Verificar agora** força uma checagem fora do ciclo diário, e o
 toggle **Verificar atualizações automaticamente** desliga a checagem de vez.
 
+**Avisos do desenvolvedor** (ligado por padrão) recebe recados sobre o próprio
+Knobler — novidades, manutenção, problema descoberto — como card no notch, lidos
+de um JSON público do repositório uma vez por dia. Desligado, os avisos normais
+param; os **críticos** (segurança, falha que perde dado) continuam chegando. Ver
+[Avisos do desenvolvedor](avisos.md).
+
 > Depois de atualizar, o macOS pode pedir a permissão de **Acessibilidade** de
 > novo (o ditado para em silêncio até você reconceder). Isso acontece quando a
 > identidade de assinatura do app muda entre versões; ver

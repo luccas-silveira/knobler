@@ -218,6 +218,10 @@ struct GeneralSettingsPane: View {
                     title: "Verificar atualizações automaticamente",
                     subtitle: "Consulta o GitHub uma vez por dia e avisa no notch.",
                     isOn: $settings.checkForUpdates)
+                SettingToggle(
+                    title: "Avisos do desenvolvedor",
+                    subtitle: "Novidades e recados sobre o Knobler, no máximo um por vez. Desligado, avisos críticos (segurança, falha que perde dado) continuam chegando.",
+                    isOn: $settings.avisosDoDesenvolvedor)
             }
         }
         .formStyle(.grouped)

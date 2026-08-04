@@ -34,6 +34,11 @@ struct NotchNotification: Identifiable, Equatable, Codable {
     var actionTitles: [String] = []
     /// Chave pro interceptor achar os botões reais quando o card for clicado.
     var actionToken: UUID? = nil
+    /// Aviso do desenvolvedor: cada botão de `actionTitles` abre a URL de mesmo
+    /// índice. Existe porque o `actionToken` é um handle vivo pros `AXUIElement`
+    /// do banner — um aviso que veio de um JSON remoto não tem banner nenhum.
+    /// Só `https` chega aqui (`DevAvisos.saneadas`).
+    var actionURLs: [String] = []
     /// Card do AirDrop: clique revela a pasta de download (caminho do sistema,
     /// não uma URL — `openURL` aceita payload de webhook e não pode abrir file://).
     var revealsDownloads = false
@@ -50,6 +55,10 @@ struct NotchNotification: Identifiable, Equatable, Codable {
     /// em memória: depois de um restart não resolve nada, e um card restaurado
     /// com botões seria botão que não faz nada. Sem chave, eles voltam vazios
     /// por construção.
+    ///
+    /// `actionURLs` fica de fora pela carona: sem `actionTitles` não há botão
+    /// pra renderizar, então a URL restaurada não teria onde aparecer. O corpo
+    /// do aviso sobrevive no histórico; o link, não.
     ///
     /// `openURL`, `bundleID`, `revealsDownloads` e os campos do Supacode
     /// sobrevivem — são dados, não handles vivos, e o clique continua valendo.
@@ -123,6 +132,7 @@ struct NotchNotification: Identifiable, Equatable, Codable {
         iconColor: NSColor? = nil,
         actionTitles: [String] = [],
         actionToken: UUID? = nil,
+        actionURLs: [String] = [],
         revealsDownloads: Bool = false,
         webhookID: String? = nil,
         date: Date = Date()
@@ -140,6 +150,7 @@ struct NotchNotification: Identifiable, Equatable, Codable {
         self.iconColor = iconColor
         self.actionTitles = actionTitles
         self.actionToken = actionToken
+        self.actionURLs = actionURLs
         self.revealsDownloads = revealsDownloads
         self.webhookID = webhookID
         self.date = date

@@ -30,7 +30,10 @@ enum UpdateState: Equatable {
 // MARK: - Comparação de versão
 
 /// Quebra "0.9.0" (ou "v0.9.0") em [0, 9, 0]. nil se não for X.Y.Z numérico.
-private func versionComponents(_ v: String) -> [Int]? {
+/// Internal (não private) porque o `DevAvisos` valida a faixa de versão de um
+/// aviso com ela: `isNewer` devolve false pra entrada malformada, então sem
+/// checar o formato antes uma faixa com typo passaria a valer pra todo mundo.
+func versionComponents(_ v: String) -> [Int]? {
     let trimmed = v.hasPrefix("v") ? String(v.dropFirst()) : v
     let parts = trimmed.split(separator: ".", omittingEmptySubsequences: false)
     guard parts.count == 3 else { return nil }
