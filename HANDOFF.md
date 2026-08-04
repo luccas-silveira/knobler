@@ -51,6 +51,27 @@ altura. A rootView leva `.frame(width: 800, height: 520)`.
   foraDeApplications` manda direto pro painel Permissões, sem passar pela
   janela.
 
+## Achados do teste de instalação limpa
+
+O dono zerou a máquina de verdade (domínio `com.zoi.knobler`, Application
+Support e TCC) e subiu a build como instalação nova. Três defeitos vieram à
+tona, todos **anteriores** ao wizard — ele só os deixou visíveis:
+
+1. **Calendário pedia permissão no launch.** `CalendarCountdown.start()`
+   chamava `requestFullAccessToEvents` sem condição: o balão do EventKit subia
+   por cima da janela de boas-vindas, e contra a regra do app de pedir no
+   primeiro uso. Agora só liga se o acesso já existe; se não, repolla a cada
+   3 s e liga sozinho quando a concessão chega. Quem pede é o painel Permissões.
+2. **Rede local nunca virava "concedida" num Mac sozinho.** A prova positiva era
+   achar um peer. Qualquer resultado do browser serve — inclusive o próprio
+   anúncio, e sem a permissão o Bonjour não devolve nada.
+3. **"Ainda não usada" lia como defeito.** Virou "Sem status até usar", e Rede
+   local e Arquivos e pastas ganharam um botão **Verificar** que força o
+   primeiro uso na hora (liga o Bonjour, lê a Mesa). O áudio do sistema fica de
+   fora: só um player tocando cria o tap.
+
+Verificado ao vivo pelo dono: os três resolvidos, wizard sem balão por cima.
+
 ## O que ficou de fora
 
 - **Cenário 6 do plano** (conceder Acessibilidade e ver o ⚠ sumir em ~3 s sem
