@@ -4,6 +4,7 @@ Knobler.xcodeproj/
 .DS_Store
 .firecrawl/
 graphify-out/
+.codegraph/
 .superpowers/
 .impeccable/
 .playwright-mcp/
