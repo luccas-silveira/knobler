@@ -1,3 +1,64 @@
+# 🏁 SESSÃO 2026-08-04 — Fase 5 dos webhooks → v0.22.0
+
+Última fase do mapa wayfinder de notificações externas: docs, imagens e release.
+Fecha o ticket 021 e o mapa inteiro (19/22 tickets; só o Notion segue travado).
+
+## O que foi feito
+
+**`docs/webhooks.md` reescrito** num arquivo só. "Como usar" começa pelo
+assistente como porta única — os cinco passos (Nome → Serviço → Link → Primeiro
+envio → Mapa) e o escape "Outro serviço (sem preset)" nomeado —, mais a
+subseção do editor de mapa e duas seções novas: **Presets** (tabela dos quatro
+caminhos, por que o mesmo serviço repete por caminho, reaplicar é manual) e
+**Filtros no template** (`semHifens`, `data`, `quill`, um exemplo cada, falha
+suave). O doc antigo não falava de template nenhum. O item (a) do ticket —
+espelhar os filtros na prévia do app — já tinha saído na Fase 1.
+
+**Imagens à mão** com a build Debug rodando: `settings-webhooks.png` e
+`mapping-editor.png` recapturadas, `assistente-servico.png` criada.
+
+⚠️ **A receita de captura do CLAUDE.md estava incompleta** (corrigida lá):
+`screencapture -l<windowID>` **reescala** a janela — num sheet o PNG sai com a
+janela-mãe em volta, e coordenada de clique tirada dessa imagem **erra o alvo**
+(perdi várias rodadas achando que o botão "Continuar" estava desabilitado).
+Pra automatizar clique + captura: `screencapture -R x,y,w,h` com os bounds de
+`CGWindowListCopyWindowInfo`, e `sips -z` pra 1x. Clique sintético em SwiftUI só
+responde com `CGWarpMouseCursorPosition` **mais** eventos `.mouseMoved` em
+passos pequenos antes do down/up — um `Button` (ao contrário de `onTapGesture`)
+ignora o clique sem isso.
+
+**Feature de foco persistente commitada** (`ae55397`). Estava solta na árvore
+desde uma sessão anterior e já anunciada no `## [Unreleased]`; o `release.sh`
+trava com fonte modificada. Autorizado pelo usuário incluir no release.
+
+**Release v0.22.0** — `./tools/release.sh minor`, cask bumpado.
+
+## Validação
+
+- `./tools/check.sh` → **34 ok**.
+- **Fluxo exercitado clicando no app rodando** — pendência arrastada desde a
+  Fase 2, enfim fechada. Perfil criado pelo assistente, preset do GHL de
+  Marketplace escolhido, POST real no link do perfil → o passo Primeiro envio
+  virou "Recebido" pelo polling de 2s, o editor semeou os campos da receita,
+  o mapa salvou e o POST seguinte chegou como card no notch
+  ("Marina Duarte / ContactCreate · marina@exemplo.com").
+- Limpeza feita: perfis de teste (`Vendas`, `Deploys`, `__probe__`) apagados no
+  relay, toggle "Receber notificações externas" de volta a desligado (estava
+  assim antes), build Debug encerrada. O app de `/Applications` não foi tocado.
+
+## Pendências e followups
+
+- **Notion travado** (011 → 022): a automação de database "Enviar webhook" é
+  recurso de plano pago e o login cai em onboarding de conta nova. Decisão do
+  usuário nesta sessão: **deixar de lado**. Nada no mapa depende disso.
+- **Névoa registrada no mapa** (nenhuma virou ticket): prévia fiel ao card real,
+  aviso de token/filtro não resolvido (hoje renderiza vazio ou devolve o cru em
+  silêncio), sinal de saúde no painel, descoberta da árvore clicável, renomear e
+  duplicar perfil, ajuda inline do campo "ID (dedupe)".
+- `POST /profiles` do app falha em silêncio (`createProfile` devolve `nil` e o
+  assistente simplesmente não avança). Não me mordeu no fim — era coordenada de
+  clique errada —, mas o caminho de erro não tem UI nenhuma.
+
 # 🏁 SESSÃO 2026-08-04 — painel Desenho → v0.21.0
 
 Fecha a anotação de tela: a seção do card (feita na madrugada, nunca commitada)
