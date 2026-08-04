@@ -2,8 +2,8 @@
 
 - map: ../map.md
 - label: wayfinder:task
-- status: open
-- assignee: —
+- status: in-progress
+- assignee: claude (sessão 2026-08-04)
 - blocked-by: 016
 
 ## Question
