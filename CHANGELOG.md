@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-08-03
+
 ### Added
 - **Janela de boas-vindas na primeira abertura**: dois passos informativos —
   onde o app vive (notch + ícone da barra de menus, sem Dock nem janela) e os
