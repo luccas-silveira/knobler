@@ -66,6 +66,11 @@ Dynamic Island para o notch do Mac — nativo, Swift/SwiftUI, macOS 14.2+.
 - **API local** (`127.0.0.1:4477`) — o diferencial: qualquer script publica no notch.
   → [detalhes](docs/local-api.md)
 
+- **Boas-vindas na primeira abertura**: uma janela em dois passos conta onde o
+  app vive e quais são os dois atalhos globais — o app não tem Dock nem janela
+  pra dizer isso sozinho. Versionada por passo: uma versão futura mostra só o
+  que é novo. → [detalhes](docs/onboarding.md)
+
 Configuração de tudo isso numa janela de Ajustes única. → [detalhes](docs/settings.md)
 
 ## Documentação

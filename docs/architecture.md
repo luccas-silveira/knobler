@@ -29,6 +29,14 @@ KnoblerMain
 serviços, conecta callbacks e cria as janelas; ele não deve virar o lugar onde
 regras de domínio novas são implementadas.
 
+**Nenhuma permissão é pedida no launch.** A abertura mostra a janela de
+boas-vindas (só os passos que esta instalação ainda não viu — ver `Onboarding`)
+e, quando ela fecha, o painel Ajustes › Permissões, que é quem pede
+Acessibilidade e Calendário. Instalação com `Permission.installIssue` pula o
+wizard e vai direto ao painel. Quem depende de Acessibilidade ou de Calendário
+repolla o trust a cada 3 s e se liga sozinho quando a concessão chega — não há
+relaunch no caminho.
+
 ## Ownership de estado
 
 | Estado | Dono atual | Consumidores |

@@ -1,4 +1,4 @@
-# 🏁 SESSÃO 2026-08-03 (noite) — janela de boas-vindas
+# 🏁 SESSÃO 2026-08-03 (noite) — janela de boas-vindas → v0.19.0
 
 Execução do plano escrito na sessão anterior
 (`docs/superpowers/plans/2026-08-03-boas-vindas.md`), na branch
@@ -72,13 +72,39 @@ tona, todos **anteriores** ao wizard — ele só os deixou visíveis:
 
 Verificado ao vivo pelo dono: os três resolvidos, wizard sem balão por cima.
 
+## Release
+
+**v0.19.0 publicada** (`tools/release.sh minor`): tag `v0.19.0`, release no
+GitHub, `Knobler-0.19.0.zip` (sha256 `97ec384d…`) e cask bumpado no tap. A
+branch `feat/boas-vindas` foi merjada em `master` com `--no-ff` antes disso.
+
+⚠️ O `/Applications/Knobler.app` da máquina do dono é a build local da branch
+(assinatura `Knobler Local Signing`), **não** a do release. Um `brew upgrade
+--cask knobler` alinha as duas.
+
+## Documentação
+
+Varredura completa depois do release: `README.md` (boas-vindas na lista de
+features + quem pede Acessibilidade), `docs/architecture.md` (nenhuma permissão
+é pedida no launch; o módulo `Onboarding` na tabela de ownership),
+`docs/settings.md` (botão Verificar, "Sem status até usar", o painel vindo
+depois do wizard), `docs/calendar-countdown.md` e `docs/messages.md` (quem pede
+cada permissão agora), `docs/troubleshooting.md` (duas seções novas: permissão
+concedida que continua "sem status", e countdown que não aparece),
+`docs/onboarding.md` novo, `docs/index.md`, `docs/IDEIAS.md` e `CLAUDE.md` (a
+receita de captura em @2x e a das PNGs do wizard). `settings-permissoes.png`
+recapturado com os rótulos novos.
+
 ## O que ficou de fora
 
-- **Cenário 6 do plano** (conceder Acessibilidade e ver o ⚠ sumir em ~3 s sem
-  relaunch) não foi rodado: exigiria revogar a permissão real da máquina do
-  dono. O comportamento é o de sempre — os três consumidores repolam o trust a
-  cada 3 s —, só mudou quem dispara o pedido.
-- Branch `feat/boas-vindas` **não** foi merjada nem publicada em release.
+- **Cenário 6 do plano** acabou rodando de graça: o wipe da máquina levou o TCC
+  junto, o dono reconcedeu Acessibilidade pelo painel e o app voltou a
+  funcionar sem relaunch. Confirmado ao vivo.
+- **Nenhuma pendência de código.** O que ficou aberto é operacional: a máquina
+  do dono roda a build da branch, não a do release (`brew upgrade --cask
+  knobler` resolve), e o backup pré-wipe segue no scratchpad da sessão
+  (`backup-knobler/`: `prefs.plist` + `AppSupport/`), descartável quando ele
+  quiser.
 
 ---
 

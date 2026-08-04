@@ -35,3 +35,8 @@ histórico por conversa.
 - **Rede Local** (`_knobler._tcp` via Bonjour) — *"Knobler troca mensagens
   com outros Macs na sua rede local."* Sem essa permissão, a seção mostra um
   aviso pedindo pra liberar em Ajustes do Sistema → Privacidade → Rede Local.
+
+  O balão do sistema aparece quando a seção Mensagens entra em foco pela
+  primeira vez — é quando o Bonjour liga. O macOS não expõe o estado dessa
+  permissão, então até lá **Ajustes → Permissões** mostra *Sem status até usar*;
+  o botão **Verificar** de lá antecipa esse primeiro uso sem sair do painel.

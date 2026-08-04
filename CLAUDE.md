@@ -127,7 +127,16 @@ mensagens permissoes`), tire o screenshot da janela real e salve em
 (as imagens usadas pelos docs de usuário ficam ali, não em `Snapshots/` —
 `Snapshots/` é gitignored e serve só de QA visual local). `screencapture -l<windowID>`
 captura a sombra própria do macOS (PNG com alpha) — corte pra
-`802x554+55+37` antes de salvar (bordas reais da janela, sem halo).
+`802x554+55+37` antes de salvar (bordas reais da janela, sem halo). Numa tela
+Retina o PNG sai em @2x: o corte equivalente é
+`sips -c 1108 1604 --cropOffset 74 110` seguido de `sips -z 554 802`.
+
+`boas-vindas-1.png`/`-2.png` seguem a mesma vala (`NSWindow` real): rode
+`Knobler --boas-vindas` — a flag mostra **todos** os passos e não grava a versão
+vista, então tirar print não queima o onboarding da máquina. Rode de
+`/Applications` ou de `~/Applications`: de `/tmp` o `installIssue` manda direto
+pro painel Permissões e o wizard nem abre. Essas duas vão @2x mesmo
+(`screencapture -o -l<id>` já sai 1600x1104, sem sombra e sem halo).
 
 ⚠️ **Recapturar `expanded-shelf.png` mexe na máquina do usuário — peça antes.**
 É a única imagem dos docs que exige o card aberto com a prateleira em foco, e a

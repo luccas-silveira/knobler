@@ -108,9 +108,11 @@ com o app quando **AirPods no notch** está ligado (o padrão) — o macOS pede
 assim que o Knobler pergunta quais dispositivos estão pareados. Desligue a opção
 em Ajustes › Notch se preferir não conceder.
 
-Na **primeira abertura** o painel se apresenta sozinho. O Knobler roda como
-agente (sem ícone no Dock, sem janela), então sem isso não há de onde partir pra
-achar as permissões.
+Na **primeira abertura** o painel se apresenta sozinho, logo que a [janela de
+boas-vindas](onboarding.md) fecha. O Knobler roda como agente (sem ícone no
+Dock, sem janela), então sem isso não há de onde partir pra achar as
+permissões. Ele também se apresenta, a qualquer momento, quando a instalação
+está num estado que invalida o TCC (ver abaixo).
 
 O painel também detecta **instalação fora do lugar** — app translocado pelo
 Gatekeeper, rodando de fora de `/Applications`, ou ainda com a marca de

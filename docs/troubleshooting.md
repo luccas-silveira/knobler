@@ -59,10 +59,10 @@ a cada inicialização com a causa e o passo de correção no topo.
 
 Com a instalação sadia, a razão é outra e é do próprio macOS: **o Ajustes do
 Sistema só lista um app depois que ele pede a permissão**. Como o Knobler roda
-como agente (`LSUIElement`), o usuário que fechou o diálogo da abertura fica sem
-nada visível. Duas saídas, ambas no painel **Ajustes → Permissões**:
+como agente (`LSUIElement`), o usuário que fechou o painel da primeira abertura
+fica sem nada visível. Duas saídas, ambas no painel **Ajustes → Permissões**:
 
-- Botão **Pedir**, na linha da Acessibilidade — reabre o diálogo do sistema
+- Botão **Permitir**, na linha da Acessibilidade — reabre o diálogo do sistema
   enquanto o TCC ainda não tiver decisão gravada.
 - Botão **Revelar o Knobler no Finder** — abre o Finder com o app selecionado;
   no painel do Ajustes do Sistema clique em **+** e arraste o app pra lista.
@@ -70,6 +70,24 @@ nada visível. Duas saídas, ambas no painel **Ajustes → Permissões**:
 Se o Knobler aparece na lista **marcado** e mesmo assim nada funciona, a entrada
 é de uma assinatura antiga: veja
 [Reconceder a Acessibilidade](#reconceder-a-acessibilidade).
+
+## Concedi a permissão e o painel continua dizendo "Sem status até usar"
+
+Vale pra **Rede local**, **Arquivos e pastas** e **Gravação de áudio do
+sistema**: o macOS não dá API pra consultar essas três, só pra usá-las. O painel
+mostra *Concedida* depois que o recurso roda uma vez — não antes, por mais que o
+interruptor já esteja ligado no Ajustes do Sistema.
+
+Atalho: o botão **Verificar**, na própria linha, força esse primeiro uso na hora
+(liga o Bonjour, lê a Mesa). A *Gravação de áudio do sistema* não tem o botão —
+ela só se prova com um player tocando, que é quando o tap de áudio é criado.
+
+## O countdown do calendário não aparece
+
+Desde a 0.19.0 o Knobler **não pede** a permissão de Calendário na abertura (o
+balão caía por cima da janela de boas-vindas). Quem pede é **Ajustes →
+Permissões**, botão *Permitir* na linha *Calendários*. Concedida, o countdown
+liga em segundos — sem reabrir o app.
 
 ## O app está aberto, mas o notch não aparece
 
