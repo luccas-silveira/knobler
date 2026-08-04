@@ -123,6 +123,19 @@ propósito.
   desinstalar **avisa** é o 007. Protótipo compilando e renderizando PNG em
   [`prototypes/006-tela-de-plugins.swift`](prototypes/006-tela-de-plugins.swift).
 
+- [O que acontece com os dados quando se desinstala](tickets/007-dados-orfaos-ao-desinstalar.md)
+  — **desinstalar não apaga nada, nunca**, e é uma regra só pra todas as peças:
+  dado, preferência, segredo no Keychain e perfil no relay ficam todos onde
+  estão. Ganha por ser o padrão do macOS, por o dado insubstituível ser de quatro
+  peças (Lembretes, Descanso, Mensagens LAN, Anotação) e o lixo ser de poucos KB,
+  e por custar **zero linha** — a rotina de limpeza é que seria código novo, e é
+  onde mora o bug que apaga demais. Sem diálogo de "tem certeza?" (não há perda;
+  reinstalar é o desfazer, um clique no mesmo card), só a frase **"Desinstalar
+  (seus dados ficam salvos)"** no menu ⋯ do 006. As chaves de armazenamento
+  **não** são renomeadas pro id da peça — renomear é migração e quebraria a
+  promessa. Efeito: desinstalar/reinstalar não toca em disco, logo "reinstalar
+  reencontra o dado" sai sem código e sem gate novo.
+
 ## Not yet specified
 
 - **Permissões por plugin.** Hoje nenhuma permissão é pedida no launch, e o painel
