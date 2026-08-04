@@ -1382,7 +1382,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             )
             window.title = "Ajustes do Knobler"
             window.contentView = NSHostingView(
-                rootView: SettingsView(router: settingsRouter, webhookClient: webhookClient))
+                rootView: SettingsView(router: settingsRouter, webhookClient: webhookClient)
+                    // o painel Permissões liga o Bonjour pra sondar a Rede local
+                    .environmentObject(lanMessaging))
             window.isReleasedWhenClosed = false
             window.setContentSize(NSSize(width: 800, height: 520))
             window.contentMinSize = NSSize(width: 720, height: 470)

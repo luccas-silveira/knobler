@@ -444,6 +444,8 @@ struct PomodoroSettingsPane: View {
 // MARK: - Permissões
 
 struct PermissionsSettingsPane: View {
+    @EnvironmentObject private var lanMessaging: LANMessaging
+
     /// Lido de uma vez e revalidado quando o app volta ao foco — o usuário sai
     /// pro Ajustes do Sistema, mexe lá e volta esperando ver o novo estado.
     @State private var statuses: [Permission: PermissionStatus] = [:]
@@ -464,7 +466,8 @@ struct PermissionsSettingsPane: View {
                     PermissionRow(
                         permission: permission,
                         status: statuses[permission] ?? .naoVerificada,
-                        onChange: reload)
+                        onChange: reload,
+                        ligarBonjour: { lanMessaging.start() })
                 }
             } footer: {
                 Text("A acessibilidade é pedida na abertura do Knobler — sem ela "
@@ -544,6 +547,24 @@ private struct PermissionRow: View {
     /// Rechecagem imediata após o balão — sem isso o badge só atualiza quando o
     /// app volta ao foco, e ele nunca perdeu o foco.
     let onChange: () -> Void
+    /// Liga o Bonjour: é a única sonda da Rede local que não mora no
+    /// `Permission` (precisa de alguém anunciando pra ter o que achar).
+    let ligarBonjour: () -> Void
+
+    @State private var verificando = false
+
+    private func verificar() {
+        verificando = true
+        if permission == .redeLocal { ligarBonjour() }
+        permission.probe {
+            // O Bonjour leva alguns segundos pra achar o próprio anúncio; a
+            // sonda de arquivos já respondeu e a espera não custa nada.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                verificando = false
+                onChange()
+            }
+        }
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -570,6 +591,12 @@ private struct PermissionRow: View {
             if permission.canRequest {
                 Button("Permitir") { permission.request(completion: onChange) }
                     .buttonStyle(.borderedProminent)
+            }
+            // Sem API de consulta: quem concedeu no Ajustes do Sistema não vê
+            // mudança nenhuma aqui até a feature rodar. O botão faz ela rodar.
+            if permission.canProbe, status == .naoVerificada {
+                Button(verificando ? "Verificando…" : "Verificar") { verificar() }
+                    .disabled(verificando)
             }
             // O "Abrir" fica mesmo com o "Permitir" ao lado: a Acessibilidade não
             // distingue negada de nunca pedida, então o balão pode ser um no-op

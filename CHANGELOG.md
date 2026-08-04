@@ -29,6 +29,9 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   era achar um peer, então quem estava sozinho na rede ficava para sempre em
   "ainda não usada". O próprio serviço anunciado já basta — sem a permissão o
   Bonjour não devolve nada.
+- **Botão "Verificar" nas permissões sem status**: Rede local e Arquivos e
+  pastas ganham um botão que usa a permissão de leve (liga o Bonjour, lê a Mesa)
+  e resolve o estado na hora, em vez de esperar o recurso rodar por acaso.
 - **Permissão sem status não parece mais defeito**: Rede local, Arquivos e
   Gravação de áudio do sistema não têm API de consulta no macOS; o painel agora
   diz "Sem status até usar" em vez de "Ainda não usada".

@@ -209,6 +209,44 @@ enum Permission: String, CaseIterable, Identifiable {
         }
     }
 
+    // MARK: - Sonda das opacas
+    //
+    // Rede local, Arquivos e Áudio do sistema não têm API de consulta: conceder
+    // no Ajustes do Sistema não muda nada aqui até a feature rodar. Quem
+    // acabou de conceder e vê "sem status" acha que o app não enxergou.
+    //
+    // A sonda é botão, não automática: tentar usar pode acordar o balão do
+    // sistema, e isso tem que ser escolha de quem está olhando o painel.
+
+    /// Tem sonda barata. O áudio do sistema fica de fora: só um player tocando
+    /// cria o tap, e não há o que simular.
+    var canProbe: Bool {
+        switch self {
+        case .redeLocal, .arquivos: return true
+        default: return false
+        }
+    }
+
+    /// Usa a permissão de leve e grava o resultado. `completion` roda na main.
+    ///
+    /// A Rede local não é sondável daqui: sem ninguém anunciando, o browse volta
+    /// vazio mesmo com a permissão dada. Quem sabe fazer isso é o `LANMessaging`
+    /// — o painel liga o Bonjour e relê o registro (ver `SettingsView`).
+    func probe(completion: @escaping () -> Void) {
+        let done = { DispatchQueue.main.async(execute: completion) }
+        switch self {
+        case .arquivos:
+            // A Mesa é a pasta padrão das capturas e está sob o mesmo TCC.
+            let mesa = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask)
+            guard let mesa = mesa.first else { return done() }
+            let ok = (try? FileManager.default.contentsOfDirectory(atPath: mesa.path)) != nil
+            Self.record(.arquivos, worked: ok)
+            done()
+        default:
+            done()
+        }
+    }
+
     // MARK: - Saúde da instalação
     //
     // A causa mais comum de "o app não aparece na lista do Ajustes do Sistema"

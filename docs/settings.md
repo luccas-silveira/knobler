@@ -85,7 +85,10 @@ pedido — o Bluetooth é pedido pelo monitor dos AirPods na abertura, e Rede
 local, Arquivos e pastas e Gravação de áudio do sistema só disparam o balão no
 primeiro uso real do recurso. Essas três também não têm API de **consulta**: até
 a feature rodar uma vez, o painel mostra *Sem status até usar* — não é defeito,
-é tudo que o macOS conta. A contagem regressiva do calendário espera a
+é tudo que o macOS conta. Em *Rede local* e *Arquivos e pastas* há um botão
+**Verificar** que usa a permissão de leve (liga o Bonjour, lê a Mesa) e resolve
+o estado na hora; a *Gravação de áudio do sistema* não tem — ela só se prova
+com um player tocando. A contagem regressiva do calendário espera a
 concessão vinda daqui e liga sozinha quando ela chega, sem reabrir o app.
 
 O Knobler pede cada permissão **no primeiro uso do recurso**, não na abertura —
@@ -123,5 +126,6 @@ das oito permissões + caminho do bundle), para suporte remoto.
 
 Três permissões não expõem status ao app — **Rede local**, **Arquivos e pastas**
 e **Gravação de áudio do sistema**. O macOS não oferece API para consultá-las, só
-para usá-las. Elas aparecem como *Ainda não usada* até o recurso rodar uma vez;
-a partir daí o painel mostra o resultado real.
+para usá-las. Elas aparecem como *Sem status até usar* até o recurso rodar uma vez;
+a partir daí o painel mostra o resultado real. O botão **Verificar** (só nas
+duas primeiras) força esse primeiro uso na hora.
