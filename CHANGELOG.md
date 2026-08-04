@@ -16,6 +16,16 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   encadeamento. Filtro desconhecido ou inaplicável devolve o valor cru.
   `GET /profiles/:id` passa a devolver `lastPayloadAt` e `payloadCount`
   (aditivo). Os testes herméticos do relay entraram em `tools/check.sh`.
+- **Receitas de webhook no app**: quatro caminhos prontos (GoHighLevel por app do
+  Marketplace ou por ação Webhook num workflow; ClickUp por webhook de API ou por
+  automação "Call webhook"), cada um com instrução de onde colar o link,
+  ressalva, payload de exemplo e mapa sugerido. Ainda não aparecem na tela — o
+  assistente que os usa vem na sequência.
+
+### Changed
+- O motor de prévia do mapeamento saiu de dentro da tela para
+  `WebhookTemplate.swift` e ganhou os mesmos três filtros do relay, com gate que
+  repete os casos de lá.
 
 ## [0.21.0] - 2026-08-04
 

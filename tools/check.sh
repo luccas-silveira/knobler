@@ -67,6 +67,8 @@ swift_check agentrequestcheck Knobler/AgentRequestModels.swift Knobler/AgentRequ
 swift_check airpodscheck      Knobler/AirPodsBattery.swift tools/airpods_selfcheck.swift
 swift_check wirecheck         Knobler/Wire.swift tools/wirecheck/main.swift
 swift_check webhookcheck      Knobler/WebhookKeychainStore.swift tools/webhookcheck.swift
+swift_check templatecheck     Knobler/WebhookTemplate.swift tools/templatecheck.swift
+swift_check presetcheck       Knobler/WebhookTemplate.swift Knobler/WebhookPresets.swift tools/presetcheck.swift
 swift_check colorpickercheck  Knobler/ColorPicker.swift tools/colorpickercheck.swift
 CONVERSAO="Knobler/FileConverter.swift Knobler/ImageConverter.swift Knobler/DocumentConverter.swift Knobler/VideoConverter.swift"
 swift_check imageconvertercheck    $CONVERSAO tools/imageconvertercheck.swift

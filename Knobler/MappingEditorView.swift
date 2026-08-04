@@ -23,7 +23,9 @@ import AppKit
 
 // MARK: - Roteamento de inserção no cursor
 
-enum TemplateField: Hashable { case title, body, url, id }
+// `TemplateField`, `JSONValue` e `renderTemplate` moraram aqui até a Fase 1 dos
+// webhooks; agora vivem em `WebhookTemplate.swift`/`WebhookPresets.swift`, que
+// não importam SwiftUI e têm gate próprio.
 
 final class InsertionRouter: ObservableObject {
     fileprivate weak var active: CursorTextView.Coordinator?
@@ -78,47 +80,6 @@ struct CursorTextView: NSViewRepresentable {
             tv.textStorage?.replaceCharacters(in: sel, with: s)
             tv.didChangeText()
             tv.setSelectedRange(NSRange(location: sel.location + (s as NSString).length, length: 0))
-        }
-    }
-}
-
-// MARK: - Modelo da árvore JSON
-
-indirect enum JSONValue {
-    case string(String), number(Double), bool(Bool), null
-    case array([JSONValue])
-    case object([(key: String, value: JSONValue)])
-
-    static func from(_ a: Any) -> JSONValue {
-        switch a {
-        case let s as String: return .string(s)
-        case let n as NSNumber:
-            return CFGetTypeID(n) == CFBooleanGetTypeID() ? .bool(n.boolValue) : .number(n.doubleValue)
-        case let arr as [Any]: return .array(arr.map(JSONValue.from))
-        case let d as [String: Any]:
-            return .object(d.sorted { $0.key < $1.key }.map { (key: $0.key, value: .from($0.value)) })
-        default: return .null
-        }
-    }
-
-    /// Texto de amostra por nó (folha) — mostrado ao lado da chave na árvore.
-    var sample: String {
-        switch self {
-        case .string(let s): return "\"\(s)\""
-        // %.0f formata inteiro sem passar por Int(Double) — que dá trap fora do range de Int
-        // (payload é entrada não confiável: snowflake/epoch em ns podem exceder ~9.22e18)
-        case .number(let d): return d == d.rounded() ? String(format: "%.0f", d) : String(d)
-        case .bool(let b): return b ? "true" : "false"
-        case .null: return "null"
-        case .array(let a): return "[\(a.count)]"
-        case .object(let o): return "{\(o.count)}"
-        }
-    }
-
-    var isLeaf: Bool {
-        switch self {
-        case .array, .object: return false
-        default: return true
         }
     }
 }
@@ -180,53 +141,6 @@ struct JSONTreeView: View {
 
     private func join(_ base: String, _ comp: String) -> String {
         base.isEmpty ? comp : "\(base).\(comp)"
-    }
-}
-
-// MARK: - Motor de render local (mesmo comportamento do relay, pro preview)
-
-/// Substitui cada `{{ caminho }}` pelo valor resolvido no payload; ausente → vazio.
-func renderTemplate(_ tpl: String, _ root: JSONValue?) -> String {
-    guard let regex = try? NSRegularExpression(pattern: "\\{\\{\\s*([^}]+?)\\s*\\}\\}") else { return tpl }
-    let ns = tpl as NSString
-    let matches = regex.matches(in: tpl, range: NSRange(location: 0, length: ns.length))
-    var result = tpl
-    // substitui de trás pra frente (ranges anteriores não se deslocam)
-    for m in matches.reversed() {
-        let full = m.range(at: 0)
-        let pathRange = m.range(at: 1)
-        let path = ns.substring(with: pathRange)
-        let value = resolve(path, root)
-        let r = Range(full, in: result)!
-        result.replaceSubrange(r, with: value)
-    }
-    return result
-}
-
-/// Resolve um dot-path (com índices de array) contra a árvore. Ausente → "".
-private func resolve(_ path: String, _ root: JSONValue?) -> String {
-    guard var node = root else { return "" }
-    for comp in path.split(separator: ".", omittingEmptySubsequences: true) {
-        let key = String(comp)
-        switch node {
-        case .object(let pairs):
-            guard let hit = pairs.first(where: { $0.key == key })?.value else { return "" }
-            node = hit
-        case .array(let items):
-            guard let idx = Int(key), idx >= 0, idx < items.count else { return "" }
-            node = items[idx]
-        default:
-            return ""
-        }
-    }
-    switch node {
-    case .string(let s): return s
-    // %.0f evita trap de Int(Double) em número enorme vindo do payload (entrada não confiável)
-    case .number(let d): return d == d.rounded() ? String(format: "%.0f", d) : String(d)
-    case .bool(let b): return b ? "true" : "false"
-    case .null: return ""
-    // objeto/array inteiros não têm representação de texto útil no template
-    case .array, .object: return ""
     }
 }
 

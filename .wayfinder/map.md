@@ -39,6 +39,14 @@ app e sem tentativa-e-erro.
   relay entraram no `tools/check.sh` (nunca tinham rodado na CI). **No ar**:
   deploy por rsync em `/opt/knobler-relay`, `npm test` 48/48 na VPS, colunas
   conferidas no banco de produção e `/health` público ok.
+- [Fase 1 — presets no bundle](tickets/017-fase-presets.md) — os quatro caminhos
+  em `Knobler/WebhookPresets.swift` (literal Swift, `versao: 1`) e o motor de
+  prévia extraído pra `Knobler/WebhookTemplate.swift` com os três filtros de
+  014. Gates `presetcheck` e `templatecheck` (31 checks). Dois desvios de 006:
+  `mapaFixo`+`dicasDeForma` viraram uma lista só mais a flag
+  `mapaAplicavelSemPayload`, e a assinatura passou a ser sempre AND
+  (GHL workflow = `location.id` + `workflow.id`). Nada aparece na tela ainda —
+  quem usa é o assistente (018).
 - [Payload de webhook do GoHighLevel](tickets/001-payload-webhook-ghl.md) — são
   dois sistemas: o de Marketplace tem envelope estável e dedupe (`webhookId`); o
   de workflow tem corpo customizável e variável por gatilho, então preset de

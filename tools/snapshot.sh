@@ -38,6 +38,8 @@ swiftc -O -o build/snapshot \
   Knobler/WebhookClient.swift \
   Knobler/WebhookSettingsView.swift \
   Knobler/MappingEditorView.swift \
+  Knobler/WebhookTemplate.swift \
+  Knobler/WebhookPresets.swift \
   Knobler/AppSettings.swift \
   Knobler/Permissions.swift \
   Knobler/SettingsView.swift \
