@@ -607,7 +607,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 mostrarNovidade: vista > 0,
                 aoConcluir: { [weak window] in window?.close() },
                 aoIgnorar: { [weak window] in window?.close() }
-            ))
+            )
+            // O NSHostingView adota o fitting size do conteúdo e o setContentSize
+            // abaixo não o segura: sem esta moldura a janela nasce com milhares
+            // de pontos de altura (o texto de cada linha se estica sem limite).
+            .frame(width: 800, height: 520))
             window.isReleasedWhenClosed = false
             window.setContentSize(NSSize(width: 800, height: 520))
             window.center()

@@ -7,11 +7,22 @@ apresentação, quem instala fica sem saber onde o app está nem que existem
 atalhos globais. A janela de boas-vindas resolve isso na primeira abertura, em
 dois passos:
 
+![Passo 1: "O Knobler mora no notch", com as três linhas sobre hover, barra de menus e rede local](images/boas-vindas-1.png)
+
 1. **O Knobler mora no notch** — o notch responde ao mouse, o acesso é o ícone
    da barra de menus, e Mensagens anuncia este Mac na rede local com o nome do
    computador (editável em Ajustes → Mensagens).
 2. **Dois atalhos globais** — ⌥ direita segura pra ditar, Control direito abre
    a anotação de tela.
+
+![Passo 2: "Dois atalhos globais", com ⌥ direita pro ditado e Control direito pra anotação](images/boas-vindas-2.png)
+
+<!-- As duas imagens são MANUAIS: NSWindow real não renderiza no
+     tools/snapshot.sh. Pra refazer: build Release, rodar o app de
+     ~/Applications (de /tmp o painel Permissões toma a frente, por
+     installIssue), `Knobler --boas-vindas`, achar o windowID em
+     CGWindowListCopyWindowInfo e `screencapture -o -l<id>` — sai 1600x1104,
+     já sem sombra e sem halo, não precisa recortar. -->
 
 A janela é informativa: não liga nem desliga nada. Ditado, Mensagens e API
 local já nascem ligados, e o que dá pra mudar mora em Ajustes.

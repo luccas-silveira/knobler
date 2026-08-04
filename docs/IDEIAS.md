@@ -71,10 +71,6 @@ A **ordem** de implementação (agrupada por infra compartilhada) mora em
 
 ## Experiência & Onboarding
 
-- **Wizard de primeira execução**: Perguntar minimal setup (Spotify login?, ativar ditado?, ativar mensagens?) e ir automatizando.
-
-- **Dicas de hotkeys**: Mostrar dicas inline quando o user abre notch pela primeira vez (⌥ direita pra ditado, etc.).
-
 - **Modo tutorial**: Guiar o user pelos principais recursos com tooltips e highlights — educacional pra novos.
 
 ---
@@ -115,6 +111,11 @@ A **ordem** de implementação (agrupada por infra compartilhada) mora em
 
 ## Entregues
 
+- **Wizard de primeira execução** + **Dicas de hotkeys** → viraram um só: a
+  janela de boas-vindas, com o passo do que é o app e o dos dois atalhos
+  globais, versionada por passo (`docs/onboarding.md`). O "minimal setup" do
+  pedido original foi cortado: não há o que perguntar — ditado e API já nascem
+  ligados, Mensagens não tem toggle e Spotify não tem login.
 - **Integração com Calendário** → durante o Pomodoro, o próximo evento aparece
   numa linha do card de foco e toma a pílula fechada nos últimos 5 min
   (`docs/pomodoro.md`).
