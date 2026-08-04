@@ -167,6 +167,29 @@ propósito.
   autenticação, então seria qualquer processo local ligando microfone e câmera
   sem a pessoa ver. Custo total: um `guard`, uma linha e três de doc.
 
+- [Fases de execução do piloto](tickets/009-fases-de-execucao.md) — **cinco
+  fases** ([F1 peça e instalado](tickets/011-fase-1-peca-e-instalado.md),
+  [F2 nascimento condicional](tickets/012-fase-2-nascimento-condicional.md),
+  [F3 superfícies somem](tickets/013-fase-3-superficies-somem.md),
+  [F4 vitrine](tickets/014-fase-4-vitrine.md),
+  [F5 docs e release](tickets/015-fase-5-docs-e-release.md)) e **um gate só que
+  cresce**. O código fixou a fatia antes da conversa: nenhum dos 30 gates compila
+  `KnoblerApp.swift`, então o harness prova a **máquina de peças** e o
+  **compilador** prova a fiação (o `let pomodoro` obrigatório virando opcional
+  aponta cada ponto de uso); e o Pomodoro está grudado em **cinco** lugares do
+  `AppDelegate`, não um — foi isso que quebrou a fase 3 original em duas
+  (compilador numa, olho na outra). `tools/plugincheck.swift` nasce na F1 e ganha
+  casos a cada fase, pra nenhuma fase terminar sem prova; os dois casos
+  encomendados por 010 vão no `sectionordercheck` que já existe. **Uma linha nova
+  no `Pomodoro.swift`** (`timerAtivo`): provar "sem objeto não há timer" seria
+  asserção que nunca falha; o erro que morde é desinstalar com o foco rodando e
+  esquecer o `invalidate()` — o único dos cinco itens invisível na tela. Contra a
+  recomendação, a vitrine mostra os **15 cards** desde a F4, mas card de peça não
+  convertida é **mudo** ("Em breve", sem `ABRIR` e sem ⋯) — senão desinstalar o
+  Lembretes mentiria, e o `ABRIR` obrigaria a resolver 5 pontos de entrada dentro
+  da F4. Custo: os 15 nomes/frases/símbolos são batidos na F4. Release MINOR
+  única no fim da F5.
+
 ## Not yet specified
 
 - **Permissões por plugin.** Hoje nenhuma permissão é pedida no launch, e o painel
@@ -181,19 +204,17 @@ propósito.
   sem tap global e sem permissão). Ou seja: o piloto não responde isto, e não
   precisa — a pergunta volta nas outras 14 conversões, com o remédio barato de
   um "reinicie o Knobler pra concluir".
-- **Nome e frase das três peças invisíveis.** 002 pôs Preview de Link, Nota
-  rápida e Conversão de arquivo no catálogo; 006 precisou de nome e frase pra
-  desenhar o card e **inventou os três em caráter provisório** — falta o dono
-  bater o martelo. As duas do Shelf também precisam sumir do card quando
-  desinstaladas. Vira sharp quando a vitrine for pra valer.
 - **O ponto de entrada do `ABRIR` nas cinco peças sem painel.** 006 decidiu que
   peça instalada sem painel de Ajustes abre a *própria feature* pelo botão
   (Espelho acende a câmera, Nota rápida abre a nota). Hoje três delas são
   `.shared` e são abertas por gesto/atalho, não por chamada de fora. Não bloqueia
-  o piloto — o Pomodoro tem painel — mas volta nas outras conversões.
-- **As outras 14 conversões.** Depois da cobaia isso vira trabalho mecânico e
+  o piloto — o Pomodoro tem painel, e 009 deixou o card de peça não convertida
+  **mudo** justamente pra manter esta dívida parada. Volta nas outras conversões:
+  o `ABRIR` de cada peça nasce junto com a conversão dela.
+- **As outras 10 conversões.** Depois da cobaia isso vira trabalho mecânico e
   cabe em sessões soltas; não é ticket deste mapa enquanto a forma não estiver
-  provada.
+  provada. Cada conversão acende os botões do card correspondente na vitrine
+  (hoje mudo, "Em breve") — é o próprio painel Plugins que mostra o progresso.
 
 ## Out of scope
 
