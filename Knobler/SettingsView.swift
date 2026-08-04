@@ -584,7 +584,11 @@ private struct PermissionRow: View {
         case .concedida: return ("checkmark.circle.fill", "Concedida", .green)
         case .negada: return ("xmark.circle.fill", "Negada", .red)
         case .naoPedida: return ("circle.dashed", "Não solicitada", .secondary)
-        case .naoVerificada: return ("questionmark.circle", "Ainda não usada", .secondary)
+        // O macOS não expõe status pra Rede local, Arquivos e Áudio do sistema:
+        // "concedida" só depois que a feature roda uma vez. Dizer "ainda não
+        // usada" fazia parecer defeito pra quem tinha acabado de ligar o
+        // interruptor no Ajustes do Sistema.
+        case .naoVerificada: return ("questionmark.circle", "Sem status até usar", .secondary)
         }
     }
 }

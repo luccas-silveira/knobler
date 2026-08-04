@@ -83,7 +83,10 @@ balão uma vez por app: depois que a permissão foi negada, a chamada não faz
 nada e o Ajustes do Sistema é o único caminho. As outras quatro não têm API de
 pedido — o Bluetooth é pedido pelo monitor dos AirPods na abertura, e Rede
 local, Arquivos e pastas e Gravação de áudio do sistema só disparam o balão no
-primeiro uso real do recurso.
+primeiro uso real do recurso. Essas três também não têm API de **consulta**: até
+a feature rodar uma vez, o painel mostra *Sem status até usar* — não é defeito,
+é tudo que o macOS conta. A contagem regressiva do calendário espera a
+concessão vinda daqui e liga sozinha quando ela chega, sem reabrir o app.
 
 O Knobler pede cada permissão **no primeiro uso do recurso**, não na abertura —
 o microfone só quando você segura a ⌥ direita pela primeira vez, a câmera só ao

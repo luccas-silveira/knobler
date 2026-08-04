@@ -21,6 +21,17 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   evento à vista, nada muda.
 
 ### Fixed
+- **Calendário não pede permissão no launch**: o balão do EventKit subia na
+  abertura — por cima da janela de boas-vindas, e contra a regra de pedir no
+  primeiro uso. Quem pede agora é o painel Permissões; o countdown fica quieto
+  até a concessão e liga sozinho quando ela chega, sem reabrir o app.
+- **Rede local agora aparece como concedida sem depender de outro Mac**: a prova
+  era achar um peer, então quem estava sozinho na rede ficava para sempre em
+  "ainda não usada". O próprio serviço anunciado já basta — sem a permissão o
+  Bonjour não devolve nada.
+- **Permissão sem status não parece mais defeito**: Rede local, Arquivos e
+  Gravação de áudio do sistema não têm API de consulta no macOS; o painel agora
+  diz "Sem status até usar" em vez de "Ainda não usada".
 - **Evento do calendário não disputa mais o card com o Pomodoro**: com o timer
   ativo, o mesmo evento aparecia duas vezes (anel de atividade + card) e a seção
   de atividade, que se atualiza a cada 30 s, subia ao topo sem parar — o
