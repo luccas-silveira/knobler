@@ -33,6 +33,10 @@ app e sem tentativa-e-erro.
 - Presets entram, restritos a GHL, ClickUp e Notion — charting.
 - As quatro fontes de payload pro editor entram todas (espera ao vivo, colar
   JSON, preset com exemplo embutido, histórico dos últimos N) — charting.
+- [Fase 0 — relay](tickets/016-fase-relay.md) — implementada: filtros em
+  `render()` (lista fechada, falha suave), `lastPayloadAt`/`payloadCount` em
+  `GET /profiles/:id` por `ALTER TABLE` solto, e os quatro testes herméticos do
+  relay entraram no `tools/check.sh` (nunca tinham rodado na CI). Falta o deploy.
 - [Payload de webhook do GoHighLevel](tickets/001-payload-webhook-ghl.md) — são
   dois sistemas: o de Marketplace tem envelope estável e dedupe (`webhookId`); o
   de workflow tem corpo customizável e variável por gatilho, então preset de

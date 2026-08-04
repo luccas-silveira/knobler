@@ -6,6 +6,17 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- **Foco do card entre reinícios**: a seção onde você deixou o card (Música,
+  Mensagens, Nota…) volta na primeira abertura depois de reiniciar o app. Se a
+  seção salva ainda não tiver conteúdo, o pedido espera em vez de abrir o card no
+  vazio — e digitar na nota ou clicar na faixa continua vencendo a restauração.
+- **Filtros no template do webhook** (relay): `{{caminho | semHifens}}`,
+  `{{caminho | data}}` e `{{caminho | quill}}` — um filtro por token, sem
+  encadeamento. Filtro desconhecido ou inaplicável devolve o valor cru.
+  `GET /profiles/:id` passa a devolver `lastPayloadAt` e `payloadCount`
+  (aditivo). Os testes herméticos do relay entraram em `tools/check.sh`.
+
 ## [0.21.0] - 2026-08-04
 
 ### Added

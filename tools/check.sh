@@ -107,6 +107,10 @@ echo "== gates de integração =="
 run claude-hook          bash tools/claude-hook/test.sh
 run codex-bridge         node tools/codex-agent-bridge-check.mjs
 run agent-requests-e2e   node tools/agent-requests-e2e.mjs
+# só os testes herméticos do relay: db/hub/server exigem better-sqlite3 e ws instalados
+for t in template normalize ratelimit tokens; do
+  run "relay-$t" node --test "relay/test/$t.test.js"
+done
 
 if [ "$WITH_ENV" -eq 1 ]; then
   echo "== gates que dependem do ambiente =="

@@ -40,6 +40,11 @@ function openDB(path) {
     CREATE INDEX IF NOT EXISTS idx_prof_dev ON profiles(device_id);
   `);
 
+  // colunas aditivas (007): bancos antigos não têm — ALTER solta, ignora "duplicate column"
+  for (const col of ['last_payload_at INTEGER', 'payload_count INTEGER NOT NULL DEFAULT 0']) {
+    try { db.exec(`ALTER TABLE profiles ADD COLUMN ${col}`); } catch { /* já existe */ }
+  }
+
   const stmts = {
     create: db.prepare(`INSERT INTO devices (device_id, device_secret_h, publish_token_h, created_at)
                         VALUES (@deviceId, @deviceSecretHash, @publishTokenHash, @now)`),
@@ -65,7 +70,8 @@ function openDB(path) {
     profGet: db.prepare('SELECT * FROM profiles WHERE profile_id = ? AND device_id = ?'),
     profDelete: db.prepare('DELETE FROM profiles WHERE profile_id = ? AND device_id = ?'),
     profCount: db.prepare('SELECT COUNT(*) n FROM profiles WHERE device_id = ?'),
-    profPayload: db.prepare('UPDATE profiles SET last_payload = @payload WHERE profile_id = @profileId'),
+    profPayload: db.prepare(`UPDATE profiles SET last_payload = @payload, last_payload_at = @now,
+                             payload_count = COALESCE(payload_count, 0) + 1 WHERE profile_id = @profileId`),
     profRotate: db.prepare('UPDATE profiles SET publish_token_h = @publishTokenHash WHERE profile_id = @profileId AND device_id = @deviceId'),
     // migração: devices cujo token ainda não tem perfil
     migSelect: db.prepare(`SELECT device_id, publish_token_h FROM devices d
@@ -120,7 +126,7 @@ function openDB(path) {
     getProfile: ({ profileId, deviceId }) => stmts.profGet.get(profileId, deviceId),
     deleteProfile: ({ profileId, deviceId }) => stmts.profDelete.run(profileId, deviceId),
     countProfiles: (deviceId) => stmts.profCount.get(deviceId).n,
-    storeLastPayload: ({ profileId, payload }) => stmts.profPayload.run({ profileId, payload }),
+    storeLastPayload: ({ profileId, payload, now = Date.now() }) => stmts.profPayload.run({ profileId, payload, now }),
     rotateProfileToken: (a) => stmts.profRotate.run(a),
     updateProfile: ({ profileId, deviceId, name, mapping, icon }) => {
       // update parcial: monta SET só dos campos passados (não-undefined)

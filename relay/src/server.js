@@ -152,7 +152,8 @@ function createServer({ db, hub, rateLimiter }) {
         if (!prof) return json(res, 404, { ok: false });
         // GET não devolve `link`: o relay só guarda o hash do publishToken.
         // O app monta o link a partir do token recebido no create/rotate.
-        if (req.method === 'GET') return json(res, 200, { profileId: prof.profile_id, name: prof.name, mapping: prof.mapping, icon: prof.icon, lastPayload: prof.last_payload, link: null });
+        if (req.method === 'GET') return json(res, 200, { profileId: prof.profile_id, name: prof.name, mapping: prof.mapping, icon: prof.icon, lastPayload: prof.last_payload,
+          lastPayloadAt: prof.last_payload_at ?? null, payloadCount: prof.payload_count ?? 0, link: null });
         if (req.method === 'PUT') {
           const b = JSON.parse(await readBody(req) || '{}');
           // valida o mapping antes de salvar: mapping malformado no banco = 500 em todo /w/ do perfil
