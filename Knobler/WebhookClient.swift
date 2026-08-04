@@ -302,6 +302,9 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         var name: String
         var hasMapping: Bool
         var icon: String?
+        /// Segundos desde 1970 do último POST recebido; `nil` = nenhum ainda.
+        /// Não vem no `GET /profiles` — é preenchido por `listProfiles()`.
+        var lastPayloadAt: Double?
     }
 
     struct ProfileDetail {
@@ -309,6 +312,7 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         var mapping: String?
         var icon: String?
         var lastPayload: String?
+        var lastPayloadAt: Double?
     }
 
     /// Request autenticado ao relay (Bearer deviceSecret). Retorna o corpo cru ou nil.
@@ -330,10 +334,17 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         if let previewProfiles { return previewProfiles }
         guard let d = await authed("profiles"),
               let arr = try? JSONSerialization.jsonObject(with: d) as? [[String: Any]] else { return nil }
-        return arr.map {
+        var lista = arr.map {
             WebhookProfile(id: $0["profileId"] as? String ?? "", name: $0["name"] as? String ?? "",
-                           hasMapping: $0["hasMapping"] as? Bool ?? false, icon: $0["icon"] as? String)
+                           hasMapping: $0["hasMapping"] as? Bool ?? false, icon: $0["icon"] as? String,
+                           lastPayloadAt: nil)
         }
+        // ponytail: N+1 — o `GET /profiles` não devolve lastPayloadAt e a legenda
+        // da linha precisa dele. Se a lista crescer, o campo entra no relay.
+        for i in lista.indices {
+            lista[i].lastPayloadAt = await getProfile(lista[i].id)?.lastPayloadAt
+        }
+        return lista
     }
 
     /// Cria um perfil; guarda o publishToken no Keychain e retorna o profileId.
@@ -349,8 +360,11 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         if let previewProfileDetail { return previewProfileDetail }
         guard let d = await authed("profiles/\(id)"),
               let o = try? JSONSerialization.jsonObject(with: d) as? [String: Any] else { return nil }
+        // o relay grava em milissegundos; aqui vira segundos desde 1970
+        let at = (o["lastPayloadAt"] as? Double).map { $0 / 1000 }
         return ProfileDetail(name: o["name"] as? String ?? "", mapping: o["mapping"] as? String,
-                             icon: o["icon"] as? String, lastPayload: o["lastPayload"] as? String)
+                             icon: o["icon"] as? String, lastPayload: o["lastPayload"] as? String,
+                             lastPayloadAt: at)
     }
 
     func updateProfile(_ id: String, name: String? = nil, mapping: String? = nil, icon: String? = nil) async {

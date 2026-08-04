@@ -149,6 +149,10 @@ struct JSONTreeView: View {
 struct MappingEditorView: View {
     @ObservedObject var client: WebhookClient
     let profile: WebhookClient.WebhookProfile
+    /// Preset escolhido no assistente: semeia os campos quando o perfil ainda
+    /// não tem mapping. Payload real e edição do usuário sempre vencem — o
+    /// preset nunca sobrescreve mapa salvo (006).
+    var preset: WebhookPreset?
     var onClose: () -> Void
 
     @State private var title = ""
@@ -158,6 +162,7 @@ struct MappingEditorView: View {
     @State private var icon = ""
     @State private var sound = false
     @State private var root: JSONValue?
+    @State private var origem: [String: Any]?
     @State private var loading = true
     @State private var saving = false
     @StateObject private var router = InsertionRouter()
@@ -315,6 +320,14 @@ struct MappingEditorView: View {
             url = obj["url"] as? String ?? ""
             idField = obj["id"] as? String ?? ""
             sound = obj["sound"] as? Bool ?? false
+            origem = obj["_origem"] as? [String: Any]   // preservada em edição manual
+        } else if let preset, preset.mapaAplicavelSemPayload {
+            origem = ["preset": preset.id, "versao": preset.versao]
+            let mapa = preset.mapaSugerido
+            title = mapa[.title] ?? ""
+            body_ = mapa[.body] ?? ""
+            url = mapa[.url] ?? ""
+            idField = mapa[.id] ?? ""
         }
         icon = detail.icon ?? ""
         // árvore a partir do último payload capturado
@@ -339,13 +352,16 @@ struct MappingEditorView: View {
     private func save() async {
         saving = true
         defer { saving = false }
-        let mapping: [String: Any] = [
+        var mapping: [String: Any] = [
             "title": title,
             "body": body_,
             "url": url,
             "sound": sound,
             "id": idField,
         ]
+        // 006: a origem fica gravada no próprio mapping; chave desconhecida é
+        // ignorada pelo relay (é o que permite guardá-la sem campo novo no banco).
+        if let origem { mapping["_origem"] = origem }
         guard let data = try? JSONSerialization.data(withJSONObject: mapping),
               let json = String(data: data, encoding: .utf8) else { return }
         await client.updateProfile(profile.id, mapping: json, icon: icon)

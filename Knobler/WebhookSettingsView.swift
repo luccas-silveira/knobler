@@ -16,7 +16,7 @@ struct WebhookSettingsView: View {
     @State private var profiles: [WebhookClient.WebhookProfile] = []
     @State private var editing: WebhookClient.WebhookProfile?
     @State private var rotating: WebhookClient.WebhookProfile?
-    @State private var novoNome = ""
+    @State private var assistente: Assistente?
     @State private var loaded = false    // já teve UM fetch com sucesso
     @State private var loadSeq = 0       // descarta resposta atrasada de reload antigo
 
@@ -62,12 +62,12 @@ struct WebhookSettingsView: View {
             }
             if settings.webhookNotifications {
                 Section("Perfis") {
-                    HStack {
-                        TextField("Nome do novo perfil", text: $novoNome)
-                            .onSubmit(adicionar)
-                        Button("Adicionar", action: adicionar)
-                            .disabled(novoNome.trimmingCharacters(in: .whitespaces).isEmpty)
+                    Button {
+                        assistente = .init(perfil: nil, passo: .nome)
+                    } label: {
+                        Label("Adicionar perfil", systemImage: "plus")
                     }
+                    .buttonStyle(.borderless)
                     if loaded && profiles.isEmpty {
                         Text("Cada perfil tem um link próprio de webhook — crie um por serviço.")
                             .font(.caption).foregroundStyle(.secondary)
@@ -87,8 +87,13 @@ struct WebhookSettingsView: View {
             if on { Task { await recarregar() } }
         }
         .sheet(item: $editing) { p in
-            MappingEditorView(client: client, profile: p,
+            MappingEditorView(client: client, profile: p, preset: nil,
                               onClose: { editing = nil; Task { await recarregar() } })
+        }
+        .sheet(item: $assistente) { a in
+            WebhookAssistantView(
+                client: client, perfilExistente: a.perfil, passoInicial: a.passo,
+                onClose: { assistente = nil; Task { await recarregar() } })
         }
         .confirmationDialog(
             "Gerar um link novo para este perfil? O link antigo para de funcionar.",
@@ -111,9 +116,13 @@ struct WebhookSettingsView: View {
             profileIcon(p.icon)
             VStack(alignment: .leading, spacing: 2) {
                 Text(p.name)
-                Text(p.hasMapping ? "Campos mapeados" : "Sem mapa — captura o payload cru")
+                Text(EstadoDoPerfil.legenda(hasMapping: p.hasMapping,
+                                            lastPayloadAt: p.lastPayloadAt,
+                                            agora: Date().timeIntervalSince1970))
                     .font(.caption).foregroundStyle(.secondary)
             }
+            .contentShape(Rectangle())
+            .onTapGesture { abrir(p) }
             Spacer()
             if let link = client.link(for: p.id) {
                 Button {
@@ -126,6 +135,7 @@ struct WebhookSettingsView: View {
                 .help("Copiar o link do webhook")
             }
             Menu {
+                Button("Continuar a configuração…") { abrir(p) }
                 Button("Mapear campos…") { editing = p }
                 Button("Gerar link novo…") { rotating = p }
                 Divider()
@@ -153,13 +163,21 @@ struct WebhookSettingsView: View {
         }
     }
 
-    private func adicionar() {
-        let nome = novoNome.trimmingCharacters(in: .whitespaces)
-        guard !nome.isEmpty else { return }
-        Task {
-            // só limpa o campo se criou de verdade — falha não come o que foi digitado
-            if await client.createProfile(name: nome) != nil { novoNome = "" }
-            await recarregar()
+    /// Sheet do assistente. `perfil == nil` = perfil novo (013: porta única).
+    private struct Assistente: Identifiable {
+        let perfil: WebhookClient.WebhookProfile?
+        let passo: PassoAssistente
+        var id: String { perfil?.id ?? "novo" }
+    }
+
+    /// Retomada derivada do estado do perfil (013): com mapa vai direto pro
+    /// editor, sem mapa volta pro assistente no passo que o estado implica.
+    private func abrir(_ p: WebhookClient.WebhookProfile) {
+        if let passo = PassoAssistente.retomada(hasMapping: p.hasMapping,
+                                                lastPayloadAt: p.lastPayloadAt) {
+            assistente = .init(perfil: p, passo: passo)
+        } else {
+            editing = p
         }
     }
 

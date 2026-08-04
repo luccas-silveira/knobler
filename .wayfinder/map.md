@@ -47,6 +47,15 @@ app e sem tentativa-e-erro.
   `mapaAplicavelSemPayload`, e a assinatura passou a ser sempre AND
   (GHL workflow = `location.id` + `workflow.id`). Nada aparece na tela ainda —
   quem usa é o assistente (018).
+- [Fase 2 — assistente de passos](tickets/018-fase-assistente.md) — o sheet de
+  013 no ar: `Knobler/WebhookAssistantView.swift` (cinco passos, presets no passo
+  Serviço, polling de `GET /profiles/:id` a cada 2s no Primeiro envio, editor
+  como passo Mapa com os campos semeados pela receita e `_origem` gravada no
+  mapping) e `Knobler/WebhookAssistant.swift`, sem SwiftUI, com o passo de
+  retomada e a legenda da linha derivados do estado do perfil — gate
+  `assistentecheck` (32 checks). A legenda precisa de `lastPayloadAt` por perfil;
+  como `GET /profiles` não o devolve, o app faz um `GET /profiles/:id` por linha
+  (N+1 anotado no código) em vez de mexer no relay já implantado.
 - [Payload de webhook do GoHighLevel](tickets/001-payload-webhook-ghl.md) — são
   dois sistemas: o de Marketplace tem envelope estável e dedupe (`webhookId`); o
   de workflow tem corpo customizável e variável por gatilho, então preset de

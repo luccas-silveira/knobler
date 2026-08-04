@@ -21,8 +21,18 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   automação "Call webhook"), cada um com instrução de onde colar o link,
   ressalva, payload de exemplo e mapa sugerido. Ainda não aparecem na tela — o
   assistente que os usa vem na sequência.
+- **Assistente de perfil de webhook**: "Adicionar perfil" abre um assistente de
+  cinco passos (Nome → Serviço → Link → Primeiro envio → Mapa). O passo Serviço
+  lista os quatro caminhos prontos (ou "Outro serviço (sem preset)"), o passo
+  Link traz a instrução e a ressalva do caminho escolhido, o Primeiro envio
+  espera o webhook chegar de verdade e o Mapa já é o editor, com os campos
+  semeados pela receita. Fechar no meio não perde nada: o perfil fica esperando
+  e a linha dele no painel retoma de onde parou.
 
 ### Changed
+- A linha do perfil de webhook mostra estado em vez de "Campos mapeados":
+  "Esperando o primeiro envio" / "Sem mapa — último webhook há 3 min" /
+  "Último webhook há 3 min". Clicar nela retoma a configuração.
 - O motor de prévia do mapeamento saiu de dentro da tela para
   `WebhookTemplate.swift` e ganhou os mesmos três filtros do relay, com gate que
   repete os casos de lá.
