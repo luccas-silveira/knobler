@@ -112,17 +112,20 @@ final class MirrorController: ObservableObject {
         }
     }
 
-    /// Self-check headless do `release()`: prova que soltar a câmera zera a
-    /// sessão sem passar por hardware de verdade (câmera real exige permissão
-    /// TCC, que trava num Mac sem ela concedida — rodável via `--selfcheck`).
-    /// Só a metade "solta a câmera" da peça (`MirrorServico.parar()` abaixo)
-    /// é provada aqui; a outra metade, "desfaz a abertura automática", é
-    /// fechamento emprestado do `AppDelegate` (como `registrarWake` nas
-    /// peças anteriores) e não tem tipo próprio pra self-check isolado.
+    /// Self-check headless do par `acquire()`/`release()`: prova o refcount
+    /// de verdade, não um estado forjado — `acquire()` cria a
+    /// `AVCaptureSession` e incrementa `useCount` de forma síncrona; só o
+    /// `AVCaptureDeviceInput` (que pede permissão) roda depois, em
+    /// background, e não afeta as duas asserções abaixo (rodável via
+    /// `--selfcheck` num Mac sem câmera autorizada). Só a metade "solta a
+    /// câmera" da peça (`MirrorServico.parar()` abaixo) é provada aqui; a
+    /// outra metade, "desfaz a abertura automática", é fechamento emprestado
+    /// do `AppDelegate` (como `registrarWake` nas peças anteriores) e não
+    /// tem tipo próprio pra self-check isolado.
     static func _releaseSelfCheck() -> Bool {
         let c = MirrorController()
-        c.session = AVCaptureSession()
-        c.useCount = 1
+        _ = c.acquire()
+        guard c.session != nil, c.useCount == 1 else { return false }
         c.release()
         return c.session == nil && c.useCount == 0
     }
