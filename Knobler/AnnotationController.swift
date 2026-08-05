@@ -177,6 +177,23 @@ final class AnnotationController: NSObject, ObservableObject {
         states.removeAll()
     }
 
+    /// Prova o `parar()` da peça (`PluginServico`, ver `Plugin.swift`):
+    /// depois do `stop()`, nada do que `start()`/`refreshScreens()` monta
+    /// pode sobrar — é o vazamento (overlay continua desenhando na tela)
+    /// que a conversão em peça tinha que impedir. Roda no `--selfcheck`
+    /// (`KnoblerApp.swift`), não no `plugincheck` isolado: este arquivo é
+    /// AppKit puro (constraint 1 de `Plugin.swift`).
+    static func _stopSelfCheck() -> Bool {
+        let c = AnnotationController.shared
+        c.start()
+        c.stop()
+        return c.eventTap == nil
+            && c.healthTimer == nil
+            && c.screenObserver == nil
+            && c.panels.isEmpty
+            && c.states.isEmpty
+    }
+
     var diagnostics: [String: Any] {
         [
             "axTrusted": AXIsProcessTrusted(),

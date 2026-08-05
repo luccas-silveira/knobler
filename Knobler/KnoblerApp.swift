@@ -31,7 +31,8 @@ enum KnoblerMain {
                 && DictationController._flashSelfCheck()
                 && DictationController._enginePolicySelfCheck()
                 && DictationController._stopSelfCheck()
-            print(ok ? "selfcheck: dictation OK" : "selfcheck: FALHOU")
+                && AnnotationController._stopSelfCheck()
+            print(ok ? "selfcheck: dictation+annotation OK" : "selfcheck: FALHOU")
             exit(ok ? 0 : 1)
         }
         let app = NSApplication.shared
