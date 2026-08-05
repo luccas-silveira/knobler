@@ -174,6 +174,16 @@ struct NotaRapidaEfeitos {
     var nascer: () -> PluginServico? = { nil }
 }
 
+/// Os efeitos que a montagem do Preview de Link precisa do app. Mesmo desenho
+/// do `NotaRapidaEfeitos`: `LinkPreview` é `.shared` (singleton — `Shelf`/
+/// `NotchView` seguem lendo direto) e importa AppKit/WebKit, então referenciar
+/// o tipo aqui arrastaria os dois pro compile isolado do `plugincheck`
+/// (constraint 1). `nascer` só devolve o singleton — sem estado próprio pra
+/// ligar, ele já nasce "pronto" (nenhum link aberto).
+struct PreviewLinkEfeitos {
+    var nascer: () -> PluginServico? = { nil }
+}
+
 /// O que a peça recebe pra nascer: a pergunta "a outra peça está instalada?"
 /// (a única dependência plugin→plugin é Pomodoro→Descanso, e "não" é caminho
 /// normal) e os efeitos que o app empresta.
@@ -188,6 +198,7 @@ struct PluginDeps {
     var anotacao = AnotacaoEfeitos()
     var espelho = EspelhoEfeitos()
     var notaRapida = NotaRapidaEfeitos()
+    var previewLink = PreviewLinkEfeitos()
 }
 
 /// A ficha da peça. Tudo aqui é dado, menos `nascer`.
@@ -304,8 +315,8 @@ enum PluginRegistry {
         Plugin(id: .previewLink, nome: "Preview de Link",
                descricao: "Espia o site do link antes de abrir.",
                simbolo: "safari.fill", secao: "link", painel: nil,
-               rotas: [], permissao: nil,
-               nascer: { _ in nil }),
+               rotas: [], permissao: nil, pronta: true,
+               nascer: montarPreviewLink),
 
         Plugin(id: .conversao, nome: "Conversão de arquivo",
                descricao: "Solte na prateleira e troque o formato.",
@@ -425,6 +436,7 @@ final class PluginHost: ObservableObject {
     var anotacaoEfeitos = AnotacaoEfeitos()
     var espelhoEfeitos = EspelhoEfeitos()
     var notaRapidaEfeitos = NotaRapidaEfeitos()
+    var previewLinkEfeitos = PreviewLinkEfeitos()
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -437,7 +449,8 @@ final class PluginHost: ObservableObject {
                    pomodoro: pomodoroEfeitos, lembretes: lembretesEfeitos,
                    descanso: descansoEfeitos, mensagens: mensagensEfeitos,
                    webhooks: webhooksEfeitos, ditado: ditadoEfeitos, anotacao: anotacaoEfeitos,
-                   espelho: espelhoEfeitos, notaRapida: notaRapidaEfeitos)
+                   espelho: espelhoEfeitos, notaRapida: notaRapidaEfeitos,
+                   previewLink: previewLinkEfeitos)
     }
 
     /// O launch inteiro. Peça desligada nem é visitada — custo zero de verdade.
@@ -713,4 +726,11 @@ func montarEspelho(_ deps: PluginDeps) -> PluginServico? {
 /// do `montarEspelho`: a montagem inteira mora em `deps.notaRapida.nascer`.
 func montarNotaRapida(_ deps: PluginDeps) -> PluginServico? {
     deps.notaRapida.nascer()
+}
+
+/// A décima conversão (tarefa 9) e a terceira **sem painel de Ajustes** — o
+/// `abrir` dela também mora na vitrine (`PluginsSettingsPane`). Mesmo desenho
+/// do `montarNotaRapida`: a montagem inteira mora em `deps.previewLink.nascer`.
+func montarPreviewLink(_ deps: PluginDeps) -> PluginServico? {
+    deps.previewLink.nascer()
 }

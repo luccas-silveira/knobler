@@ -151,6 +151,10 @@ struct ShelfDropDelegate: DropDelegate {
     /// pra arquivo que você vai usar depois, e encher de atalho de cada link
     /// espiado empurraria pra fora o que estava lá (a capacidade é 8).
     private func abrir(_ url: URL) {
+        // Sem a peça instalada a ação some, calada (regra 5): o link solto
+        // não vira preview nem item da prateleira (comentário acima: link
+        // nunca materializa como arquivo).
+        guard PluginHost.shared.estaInstalado(.previewLink) else { return }
         DispatchQueue.main.async { [vm] in
             LinkPreview.shared.abrir(url, on: vm.displayID)
             vm.setExpandedDirect(true)
@@ -227,9 +231,13 @@ struct ShelfRowView: View {
         }
         .contextMenu {
             if let link = ShelfDrop.link(de: url) {
-                Button("Abrir no notch") {
-                    LinkPreview.shared.abrir(link, on: vm?.displayID)
-                    vm?.focar(.link)
+                // "Abrir no notch" some sem a peça instalada (regra 5); "Abrir
+                // no navegador" não depende dela e continua sempre disponível.
+                if PluginHost.shared.estaInstalado(.previewLink) {
+                    Button("Abrir no notch") {
+                        LinkPreview.shared.abrir(link, on: vm?.displayID)
+                        vm?.focar(.link)
+                    }
                 }
                 Button("Abrir no navegador") { NSWorkspace.shared.open(link) }
                 Divider()

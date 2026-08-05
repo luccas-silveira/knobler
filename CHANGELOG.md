@@ -100,6 +100,23 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   `--selfcheck`) prova ligar→desligar numa instância própria com
   `NSPasteboard` nomeado, sem tocar o clipboard real da máquina. Caso novo
   no `plugincheck` (com um `PluginServico` dublê).
+- **Preview de Link vira peça de verdade**: a terceira **sem painel de
+  Ajustes**. `LinkPreview.shared` continua singleton, praticamente sem estado
+  e já nasce dormente (nenhum link aberto); `montarPreviewLink`
+  (`Plugin.swift`) repassa pro closure emprestado `PreviewLinkEfeitos.nascer`,
+  no mesmo desenho da Nota rápida (`LinkPreview` importa AppKit/WebKit, que
+  `Plugin.swift` não pode referenciar). O próprio `LinkPreview` conforma
+  `PluginServico` (`parar()` chama `fechar()`). O valor real da conversão
+  mora nos pontos de uso: sem a peça instalada, soltar um link na prateleira
+  não abre mais o preview (`Shelf.swift`, guard silencioso — regra 5, a ação
+  some calada) e o item "Abrir no notch" do menu de contexto do link some
+  ("Abrir no navegador" continua). O ABRIR da vitrine leva pra prateleira
+  (`vm.focar(.shelf)`) em vez de abrir uma seção "link" vazia — sem URL não
+  há o que espiar. Self-check headless (`LinkPreview._fecharSelfCheck()`,
+  `--selfcheck`) prova o reset de estado do `parar()` sem tocar a `WKWebView`
+  real (que carregaria rede/janela de verdade); o caminho `abrir()`→`webView`
+  fica fora do self-check, documentado no comentário do método. Caso novo no
+  `plugincheck` (com um `PluginServico` dublê).
 
 ## [0.23.0] - 2026-08-04
 

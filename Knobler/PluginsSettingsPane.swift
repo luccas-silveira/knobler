@@ -207,6 +207,15 @@ struct PluginsSettingsPane: View {
                 // notch, então "tela sob o mouse" não faria sentido (mesmo
                 // precedente do Espelho acima).
                 KnoblerMain.delegate.ligarDesligarNota(em: NSScreen.main)
+            case .previewLink:
+                // Sem URL não há o que espiar: o preview só existe a partir de
+                // um link solto na prateleira ou de um item já guardado nela
+                // (context menu "Abrir no notch"), então o ABRIR mais honesto
+                // é levar pra lá, não abrir uma seção "link" vazia.
+                if let vm = KnoblerMain.delegate.viewModelPrincipal() {
+                    vm.setExpandedDirect(true)
+                    vm.focar(.shelf)
+                }
             default:
                 break
             }

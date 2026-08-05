@@ -34,7 +34,8 @@ enum KnoblerMain {
                 && AnnotationController._stopSelfCheck()
                 && MirrorController._releaseSelfCheck()
                 && QuickNote._pararSelfCheck()
-            print(ok ? "selfcheck: dictation+annotation+mirror+quicknote OK" : "selfcheck: FALHOU")
+                && LinkPreview._fecharSelfCheck()
+            print(ok ? "selfcheck: dictation+annotation+mirror+quicknote+linkpreview OK" : "selfcheck: FALHOU")
             exit(ok ? 0 : 1)
         }
         let app = NSApplication.shared
@@ -584,6 +585,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // como o `PluginServico` (conformidade em `QuickNote.swift`); não há
         // `start()` pra chamar.
         plugins.notaRapidaEfeitos = NotaRapidaEfeitos(nascer: { QuickNote.shared })
+        // A décima conversão (tarefa 9), a terceira sem painel: `LinkPreview`
+        // é `.shared` (singleton — `Shelf`/`NotchView` seguem lendo direto) e
+        // já nasce dormente (nenhum link aberto), então `nascer` só devolve o
+        // singleton como o `PluginServico` (conformidade em `LinkPreview.swift`).
+        plugins.previewLinkEfeitos = PreviewLinkEfeitos(nascer: { LinkPreview.shared })
         // O nascimento das peças instaladas. Quem está desligado nem é visitado.
         plugins.subir()
         // espelho automático: abre 2min antes da call, fecha quando ela começa

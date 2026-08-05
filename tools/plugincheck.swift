@@ -38,6 +38,7 @@ struct PluginCheck {
         testAnotacaoNasceEPara()
         testEspelhoNasceEPara()
         testNotaRapidaNasceEPara()
+        testPreviewLinkNasceEPara()
         print("✅ plugincheck ok")
     }
 
@@ -296,7 +297,7 @@ struct PluginCheck {
         // assert que avisa que a vitrine tem card novo pra abrir.
         assert(PluginRegistry.todos.filter(\.pronta).map(\.id) ==
                [.pomodoro, .lembretes, .descanso, .mensagens, .webhooks, .ditado, .espelho, .anotacao,
-                .notaRapida],
+                .notaRapida, .previewLink],
                "mudou quem está convertido: \(PluginRegistry.todos.filter(\.pronta).map(\.id))")
     }
 
@@ -624,6 +625,53 @@ struct PluginCheck {
         host2.notaRapidaEfeitos.nascer = { chamou = true; return NotaRapidaServicoFake() }
         host2.subir()
         assert(!host2.estaVivo(.notaRapida), "nasceu sem estar instalada")
+        assert(!chamou, "o closure de nascer foi chamado sem a peça instalada")
+    }
+
+    // MARK: - Tarefa 9: Preview de Link
+
+    /// Dublê do `LinkPreview` pro harness — o real importa AppKit/WebKit,
+    /// mesmo desenho do Ditado/Desenho/Espelho/Nota rápida: ver `Plugin.swift`.
+    final class PreviewLinkServicoFake: PluginServico {
+        var parou = false
+        func parar() { parou = true }
+    }
+
+    /// A décima conversão (tarefa 9) e a terceira sem painel: `montarPreviewLink`
+    /// só repassa pro closure emprestado (`deps.previewLink.nascer`) — mesmo
+    /// contrato genérico provado pras peças anteriores. O self-check real do
+    /// `parar()` (que fecha o preview aberto) mora em `LinkPreview.swift`
+    /// (`_fecharSelfCheck`), ligado ao `--selfcheck` do app.
+    static func testPreviewLinkNasceEPara() {
+        assert(PluginRegistry.ficha(.previewLink)?.pronta == true, "Preview de Link não está pronta")
+        assert(PluginRegistry.ficha(.previewLink)?.painel == nil,
+               "Preview de Link ganhou painel — não é mais o caso sem painel")
+
+        let d = defaultsLimpo("plugincheck.previewlink")
+        PluginsInstalados.gravar([.previewLink], d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+
+        let fake = PreviewLinkServicoFake()
+        let host = PluginHost(defaults: d)
+        host.previewLinkEfeitos.nascer = { fake }
+        host.subir()
+
+        assert(host.estaVivo(.previewLink), "a peça não nasceu instalada")
+        assert(host.servico(.previewLink, as: PreviewLinkServicoFake.self) === fake, "não achou o serviço")
+
+        host.desinstalar(.previewLink)
+        assert(!host.estaVivo(.previewLink), "o serviço sobreviveu à desinstalação")
+        assert(fake.parou, "parar() não chegou ao closure emprestado")
+
+        // sem a peça na lista de instalados, o closure de nascer nem é chamado.
+        var chamou = false
+        let d2 = defaultsLimpo("plugincheck.sempreviewlink")
+        PluginsInstalados.gravar([.pomodoro], d2)
+        d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        let host2 = PluginHost(defaults: d2)
+        host2.previewLinkEfeitos.nascer = { chamou = true; return PreviewLinkServicoFake() }
+        host2.subir()
+        assert(!host2.estaVivo(.previewLink), "nasceu sem estar instalada")
         assert(!chamou, "o closure de nascer foi chamado sem a peça instalada")
     }
 }
