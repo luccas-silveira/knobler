@@ -74,9 +74,11 @@ O `PluginID` e o nome da seção são identidade estável: renomear um deles
 desinstala a peça na máquina de quem já usa. Por isso o card da peça `anotacao`
 se chama "Desenho" (o nome do painel) enquanto o id segue `anotacao`.
 
-Hoje só o Pomodoro está convertido de verdade (`pronta: true` na ficha); as
-outras dez aparecem na vitrine como "Em breve" até ganharem seu `nascer`. Ver
-[`plugins.md`](plugins.md) pro lado do usuário.
+Hoje as onze peças estão convertidas de verdade (`pronta: true` na ficha, todas
+com `nascer`): a vitrine não tem mais nenhum card "Em breve" — esse estado
+continua existindo no mecanismo (`Plugin.swift`), pronto pra receber a próxima
+feature que nascer sem `nascer` ainda. Ver [`plugins.md`](plugins.md) pro lado
+do usuário.
 
 ## Ownership de estado
 
