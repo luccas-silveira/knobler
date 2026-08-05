@@ -216,6 +216,15 @@ struct PluginsSettingsPane: View {
                     vm.setExpandedDirect(true)
                     vm.focar(.shelf)
                 }
+            case .conversao:
+                // Mesma decisão da tarefa anterior (Preview de Link): sem
+                // arquivo não há o que converter, e a ação mora no menu de
+                // contexto de um item da prateleira. O ABRIR mais honesto é
+                // focar a prateleira, não fingir uma seção própria.
+                if let vm = KnoblerMain.delegate.viewModelPrincipal() {
+                    vm.setExpandedDirect(true)
+                    vm.focar(.shelf)
+                }
             default:
                 break
             }

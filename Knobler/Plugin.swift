@@ -321,8 +321,8 @@ enum PluginRegistry {
         Plugin(id: .conversao, nome: "Conversão de arquivo",
                descricao: "Solte na prateleira e troque o formato.",
                simbolo: "arrow.2.squarepath", secao: nil, painel: nil,
-               rotas: [], permissao: nil,
-               nascer: { _ in nil }),
+               rotas: [], permissao: nil, pronta: true,
+               nascer: montarConversao),
     ]
 
     static let deFabrica: [PluginDeFabrica] = [
@@ -733,4 +733,26 @@ func montarNotaRapida(_ deps: PluginDeps) -> PluginServico? {
 /// do `montarNotaRapida`: a montagem inteira mora em `deps.previewLink.nascer`.
 func montarPreviewLink(_ deps: PluginDeps) -> PluginServico? {
     deps.previewLink.nascer()
+}
+
+/// A décima primeira e última conversão (tarefa 10) — e a única sem serviço de
+/// verdade nem `nascer` emprestado: `FileConverter` (`FileConverter.swift`) é
+/// um utilitário estático (`targets`, `convert`, `uniqueURL`), sem instância
+/// nem singleton, e é Foundation puro (só `UniformTypeIdentifiers` além
+/// disso), então nem precisa dos closures emprestados das últimas quatro
+/// peças — o tipo é citável direto aqui. Não há nada pra ligar/desligar: a
+/// peça vive inteira nos guards dos pontos que OFERECEM a conversão (o menu
+/// "Converter" da prateleira, `Shelf.swift`), não num processo rodando.
+/// `ConversaoServico` existe só pra peça ter uma referência viva enquanto
+/// instalada — é o que faz `estaVivo(.conversao)` responder certo.
+final class ConversaoServico: PluginServico {
+    /// Nada a parar: `FileConverter` não tem timer, observer, socket nem tap
+    /// — é uma função pura chamada sob demanda. Desinstalar só precisa fazer
+    /// os pontos de uso pararem de oferecer a ação (guard em `estaInstalado`);
+    /// não há estado próprio da peça pra desligar aqui.
+    func parar() {}
+}
+
+func montarConversao(_ deps: PluginDeps) -> PluginServico? {
+    ConversaoServico()
 }

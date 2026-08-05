@@ -242,7 +242,10 @@ struct ShelfRowView: View {
                 Button("Abrir no navegador") { NSWorkspace.shared.open(link) }
                 Divider()
             }
-            let targets = FileConverter.targets(for: url)
+            // Sem a peça instalada, "Converter" some — calado, sem aviso e sem
+            // botão desabilitado (regra 5).
+            let targets = PluginHost.shared.estaInstalado(.conversao)
+                ? FileConverter.targets(for: url) : []
             if !targets.isEmpty {
                 Menu("Converter") {
                     ForEach(targets, id: \.self) { target in

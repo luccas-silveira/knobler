@@ -73,12 +73,15 @@ swift_check assistentecheck   Knobler/WebhookAssistant.swift tools/assistenteche
 swift_check exemplocheck      Knobler/WebhookTemplate.swift Knobler/WebhookExemplo.swift tools/exemplocheck.swift
 swift_check automapcheck      Knobler/WebhookTemplate.swift Knobler/WebhookPresets.swift Knobler/WebhookAutoMap.swift tools/automapcheck.swift
 swift_check colorpickercheck  Knobler/ColorPicker.swift tools/colorpickercheck.swift
-# a máquina de peças; NotchSectionOrder entra só pra conferir o nome da seção da ficha
+# a máquina de peças; NotchSectionOrder entra só pra conferir o nome da seção
+# da ficha; FileConverter entra pra tarefa 10 (Conversão de arquivo) provar o
+# gating com o `targets(for:)` de verdade, não um dublê.
 swift_check plugincheck       Knobler/Plugin.swift Knobler/Pomodoro.swift \
   Knobler/Reminders.swift Knobler/Descanso.swift Knobler/NotchSectionOrder.swift \
   Knobler/Peer.swift Knobler/Wire.swift Knobler/LANMessaging.swift Knobler/MessageStore.swift \
   Knobler/Permissions.swift Knobler/WebhookClient.swift Knobler/WebhookKeychainStore.swift \
-  Knobler/NotchNotification.swift tools/plugincheck.swift
+  Knobler/NotchNotification.swift Knobler/FileConverter.swift Knobler/ImageConverter.swift \
+  Knobler/DocumentConverter.swift Knobler/VideoConverter.swift tools/plugincheck.swift
 CONVERSAO="Knobler/FileConverter.swift Knobler/ImageConverter.swift Knobler/DocumentConverter.swift Knobler/VideoConverter.swift"
 swift_check imageconvertercheck    $CONVERSAO tools/imageconvertercheck.swift
 swift_check documentconvertercheck $CONVERSAO tools/documentconvertercheck.swift

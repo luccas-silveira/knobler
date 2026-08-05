@@ -117,6 +117,20 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   real (que carregaria rede/janela de verdade); o caminho `abrir()`→`webView`
   fica fora do self-check, documentado no comentário do método. Caso novo no
   `plugincheck` (com um `PluginServico` dublê).
+- **Conversão de arquivo vira peça de verdade** — a décima e última: nenhum
+  card da vitrine diz mais "Em breve". `FileConverter` (`targets`, `convert`,
+  `uniqueURL`) é um utilitário estático e Foundation puro, sem instância nem
+  singleton; `ConversaoServico` (`Plugin.swift`) existe só pra peça ter uma
+  referência viva enquanto instalada — não há timer, observer nem socket pra
+  `parar()` desligar. O valor real mora no único ponto que oferece a
+  conversão: o menu "Converter" da prateleira (`Shelf.swift`), que some
+  calado sem a peça instalada (regra 5) — `ShelfDrop`/`ShelfPreview` só
+  chamam `FileConverter` como consequência desse menu, não são pontos de
+  entrada próprios. O ABRIR da vitrine leva pra prateleira
+  (`vm.focar(.shelf)`), mesma decisão do Preview de Link: sem arquivo não há
+  o que converter. Caso novo no `plugincheck`, desta vez sem dublê — o gate
+  chama `FileConverter.targets(for:)` de verdade sobre um PNG num diretório
+  temporário pra provar o gating, não só o contrato genérico do `PluginHost`.
 
 ## [0.23.0] - 2026-08-04
 

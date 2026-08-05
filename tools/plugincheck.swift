@@ -10,7 +10,9 @@
 //    Knobler/Descanso.swift Knobler/NotchSectionOrder.swift Knobler/Peer.swift \
 //    Knobler/Wire.swift Knobler/LANMessaging.swift Knobler/MessageStore.swift \
 //    Knobler/Permissions.swift Knobler/WebhookClient.swift Knobler/WebhookKeychainStore.swift \
-//    Knobler/NotchNotification.swift tools/plugincheck.swift -o /tmp/plugincheck && /tmp/plugincheck
+//    Knobler/NotchNotification.swift Knobler/FileConverter.swift Knobler/ImageConverter.swift \
+//    Knobler/DocumentConverter.swift Knobler/VideoConverter.swift \
+//    tools/plugincheck.swift -o /tmp/plugincheck && /tmp/plugincheck
 //
 
 import Foundation
@@ -39,6 +41,7 @@ struct PluginCheck {
         testEspelhoNasceEPara()
         testNotaRapidaNasceEPara()
         testPreviewLinkNasceEPara()
+        testConversaoNasceEParaEGateiaTargets()
         print("✅ plugincheck ok")
     }
 
@@ -292,12 +295,12 @@ struct PluginCheck {
                    "\(peca.nome) ofereceu desinstalar sem nunca ter nascido")
         }
 
-        // Pomodoro, Lembretes, Descanso, Mensagens e Notificações externas são
-        // as convertidas nesta fase — se um dia deixar de ser verdade, é este
-        // assert que avisa que a vitrine tem card novo pra abrir.
+        // Conversão de arquivo (tarefa 10) fecha as dez conversões: as 11
+        // peças estão prontas agora, e nenhuma mostra mais "Em breve" — se um
+        // dia deixar de ser verdade, é este assert que avisa.
         assert(PluginRegistry.todos.filter(\.pronta).map(\.id) ==
                [.pomodoro, .lembretes, .descanso, .mensagens, .webhooks, .ditado, .espelho, .anotacao,
-                .notaRapida, .previewLink],
+                .notaRapida, .previewLink, .conversao],
                "mudou quem está convertido: \(PluginRegistry.todos.filter(\.pronta).map(\.id))")
     }
 
@@ -673,5 +676,58 @@ struct PluginCheck {
         host2.subir()
         assert(!host2.estaVivo(.previewLink), "nasceu sem estar instalada")
         assert(!chamou, "o closure de nascer foi chamado sem a peça instalada")
+    }
+
+    // MARK: - Tarefa 10: Conversão de arquivo
+
+    /// A décima primeira e última conversão. Diferente das quatro anteriores,
+    /// `FileConverter` é Foundation puro (nenhum dublê necessário) e o guard
+    /// que importa não é no `nascer` — é no ponto de uso (`Shelf.swift`, "o
+    /// menu Converter some sem a peça"). O gate imita literalmente esse guard
+    /// (`estaInstalado(.conversao) ? FileConverter.targets(for:) : []`) e
+    /// prova com um arquivo `.png` real que `targets(for:)` de fato devolve
+    /// alvos com a peça instalada e uma lista vazia sem ela — não um dublê que
+    /// só prova o contrato genérico do `PluginHost`.
+    static func testConversaoNasceEParaEGateiaTargets() {
+        assert(PluginRegistry.ficha(.conversao)?.pronta == true, "Conversão de arquivo não está pronta")
+        assert(PluginRegistry.ficha(.conversao)?.painel == nil,
+               "Conversão de arquivo ganhou painel — não é mais o caso sem painel")
+
+        let d = defaultsLimpo("plugincheck.conversao")
+        PluginsInstalados.gravar([.conversao], d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        let host = PluginHost(defaults: d)
+        host.subir()
+
+        assert(host.estaVivo(.conversao), "a peça não nasceu instalada")
+        assert(host.servico(.conversao, as: ConversaoServico.self) != nil, "não achou o serviço")
+
+        // um PNG de verdade num diretório temporário — targets(for:) lê a
+        // extensão do disco, então precisa existir.
+        let png = FileManager.default.temporaryDirectory
+            .appendingPathComponent("plugincheck-conversao-\(UUID().uuidString).png")
+        FileManager.default.createFile(atPath: png.path, contents: Data())
+        defer { try? FileManager.default.removeItem(at: png) }
+
+        func targetsGated(_ host: PluginHost) -> [ConversionTarget] {
+            host.estaInstalado(.conversao) ? FileConverter.targets(for: png) : []
+        }
+
+        assert(!targetsGated(host).isEmpty, "com a peça instalada, o PNG devia oferecer conversão")
+
+        host.desinstalar(.conversao)
+        assert(!host.estaVivo(.conversao), "o serviço sobreviveu à desinstalação")
+        assert(targetsGated(host).isEmpty,
+               "desinstalada, o gate calado devia esvaziar o menu Converter — vazou: \(targetsGated(host))")
+
+        // sem a peça na lista de instalados desde o início, `subir()` nem a
+        // visita.
+        let d2 = defaultsLimpo("plugincheck.semconversao")
+        PluginsInstalados.gravar([.pomodoro], d2)
+        d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        let host2 = PluginHost(defaults: d2)
+        host2.subir()
+        assert(!host2.estaVivo(.conversao), "nasceu sem estar instalada")
+        assert(targetsGated(host2).isEmpty, "gate vazou sem a peça nunca ter sido instalada")
     }
 }
