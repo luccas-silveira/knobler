@@ -38,6 +38,19 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   recebe uma instância ociosa quando a peça não está viva (mesmo truque do
   `lanMessagingOcioso`) — o painel `webhooks` já some da barra lateral sem a
   peça. Caso novo no `plugincheck`.
+- **Ditado vira peça de verdade**: o `DictationController` nasce só com a
+  peça instalada (`montarDitado` em `Plugin.swift`) — a primeira peça com
+  **gancho global**: o tap da ⌥ direita continua do `VolumeHUDController`
+  (feature de fábrica, não plugin→plugin), e o `AppDelegate` repassa pra
+  `plugins.servico(.ditado)`, que degrada calado (`?.`) sem a peça. Diferente
+  das peças anteriores, `DitadoEfeitos` é UM closure emprestado
+  (`nascer: () -> PluginServico?`) em vez de efeitos tipados: o
+  `DictationController` importa FluidAudio (pacote SPM), que o
+  `tools/plugincheck.swift` (compile `swiftc` avulso, sem resolução de SPM)
+  não consegue arrastar — referenciar o tipo direto em `Plugin.swift`
+  quebraria o gate. `parar()` cancela gravação/transcrição em curso. Caso
+  novo no `plugincheck` (com um `PluginServico` dublê, já que o real não
+  entra no compile do harness).
 
 ## [0.23.0] - 2026-08-04
 

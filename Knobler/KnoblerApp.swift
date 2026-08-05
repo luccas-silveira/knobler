@@ -77,7 +77,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// `start()`, fica inerte (o painel `webhooks` já some da barra lateral
     /// sem a peça, F3).
     private let webhookClientOcioso = WebhookClient()
-    private let dictation = DictationController()
     private let devAvisos = DevAvisosController()
     /// Botões dos avisos do desenvolvedor: token do card → URLs (só https).
     /// Existe porque o `actionToken` normal resolve num `AXUIElement` vivo do
@@ -103,6 +102,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var mensagensServico: MensagensServico? { plugins.servico(.mensagens) }
     /// `nil` = a peça Notificações externas está desinstalada.
     private var webhookClient: WebhookClient? { plugins.servico(.webhooks) }
+    /// `nil` = a peça Ditado está desinstalada.
+    private var dictation: DictationController? { plugins.servico(.ditado) }
     /// Pra `.environmentObject(_:)`: com a peça viva, os objetos do serviço;
     /// sem ela, as instâncias ociosas (ver comentário na declaração delas).
     private var lanMessagingParaInjetar: LANMessaging { mensagensServico?.lanMessaging ?? lanMessagingOcioso }
@@ -240,31 +241,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         volumeHUD.onAXTrust = { [weak self] _ in self?.refreshAccessibilityBadge() }
         volumeHUD.start()
 
-        // ditado: pílula em TODAS as telas, como os HUDs
-        dictation.onState = { [weak self] phase in
-            self?.notches.values.forEach { $0.viewModel.dictation = phase }
-        }
-        dictation.destinationProvider = { [weak self] in
-            if let id = self?.askStore?.state.active?.id {
-                return .ask(id: id)
-            }
-            guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier else {
-                return nil
-            }
-            return .application(pid: pid)
-        }
+        // ditado: gancho global (a ⌥ direita é do VolumeHUD, feature de
+        // fábrica — não é plugin→plugin, ver `DitadoEfeitos` em
+        // `Plugin.swift`). Sem a peça instalada `dictation` é `nil` e o
+        // encaminhamento vira no-op sozinho.
         volumeHUD.onRightOption = { [weak self] pressed in
-            self?.dictation.rightOptionChanged(pressed)
-        }
-        dictation.start()
-
-        dictation.transcriptSink = { [weak self] text, destination in
-            guard case .ask(let id) = destination,
-                  self?.askStore?.state.active?.id == id else {
-                return false
-            }
-            self?.askStore?.send(.appendText(id: id, text: text))
-            return true
+            self?.dictation?.rightOptionChanged(pressed)
         }
 
         // capturas de tela entram na prateleira e o notch dá um peek
@@ -538,6 +520,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     .sink { _ in tick() }
                 return { cancellable.cancel() }
             })
+        // A montagem do Ditado mora na ficha da peça (`montarDitado`,
+        // Plugin.swift), mas ao contrário das outras o `nascer` inteiro é
+        // emprestado daqui — `DictationController` importa FluidAudio, que o
+        // `plugincheck` (swiftc avulso) não resolve (ver o `ponytail:` em
+        // `DitadoEfeitos`, Plugin.swift).
+        plugins.ditadoEfeitos = DitadoEfeitos(nascer: { [weak self] in
+            guard let self else { return nil }
+            let d = DictationController()
+            d.onState = { [weak self] phase in
+                self?.notches.values.forEach { $0.viewModel.dictation = phase }
+            }
+            d.destinationProvider = { [weak self] in
+                if let id = self?.askStore?.state.active?.id {
+                    return .ask(id: id)
+                }
+                guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier else {
+                    return nil
+                }
+                return .application(pid: pid)
+            }
+            d.transcriptSink = { [weak self] text, destination in
+                guard case .ask(let id) = destination,
+                      self?.askStore?.state.active?.id == id else {
+                    return false
+                }
+                self?.askStore?.send(.appendText(id: id, text: text))
+                return true
+            }
+            d.start()
+            return d
+        })
         // O nascimento das peças instaladas. Quem está desligado nem é visitado.
         plugins.subir()
         // espelho automático: abre 2min antes da call, fecha quando ela começa
@@ -597,7 +610,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     "frame": "\(notch.window.frame)",
                 ] as [String: Any]
             }
-            status["dictation"] = self?.dictation.diagnostics ?? [:]
+            status["dictation"] = self?.dictation?.diagnostics ?? [:]
             status["ask"] = self?.apiServer.askDiagnostics ?? [:]
             status["agentRequests"] = self?.apiServer.agentRequestDiagnostics ?? [:]
             status["lanMessaging"] = self?.mensagensServico?.lanMessaging.diagnostics ?? [:]

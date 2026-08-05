@@ -34,6 +34,7 @@ struct PluginCheck {
         testDescansoNasceEPara()
         testMensagensNascemEParam()
         testWebhooksNascemEParam()
+        testDitadoNasceEPara()
         print("✅ plugincheck ok")
     }
 
@@ -291,7 +292,7 @@ struct PluginCheck {
         // as convertidas nesta fase — se um dia deixar de ser verdade, é este
         // assert que avisa que a vitrine tem card novo pra abrir.
         assert(PluginRegistry.todos.filter(\.pronta).map(\.id) ==
-               [.pomodoro, .lembretes, .descanso, .mensagens, .webhooks],
+               [.pomodoro, .lembretes, .descanso, .mensagens, .webhooks, .ditado],
                "mudou quem está convertido: \(PluginRegistry.todos.filter(\.pronta).map(\.id))")
     }
 
@@ -435,5 +436,51 @@ struct PluginCheck {
         host2.subir()
         assert(!host2.estaVivo(.webhooks), "nasceu sem estar instalada")
         assert(host2.servico(.webhooks, as: WebhookClient.self) == nil, "achou serviço do nada")
+    }
+
+    // MARK: - Tarefa 5: Ditado
+
+    /// Dublê do `DictationController` pro harness — o real importa FluidAudio,
+    /// que este `swiftc` avulso não resolve (por isso `DitadoEfeitos.nascer` é
+    /// UM closure emprestado, não efeitos tipados: ver `Plugin.swift`).
+    final class DitadoServicoFake: PluginServico {
+        var parou = false
+        func parar() { parou = true }
+    }
+
+    /// A sexta conversão e a primeira com **gancho global**: `montarDitado`
+    /// só repassa pro closure emprestado (`deps.ditado.nascer`) — o que dá pra
+    /// testar aqui, sem o `DictationController` real, é que a peça pronta
+    /// nasce chamando esse closure quando instalada, `parar()` chega até ele
+    /// na desinstalação, e sem a peça instalada o closure nem é chamado.
+    static func testDitadoNasceEPara() {
+        assert(PluginRegistry.ficha(.ditado)?.pronta == true, "Ditado não está pronta")
+
+        let d = defaultsLimpo("plugincheck.ditado")
+        PluginsInstalados.gravar([.ditado], d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+
+        let fake = DitadoServicoFake()
+        let host = PluginHost(defaults: d)
+        host.ditadoEfeitos.nascer = { fake }
+        host.subir()
+
+        assert(host.estaVivo(.ditado), "a peça não nasceu instalada")
+        assert(host.servico(.ditado, as: DitadoServicoFake.self) === fake, "não achou o serviço")
+
+        host.desinstalar(.ditado)
+        assert(!host.estaVivo(.ditado), "o serviço sobreviveu à desinstalação")
+        assert(fake.parou, "parar() não chegou ao closure emprestado")
+
+        // sem a peça na lista de instalados, o closure de nascer nem é chamado.
+        var chamou = false
+        let d2 = defaultsLimpo("plugincheck.semditado")
+        PluginsInstalados.gravar([.pomodoro], d2)
+        d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        let host2 = PluginHost(defaults: d2)
+        host2.ditadoEfeitos.nascer = { chamou = true; return DitadoServicoFake() }
+        host2.subir()
+        assert(!host2.estaVivo(.ditado), "nasceu sem estar instalada")
+        assert(!chamou, "o closure de nascer foi chamado sem a peça instalada")
     }
 }

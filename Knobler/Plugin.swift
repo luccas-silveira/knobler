@@ -119,6 +119,27 @@ struct WebhooksEfeitos {
     var registrarMudancaAjuste: (@escaping () -> Void) -> (() -> Void) = { _ in {} }
 }
 
+/// Os efeitos que a montagem do Ditado precisa do app.
+///
+/// ponytail: diferente das peças anteriores, aqui é UM closure emprestado,
+/// não vários tipados. `DictationController` importa `FluidAudio` (pacote
+/// SPM) — referenciar o tipo neste arquivo arrastaria `Dictation.swift` (e o
+/// pacote) pro compile isolado do `tools/plugincheck.swift`, que é `xcrun
+/// swiftc` avulso sem resolução de SPM (diferente do `xcodebuild` do app).
+/// `nascer` é a peça inteira: o `AppDelegate` cria o `DictationController`,
+/// liga `onState`/`destinationProvider`/`transcriptSink` (tudo AppKit/
+/// SwiftUI/AskStore) e chama `start()`. Teto: se uma 2ª peça precisar do
+/// mesmo pacote pesado, vale extrair esse desenho pra um tipo nomeado.
+///
+/// O tap global da ⌥ direita **não** está aqui: quem o segura é o
+/// `VolumeHUDController`, feature de fábrica — é dependência para baixo, não
+/// plugin→plugin (003-brief). O `AppDelegate` continua dono do
+/// `volumeHUD.onRightOption` e repassa pra `plugins.servico(.ditado)`, que é
+/// `nil` com a peça desinstalada e vira no-op sozinho (`?.`).
+struct DitadoEfeitos {
+    var nascer: () -> PluginServico? = { nil }
+}
+
 /// O que a peça recebe pra nascer: a pergunta "a outra peça está instalada?"
 /// (a única dependência plugin→plugin é Pomodoro→Descanso, e "não" é caminho
 /// normal) e os efeitos que o app empresta.
@@ -129,6 +150,7 @@ struct PluginDeps {
     var descanso = DescansoEfeitos()
     var mensagens = MensagensEfeitos()
     var webhooks = WebhooksEfeitos()
+    var ditado = DitadoEfeitos()
 }
 
 /// A ficha da peça. Tudo aqui é dado, menos `nascer`.
@@ -217,8 +239,8 @@ enum PluginRegistry {
         Plugin(id: .ditado, nome: "Ditado",
                descricao: "Fale e o texto aparece onde o cursor está.",
                simbolo: "mic.fill", secao: nil, painel: "ditado",
-               rotas: [], permissao: "microfone",
-               nascer: { _ in nil }),
+               rotas: [], permissao: "microfone", pronta: true,
+               nascer: montarDitado),
 
         Plugin(id: .espelho, nome: "Espelho",
                descricao: "Sua câmera no notch antes da reunião.",
@@ -362,6 +384,7 @@ final class PluginHost: ObservableObject {
     var descansoEfeitos = DescansoEfeitos()
     var mensagensEfeitos = MensagensEfeitos()
     var webhooksEfeitos = WebhooksEfeitos()
+    var ditadoEfeitos = DitadoEfeitos()
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -373,7 +396,7 @@ final class PluginHost: ObservableObject {
         PluginDeps(instalado: { [weak self] id in self?.instalados.contains(id) ?? false },
                    pomodoro: pomodoroEfeitos, lembretes: lembretesEfeitos,
                    descanso: descansoEfeitos, mensagens: mensagensEfeitos,
-                   webhooks: webhooksEfeitos)
+                   webhooks: webhooksEfeitos, ditado: ditadoEfeitos)
     }
 
     /// O launch inteiro. Peça desligada nem é visitada — custo zero de verdade.
@@ -613,4 +636,15 @@ func montarWebhooks(_ deps: PluginDeps) -> WebhookClient {
     client.ajusteUnregister = efeitos.registrarMudancaAjuste(aplicarAjuste)
     aplicarAjuste()
     return client
+}
+
+/// A sexta conversão (tarefa 5) e a primeira com **gancho global**. A
+/// montagem em si (criar o `DictationController`, ligar providers, chamar
+/// `start()`) mora inteira em `deps.ditado.nascer` — ver o `ponytail:` em
+/// `DitadoEfeitos` sobre por que não dá pra decompor em efeitos tipados aqui
+/// como nas peças anteriores. O tap da ⌥ direita não nasce aqui: é do
+/// `VolumeHUDController` (factory), e o `AppDelegate` continua repassando pra
+/// `plugins.servico(.ditado)` fora desta função.
+func montarDitado(_ deps: PluginDeps) -> PluginServico? {
+    deps.ditado.nascer()
 }

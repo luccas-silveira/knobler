@@ -214,6 +214,13 @@ enum DictationDestination: Equatable {
     case application(pid: pid_t)
 }
 
+/// Conformidade da peça (ficha em `Plugin.swift`, `montarDitado`). Mora aqui
+/// e não lá porque este arquivo já importa `FluidAudio`; `Plugin.swift` é
+/// Foundation puro (constraint 1) e não pode referenciar o tipo diretamente.
+extension DictationController: PluginServico {
+    func parar() { stop() }
+}
+
 @MainActor
 final class DictationController {
     /// nil = pílula some. Chamado sempre na main queue.
@@ -308,6 +315,18 @@ final class DictationController {
             modelReady = await parakeet.ready
             preparing = false
         }
+    }
+
+    /// O "morrer" da peça: cancela gravação/transcrição em curso e apaga a
+    /// pílula. Não há CGEventTap pra soltar aqui — quem segura o tap da ⌥
+    /// direita é o `VolumeHUDController` (feature de fábrica); o
+    /// `AppDelegate` para de encaminhar sozinho assim que
+    /// `plugins.servico(.ditado)` volta `nil` (a chamada vira `?.`).
+    func stop() {
+        cancel()
+        flashWorkItem?.cancel()
+        flashWorkItem = nil
+        onState?(nil)
     }
 
     func rightOptionChanged(_ pressed: Bool) {
