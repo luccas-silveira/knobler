@@ -34,7 +34,16 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   de confirmação, porque nada se perde e reinstalar é o desfazer. As outras dez
   peças mostram **"Em breve"** no lugar do botão até serem convertidas. O card
   não muda de lugar ao instalar ou desinstalar; só o botão muda, e o painel da
-  peça aparece ou some da barra lateral na hora.
+  peça aparece ou some da barra lateral na hora. Doc de usuário em
+  [`docs/plugins.md`](docs/plugins.md).
+
+### Changed
+- **API local sabe de plugin**: `GET /status` ganha o campo `plugins` com a
+  lista de ids instalados (um script pergunta uma vez em vez de descobrir
+  batendo em rota) e `POST /mirror`, a única rota que pertence a uma peça,
+  responde `404` com `plugin` no corpo quando o Espelho está desinstalado — sem
+  o guard ela mentiria `{"ok":true}`. A fronteira aparece como marca
+  `(plugin: X)` no título da rota.
 
 ## [0.22.0] - 2026-08-04
 

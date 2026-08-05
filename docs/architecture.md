@@ -38,6 +38,46 @@ wizard e vai direto ao painel. Quem depende de Acessibilidade ou de Calendário
 repolla o trust a cada 3 s e se liga sozinho quando a concessão chega — não há
 relaunch no caminho.
 
+## O app é feito de peças
+
+Parte das features não nasce mais na mão do `AppDelegate`: elas são **peças**
+(plugins) que só existem quando estão instaladas. A regra de corte é "de fábrica
+é o que substitui algo que o macOS já fazia" — Música/HUDs, Notificações, Shelf e
+AirPods são de fábrica; as outras onze (Pomodoro, Lembretes, Descanso, Mensagens
+LAN, Webhooks, Ditado, Espelho, Anotação, Nota rápida, Preview de link, Conversão
+de arquivo) são peças.
+
+- **A peça é dado, não protocolo.** `Knobler/Plugin.swift` traz um `struct
+  Plugin` (id, nome, frase, símbolo, seção do card, painel de Ajustes) mais
+  **uma** closure `nascer`. O registro (`PluginRegistry.todos`) é um array
+  literal com gate de compilação — sem descoberta mágica.
+- **Instalado é uma lista de ids** (`pluginsInstalados` no `UserDefaults`), não
+  um booleano por peça. A migração dá as onze pra todo mundo uma vez só, então
+  ninguém perde feature na atualização.
+- **`PluginHost` é quem sobe o app.** No launch ele itera só as peças instaladas
+  e chama `nascer`; peça desligada não é visitada — não há objeto, timer nem
+  observer. É disso que depende a promessa de custo zero do `PRODUCT.md`.
+- **Peça pergunta por peça** com `deps.instalado(_:)`, e `false` é caminho
+  normal: sem o Descanso, a opção "travar a tela na pausa" some do Pomodoro sem
+  aviso. Id órfão é ignorado calado e nunca apagado.
+- **As superfícies somem sozinhas**: o painel sai da barra lateral de Ajustes, a
+  seção sai do editor de ordem do card e o anel da faixa não aparece — nem com a
+  seção fixada (a fixação é ignorada, não apagada). A ordem salva nunca é
+  tocada, então reinstalar devolve tudo no lugar exato.
+- **`Plugin.swift` importa só `Foundation`** de propósito: é o que deixa o
+  `plugincheck` compilar a máquina de peças isolada, sem arrastar SwiftUI. Cor de
+  capa e qualquer coisa de tela moram na view.
+- **Desinstalar não apaga nada** — nem dado, nem preferência, nem Keychain, nem
+  perfil no relay. Reinstalar é o desfazer.
+
+O `PluginID` e o nome da seção são identidade estável: renomear um deles
+desinstala a peça na máquina de quem já usa. Por isso o card da peça `anotacao`
+se chama "Desenho" (o nome do painel) enquanto o id segue `anotacao`.
+
+Hoje só o Pomodoro está convertido de verdade (`pronta: true` na ficha); as
+outras dez aparecem na vitrine como "Em breve" até ganharem seu `nascer`. Ver
+[`plugins.md`](plugins.md) pro lado do usuário.
+
 ## Ownership de estado
 
 | Estado | Dono atual | Consumidores |

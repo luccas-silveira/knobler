@@ -247,6 +247,17 @@ propósito.
   barra lateral na hora e troca o botão sem mexer o card de lugar, `INSTALAR`
   devolve tudo, `ABRIR` navega. Falta só o papel (F5).
 
+- [Fase 5 — docs, imagens e release](tickets/015-fase-5-docs-e-release.md) —
+  **executada**: seção "O app é feito de peças" na `architecture.md`, doc de
+  usuário `docs/plugins.md` com duas capturas do painel real, `local-api.md`
+  atualizada e `CHANGELOG.md` fechado numa release MINOR única. O que o ticket
+  não previa: o item da API **não era só doc** — o 008 tinha sido decidido e
+  nunca implementado, então o `guard` do `POST /mirror` (`404` com `plugin`), a
+  marca `(plugin: espelho)` no título e o campo `plugins` no `GET /status`
+  saíram aqui, nas três linhas que 008 previa. **Sem gate novo**: nenhum harness
+  compila `NotchAPIServer.swift` nem `KnoblerApp.swift`, e injetar o host no
+  servidor seria mais código que o próprio guard. **Mapa fechado.**
+
 ## Not yet specified
 
 - **Permissões por plugin.** Hoje nenhuma permissão é pedida no launch, e o painel

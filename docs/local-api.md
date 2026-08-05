@@ -88,10 +88,12 @@ Para remover:
 Uma activity expira após 30 minutos sem atualização. A activity mais
 recentemente atualizada é a exibida.
 
-### `POST /mirror`
+### `POST /mirror` (plugin: espelho)
 
 Liga o espelho no notch do monitor sob o ponteiro ou desliga o espelho em todos
-os monitores.
+os monitores. Com o Espelho desinstalado a rota responde
+`404 {"ok":false,"error":"plugin não instalado","plugin":"espelho"}` — a marca
+`(plugin: X)` no título é a fronteira entre rota estável e rota de peça.
 
 ```json
 {"on":true}
@@ -214,7 +216,10 @@ não responde e o Codex mostra a aprovação nativa. Detalhes em
 
 Retorna diagnóstico do app. O schema é deliberadamente extensível; campos
 atuais incluem `notches`, `player`, `visualizerTapped`, `dictation`, `ask`,
-`micInUse`, `silenciando` e `lanMessaging`. `silenciando` é `true` quando a
+`micInUse`, `silenciando`, `lanMessaging` e `plugins` — este último é a lista de
+ids das peças instaladas (ver [`plugins.md`](plugins.md)), pra um script
+perguntar uma vez em vez de descobrir batendo em rota; campo de peça desligada
+simplesmente não aparece. `silenciando` é `true` quando a
 notificação que chegar agora vai direto pro histórico em vez de virar card (ver
 [`notifications.md`](notifications.md)). Cada entrada de `notches` traz também `focus`: o
 identificador da seção que o card aberto está mostrando (`musica`, `atividade`,
@@ -235,7 +240,8 @@ Use esse endpoint para diagnóstico local, não como contrato de persistência.
 
 - `200` com `{"ok":true}` para comandos aceitos.
 - `400` para JSON inválido ou campos obrigatórios ausentes.
-- `404` para endpoint desconhecido ou Ask inexistente.
+- `404` para endpoint desconhecido, Ask inexistente ou rota de plugin
+  desinstalado (o corpo traz `plugin` com o id da peça).
 - O listener recebe até 64 KiB por requisição.
 - Corpos de `/agent-requests` são limitados a 32 KiB e retornam `413` acima
   desse limite; JSON ou campos inválidos retornam `400`, e token ausente ou

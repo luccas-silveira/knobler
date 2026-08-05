@@ -298,6 +298,13 @@ final class NotchAPIServer {
         }
 
         if request.hasPrefix("POST /mirror") {
+            // Rota de peça: sem o Espelho instalado o callback está vazio e a
+            // rota mentiria `{"ok":true}`. O id no corpo deixa o outro lado
+            // dizer "instale o Espelho" em vez de "erro desconhecido".
+            guard PluginHost.shared.estaInstalado(.espelho) else {
+                return Self.http(status: "404 Not Found",
+                                 body: #"{"ok":false,"error":"plugin não instalado","plugin":"espelho"}"#)
+            }
             let on = json?["on"] as? Bool ?? true
             DispatchQueue.main.async { [weak self] in
                 self?.onMirror?(on)
@@ -400,7 +407,7 @@ final class NotchAPIServer {
 
         return Self.http(
             status: "404 Not Found",
-            body: #"{"ok":false,"usage":["POST /notify {title, body?, app?, supacodeWorktree?, supacodeTab?}","POST /activity {id?, title, detail?, progress?, done?}","POST /mirror {on?}","POST /ask {id, questions}","GET /ask/<id>","POST /ask/<id>/cancel","GET /status"]}"#
+            body: #"{"ok":false,"usage":["POST /notify {title, body?, app?, supacodeWorktree?, supacodeTab?}","POST /activity {id?, title, detail?, progress?, done?}","POST /mirror {on?} (plugin: espelho)","POST /ask {id, questions}","GET /ask/<id>","POST /ask/<id>/cancel","GET /status"]}"#
         )
     }
 

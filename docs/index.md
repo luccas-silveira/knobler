@@ -11,6 +11,7 @@ contratos e explicações para entender decisões.
 
 - [README](../README.md) — visão geral, instalação e exemplos rápidos.
 - [Ajustes](settings.md) — configurar as funções no app.
+- [Plugins](plugins.md) — instalar e desinstalar as peças do Knobler.
 - [Troubleshooting](troubleshooting.md) — diagnóstico quando algo não aparece
   ou não responde.
 

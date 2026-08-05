@@ -544,6 +544,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             status["ask"] = self?.apiServer.askDiagnostics ?? [:]
             status["agentRequests"] = self?.apiServer.agentRequestDiagnostics ?? [:]
             status["lanMessaging"] = self?.lanMessaging.diagnostics ?? [:]
+            // uma pergunta só em vez de descobrir batendo em rota
+            status["plugins"] = PluginID.allCases
+                .filter(PluginHost.shared.estaInstalado)
+                .map(\.rawValue)
             return status
         }
         apiCancellable = AppSettings.shared.objectWillChange
