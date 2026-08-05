@@ -92,7 +92,15 @@ swift_check shelfdropcheck        $CONVERSAO Knobler/ShelfDrop.swift \
   Knobler/LinkBrowser.swift tools/shelfdropcheck.swift
 swift_check historycheck          Knobler/NotchNotification.swift Knobler/NotificationHistory.swift Knobler/NotchGesture.swift tools/historycheck.swift
 swift_check sectionordercheck    Knobler/NotchSectionOrder.swift tools/sectionordercheck.swift
-swift_check quicknotecheck        Knobler/QuickNote.swift tools/quicknotecheck.swift
+# Ganhou o mesmo bloco de arquivos do plugincheck na tarefa 8 (nota vira
+# peça): `extension QuickNote: PluginServico` (QuickNote.swift) precisa do
+# protocolo de Plugin.swift, que por sua vez arrasta os tipos que as outras
+# fichas referenciam.
+swift_check quicknotecheck        Knobler/QuickNote.swift Knobler/Plugin.swift Knobler/Pomodoro.swift \
+  Knobler/Reminders.swift Knobler/Descanso.swift Knobler/NotchSectionOrder.swift \
+  Knobler/Peer.swift Knobler/Wire.swift Knobler/LANMessaging.swift Knobler/MessageStore.swift \
+  Knobler/Permissions.swift Knobler/WebhookClient.swift Knobler/WebhookKeychainStore.swift \
+  Knobler/NotchNotification.swift tools/quicknotecheck.swift
 swift_check permissioncheck       Knobler/Permissions.swift tools/permissioncheck.swift
 swift_check annotationcheck      Knobler/AnnotationModel.swift tools/annotationcheck.swift
 swift_check calendariocheck       Knobler/CalendarAviso.swift tools/calendariocheck.swift

@@ -83,6 +83,23 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   (`MirrorController._releaseSelfCheck()`, `--selfcheck`) prova a metade
   "solta a câmera" sem depender de permissão de câmera real. Caso novo no
   `plugincheck` (com um `PluginServico` dublê).
+- **Nota rápida vira peça de verdade**: a segunda **sem painel de Ajustes**.
+  `QuickNote.shared` continua singleton e já nasce dormente (sem `start()`);
+  `montarNotaRapida` (`Plugin.swift`) repassa pro closure emprestado
+  `NotaRapidaEfeitos.nascer`, no mesmo desenho do Espelho (`QuickNote`
+  importa AppKit, que `Plugin.swift` não pode referenciar). O próprio
+  `QuickNote` conforma `PluginServico` (`parar()` reusa o `didSet` de
+  `active`, que já limpa texto/foco/dono e despeja no clipboard antes de
+  sumir). Sem a peça instalada, o item "✎ Nota rápida" some do menu da
+  barra e `toggleQuickNote()` vira no-op — nada pra ligar. O ABRIR da
+  vitrine extrai a lógica em `toggleQuickNote(on:)`, reaproveitada pelo
+  item de menu (tela sob o mouse) e pelo `switch peca.id` de
+  `PluginsSettingsPane.abrir(_:)` (tela principal, mesmo precedente do
+  Espelho — o mouse na vitrine está sobre a janela de Ajustes, não sobre
+  um notch). Self-check headless (`QuickNote._pararSelfCheck()`,
+  `--selfcheck`) prova ligar→desligar numa instância própria com
+  `NSPasteboard` nomeado, sem tocar o clipboard real da máquina. Caso novo
+  no `plugincheck` (com um `PluginServico` dublê).
 
 ## [0.23.0] - 2026-08-04
 

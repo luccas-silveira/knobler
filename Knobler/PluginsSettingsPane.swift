@@ -201,6 +201,12 @@ struct PluginsSettingsPane: View {
                 if let vm = KnoblerMain.delegate.viewModelPrincipal() {
                     MirrorController.activate(on: vm, expand: true)
                 }
+            case .notaRapida:
+                // Mesmo interruptor do item de menu, mas na tela principal:
+                // aqui o mouse está sobre a janela de Ajustes, não sobre um
+                // notch, então "tela sob o mouse" não faria sentido (mesmo
+                // precedente do Espelho acima).
+                KnoblerMain.delegate.ligarDesligarNota(em: NSScreen.main)
             default:
                 break
             }

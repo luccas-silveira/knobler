@@ -37,6 +37,7 @@ struct PluginCheck {
         testDitadoNasceEPara()
         testAnotacaoNasceEPara()
         testEspelhoNasceEPara()
+        testNotaRapidaNasceEPara()
         print("✅ plugincheck ok")
     }
 
@@ -294,7 +295,8 @@ struct PluginCheck {
         // as convertidas nesta fase — se um dia deixar de ser verdade, é este
         // assert que avisa que a vitrine tem card novo pra abrir.
         assert(PluginRegistry.todos.filter(\.pronta).map(\.id) ==
-               [.pomodoro, .lembretes, .descanso, .mensagens, .webhooks, .ditado, .espelho, .anotacao],
+               [.pomodoro, .lembretes, .descanso, .mensagens, .webhooks, .ditado, .espelho, .anotacao,
+                .notaRapida],
                "mudou quem está convertido: \(PluginRegistry.todos.filter(\.pronta).map(\.id))")
     }
 
@@ -575,6 +577,53 @@ struct PluginCheck {
         host2.espelhoEfeitos.nascer = { chamou = true; return EspelhoServicoFake() }
         host2.subir()
         assert(!host2.estaVivo(.espelho), "nasceu sem estar instalada")
+        assert(!chamou, "o closure de nascer foi chamado sem a peça instalada")
+    }
+
+    // MARK: - Tarefa 8: Nota rápida
+
+    /// Dublê do `QuickNote` pro harness — o real importa AppKit, no mesmo
+    /// desenho do Ditado/Desenho/Espelho: ver `Plugin.swift`.
+    final class NotaRapidaServicoFake: PluginServico {
+        var parou = false
+        func parar() { parou = true }
+    }
+
+    /// A nona conversão (tarefa 8) e a segunda sem painel: `montarNotaRapida`
+    /// só repassa pro closure emprestado (`deps.notaRapida.nascer`) — o que
+    /// dá pra testar aqui, sem o `QuickNote` real, é que a peça pronta nasce
+    /// chamando esse closure quando instalada, `parar()` chega até ele na
+    /// desinstalação, e sem a peça instalada o closure nem é chamado.
+    static func testNotaRapidaNasceEPara() {
+        assert(PluginRegistry.ficha(.notaRapida)?.pronta == true, "Nota rápida não está pronta")
+        assert(PluginRegistry.ficha(.notaRapida)?.painel == nil,
+               "Nota rápida ganhou painel — não é mais o caso sem painel")
+
+        let d = defaultsLimpo("plugincheck.notarapida")
+        PluginsInstalados.gravar([.notaRapida], d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+
+        let fake = NotaRapidaServicoFake()
+        let host = PluginHost(defaults: d)
+        host.notaRapidaEfeitos.nascer = { fake }
+        host.subir()
+
+        assert(host.estaVivo(.notaRapida), "a peça não nasceu instalada")
+        assert(host.servico(.notaRapida, as: NotaRapidaServicoFake.self) === fake, "não achou o serviço")
+
+        host.desinstalar(.notaRapida)
+        assert(!host.estaVivo(.notaRapida), "o serviço sobreviveu à desinstalação")
+        assert(fake.parou, "parar() não chegou ao closure emprestado")
+
+        // sem a peça na lista de instalados, o closure de nascer nem é chamado.
+        var chamou = false
+        let d2 = defaultsLimpo("plugincheck.semnotarapida")
+        PluginsInstalados.gravar([.pomodoro], d2)
+        d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        let host2 = PluginHost(defaults: d2)
+        host2.notaRapidaEfeitos.nascer = { chamou = true; return NotaRapidaServicoFake() }
+        host2.subir()
+        assert(!host2.estaVivo(.notaRapida), "nasceu sem estar instalada")
         assert(!chamou, "o closure de nascer foi chamado sem a peça instalada")
     }
 }

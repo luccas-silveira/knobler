@@ -163,6 +163,17 @@ struct EspelhoEfeitos {
     var nascer: () -> PluginServico? = { nil }
 }
 
+/// Os efeitos que a montagem da Nota rápida precisa do app. Mesmo desenho do
+/// `EspelhoEfeitos`: `QuickNote` é `.shared` (singleton — `NotchView` e
+/// `NotchViewModel` seguem lendo `.shared` direto) e importa AppKit, então
+/// referenciar o tipo aqui arrastaria AppKit pro compile isolado do
+/// `plugincheck` (constraint 1). `nascer` só devolve o singleton — ao
+/// contrário do Desenho/Espelho não há `start()`: a nota fica dormente
+/// (`active == false`) até o interruptor do menu ligá-la.
+struct NotaRapidaEfeitos {
+    var nascer: () -> PluginServico? = { nil }
+}
+
 /// O que a peça recebe pra nascer: a pergunta "a outra peça está instalada?"
 /// (a única dependência plugin→plugin é Pomodoro→Descanso, e "não" é caminho
 /// normal) e os efeitos que o app empresta.
@@ -176,6 +187,7 @@ struct PluginDeps {
     var ditado = DitadoEfeitos()
     var anotacao = AnotacaoEfeitos()
     var espelho = EspelhoEfeitos()
+    var notaRapida = NotaRapidaEfeitos()
 }
 
 /// A ficha da peça. Tudo aqui é dado, menos `nascer`.
@@ -286,8 +298,8 @@ enum PluginRegistry {
         Plugin(id: .notaRapida, nome: "Nota rápida",
                descricao: "Um rascunho sempre à mão no notch.",
                simbolo: "note.text", secao: "nota", painel: nil,
-               rotas: [], permissao: nil,
-               nascer: { _ in nil }),
+               rotas: [], permissao: nil, pronta: true,
+               nascer: montarNotaRapida),
 
         Plugin(id: .previewLink, nome: "Preview de Link",
                descricao: "Espia o site do link antes de abrir.",
@@ -412,6 +424,7 @@ final class PluginHost: ObservableObject {
     var ditadoEfeitos = DitadoEfeitos()
     var anotacaoEfeitos = AnotacaoEfeitos()
     var espelhoEfeitos = EspelhoEfeitos()
+    var notaRapidaEfeitos = NotaRapidaEfeitos()
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -424,7 +437,7 @@ final class PluginHost: ObservableObject {
                    pomodoro: pomodoroEfeitos, lembretes: lembretesEfeitos,
                    descanso: descansoEfeitos, mensagens: mensagensEfeitos,
                    webhooks: webhooksEfeitos, ditado: ditadoEfeitos, anotacao: anotacaoEfeitos,
-                   espelho: espelhoEfeitos)
+                   espelho: espelhoEfeitos, notaRapida: notaRapidaEfeitos)
     }
 
     /// O launch inteiro. Peça desligada nem é visitada — custo zero de verdade.
@@ -693,4 +706,11 @@ func montarAnotacao(_ deps: PluginDeps) -> PluginServico? {
 /// `montarAnotacao`: a montagem inteira mora em `deps.espelho.nascer`.
 func montarEspelho(_ deps: PluginDeps) -> PluginServico? {
     deps.espelho.nascer()
+}
+
+/// A nona conversão (tarefa 8) e a segunda **sem painel de Ajustes** — o
+/// `abrir` dela também mora na vitrine (`PluginsSettingsPane`). Mesmo desenho
+/// do `montarEspelho`: a montagem inteira mora em `deps.notaRapida.nascer`.
+func montarNotaRapida(_ deps: PluginDeps) -> PluginServico? {
+    deps.notaRapida.nascer()
 }

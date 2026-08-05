@@ -33,7 +33,8 @@ enum KnoblerMain {
                 && DictationController._stopSelfCheck()
                 && AnnotationController._stopSelfCheck()
                 && MirrorController._releaseSelfCheck()
-            print(ok ? "selfcheck: dictation+annotation+mirror OK" : "selfcheck: FALHOU")
+                && QuickNote._pararSelfCheck()
+            print(ok ? "selfcheck: dictation+annotation+mirror+quicknote OK" : "selfcheck: FALHOU")
             exit(ok ? 0 : 1)
         }
         let app = NSApplication.shared
@@ -107,6 +108,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var webhookClient: WebhookClient? { plugins.servico(.webhooks) }
     /// `nil` = a peça Ditado está desinstalada.
     private var dictation: DictationController? { plugins.servico(.ditado) }
+    /// `nil` = a peça Nota rápida está desinstalada — some o item de menu e
+    /// `toggleQuickNote()` vira no-op.
+    private var quickNote: QuickNote? { plugins.servico(.notaRapida) }
     /// Pra `.environmentObject(_:)`: com a peça viva, os objetos do serviço;
     /// sem ela, as instâncias ociosas (ver comentário na declaração delas).
     private var lanMessagingParaInjetar: LANMessaging { mensagensServico?.lanMessaging ?? lanMessagingOcioso }
@@ -574,6 +578,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self?.desligarEspelhoEmTodos()
             }
         })
+        // A nona conversão (tarefa 8), a segunda sem painel: `QuickNote` é
+        // `.shared` (singleton — `NotchView`/`NotchViewModel` seguem lendo
+        // direto) e já nasce dormente, então `nascer` só devolve o singleton
+        // como o `PluginServico` (conformidade em `QuickNote.swift`); não há
+        // `start()` pra chamar.
+        plugins.notaRapidaEfeitos = NotaRapidaEfeitos(nascer: { QuickNote.shared })
         // O nascimento das peças instaladas. Quem está desligado nem é visitado.
         plugins.subir()
         // espelho automático: abre 2min antes da call, fecha quando ela começa
@@ -1326,10 +1336,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         // a anotação inteira (ligar, ferramentas, cores, fundo) mora na seção
         // Anotação do card — o menu não duplica nada disso.
-        let nota = menu.addItem(
-            withTitle: "✎ Nota rápida", action: #selector(toggleQuickNote), keyEquivalent: "")
-        nota.target = self
-        nota.state = QuickNote.shared.active ? .on : .off
+        // Sem a peça instalada, o item some — é a superfície dela fora do card.
+        if let quickNote {
+            let nota = menu.addItem(
+                withTitle: "✎ Nota rápida", action: #selector(toggleQuickNote), keyEquivalent: "")
+            nota.target = self
+            nota.state = quickNote.active ? .on : .off
+        }
         let picker = menu.addItem(
             withTitle: "◉ Selecionar cor…", action: #selector(pickColor), keyEquivalent: "")
         picker.target = self
@@ -1355,25 +1368,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         it.target = self
     }
 
-    /// Interruptor da nota. Ligar abre o card na hora — esperar o hover
-    /// depois de escolher no menu seria um passo a mais sem motivo.
+    /// Interruptor da nota, acionado pelo item de menu (tela sob o mouse). Sem
+    /// a peça instalada é no-op — nada pra ligar/desligar.
+    @objc private func toggleQuickNote() {
+        let mouse = NSEvent.mouseLocation
+        let screen = NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) }
+            ?? NSScreen.main
+        ligarDesligarNota(em: screen)
+    }
+
+    /// O mesmo interruptor, mas com a tela escolhida por quem chama — é o que
+    /// deixa o ABRIR da vitrine (`PluginsSettingsPane`, janela de Ajustes)
+    /// acionar a nota sem duplicar a lógica de "tela sob o mouse": lá o mouse
+    /// está sobre a janela de Ajustes, não sobre um notch, então o chamador
+    /// manda a tela principal (mesmo precedente do Espelho em
+    /// `viewModelPrincipal()`).
     ///
-    /// A nota tem UMA tela dona: a que estava sob o mouse quando ligou. Só ela
+    /// Ligar abre o card na hora — esperar o hover depois de escolher no menu
+    /// seria um passo a mais sem motivo.
+    ///
+    /// A nota tem UMA tela dona: a que estava marcada quando ligou. Só ela
     /// abre e só ela fecha. Sem dono, ligar expandia todos os monitores e nada
     /// os recolhia — o hover-out precisa de um hover-in anterior, e depois do
-    /// menu o ponteiro está no item da barra, não sobre o card. Ficaria um
+    /// menu (ou da vitrine) o ponteiro não está sobre o card. Ficaria um
     /// notch aberto pra sempre, que o PRODUCT.md proíbe.
-    @objc private func toggleQuickNote() {
-        let note = QuickNote.shared
+    func ligarDesligarNota(em screen: NSScreen?) {
+        guard let note = quickNote else { return }
         if note.active {
             let host = note.hostDisplayID
             note.active = false  // didSet limpa texto, editing e o dono
             if let host, let vm = notches[host]?.viewModel { vm.setExpandedDirect(false) }
             return
         }
-        let mouse = NSEvent.mouseLocation
-        let screen = NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) }
-            ?? NSScreen.main
         guard let screen, let vm = notches[Self.displayID(of: screen)]?.viewModel else { return }
         note.hostDisplayID = Self.displayID(of: screen)
         // A trava do `recalcularSecoes` é `typingNote` (= hospedada E editando), e

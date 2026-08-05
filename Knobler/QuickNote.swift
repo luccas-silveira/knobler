@@ -14,6 +14,16 @@ import AppKit
 import CoreGraphics
 import Foundation
 
+/// Conformidade da peça (ficha em `Plugin.swift`, `montarNotaRapida`). Mora
+/// aqui e não lá porque `QuickNote` importa AppKit e `Plugin.swift` é
+/// Foundation puro (constraint 1) — mesmo motivo do `MirrorServico`. Não há
+/// `start()`: a nota já nasce dormente (`active == false`), então "ligar" a
+/// peça não faz nada além de existir; `parar()` só reusa o `didSet` de
+/// `active` que já limpa tudo (texto, foco, dono) e despeja no clipboard.
+extension QuickNote: PluginServico {
+    func parar() { active = false }
+}
+
 final class QuickNote: ObservableObject {
     static let shared = QuickNote()
 
@@ -81,5 +91,23 @@ final class QuickNote: ObservableObject {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
+    }
+
+    /// Prova o `parar()` da peça (`PluginServico`, ver `Plugin.swift`): liga
+    /// a nota numa tela de brinquedo, escreve um texto, desliga, e checa que
+    /// os quatro campos voltam ao repouso — o vazamento que a conversão em
+    /// peça tinha que impedir era a nota continuar aberta na tela depois de
+    /// desinstalar. Usa uma instância própria (não `.shared`) com um
+    /// `NSPasteboard` nomeado, não o `.general` da máquina de verdade: rodar
+    /// `--selfcheck` não pode sobrescrever o clipboard real do usuário — é
+    /// pra isso que o `pasteboard` é um seam.
+    static func _pararSelfCheck() -> Bool {
+        let note = QuickNote()
+        note.pasteboard = NSPasteboard(name: NSPasteboard.Name("knobler.selfcheck.quicknote"))
+        note.adotar(1)
+        note.text = "rascunho"
+        note.parar()
+        return !note.active && note.text.isEmpty && !note.editing && note.hostDisplayID == nil
+            && note.pasteboard.string(forType: .string) == "rascunho"
     }
 }
