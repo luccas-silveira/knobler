@@ -51,12 +51,29 @@ struct PomodoroEfeitos {
     var pausaComecou: (TimeInterval) -> Void = { _ in }
 }
 
+/// Os efeitos que a montagem dos Lembretes precisa do app: os itens (vêm do
+/// `AppSettings`), o que fazer quando um dispara (card + som) e como desligar
+/// um `oneShot` depois do disparo — os três passam por AppKit/SwiftUI.
+///
+/// `registrarWake` é o caso do observer de `NSWorkspace.didWakeNotification`:
+/// exige AppKit, então mora aqui como uma borda emprestada — a ficha só decide
+/// QUE existe um wake que precisa tickar o scheduler, não COMO se registra.
+/// Recebe o `tick` a chamar e devolve o jeito de desligar (chamado no
+/// `parar()`), pra não vazar observer quando a peça é desinstalada.
+struct LembretesEfeitos {
+    var itens: () -> [Reminder] = { [] }
+    var disparou: (Reminder) -> Void = { _ in }
+    var desligarUmaVez: (Reminder) -> Void = { _ in }
+    var registrarWake: (@escaping () -> Void) -> (() -> Void) = { _ in {} }
+}
+
 /// O que a peça recebe pra nascer: a pergunta "a outra peça está instalada?"
 /// (a única dependência plugin→plugin é Pomodoro→Descanso, e "não" é caminho
 /// normal) e os efeitos que o app empresta.
 struct PluginDeps {
     let instalado: (PluginID) -> Bool
     var pomodoro = PomodoroEfeitos()
+    var lembretes = LembretesEfeitos()
 }
 
 /// A ficha da peça. Tudo aqui é dado, menos `nascer`.
@@ -119,8 +136,8 @@ enum PluginRegistry {
         Plugin(id: .lembretes, nome: "Lembretes",
                descricao: "Avisos na hora certa, direto no notch.",
                simbolo: "bell.badge.fill", secao: nil, painel: "lembretes",
-               rotas: [], permissao: "calendario",
-               nascer: { _ in nil }),
+               rotas: [], permissao: "calendario", pronta: true,
+               nascer: montarLembretes),
 
         Plugin(id: .descanso, nome: "Descanso",
                descricao: "Trava a tela e obriga a levantar.",
@@ -286,6 +303,7 @@ final class PluginHost: ObservableObject {
     private var vivos: [PluginID: PluginServico] = [:]
     /// Preenchido pelo `AppDelegate` antes do `subir()`.
     var pomodoroEfeitos = PomodoroEfeitos()
+    var lembretesEfeitos = LembretesEfeitos()
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -295,7 +313,7 @@ final class PluginHost: ObservableObject {
 
     private func deps() -> PluginDeps {
         PluginDeps(instalado: { [weak self] id in self?.instalados.contains(id) ?? false },
-                   pomodoro: pomodoroEfeitos)
+                   pomodoro: pomodoroEfeitos, lembretes: lembretesEfeitos)
     }
 
     /// O launch inteiro. Peça desligada nem é visitada — custo zero de verdade.
@@ -402,4 +420,28 @@ func montarPomodoro(_ deps: PluginDeps) -> Pomodoro {
         efeitos.pausaComecou(Pomodoro.duration(of: fase, config: efeitos.config()))
     }
     return p
+}
+
+/// A segunda conversão (ticket 010, tarefa 1). `stop()` já invalida o `Timer`
+/// de 15s **e** desliga o wake (`wakeUnregister`, ver `Reminders.swift`) — é
+/// exatamente o "morrer" que a peça precisa, sem vazar observer.
+extension ScheduleEngine: PluginServico {
+    func parar() { stop() }
+}
+
+/// O nascimento dos Lembretes: era este bloco que morava no `AppDelegate`
+/// (v0.23.0, `KnoblerApp.swift:446-472`). Ficou aqui a decisão de ligar os
+/// providers e desligar o `oneShot` que acabou de disparar; o `AppDelegate` só
+/// empresta os efeitos (card, som, e o registro do wake, que exige AppKit).
+func montarLembretes(_ deps: PluginDeps) -> ReminderScheduler {
+    let efeitos = deps.lembretes
+    let s = ReminderScheduler()
+    s.itemsProvider = efeitos.itens
+    s.onFire = { r in
+        efeitos.disparou(r)
+        if case .oneShot = r.schedule { efeitos.desligarUmaVez(r) }
+    }
+    s.wakeUnregister = efeitos.registrarWake { [weak s] in s?.tick() }
+    s.start()
+    return s
 }

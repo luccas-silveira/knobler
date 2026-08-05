@@ -6,6 +6,13 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- **Lembretes vira peça de verdade**: o `ReminderScheduler` agora nasce só com
+  a peça instalada, no mesmo padrão do Pomodoro (`montarLembretes` em
+  `Plugin.swift`). Desinstalar mata o timer de 15s e desliga o observer de
+  wake (`NSWorkspace.didWakeNotification`) — sem isso o observer vazaria.
+  Caso novo no `plugincheck`.
+
 ## [0.23.0] - 2026-08-04
 
 ### Added

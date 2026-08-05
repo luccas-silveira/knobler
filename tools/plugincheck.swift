@@ -6,8 +6,9 @@
 //
 //  Rodar:
 //  xcrun swiftc -parse-as-library -swift-version 5 \
-//    Knobler/Plugin.swift Knobler/Pomodoro.swift Knobler/NotchSectionOrder.swift \
-//    tools/plugincheck.swift -o /tmp/plugincheck && /tmp/plugincheck
+//    Knobler/Plugin.swift Knobler/Pomodoro.swift Knobler/Reminders.swift \
+//    Knobler/NotchSectionOrder.swift tools/plugincheck.swift \
+//    -o /tmp/plugincheck && /tmp/plugincheck
 //
 
 import Foundation
@@ -27,6 +28,7 @@ struct PluginCheck {
         testSemDescansoNaoTravaATela()
         testEstadoDoCardNaVitrine()
         testCardMudoNasNaoConvertidas()
+        testLembretesNascemEParam()
         print("✅ plugincheck ok")
     }
 
@@ -280,9 +282,44 @@ struct PluginCheck {
                    "\(peca.nome) ofereceu desinstalar sem nunca ter nascido")
         }
 
-        // O piloto é a única peça pronta nesta fase — se um dia deixar de ser
-        // verdade, é este assert que avisa que a vitrine tem card novo pra abrir.
-        assert(PluginRegistry.todos.filter(\.pronta).map(\.id) == [.pomodoro],
+        // Pomodoro e Lembretes são as convertidas nesta fase — se um dia deixar
+        // de ser verdade, é este assert que avisa que a vitrine tem card novo
+        // pra abrir.
+        assert(PluginRegistry.todos.filter(\.pronta).map(\.id) == [.pomodoro, .lembretes],
                "mudou quem está convertido: \(PluginRegistry.todos.filter(\.pronta).map(\.id))")
+    }
+
+    // MARK: - Tarefa 1: Lembretes
+
+    /// A segunda conversão: pronta, nasce só quando instalada, e desligar a
+    /// peça desliga o wake que a montagem registrou — observer vazado é o bug
+    /// que sobrevive à desinstalação.
+    static func testLembretesNascemEParam() {
+        assert(PluginRegistry.ficha(.lembretes)?.pronta == true, "Lembretes não está pronta")
+
+        let d = defaultsLimpo("plugincheck.lembretes")
+        PluginsInstalados.gravar([.lembretes], d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+
+        var desligou = false
+        let host = PluginHost(defaults: d)
+        host.lembretesEfeitos.registrarWake = { _ in { desligou = true } }
+        host.subir()
+
+        assert(host.estaVivo(.lembretes), "a peça não nasceu instalada")
+        assert(host.servico(.lembretes, as: ReminderScheduler.self) != nil, "não achou o serviço")
+
+        host.desinstalar(.lembretes)
+        assert(!host.estaVivo(.lembretes), "o serviço sobreviveu à desinstalação")
+        assert(desligou, "o wake não foi desligado — observer vazado")
+
+        // sem a peça na lista de instalados, o serviço não nasce.
+        let d2 = defaultsLimpo("plugincheck.semlembretes")
+        PluginsInstalados.gravar([.pomodoro], d2)
+        d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        let host2 = PluginHost(defaults: d2)
+        host2.subir()
+        assert(!host2.estaVivo(.lembretes), "nasceu sem estar instalada")
+        assert(host2.servico(.lembretes, as: ReminderScheduler.self) == nil, "achou serviço do nada")
     }
 }

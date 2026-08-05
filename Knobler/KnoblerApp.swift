@@ -82,7 +82,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// `nil` = a peça Pomodoro está desinstalada. Todo uso daqui pra baixo passa
     /// por `?`, e é isso que faz o timer de 1 s não existir.
     private var pomodoro: Pomodoro? { plugins.servico(.pomodoro) }
-    private let reminderScheduler = ReminderScheduler()
+    /// `nil` = a peça Lembretes está desinstalada.
+    private var reminderScheduler: ReminderScheduler? { plugins.servico(.lembretes) }
     /// Botões de adiamento no card do lembrete. Dois: o "já já" e o "mais tarde".
     static let snoozeOptions: [(title: String, minutes: Int)] =
         [("Adiar 5 min", 5), ("30 min", 30)]
@@ -158,7 +159,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
            let i = AppSettings.shared.reminders.firstIndex(where: { $0.id == reminder.id }) {
             AppSettings.shared.reminders[i].enabled = true
         }
-        reminderScheduler.snooze(reminder, minutes: minutes)
+        reminderScheduler?.snooze(reminder, minutes: minutes)
     }
 
     private var levelsCancellable: AnyCancellable?
@@ -441,35 +442,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 guard AppSettings.shared.pomodoroLockScreen else { return }
                 self?.descanso.begin(label: "Pausa do Pomodoro", duration: dur)
             })
+        // A montagem dos Lembretes mora na ficha da peça (`montarLembretes`, em
+        // Plugin.swift). Aqui ficam só os efeitos que passam por AppKit — os
+        // itens, o card + som do disparo, e o registro do wake.
+        plugins.lembretesEfeitos = LembretesEfeitos(
+            itens: { AppSettings.shared.reminders },
+            disparou: { [weak self] r in
+                guard let self else { return }
+                // fora do laço pelo mesmo motivo do Pomodoro: uma notificação por
+                // tela teria um id diferente cada e empilharia N linhas iguais no
+                // histórico
+                let card = NotchNotification(
+                    appName: nil, title: r.title, body: r.body, openURL: r.openURL,
+                    // token = id do lembrete: o card oferece "Adiar" sem abrir Ajustes
+                    actionTitles: Self.snoozeOptions.map(\.title), actionToken: r.id)
+                self.notches.values.forEach { $0.viewModel.enqueue(card) }
+                if let sound = r.soundName { NSSound(named: NSSound.Name(sound))?.play() }
+            },
+            desligarUmaVez: { r in
+                if let i = AppSettings.shared.reminders.firstIndex(where: { $0.id == r.id }) {
+                    AppSettings.shared.reminders[i].enabled = false
+                }
+            },
+            registrarWake: { tick in
+                // Wake: NSWorkspace.didWakeNotification é postado no notificationCenter
+                // do NSWorkspace, NÃO no default — observar no center errado = handler mudo.
+                let token = NSWorkspace.shared.notificationCenter.addObserver(
+                    forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+                ) { _ in tick() }
+                return { NSWorkspace.shared.notificationCenter.removeObserver(token) }
+            })
         // O nascimento das peças instaladas. Quem está desligado nem é visitado.
         plugins.subir()
-        // Lembretes programados: engine dispara → notch + som. oneShot desliga após disparar.
-        reminderScheduler.itemsProvider = { AppSettings.shared.reminders }
-        reminderScheduler.onFire = { [weak self] r in
-            guard let self else { return }
-            // fora do laço pelo mesmo motivo do Pomodoro: uma notificação por
-            // tela teria um id diferente cada e empilharia N linhas iguais no
-            // histórico
-            let card = NotchNotification(
-                appName: nil, title: r.title, body: r.body, openURL: r.openURL,
-                // token = id do lembrete: o card oferece "Adiar" sem abrir Ajustes
-                actionTitles: Self.snoozeOptions.map(\.title), actionToken: r.id)
-            self.notches.values.forEach { $0.viewModel.enqueue(card) }
-            if let sound = r.soundName { NSSound(named: NSSound.Name(sound))?.play() }
-            if case .oneShot = r.schedule,
-               let i = AppSettings.shared.reminders.firstIndex(where: { $0.id == r.id }) {
-                AppSettings.shared.reminders[i].enabled = false
-            }
-        }
-        // Wake: NSWorkspace.didWakeNotification é postado no notificationCenter do
-        // NSWorkspace, NÃO no default — observar no center errado = handler mudo.
+        // Descanso ainda não é peça: o wake dele segue fixo aqui.
         NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
         ) { [weak self] _ in
-            self?.reminderScheduler.tick()
             self?.breakScheduler.tick()
         }
-        reminderScheduler.start()
 
         // Descanso: bloqueio agendado dispara o overlay de tela cheia pela duração.
         // oneShot (inclui "Daqui a X") dispara uma vez → desliga (fica na lista, off).
