@@ -110,10 +110,20 @@ private final class AnnotationPanel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
+/// Conformidade da peça (ficha em `Plugin.swift`, `montarAnotacao`). Mora
+/// aqui e não lá porque `AnnotationController` é AppKit/SwiftUI e
+/// `Plugin.swift` é Foundation puro (constraint 1) — mesmo motivo do
+/// `DictationController` em `Dictation.swift`.
+extension AnnotationController: PluginServico {
+    func parar() { stop() }
+}
+
 @MainActor
 final class AnnotationController: NSObject, ObservableObject {
     /// Uma instância só, como AskStore/QuickNote: a seção Anotação do card é
-    /// desenhada em toda janela de notch e precisa falar com o mesmo overlay.
+    /// desenhada em toda janela de notch e precisa falar com o mesmo overlay
+    /// **mesmo desinstalada** — as views seguem lendo `.shared` direto (brief
+    /// da tarefa 6): converter em peça não vira instância.
     static let shared = AnnotationController()
 
     private var panels: [CGDirectDisplayID: AnnotationPanel] = [:]
@@ -147,6 +157,24 @@ final class AnnotationController: NSObject, ObservableObject {
             [weak self] _ in
             Task { @MainActor in self?.checkEventTapHealth() }
         }
+    }
+
+    /// O "morrer" da peça (`PluginServico`, ver `Plugin.swift`): desmonta tudo
+    /// que `start()`/`refreshScreens()` montaram, senão a desinstalação deixa
+    /// tinta desenhando por cima da tela. `end()` já commita o traço em curso e
+    /// tira o key monitor; o resto — timer de saúde, observer de tela, tap de
+    /// evento e os painéis/estados por display — só existia enquanto a peça
+    /// estava viva.
+    func stop() {
+        end()
+        healthTimer?.invalidate()
+        healthTimer = nil
+        if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }
+        screenObserver = nil
+        teardownEventTap()
+        panels.values.forEach { $0.orderOut(nil) }
+        panels.removeAll()
+        states.removeAll()
     }
 
     var diagnostics: [String: Any] {

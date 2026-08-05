@@ -35,6 +35,7 @@ struct PluginCheck {
         testMensagensNascemEParam()
         testWebhooksNascemEParam()
         testDitadoNasceEPara()
+        testAnotacaoNasceEPara()
         print("✅ plugincheck ok")
     }
 
@@ -292,7 +293,7 @@ struct PluginCheck {
         // as convertidas nesta fase — se um dia deixar de ser verdade, é este
         // assert que avisa que a vitrine tem card novo pra abrir.
         assert(PluginRegistry.todos.filter(\.pronta).map(\.id) ==
-               [.pomodoro, .lembretes, .descanso, .mensagens, .webhooks, .ditado],
+               [.pomodoro, .lembretes, .descanso, .mensagens, .webhooks, .ditado, .anotacao],
                "mudou quem está convertido: \(PluginRegistry.todos.filter(\.pronta).map(\.id))")
     }
 
@@ -481,6 +482,52 @@ struct PluginCheck {
         host2.ditadoEfeitos.nascer = { chamou = true; return DitadoServicoFake() }
         host2.subir()
         assert(!host2.estaVivo(.ditado), "nasceu sem estar instalada")
+        assert(!chamou, "o closure de nascer foi chamado sem a peça instalada")
+    }
+
+    // MARK: - Tarefa 6: Desenho
+
+    /// Dublê do `AnnotationController` pro harness — o real é AppKit puro e é
+    /// `.shared` (singleton), por isso `AnotacaoEfeitos.nascer` também é UM
+    /// closure emprestado, no mesmo desenho do Ditado: ver `Plugin.swift`.
+    final class AnotacaoServicoFake: PluginServico {
+        var parou = false
+        func parar() { parou = true }
+    }
+
+    /// A sétima conversão e a primeira peça `.shared`: `montarAnotacao` só
+    /// repassa pro closure emprestado (`deps.anotacao.nascer`) — o que dá pra
+    /// testar aqui, sem o `AnnotationController` real, é que a peça pronta
+    /// nasce chamando esse closure quando instalada, `parar()` chega até ele
+    /// na desinstalação, e sem a peça instalada o closure nem é chamado.
+    static func testAnotacaoNasceEPara() {
+        assert(PluginRegistry.ficha(.anotacao)?.pronta == true, "Desenho não está pronta")
+
+        let d = defaultsLimpo("plugincheck.anotacao")
+        PluginsInstalados.gravar([.anotacao], d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+
+        let fake = AnotacaoServicoFake()
+        let host = PluginHost(defaults: d)
+        host.anotacaoEfeitos.nascer = { fake }
+        host.subir()
+
+        assert(host.estaVivo(.anotacao), "a peça não nasceu instalada")
+        assert(host.servico(.anotacao, as: AnotacaoServicoFake.self) === fake, "não achou o serviço")
+
+        host.desinstalar(.anotacao)
+        assert(!host.estaVivo(.anotacao), "o serviço sobreviveu à desinstalação")
+        assert(fake.parou, "parar() não chegou ao closure emprestado")
+
+        // sem a peça na lista de instalados, o closure de nascer nem é chamado.
+        var chamou = false
+        let d2 = defaultsLimpo("plugincheck.semanotacao")
+        PluginsInstalados.gravar([.pomodoro], d2)
+        d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        let host2 = PluginHost(defaults: d2)
+        host2.anotacaoEfeitos.nascer = { chamou = true; return AnotacaoServicoFake() }
+        host2.subir()
+        assert(!host2.estaVivo(.anotacao), "nasceu sem estar instalada")
         assert(!chamou, "o closure de nascer foi chamado sem a peça instalada")
     }
 }

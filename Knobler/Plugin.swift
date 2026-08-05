@@ -140,6 +140,18 @@ struct DitadoEfeitos {
     var nascer: () -> PluginServico? = { nil }
 }
 
+/// Os efeitos que a montagem do Desenho precisa do app. Mesmo desenho do
+/// `DitadoEfeitos`: `AnnotationController` é `.shared` (singleton — a tarefa
+/// não o transforma em instância, views seguem lendo `.shared` direto) e é
+/// AppKit puro, então referenciar o tipo aqui arrastaria AppKit pro compile
+/// isolado do `plugincheck` (constraint 1). `nascer` é a peça inteira: liga o
+/// singleton (`start()`) e devolve a conformidade `PluginServico` dele
+/// (`AnnotationController.swift`), cujo `parar()` chama `stop()` — desmonta
+/// os overlays por tela.
+struct AnotacaoEfeitos {
+    var nascer: () -> PluginServico? = { nil }
+}
+
 /// O que a peça recebe pra nascer: a pergunta "a outra peça está instalada?"
 /// (a única dependência plugin→plugin é Pomodoro→Descanso, e "não" é caminho
 /// normal) e os efeitos que o app empresta.
@@ -151,6 +163,7 @@ struct PluginDeps {
     var mensagens = MensagensEfeitos()
     var webhooks = WebhooksEfeitos()
     var ditado = DitadoEfeitos()
+    var anotacao = AnotacaoEfeitos()
 }
 
 /// A ficha da peça. Tudo aqui é dado, menos `nascer`.
@@ -255,8 +268,8 @@ enum PluginRegistry {
         Plugin(id: .anotacao, nome: "Desenho",
                descricao: "Desenhe por cima da tela.",
                simbolo: "pencil.tip.crop.circle", secao: "anotacao", painel: "desenho",
-               rotas: [], permissao: "acessibilidade",
-               nascer: { _ in nil }),
+               rotas: [], permissao: "acessibilidade", pronta: true,
+               nascer: montarAnotacao),
 
         Plugin(id: .notaRapida, nome: "Nota rápida",
                descricao: "Um rascunho sempre à mão no notch.",
@@ -385,6 +398,7 @@ final class PluginHost: ObservableObject {
     var mensagensEfeitos = MensagensEfeitos()
     var webhooksEfeitos = WebhooksEfeitos()
     var ditadoEfeitos = DitadoEfeitos()
+    var anotacaoEfeitos = AnotacaoEfeitos()
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -396,7 +410,7 @@ final class PluginHost: ObservableObject {
         PluginDeps(instalado: { [weak self] id in self?.instalados.contains(id) ?? false },
                    pomodoro: pomodoroEfeitos, lembretes: lembretesEfeitos,
                    descanso: descansoEfeitos, mensagens: mensagensEfeitos,
-                   webhooks: webhooksEfeitos, ditado: ditadoEfeitos)
+                   webhooks: webhooksEfeitos, ditado: ditadoEfeitos, anotacao: anotacaoEfeitos)
     }
 
     /// O launch inteiro. Peça desligada nem é visitada — custo zero de verdade.
@@ -647,4 +661,14 @@ func montarWebhooks(_ deps: PluginDeps) -> WebhookClient {
 /// `plugins.servico(.ditado)` fora desta função.
 func montarDitado(_ deps: PluginDeps) -> PluginServico? {
     deps.ditado.nascer()
+}
+
+/// A sétima conversão (tarefa 6) e a primeira peça `.shared`: quem nasce e
+/// morre aqui é o serviço, não o singleton — `AnnotationController.shared`
+/// continua existindo desinstalada (as views o consomem direto), só que
+/// parado (`isActive == false`, sem tap nem painel). `deps.anotacao.nascer`
+/// chama `AnnotationController.shared.start()` e devolve o próprio singleton
+/// como o `PluginServico` (ver a conformidade em `AnnotationController.swift`).
+func montarAnotacao(_ deps: PluginDeps) -> PluginServico? {
+    deps.anotacao.nascer()
 }

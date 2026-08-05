@@ -223,7 +223,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         setupStatusItem()
         placeWindows()
-        annotation.start()
 
         // notificações aparecem em TODAS as telas, como os HUDs
         let interceptor = NotificationInterceptor { [weak self] notch in
@@ -551,6 +550,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             d.start()
             return d
+        })
+        // A montagem do Desenho mora na ficha da peça (`montarAnotacao`,
+        // Plugin.swift), mas ao contrário das outras o `nascer` inteiro é
+        // emprestado daqui — `AnnotationController` é AppKit puro e é
+        // `.shared` (singleton: as views o consomem direto, converter em
+        // peça não vira instância). Ligar é `start()`; o `PluginServico` é o
+        // próprio singleton, cujo `parar()` (`AnnotationController.swift`)
+        // desliga o tap, o observer de tela e os painéis por display.
+        plugins.anotacaoEfeitos = AnotacaoEfeitos(nascer: {
+            AnnotationController.shared.start()
+            return AnnotationController.shared
         })
         // O nascimento das peças instaladas. Quem está desligado nem é visitado.
         plugins.subir()

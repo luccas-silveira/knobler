@@ -51,6 +51,19 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   quebraria o gate. `parar()` cancela gravação/transcrição em curso. Caso
   novo no `plugincheck` (com um `PluginServico` dublê, já que o real não
   entra no compile do harness).
+- **Desenho vira peça de verdade**: a primeira peça `.shared`.
+  `AnnotationController.shared` continua singleton (as views seguem lendo
+  `.shared` direto) — converter é `montarAnotacao` (`Plugin.swift`) chamando
+  `AnnotationController.shared.start()` e devolvendo o próprio singleton
+  como `PluginServico`. Novo `AnnotationController.stop()` é o `parar()` de
+  verdade: encerra o `end()` em curso, invalida o timer de saúde do
+  `CGEventTap`, remove o observer de `didChangeScreenParametersNotification`,
+  desmonta o tap e fecha/solta todo painel e estado por tela que
+  `refreshScreens()` mantinha — sem isso a peça desinstalada continuaria
+  desenhando por cima da tela. No mesmo desenho do Ditado, `AnotacaoEfeitos`
+  é UM closure emprestado (`AnnotationController` é AppKit puro, que
+  `Plugin.swift` não pode referenciar — constraint 1). Caso novo no
+  `plugincheck` (com um `PluginServico` dublê).
 
 ## [0.23.0] - 2026-08-04
 
