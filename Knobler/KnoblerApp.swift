@@ -30,6 +30,7 @@ enum KnoblerMain {
                 && DictationController._clipboardSelfCheck()
                 && DictationController._flashSelfCheck()
                 && DictationController._enginePolicySelfCheck()
+                && DictationController._stopSelfCheck()
             print(ok ? "selfcheck: dictation OK" : "selfcheck: FALHOU")
             exit(ok ? 0 : 1)
         }

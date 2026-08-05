@@ -253,6 +253,21 @@ final class DictationController {
         return states == [.preparing, .recording(level: 0)]
     }
 
+    /// Prova o `parar()` da peça (`PluginServico`, ver `Plugin.swift`): uma
+    /// pílula em curso (`flash`) tem que sumir e o `flashWorkItem` tem que ser
+    /// limpo — sem isso a peça desinstalada deixaria um `DispatchWorkItem`
+    /// pendente e uma pílula fantasma na tela.
+    static func _stopSelfCheck() -> Bool {
+        let controller = DictationController()
+        var states: [DictationPhase?] = []
+        controller.onState = { states.append($0) }
+        controller.flash(.preparing, duration: 60)
+        guard controller.flashWorkItem != nil else { return false }
+        controller.stop()
+        guard let final = states.last else { return false }
+        return controller.flashWorkItem == nil && final == nil
+    }
+
     static func _enginePolicySelfCheck() -> Bool {
         guard shouldPrepareLocalEngine(cloud: false),
               !shouldPrepareLocalEngine(cloud: true),
