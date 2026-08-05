@@ -30,12 +30,33 @@ protocol PluginServico: AnyObject {
     func parar()
 }
 
-/// O que a peça recebe pra nascer. Hoje é só a pergunta "a outra peça está
-/// instalada?" (a única dependência plugin→plugin é Pomodoro→Descanso, e "não"
-/// é caminho normal). Cresce quando a cobaia mostrar o que falta — a F2 é que
-/// liga isto no `AppDelegate`.
+/// Os efeitos que a montagem do Pomodoro precisa do app: ajustes, telas, som e
+/// o overlay do Descanso. A ficha faz a ligação (quem escuta o quê, os guards,
+/// a borda); estes closures são só "como o app cumpre" cada efeito — nenhum
+/// deles pode morar aqui, porque todos passam por AppKit.
+///
+/// ponytail: campos com nome de uma peça só num tipo próprio. Quando a segunda
+/// e a terceira peça converterem, isto vira um saco de efeitos por peça (ou um
+/// protocolo). Com uma cobaia, um struct nomeado é o mais curto que funciona.
+struct PomodoroEfeitos {
+    var config: () -> Pomodoro.Config = { .padrao }
+    /// Estado pras telas (nil = idle).
+    var publicarEstado: (PomodoroState?) -> Void = { _ in }
+    /// Só nas bordas ligado/desligado — a ficha filtra os tiques de 1 s.
+    var atividadeMudou: (Bool) -> Void = { _ in }
+    /// Fase que acabou, próxima. O app notifica e toca o som.
+    var fimDeFase: (PomodoroPhase, PomodoroPhase) -> Void = { _, _ in }
+    /// Uma pausa começou a rodar, com esta duração. O app decide se trava a
+    /// tela (é um ajuste do usuário).
+    var pausaComecou: (TimeInterval) -> Void = { _ in }
+}
+
+/// O que a peça recebe pra nascer: a pergunta "a outra peça está instalada?"
+/// (a única dependência plugin→plugin é Pomodoro→Descanso, e "não" é caminho
+/// normal) e os efeitos que o app empresta.
 struct PluginDeps {
     let instalado: (PluginID) -> Bool
+    var pomodoro = PomodoroEfeitos()
 }
 
 /// A ficha da peça. Tudo aqui é dado, menos `nascer`.
@@ -87,7 +108,7 @@ enum PluginRegistry {
                descricao: "Ciclos de foco com pausa contada.",
                simbolo: "timer", secao: "pomodoro", painel: "pomodoro",
                rotas: [], permissao: nil,
-               nascer: { _ in Pomodoro() }),
+               nascer: { deps in montarPomodoro(deps.pomodoro) }),
 
         Plugin(id: .lembretes, nome: "Lembretes",
                descricao: "Avisos na hora certa, direto no notch.",
@@ -222,6 +243,8 @@ final class PluginHost {
     private let defaults: UserDefaults
     private(set) var instalados: Set<PluginID>
     private var vivos: [PluginID: PluginServico] = [:]
+    /// Preenchido pelo `AppDelegate` antes do `subir()`.
+    var pomodoroEfeitos = PomodoroEfeitos()
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -230,7 +253,8 @@ final class PluginHost {
     }
 
     private func deps() -> PluginDeps {
-        PluginDeps(instalado: { [weak self] id in self?.instalados.contains(id) ?? false })
+        PluginDeps(instalado: { [weak self] id in self?.instalados.contains(id) ?? false },
+                   pomodoro: pomodoroEfeitos)
     }
 
     /// O launch inteiro. Peça desligada nem é visitada — custo zero de verdade.
@@ -282,4 +306,29 @@ final class PluginHost {
 /// publica idle — é exatamente o "morrer" que a peça precisa.
 extension Pomodoro: PluginServico {
     func parar() { reset() }
+}
+
+/// O nascimento do Pomodoro: era este bloco que morava no `AppDelegate`
+/// (v0.22.0, `KnoblerApp.swift:410-438`). Ficou aqui a decisão de quem escuta o
+/// quê, a borda de atividade e o filtro "só pausa trava a tela"; o `AppDelegate`
+/// só empresta os efeitos.
+func montarPomodoro(_ efeitos: PomodoroEfeitos) -> Pomodoro {
+    let p = Pomodoro()
+    p.configProvider = efeitos.config
+    // `onState` chega a cada segundo; a atividade só interessa nas bordas —
+    // republicar a cada tique carimbaria evento de seção sem parar.
+    var ativo = false
+    p.onState = { estado in
+        efeitos.publicarEstado(estado)
+        let agora = estado != nil   // parado chega como nil, não como .idle
+        guard agora != ativo else { return }
+        ativo = agora
+        efeitos.atividadeMudou(agora)
+    }
+    p.onPhaseEnd = efeitos.fimDeFase
+    p.onPhaseBegin = { fase in
+        guard fase == .shortBreak || fase == .longBreak else { return }
+        efeitos.pausaComecou(Pomodoro.duration(of: fase, config: efeitos.config()))
+    }
+    return p
 }

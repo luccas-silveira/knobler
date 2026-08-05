@@ -200,6 +200,19 @@ propósito.
   `gravar` precisa **preservar** o id órfão (a regra "não apaga" de 005 morreria
   na primeira desinstalação), e `parar()` do Pomodoro saiu de graça no `reset()`
   que já existia. O app compila e **nada mudou na tela** — a fiação é a F2.
+- [Fase 2 — o Pomodoro nasce condicional](tickets/012-fase-2-nascimento-condicional.md)
+  — **executada**: o `AppDelegate` perde o `let pomodoro = Pomodoro()` e ganha um
+  `PluginHost`; o Pomodoro virou opcional e os cinco pontos de acoplamento viraram
+  `?.` (menu da barra inteiro dentro de um `if let`). O que o desenho não previa:
+  a montagem **não cabia** na ficha como estava — `Plugin.swift` é `Foundation`
+  puro (é o que dá o gate hermético) e a montagem citava Ajustes, som, view models
+  e Descanso. A saída foi separar **ligação** de **efeito**: a ficha ficou com as
+  decisões (quem escuta o quê, a borda de atividade, "só pausa trava a tela") e o
+  `AppDelegate` empresta um `PomodoroEfeitos` de 5 closures dizendo só *como*
+  cumprir cada uma. Efeito colateral bom: a montagem virou testável — o
+  `plugincheck` foi a 8 casos e confere que ela está ligada, não só que o objeto
+  nasceu. Com a peça fora da lista não há objeto nem `Timer` de 1 s (itens 1 e 3
+  do piloto). Ajustes e anel da faixa continuam de pé — é a F3.
 
 ## Not yet specified
 

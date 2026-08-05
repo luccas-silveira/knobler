@@ -29,12 +29,13 @@ final class Pomodoro {
         var shortBreak: TimeInterval
         var longBreak: TimeInterval
         var cyclesUntilLong: Int
+
+        static let padrao = Config(focus: 25 * 60, shortBreak: 5 * 60,
+                                   longBreak: 15 * 60, cyclesUntilLong: 4)
     }
 
     /// Config lida na hora de cada fase — mudar em Ajustes vale na próxima fase.
-    var configProvider: () -> Config = {
-        .init(focus: 25 * 60, shortBreak: 5 * 60, longBreak: 15 * 60, cyclesUntilLong: 4)
-    }
+    var configProvider: () -> Config = { .padrao }
     /// Publica o estado (nil = idle). O AppDelegate espelha em vm.pomodoro.
     var onState: ((PomodoroState?) -> Void)?
     /// Fim de fase (fase que acabou, próxima) — AppDelegate notifica + som.
@@ -48,6 +49,9 @@ final class Pomodoro {
     private var endDate: Date?
     private var pausedRemaining: TimeInterval?
     private var timer: Timer?
+    /// Leitura só, pro gate: o tique de 1 s está de pé? Peça desinstalada não
+    /// tem objeto nenhum, então nem esta pergunta existe.
+    var timerAtivo: Bool { timer != nil }
 
     // MARK: - Ações
 

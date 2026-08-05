@@ -21,6 +21,8 @@ struct PluginCheck {
         testMigracaoRodaUmaVezSo()
         testIdDesconhecidoIgnoradoCalado()
         testPecaDesligadaNaoNasce()
+        testPecaDesinstaladaNaoNasce()
+        testTimerLigaComAPecaViva()
         print("✅ plugincheck ok")
     }
 
@@ -111,5 +113,63 @@ struct PluginCheck {
         host.desinstalar(.pomodoro)
         assert(!host.estaVivo(.pomodoro), "serviço sobreviveu à desinstalação")
         assert(PluginsInstalados.ler(d).isEmpty, "desinstalar não persistiu")
+    }
+
+    // MARK: - Fase 2: o nascimento condicional
+
+    /// Com a peça fora da lista, `subir()` nem visita a ficha: não há objeto
+    /// `Pomodoro`, logo não há `Timer` de 1 s. É o item 1 do piloto (004).
+    static func testPecaDesinstaladaNaoNasce() {
+        let d = defaultsLimpo("plugincheck.semcobaia")
+        PluginsInstalados.gravar([.descanso], d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+
+        var nasceu = false
+        let host = PluginHost(defaults: d)
+        host.pomodoroEfeitos.publicarEstado = { _ in nasceu = true }
+        host.subir()
+
+        assert(!host.estaInstalado(.pomodoro), "a peça devia estar desinstalada")
+        assert(!host.estaVivo(.pomodoro), "a peça desinstalada nasceu mesmo assim")
+        assert(host.servico(.pomodoro, as: Pomodoro.self) == nil, "achou serviço do nada")
+        assert(!nasceu, "a montagem rodou com a peça desinstalada")
+        assert(host.secoes.isEmpty, "seção do Pomodoro sobrou: \(host.secoes)")
+    }
+
+    /// A cobaia viva: o tique de 1 s liga com o foco rodando, a montagem da
+    /// ficha está de fato ligada, e desinstalar apaga o timer. Item 3 do piloto.
+    static func testTimerLigaComAPecaViva() {
+        let d = defaultsLimpo("plugincheck.timer")
+        PluginsInstalados.gravar([.pomodoro], d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+
+        var estados = 0, bordas: [Bool] = [], pausas: [TimeInterval] = []
+        let host = PluginHost(defaults: d)
+        host.pomodoroEfeitos = PomodoroEfeitos(
+            config: { .padrao },
+            publicarEstado: { _ in estados += 1 },
+            atividadeMudou: { bordas.append($0) },
+            fimDeFase: { _, _ in },
+            pausaComecou: { pausas.append($0) })
+        host.subir()
+
+        guard let pom = host.servico(.pomodoro, as: Pomodoro.self) else {
+            fatalError("a cobaia não nasceu")
+        }
+        assert(!pom.timerAtivo, "timer de pé antes de começar o foco")
+
+        pom.start()
+        assert(pom.timerAtivo, "foco rodando e o timer não subiu")
+        assert(estados > 0, "a montagem não ligou o publicarEstado")
+        assert(bordas == [true], "a borda de atividade não avisou uma vez só: \(bordas)")
+
+        // pular o foco começa a pausa curta — é o gancho que trava a tela
+        pom.skip()
+        assert(pausas == [Pomodoro.Config.padrao.shortBreak], "pausas: \(pausas)")
+
+        // Desinstalar mata o tique: sem timer, sem custo.
+        host.desinstalar(.pomodoro)
+        assert(!pom.timerAtivo, "o timer de 1 s sobreviveu à desinstalação")
+        assert(bordas == [true, false], "não avisou que a atividade caiu: \(bordas)")
     }
 }

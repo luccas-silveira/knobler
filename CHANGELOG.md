@@ -13,6 +13,13 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   vez só. Nada muda na tela — é a fundação pro Pomodoro virar a primeira peça
   que pode ser instalada e desinstalada. Gate novo `plugincheck` em
   `tools/check.sh`.
+- **Pomodoro vira peça de verdade**: o app não cria mais o Pomodoro na mão — ele
+  pergunta quem está instalado e só então o timer nasce. Com a peça fora da
+  lista `pluginsInstalados` não existe objeto nem o tique de 1 segundo, e o menu
+  da barra não mostra linha nenhuma de Pomodoro. A montagem (som, aviso de fim
+  de fase, travar a tela na pausa) passou a morar na ficha da peça. A tela do
+  card ainda não muda: a seção some sozinha por falta de conteúdo, mas o painel
+  de Ajustes e o anel da faixa continuam lá.
 
 ## [0.22.0] - 2026-08-04
 

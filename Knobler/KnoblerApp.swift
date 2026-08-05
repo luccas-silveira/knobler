@@ -76,7 +76,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Instante em que o microfone acendeu; `nil` = apagado. Vira "chamada em
     /// curso" depois do limiar de `NotificationRules.micIndicaChamada`.
     private var micDesde: Date?
-    private let pomodoro = Pomodoro()
+    /// Quem sabe que peças estão instaladas e cria só essas. Peça desligada não
+    /// tem objeto — é disso que o "custo zero" depende.
+    private let plugins = PluginHost()
+    /// `nil` = a peça Pomodoro está desinstalada. Todo uso daqui pra baixo passa
+    /// por `?`, e é isso que faz o timer de 1 s não existir.
+    private var pomodoro: Pomodoro? { plugins.servico(.pomodoro) }
     private let reminderScheduler = ReminderScheduler()
     /// Botões de adiamento no card do lembrete. Dois: o "já já" e o "mais tarde".
     static let snoozeOptions: [(title: String, minutes: Int)] =
@@ -407,36 +412,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         calendar.onMeeting = { [weak self] emReuniao in
             self?.emReuniao = emReuniao
         }
-        pomodoro.configProvider = { AppSettings.shared.pomodoroConfig }
-        pomodoro.onState = { [weak self] state in
-            guard let self else { return }
-            self.notches.values.forEach { $0.viewModel.pomodoro = state }
-            // só nas bordas: `onState` chega a cada segundo, e republicar a
-            // atividade a cada tique carimbaria evento de seção sem parar
-            let ativo = state != nil   // parado chega como nil, não como .idle
-            guard ativo != self.pomodoroAtivo else { return }
-            self.pomodoroAtivo = ativo
-            self.pushActivity()
-        }
-        pomodoro.onPhaseEnd = { [weak self] ended, next in
-            guard let self else { return }
-            let (title, body) = Self.pomodoroNotice(ended: ended, next: next)
-            // uma notificação só, montada FORA do laço: o id é um UUID novo a
-            // cada init, então uma por tela viraria N linhas no histórico (o
-            // dedupe do record() é por id). Os outros pontos de entrada já
-            // montam assim.
-            let notice = NotchNotification(appName: "Pomodoro", title: title, body: body)
-            self.notches.values.forEach { $0.viewModel.enqueue(notice) }
-            if AppSettings.shared.pomodoroSound { NSSound(named: "Glass")?.play() }
-        }
-        // Travar a tela nas pausas do Pomodoro (opt-in): o mesmo overlay do Descanso,
-        // pela duração da pausa que acabou de começar a rodar.
-        pomodoro.onPhaseBegin = { [weak self] phase in
-            guard AppSettings.shared.pomodoroLockScreen,
-                  phase == .shortBreak || phase == .longBreak else { return }
-            let dur = Pomodoro.duration(of: phase, config: AppSettings.shared.pomodoroConfig)
-            self?.descanso.begin(label: "Pausa do Pomodoro", duration: dur)
-        }
+        // A montagem do Pomodoro mora na ficha da peça (`montarPomodoro`, em
+        // Plugin.swift). Aqui ficam só os efeitos que passam por AppKit —
+        // ajustes, telas, som e o overlay do Descanso.
+        plugins.pomodoroEfeitos = PomodoroEfeitos(
+            config: { AppSettings.shared.pomodoroConfig },
+            publicarEstado: { [weak self] state in
+                self?.notches.values.forEach { $0.viewModel.pomodoro = state }
+            },
+            atividadeMudou: { [weak self] ativo in
+                self?.pomodoroAtivo = ativo
+                self?.pushActivity()
+            },
+            fimDeFase: { [weak self] ended, next in
+                guard let self else { return }
+                let (title, body) = Self.pomodoroNotice(ended: ended, next: next)
+                // uma notificação só, montada FORA do laço: o id é um UUID novo a
+                // cada init, então uma por tela viraria N linhas no histórico (o
+                // dedupe do record() é por id). Os outros pontos de entrada já
+                // montam assim.
+                let notice = NotchNotification(appName: "Pomodoro", title: title, body: body)
+                self.notches.values.forEach { $0.viewModel.enqueue(notice) }
+                if AppSettings.shared.pomodoroSound { NSSound(named: "Glass")?.play() }
+            },
+            // Travar a tela nas pausas do Pomodoro (opt-in): o mesmo overlay do
+            // Descanso, pela duração da pausa que acabou de começar a rodar.
+            pausaComecou: { [weak self] dur in
+                guard AppSettings.shared.pomodoroLockScreen else { return }
+                self?.descanso.begin(label: "Pausa do Pomodoro", duration: dur)
+            })
+        // O nascimento das peças instaladas. Quem está desligado nem é visitado.
+        plugins.subir()
         // Lembretes programados: engine dispara → notch + som. oneShot desliga após disparar.
         reminderScheduler.itemsProvider = { AppSettings.shared.reminders }
         reminderScheduler.onFire = { [weak self] r in
@@ -1019,11 +1025,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 }
 
                 // controles do card do Pomodoro → engine (onState reprograma todas as vms)
-                viewModel.onPomodoroPause = { [weak self] in self?.pomodoro.pause() }
-                viewModel.onPomodoroResume = { [weak self] in self?.pomodoro.resume() }
-                viewModel.onPomodoroSkip = { [weak self] in self?.pomodoro.skip() }
-                viewModel.onPomodoroReset = { [weak self] in self?.pomodoro.reset() }
-                viewModel.onPomodoroStartNext = { [weak self] in self?.pomodoro.startNext() }
+                viewModel.onPomodoroPause = { [weak self] in self?.pomodoro?.pause() }
+                viewModel.onPomodoroResume = { [weak self] in self?.pomodoro?.resume() }
+                viewModel.onPomodoroSkip = { [weak self] in self?.pomodoro?.skip() }
+                viewModel.onPomodoroReset = { [weak self] in self?.pomodoro?.reset() }
+                viewModel.onPomodoroStartNext = { [weak self] in self?.pomodoro?.startNext() }
                 viewModel.onPomodoroSettings = { [weak self] in
                     self?.showSettings(pane: .pomodoro)
                 }
@@ -1181,34 +1187,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
-        let s = AppSettings.shared
         if needsAccessibility {
             let it = menu.addItem(withTitle: "⚠ Ditado precisa de Acessibilidade…",
                                   action: #selector(openAccessibilityPane), keyEquivalent: "")
             it.target = self
             menu.addItem(.separator())
         }
-        switch pomodoro.runState {
-        case .idle:
-            addPomodoroItem(menu, "▶ Iniciar foco (\(s.pomodoroFocus) min)", #selector(pomStart))
-        case .running:
-            addPomodoroItem(menu, "⏸ Pausar", #selector(pomPause))
-            addPomodoroItem(menu, "⏭ Pular fase", #selector(pomSkip))
-            addPomodoroItem(menu, "↺ Resetar", #selector(pomReset))
-        case .paused:
-            addPomodoroItem(menu, "▶ Retomar", #selector(pomResume))
-            addPomodoroItem(menu, "⏭ Pular fase", #selector(pomSkip))
-            addPomodoroItem(menu, "↺ Resetar", #selector(pomReset))
-        case .waiting:
-            let mins = Int(Pomodoro.duration(of: pomodoro.phase,
-                                             config: AppSettings.shared.pomodoroConfig) / 60)
-            let label = pomodoro.phase == .focus
-                ? "▶ Iniciar foco (\(mins) min)"
-                : "▶ Iniciar pausa (\(mins) min)"
-            addPomodoroItem(menu, label, #selector(pomStartNext))
-            addPomodoroItem(menu, "↺ Resetar", #selector(pomReset))
+        // sem a peça instalada não há linha de Pomodoro nenhuma no menu
+        if let pomodoro {
+            let s = AppSettings.shared
+            switch pomodoro.runState {
+            case .idle:
+                addPomodoroItem(menu, "▶ Iniciar foco (\(s.pomodoroFocus) min)", #selector(pomStart))
+            case .running:
+                addPomodoroItem(menu, "⏸ Pausar", #selector(pomPause))
+                addPomodoroItem(menu, "⏭ Pular fase", #selector(pomSkip))
+                addPomodoroItem(menu, "↺ Resetar", #selector(pomReset))
+            case .paused:
+                addPomodoroItem(menu, "▶ Retomar", #selector(pomResume))
+                addPomodoroItem(menu, "⏭ Pular fase", #selector(pomSkip))
+                addPomodoroItem(menu, "↺ Resetar", #selector(pomReset))
+            case .waiting:
+                let mins = Int(Pomodoro.duration(of: pomodoro.phase,
+                                                 config: s.pomodoroConfig) / 60)
+                let label = pomodoro.phase == .focus
+                    ? "▶ Iniciar foco (\(mins) min)"
+                    : "▶ Iniciar pausa (\(mins) min)"
+                addPomodoroItem(menu, label, #selector(pomStartNext))
+                addPomodoroItem(menu, "↺ Resetar", #selector(pomReset))
+            }
+            menu.addItem(.separator())
         }
-        menu.addItem(.separator())
         // a anotação inteira (ligar, ferramentas, cores, fundo) mora na seção
         // Anotação do card — o menu não duplica nada disso.
         let nota = menu.addItem(
@@ -1350,12 +1359,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         Sharing.airdropFromPanel { [weak self] in self?.aplicarEstadoAirDrop($0) }
     }
 
-    @objc private func pomStart() { pomodoro.start() }
-    @objc private func pomStartNext() { pomodoro.startNext() }
-    @objc private func pomPause() { pomodoro.pause() }
-    @objc private func pomResume() { pomodoro.resume() }
-    @objc private func pomSkip() { pomodoro.skip() }
-    @objc private func pomReset() { pomodoro.reset() }
+    @objc private func pomStart() { pomodoro?.start() }
+    @objc private func pomStartNext() { pomodoro?.startNext() }
+    @objc private func pomPause() { pomodoro?.pause() }
+    @objc private func pomResume() { pomodoro?.resume() }
+    @objc private func pomSkip() { pomodoro?.skip() }
+    @objc private func pomReset() { pomodoro?.reset() }
 
     // Cmd+Q escapa do quiosque (não é coberto pelas flags) → recusar enquanto trava.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
