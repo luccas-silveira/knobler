@@ -61,9 +61,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var askStore: AskStore?
     private var agentRequestStore: AgentRequestStore?
     let webhookClient = WebhookClient()
-    let messageStore = MessageStore()
-    let lanMessaging = LANMessaging()
     private var lanCancellables = Set<AnyCancellable>()
+    /// ponytail: `@EnvironmentObject` exige o tipo, não aceita opcional — sem a
+    /// peça Mensagens instalada não há `MensagensServico`, então as views que
+    /// recebem `.environmentObject(lanMessaging)`/`(messageStore)` ganham estas
+    /// instâncias ociosas (nunca chamam `.start()`/populam nada sozinhas). A
+    /// seção `mensagens` do card e o painel de Ajustes já somem sem a peça
+    /// (F3), então nenhuma view de Mensagens de fato usa o que é injetado
+    /// aqui. Teto: se uma 3ª peça precisar do mesmo truque, vale extrair um
+    /// wrapper genérico em vez de duplicar o par de instâncias ociosas.
+    private let lanMessagingOcioso = LANMessaging()
+    private let messageStoreOcioso = MessageStore()
     private let dictation = DictationController()
     private let devAvisos = DevAvisosController()
     /// Botões dos avisos do desenvolvedor: token do card → URLs (só https).
@@ -86,6 +94,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var reminderScheduler: ReminderScheduler? { plugins.servico(.lembretes) }
     /// `nil` = a peça Descanso está desinstalada.
     private var descansoServico: DescansoServico? { plugins.servico(.descanso) }
+    /// `nil` = a peça Mensagens está desinstalada.
+    private var mensagensServico: MensagensServico? { plugins.servico(.mensagens) }
+    /// Pra `.environmentObject(_:)`: com a peça viva, os objetos do serviço;
+    /// sem ela, as instâncias ociosas (ver comentário na declaração delas).
+    private var lanMessagingParaInjetar: LANMessaging { mensagensServico?.lanMessaging ?? lanMessagingOcioso }
+    private var messageStoreParaInjetar: MessageStore { mensagensServico?.messageStore ?? messageStoreOcioso }
     /// Botões de adiamento no card do lembrete. Dois: o "já já" e o "mais tarde".
     static let snoozeOptions: [(title: String, minutes: Int)] =
         [("Adiar 5 min", 5), ("30 min", 30)]
@@ -357,40 +371,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         setupSwipeGestures()
 
-        // Mensagens LAN: perfil próprio + recebimento (card em todas as telas, como notificação)
-        lanMessaging.profileProvider = { AppSettings.shared.myProfile() }
-        lanMessaging.onIncoming = { [weak self] msg, profile, media in
-            guard let self else { return }
-            let name = profile?.name ?? self.messageStore.name(for: msg.peerID) ?? "?"
-            self.messageStore.rememberName(name, for: msg.peerID)
-            var msg = msg
-            msg.mediaFile = media.flatMap { self.messageStore.saveMedia($0.0, ext: $0.1.ext) }
-            self.messageStore.append(msg)
-            let mediaHeight = msg.mediaFile.flatMap { self.messageStore.mediaURL($0) }
-                .map { MessageMedia.cardHeight($0) } ?? 0
-            self.notches.values.forEach {
-                $0.viewModel.showIncoming(.init(peerID: msg.peerID, name: name,
-                                                text: msg.text, allowReply: msg.allowReply,
-                                                mediaFile: msg.mediaFile,
-                                                mediaHeight: mediaHeight))
-            }
-            if let peer = self.lanMessaging.peer(withID: msg.peerID) {
-                self.lanMessaging.fetchProfile(from: peer) { prof in
-                    if let jpeg = prof?.avatarJPEG {
-                        self.messageStore.cacheAvatar(jpeg, for: msg.peerID)
-                    } else if prof != nil {
-                        // perfil veio sem foto = o peer removeu; fetch falho (nil) não apaga
-                        self.messageStore.removeAvatar(for: msg.peerID)
-                    }
-                }
-            }
-        }
-        // trocar nome/foto nos Ajustes re-anuncia o Bonjour (nome novo na lista dos outros)
-        AppSettings.shared.$displayName
-            .dropFirst()
-            .sink { [weak self] _ in self?.lanMessaging.refreshIdentity() }
-            .store(in: &lanCancellables)
-
         // API local: scripts publicam cards no notch (diferencial do Knobler)
         apiServer.onNotification = { [weak self] notification in
             self?.publicar(notification)
@@ -501,6 +481,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 ) { _ in tick() }
                 return { NSWorkspace.shared.notificationCenter.removeObserver(token) }
             })
+        // A montagem de Mensagens mora na ficha da peça (`montarMensagens`,
+        // Plugin.swift). Aqui ficam só os efeitos que passam por AppSettings/
+        // AppKit/SwiftUI — o perfil próprio, o card + busca de avatar quando
+        // uma mensagem chega, e o observer de nome/foto mudado nos Ajustes.
+        plugins.mensagensEfeitos = MensagensEfeitos(
+            perfilProprio: { AppSettings.shared.myProfile() },
+            mensagemChegou: { [weak self] msg, profile, media in
+                guard let self, let servico = self.mensagensServico else { return }
+                let name = profile?.name ?? servico.messageStore.name(for: msg.peerID) ?? "?"
+                servico.messageStore.rememberName(name, for: msg.peerID)
+                var msg = msg
+                msg.mediaFile = media.flatMap { servico.messageStore.saveMedia($0.0, ext: $0.1.ext) }
+                servico.messageStore.append(msg)
+                let mediaHeight = msg.mediaFile.flatMap { servico.messageStore.mediaURL($0) }
+                    .map { MessageMedia.cardHeight($0) } ?? 0
+                self.notches.values.forEach {
+                    $0.viewModel.showIncoming(.init(peerID: msg.peerID, name: name,
+                                                    text: msg.text, allowReply: msg.allowReply,
+                                                    mediaFile: msg.mediaFile,
+                                                    mediaHeight: mediaHeight))
+                }
+                if let peer = servico.lanMessaging.peer(withID: msg.peerID) {
+                    servico.lanMessaging.fetchProfile(from: peer) { prof in
+                        if let jpeg = prof?.avatarJPEG {
+                            servico.messageStore.cacheAvatar(jpeg, for: msg.peerID)
+                        } else if prof != nil {
+                            // perfil veio sem foto = o peer removeu; fetch falho (nil) não apaga
+                            servico.messageStore.removeAvatar(for: msg.peerID)
+                        }
+                    }
+                }
+            },
+            registrarMudancaNome: { tick in
+                // trocar nome/foto nos Ajustes re-anuncia o Bonjour (nome novo na lista dos outros)
+                let cancellable = AppSettings.shared.$displayName
+                    .dropFirst()
+                    .sink { _ in tick() }
+                return { cancellable.cancel() }
+            })
         // O nascimento das peças instaladas. Quem está desligado nem é visitado.
         plugins.subir()
         // espelho automático: abre 2min antes da call, fecha quando ela começa
@@ -563,7 +582,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             status["dictation"] = self?.dictation.diagnostics ?? [:]
             status["ask"] = self?.apiServer.askDiagnostics ?? [:]
             status["agentRequests"] = self?.apiServer.agentRequestDiagnostics ?? [:]
-            status["lanMessaging"] = self?.lanMessaging.diagnostics ?? [:]
+            status["lanMessaging"] = self?.mensagensServico?.lanMessaging.diagnostics ?? [:]
             // uma pergunta só em vez de descobrir batendo em rota
             status["plugins"] = PluginID.allCases
                 .filter(PluginHost.shared.estaInstalado)
@@ -1018,8 +1037,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                             panel?.allowsKeyboard = active
                             if !active, panel?.isKeyWindow == true { panel?.resignKey() }
                         })
-                        .environmentObject(lanMessaging)
-                        .environmentObject(messageStore)
+                        .environmentObject(lanMessagingParaInjetar)
+                        .environmentObject(messageStoreParaInjetar)
                         .environmentObject(AppSettings.shared))
                 notch = ScreenNotch(window: panel, viewModel: viewModel)
                 notches[id] = notch
@@ -1060,9 +1079,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
                 // resposta rápida do card → envia, grava o outgoing e some em todas as telas
                 viewModel.onSendReply = { [weak self] peerID, text in
-                    guard let self, let peer = self.lanMessaging.peer(withID: peerID) else { return }
-                    self.lanMessaging.send(text, to: peer, allowReply: true) { ok in
-                        self.messageStore.append(PeerMessage(id: UUID().uuidString, peerID: peerID,
+                    guard let self, let servico = self.mensagensServico,
+                          let peer = servico.lanMessaging.peer(withID: peerID) else { return }
+                    servico.lanMessaging.send(text, to: peer, allowReply: true) { ok in
+                        servico.messageStore.append(PeerMessage(id: UUID().uuidString, peerID: peerID,
                             incoming: false, text: text, allowReply: true, at: Date(), delivered: ok))
                     }
                     self.notches.values.forEach { $0.viewModel.dismissIncoming() }
@@ -1090,7 +1110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 // (app ativo → prompt num momento sensato). start() é idempotente.
                 viewModel.$focus
                     .filter { $0 == .mensagens }
-                    .sink { [weak self] _ in self?.lanMessaging.start() }
+                    .sink { [weak self] _ in self?.mensagensServico?.lanMessaging.start() }
                     .store(in: &lanCancellables)
 
             }
@@ -1407,11 +1427,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         ScreenshotPreviewSuppressor.restore()
         // fecha o socket de push e libera os recursos do relay
         webhookClient.shutdown()
-        // grava o histórico de mensagens e desliga o Bonjour da Rede Local
-        messageStore.flush()
+        // grava o histórico de mensagens e desliga o Bonjour da Rede Local —
+        // é o mesmo par que `MensagensServico.parar()` faz; sem a peça
+        // instalada não há o que gravar/desligar (nada nasceu).
+        mensagensServico?.parar()
         // o das notificações também: o debounce de 1s não sobrevive ao quit
         NotificationHistory.shared.flush()
-        lanMessaging.stop()
     }
 
     private var settingsWindow: NSWindow?
@@ -1434,7 +1455,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             window.contentView = NSHostingView(
                 rootView: SettingsView(router: settingsRouter, webhookClient: webhookClient)
                     // o painel Permissões liga o Bonjour pra sondar a Rede local
-                    .environmentObject(lanMessaging))
+                    .environmentObject(lanMessagingParaInjetar))
             window.isReleasedWhenClosed = false
             window.setContentSize(NSSize(width: 800, height: 520))
             window.contentMinSize = NSSize(width: 720, height: 470)

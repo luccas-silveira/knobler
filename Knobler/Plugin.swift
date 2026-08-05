@@ -87,6 +87,22 @@ struct DescansoEfeitos {
     var registrarWake: (@escaping () -> Void) -> (() -> Void) = { _ in {} }
 }
 
+/// Os efeitos que a montagem de Mensagens precisa do app: o perfil próprio
+/// (vem do `AppSettings`), o que fazer quando uma mensagem chega (grava no
+/// `MessageStore`, mostra o card, busca avatar — passa por `NotchViewModel`/
+/// `MessageMedia`, que são AppKit/SwiftUI) e o aviso de nome/foto mudado nos
+/// Ajustes, que reanuncia o perfil no Bonjour.
+///
+/// `registrarMudancaNome` é o mesmo desenho do `registrarWake` dos
+/// Lembretes/Descanso: a ficha não conhece `AppSettings`/Combine (só
+/// Foundation), então o app empresta a borda — recebe o `tick` a chamar e
+/// devolve o jeito de desligar, chamado no `parar()`.
+struct MensagensEfeitos {
+    var perfilProprio: () -> PeerProfile = { PeerProfile(id: "", name: "") }
+    var mensagemChegou: (PeerMessage, PeerProfile?, (Data, MediaKind)?) -> Void = { _, _, _ in }
+    var registrarMudancaNome: (@escaping () -> Void) -> (() -> Void) = { _ in {} }
+}
+
 /// O que a peça recebe pra nascer: a pergunta "a outra peça está instalada?"
 /// (a única dependência plugin→plugin é Pomodoro→Descanso, e "não" é caminho
 /// normal) e os efeitos que o app empresta.
@@ -95,6 +111,7 @@ struct PluginDeps {
     var pomodoro = PomodoroEfeitos()
     var lembretes = LembretesEfeitos()
     var descanso = DescansoEfeitos()
+    var mensagens = MensagensEfeitos()
 }
 
 /// A ficha da peça. Tudo aqui é dado, menos `nascer`.
@@ -170,8 +187,8 @@ enum PluginRegistry {
                descricao: "Recados entre Macs na mesma rede.",
                simbolo: "bubble.left.and.bubble.right.fill",
                secao: "mensagens", painel: "mensagens",
-               rotas: [], permissao: nil,
-               nascer: { _ in nil }),
+               rotas: [], permissao: nil, pronta: true,
+               nascer: montarMensagens),
 
         Plugin(id: .webhooks, nome: "Notificações externas",
                descricao: "Seus sistemas avisam pelo notch.",
@@ -326,6 +343,7 @@ final class PluginHost: ObservableObject {
     var pomodoroEfeitos = PomodoroEfeitos()
     var lembretesEfeitos = LembretesEfeitos()
     var descansoEfeitos = DescansoEfeitos()
+    var mensagensEfeitos = MensagensEfeitos()
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -336,7 +354,7 @@ final class PluginHost: ObservableObject {
     private func deps() -> PluginDeps {
         PluginDeps(instalado: { [weak self] id in self?.instalados.contains(id) ?? false },
                    pomodoro: pomodoroEfeitos, lembretes: lembretesEfeitos,
-                   descanso: descansoEfeitos)
+                   descanso: descansoEfeitos, mensagens: mensagensEfeitos)
     }
 
     /// O launch inteiro. Peça desligada nem é visitada — custo zero de verdade.
@@ -513,4 +531,41 @@ func montarDescanso(_ deps: PluginDeps) -> DescansoServico {
     s.wakeUnregister = efeitos.registrarWake { [weak s] in s?.tick() }
     s.start()
     return servico
+}
+
+/// A quarta conversão (tarefa 3). Uma peça, dois objetos que precisam viver
+/// juntos: mensagem chegada no `LANMessaging` grava no `MessageStore` — um
+/// `PluginServico` pequeno é mais curto que inventar dois registros
+/// separados na máquina (mesmo motivo do `DescansoServico`).
+final class MensagensServico: PluginServico {
+    let lanMessaging = LANMessaging()
+    let messageStore = MessageStore()
+    private var desligarMudancaNome: (() -> Void)?
+
+    init(efeitos: MensagensEfeitos) {
+        lanMessaging.profileProvider = efeitos.perfilProprio
+        lanMessaging.onIncoming = efeitos.mensagemChegou
+        desligarMudancaNome = efeitos.registrarMudancaNome { [weak self] in
+            self?.lanMessaging.refreshIdentity()
+        }
+    }
+
+    /// Era `messageStore.flush()` + `lanMessaging.stop()` no
+    /// `applicationWillTerminate` (v0.23.0, `KnoblerApp.swift:1411/1414`) — o
+    /// mesmo par vira o "morrer" da peça, mais o observer de nome que não
+    /// pode sobreviver à desinstalação.
+    func parar() {
+        messageStore.flush()
+        lanMessaging.stop()
+        desligarMudancaNome?()
+    }
+}
+
+/// O nascimento de Mensagens: era a fiação em `KnoblerApp.swift:360-392`
+/// (perfil, recebimento, reanúncio de nome). Ficou aqui a decisão de ligar os
+/// providers; o `AppDelegate` empresta o que exige AppSettings/AppKit/SwiftUI
+/// (o card e a busca de avatar em `mensagemChegou`, o observer de nome em
+/// `registrarMudancaNome`).
+func montarMensagens(_ deps: PluginDeps) -> MensagensServico {
+    MensagensServico(efeitos: deps.mensagens)
 }

@@ -7,8 +7,9 @@
 //  Rodar:
 //  xcrun swiftc -parse-as-library -swift-version 5 \
 //    Knobler/Plugin.swift Knobler/Pomodoro.swift Knobler/Reminders.swift \
-//    Knobler/Descanso.swift Knobler/NotchSectionOrder.swift tools/plugincheck.swift \
-//    -o /tmp/plugincheck && /tmp/plugincheck
+//    Knobler/Descanso.swift Knobler/NotchSectionOrder.swift Knobler/Peer.swift \
+//    Knobler/Wire.swift Knobler/LANMessaging.swift Knobler/MessageStore.swift \
+//    Knobler/Permissions.swift tools/plugincheck.swift -o /tmp/plugincheck && /tmp/plugincheck
 //
 
 import Foundation
@@ -30,6 +31,7 @@ struct PluginCheck {
         testCardMudoNasNaoConvertidas()
         testLembretesNascemEParam()
         testDescansoNasceEPara()
+        testMensagensNascemEParam()
         print("✅ plugincheck ok")
     }
 
@@ -283,10 +285,11 @@ struct PluginCheck {
                    "\(peca.nome) ofereceu desinstalar sem nunca ter nascido")
         }
 
-        // Pomodoro, Lembretes e Descanso são as convertidas nesta fase — se um
-        // dia deixar de ser verdade, é este assert que avisa que a vitrine tem
-        // card novo pra abrir.
-        assert(PluginRegistry.todos.filter(\.pronta).map(\.id) == [.pomodoro, .lembretes, .descanso],
+        // Pomodoro, Lembretes, Descanso e Mensagens são as convertidas nesta
+        // fase — se um dia deixar de ser verdade, é este assert que avisa que
+        // a vitrine tem card novo pra abrir.
+        assert(PluginRegistry.todos.filter(\.pronta).map(\.id) ==
+               [.pomodoro, .lembretes, .descanso, .mensagens],
                "mudou quem está convertido: \(PluginRegistry.todos.filter(\.pronta).map(\.id))")
     }
 
@@ -360,5 +363,40 @@ struct PluginCheck {
         host2.subir()
         assert(!host2.estaVivo(.descanso), "nasceu sem estar instalada")
         assert(host2.servico(.descanso, as: DescansoServico.self) == nil, "achou serviço do nada")
+    }
+
+    // MARK: - Tarefa 3: Mensagens
+
+    /// A quarta conversão: pronta, nasce só quando instalada, e `parar()`
+    /// desliga o observer de mudança de nome (mesmo mecanismo do wake nas
+    /// duas peças anteriores) — observer vazado é o bug que sobrevive à
+    /// desinstalação.
+    static func testMensagensNascemEParam() {
+        assert(PluginRegistry.ficha(.mensagens)?.pronta == true, "Mensagens não está pronta")
+
+        let d = defaultsLimpo("plugincheck.mensagens")
+        PluginsInstalados.gravar([.mensagens], d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+
+        var desligou = false
+        let host = PluginHost(defaults: d)
+        host.mensagensEfeitos.registrarMudancaNome = { _ in { desligou = true } }
+        host.subir()
+
+        assert(host.estaVivo(.mensagens), "a peça não nasceu instalada")
+        assert(host.servico(.mensagens, as: MensagensServico.self) != nil, "não achou o serviço")
+
+        host.desinstalar(.mensagens)
+        assert(!host.estaVivo(.mensagens), "o serviço sobreviveu à desinstalação")
+        assert(desligou, "o observer de nome não foi desligado — vazou")
+
+        // sem a peça na lista de instalados, o serviço não nasce.
+        let d2 = defaultsLimpo("plugincheck.semmensagens")
+        PluginsInstalados.gravar([.pomodoro], d2)
+        d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        let host2 = PluginHost(defaults: d2)
+        host2.subir()
+        assert(!host2.estaVivo(.mensagens), "nasceu sem estar instalada")
+        assert(host2.servico(.mensagens, as: MensagensServico.self) == nil, "achou serviço do nada")
     }
 }

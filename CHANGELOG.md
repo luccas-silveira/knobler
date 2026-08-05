@@ -20,6 +20,15 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   uma referência fixa do `AppDelegate`, e o veto de quit em
   `applicationShouldTerminate` degrada calado sem a peça instalada. Caso novo
   no `plugincheck`.
+- **Mensagens vira peça de verdade**: `LANMessaging` + `MessageStore` nascem
+  juntos com um `MensagensServico` (`montarMensagens` em `Plugin.swift`) só
+  quando a peça está instalada. Desinstalar grava o histórico, desliga o
+  Bonjour e o observer de nome/foto mudado nos Ajustes (mesmo mecanismo do
+  wake nas duas peças anteriores). As views que exigem
+  `.environmentObject(lanMessaging)`/`(messageStore)` (card e Ajustes) recebem
+  instâncias ociosas quando a peça não está viva — a seção do card e o painel
+  já somem sem ela, então nada de fato usa esses objetos ociosos. Caso novo no
+  `plugincheck`.
 
 ## [0.23.0] - 2026-08-04
 
