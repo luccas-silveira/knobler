@@ -1,3 +1,120 @@
+# 🏁 SESSÃO 2026-08-05 — as 10 conversões restantes → v0.24.0
+
+Fecha a etapa do marketplace: **nenhum card da vitrine diz mais "Em breve"**. As
+11 features são peças de verdade — nascem pelo `PluginHost`, morrem no `parar()`
+e somem caladas dos pontos de uso quando desinstaladas.
+
+Escopo confirmado com o dono no começo: tudo direto (sem mapa/tickets novos no
+wayfinder), **fáceis primeiro** (as com painel de Ajustes), uma release MINOR no
+fim. Execução por SDD — um subagente implementador por peça, revisão de
+tarefa depois de cada uma, revisão da branch inteira no fim. Plano em
+`docs/superpowers/plans/2026-08-04-conversoes-plugins.md`.
+
+## O que foi feito
+
+Dez conversões, na ordem: **Lembretes, Descanso, Mensagens, Webhooks, Ditado,
+Desenho, Espelho, Nota rápida, Preview de Link, Conversão de arquivo**. Cada uma
+com `pronta: true`, caso novo no `plugincheck` e linha no `CHANGELOG.md`.
+
+**O padrão do Pomodoro aguentou as dez**, com três variações que nasceram da
+prática e viraram precedente:
+
+- **Efeito que não cabe em Foundation vira closure emprestada** (`XEfeitos` +
+  `montarX`). Quando o tipo real não pode nem ser *citado* em `Plugin.swift` —
+  `DictationController` importa FluidAudio (SPM), que o `plugincheck` (swiftc
+  avulso) não resolve —, a peça empresta **um** closure `nascer`
+  (`DitadoEfeitos`, `AnotacaoEfeitos`, `EspelhoEfeitos`, `NotaRapidaEfeitos`,
+  `PreviewLinkEfeitos`). É indireção mais rasa, e está marcada como tal.
+- **Instância ociosa** onde um `environmentObject`/init exige o objeto mas a peça
+  pode estar desinstalada (`lanMessagingOcioso`, `messageStoreOcioso`,
+  `webhookClientOcioso`). Só é legítima porque nenhum desses tipos faz nada no
+  `init` — foi verificado, não presumido.
+- **Singleton `.shared` continua singleton** (`AnnotationController`,
+  `MirrorController`, `QuickNote`, `LinkPreview`): o `montarX` chama o start e
+  devolve o próprio singleton como `PluginServico`. Transformar em instância
+  seria refatorar a feature.
+
+**As duas peças sem serviço** (Preview de Link, Conversão) não ganham nada ao
+"nascer": o valor está nos **guards nos pontos de uso**, na prateleira. A regra é
+a opção **sumir**, então o `Button`/`Menu` inteiro fica dentro do `if` — botão
+desabilitado teria violado a decisão de 002.
+
+**O `ABRIR` das peças sem painel** (dívida aberta desde o ticket 006) foi
+resolvido: `switch peca.id` no ramo `painel == nil` de
+`PluginsSettingsPane.abrir(_:)`, quatro casos, todos roteando pelo
+`viewModelPrincipal()` (que cai em `notches.values.first` quando a tela principal
+não tem notch). Espelho acende a câmera, Nota rápida abre a nota, Preview e
+Conversão focam a prateleira — sem URL nem arquivo não há o que espiar ou
+converter, e inventar tela seria mentira.
+
+## Validação
+
+- `./tools/check.sh` → **36 ok** (11 casos no `plugincheck`, mais o gate novo
+  `app-selfcheck`).
+- Build Debug e Release ok; `--selfcheck` ok.
+- Release publicada: <https://github.com/luccas-silveira/knobler/releases/tag/v0.24.0>
+  (GitHub Releases + cask do tap).
+
+**A revisão da branch inteira pegou dois bugs Critical que os 35 gates não
+pegavam** — e nenhuma das dez revisões de tarefa podia ver, porque cada uma
+enxergava só a própria fatia:
+
+1. **Lembretes e Descanso paravam de disparar depois que o Mac dormia.** O
+   observer de wake era registrado **antes** do `start()`, e
+   `ScheduleEngine.start()` começa chamando `stop()` — que desliga o wake. O
+   observer morria no nascimento, e o `parar()` não tinha mais o que
+   desregistrar (vazamento na desinstalação, por cima). O gate correspondente
+   era **vacuous**: afirmava o desligamento que o próprio `start()` já causara.
+2. **A seção Mensagens do card ficava vazia pra sempre.** `placeWindows()` rodava
+   antes de `plugins.subir()`, então o `.environmentObject` capturava as
+   instâncias **ociosas** enquanto o Bonjour de verdade subia depois.
+
+Ambos corrigidos, e os gates agora falham se a ordem voltar.
+
+Mais dois Important da mesma revisão: instalar Mensagens/Webhooks pela vitrine só
+funcionava de verdade após relançar (a janela de Ajustes é cacheada e a raiz
+capturava os objetos ociosos — a raiz agora é refeita quando esse par muda); e o
+`--selfcheck` não estava em gate nenhum (cinco provas de teardown nunca rodavam
+sozinhas).
+
+## Pendências e followups
+
+- **Na CI o gate `app-selfcheck` sempre pula** — ele roda o binário do
+  DerivedData quando existe, e lá não existe. Build completo (com o SPM do
+  FluidAudio) leva minutos e quebraria a hermeticidade dos outros gates. Efeito:
+  as cinco provas de teardown são, na prática, locais.
+- **Nada prova o disparo real pós-wake.** O gate prova que o observer está
+  registrado com a peça viva e desregistrado depois — não que o Mac acordando
+  dispara o lembrete.
+- **Dívidas do mapa que continuam abertas**: permissões por plugin (o painel
+  Permissões ainda pede Acessibilidade e Calendário pro app todo, com peça
+  instalada ou não) e ligar plugin com gancho global sem reiniciar — no Ditado o
+  caminho é síncrono e acorda, mas isso foi deduzido por leitura, não medido com
+  microfone de verdade.
+- **Duas migalhas da revisão final**, ambas Minor e sem risco: o comentário do
+  `stashToPasteboard` ficou órfão acima de `desativarPelaDesinstalacao`
+  (`QuickNote.swift`), e o `app-selfcheck` pega o DerivedData mais novo sem
+  checar frescor (`tools/check.sh`) — um binário velho pode passar o gate.
+- Herdadas e intocadas: Notion travado (plano pago), `POST /profiles` falhando em
+  silêncio no assistente.
+
+## Armadilhas medidas
+
+- **Self-check pode encostar no hardware do usuário.** A primeira tentativa de
+  provar o `parar()` do Espelho chamava `MirrorController.acquire()` de verdade —
+  que despacha `AVCaptureDeviceInput` + `startRunning()`. Num Mac autorizado isso
+  **acende o LED da câmera** a cada `--selfcheck`; num Mac com TCC
+  `.notDetermined` é o gatilho clássico do diálogo implícito de permissão.
+  Revertido: o check forja o estado e a lacuna do refcount ficou documentada.
+  Gate mais fraco é aceitável; acender a câmera do usuário não é.
+- **Gate de vazamento precisa de asserção nos dois lados.** O `desligou == true`
+  depois de desinstalar não distingue "desligou na desinstalação" de "nunca
+  esteve ligado" — foi exatamente assim que o Critical 1 passou por dez
+  revisões. Afirme também o estado **vivo** antes.
+- **Ordem no `applicationDidFinishLaunching` é contrato invisível.**
+  `.environmentObject` captura o objeto no instante em que a view é construída:
+  quem nasce depois nunca chega na tela. Não há gate observando isso.
+
 # 🏁 SESSÃO 2026-08-04 (noite) — Fase 5 do marketplace → v0.23.0
 
 Última fase do mapa wayfinder do marketplace de plugins: docs, imagens e
