@@ -78,7 +78,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var micDesde: Date?
     /// Quem sabe que peças estão instaladas e cria só essas. Peça desligada não
     /// tem objeto — é disso que o "custo zero" depende.
-    private let plugins = PluginHost()
+    private let plugins = PluginHost.shared
     /// `nil` = a peça Pomodoro está desinstalada. Todo uso daqui pra baixo passa
     /// por `?`, e é isso que faz o timer de 1 s não existir.
     private var pomodoro: Pomodoro? { plugins.servico(.pomodoro) }

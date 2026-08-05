@@ -23,6 +23,8 @@ struct PluginCheck {
         testPecaDesligadaNaoNasce()
         testPecaDesinstaladaNaoNasce()
         testTimerLigaComAPecaViva()
+        testSuperficiesSomemComAPeca()
+        testSemDescansoNaoTravaATela()
         print("✅ plugincheck ok")
     }
 
@@ -140,7 +142,9 @@ struct PluginCheck {
     /// ficha está de fato ligada, e desinstalar apaga o timer. Item 3 do piloto.
     static func testTimerLigaComAPecaViva() {
         let d = defaultsLimpo("plugincheck.timer")
-        PluginsInstalados.gravar([.pomodoro], d)
+        // com o Descanso junto: é ele quem trava a tela na pausa (ver
+        // `testSemDescansoNaoTravaATela`).
+        PluginsInstalados.gravar([.pomodoro, .descanso], d)
         d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
 
         var estados = 0, bordas: [Bool] = [], pausas: [TimeInterval] = []
@@ -171,5 +175,64 @@ struct PluginCheck {
         host.desinstalar(.pomodoro)
         assert(!pom.timerAtivo, "o timer de 1 s sobreviveu à desinstalação")
         assert(bordas == [true, false], "não avisou que a atividade caiu: \(bordas)")
+    }
+
+    // MARK: - Fase 3: as superfícies somem
+
+    /// Desinstalar tira a seção do card/faixa E o painel dos Ajustes. As
+    /// superfícies que não são de peça nenhuma (Geral, Notch, Música) nunca
+    /// aparecem na lista de escondidas, logo nunca somem.
+    static func testSuperficiesSomemComAPeca() {
+        let d = defaultsLimpo("plugincheck.superficies")
+        PluginsInstalados.gravar(Set(PluginID.allCases), d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+
+        let host = PluginHost(defaults: d)
+        assert(host.secoesEscondidas.isEmpty, "escondeu seção com tudo instalado")
+        assert(host.paineisEscondidos.isEmpty, "escondeu painel com tudo instalado")
+        assert(host.secoes.contains("pomodoro") && host.paineis.contains("pomodoro"))
+
+        host.desinstalar(.pomodoro)
+        assert(host.secoesEscondidas == ["pomodoro"], "seções: \(host.secoesEscondidas)")
+        assert(host.paineisEscondidos == ["pomodoro"], "painéis: \(host.paineisEscondidos)")
+        assert(!host.secoes.contains("pomodoro"), "seção sobreviveu: \(host.secoes)")
+        assert(!host.paineis.contains("pomodoro"), "painel sobreviveu: \(host.paineis)")
+        // é o que a `NotchSectionOrder.visiveis`/`ordenar` recebem por parâmetro
+        assert(NotchSection.desinstaladas(host) == [.pomodoro],
+               "conversão pro enum falhou: \(NotchSection.desinstaladas(host))")
+        // "Geral"/"Notch" não são de peça nenhuma: não têm como sumir
+        assert(!host.paineisEscondidos.contains("geral"))
+    }
+
+    /// Sem a peça Descanso não há o que travar a tela: o efeito não roda nem com
+    /// o ajuste antigo ligado. No app real o Descanso está sempre presente —
+    /// este caminho só é exercitado aqui.
+    static func testSemDescansoNaoTravaATela() {
+        let d = defaultsLimpo("plugincheck.semdescanso")
+        PluginsInstalados.gravar([.pomodoro], d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+
+        var pausas: [TimeInterval] = []
+        let host = PluginHost(defaults: d)
+        host.pomodoroEfeitos.pausaComecou = { pausas.append($0) }
+        host.subir()
+        assert(!host.estaInstalado(.descanso), "o Descanso devia estar de fora")
+
+        guard let pom = host.servico(.pomodoro, as: Pomodoro.self) else {
+            fatalError("a cobaia não nasceu")
+        }
+        pom.start()
+        pom.skip()   // entra na pausa curta: é o gancho da trava
+        assert(pausas.isEmpty, "travou a tela sem o Descanso instalado: \(pausas)")
+
+        // com a peça de volta, o mesmo caminho trava.
+        host.instalar(.descanso)
+        var comDescanso: [TimeInterval] = []
+        host.pomodoroEfeitos.pausaComecou = { comDescanso.append($0) }
+        host.desinstalar(.pomodoro)
+        host.instalar(.pomodoro)
+        host.servico(.pomodoro, as: Pomodoro.self)?.start()
+        host.servico(.pomodoro, as: Pomodoro.self)?.skip()
+        assert(comDescanso == [Pomodoro.Config.padrao.shortBreak], "pausas: \(comDescanso)")
     }
 }

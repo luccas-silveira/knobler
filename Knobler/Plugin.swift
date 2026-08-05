@@ -108,7 +108,7 @@ enum PluginRegistry {
                descricao: "Ciclos de foco com pausa contada.",
                simbolo: "timer", secao: "pomodoro", painel: "pomodoro",
                rotas: [], permissao: nil,
-               nascer: { deps in montarPomodoro(deps.pomodoro) }),
+               nascer: montarPomodoro),
 
         Plugin(id: .lembretes, nome: "Lembretes",
                descricao: "Avisos na hora certa, direto no notch.",
@@ -192,6 +192,14 @@ enum PluginRegistry {
         todos.first { $0.id == id }
     }
 
+    /// As superfícies que sumiram junto com as peças desinstaladas. Devolve o
+    /// nome cru (o `rawValue` de `NotchSection`/`SettingsPane`) — quem chama
+    /// converte, pra este arquivo seguir Foundation puro.
+    static func escondidas(_ campo: KeyPath<Plugin, String?>,
+                           instalados: Set<PluginID>) -> Set<String> {
+        Set(todos.filter { !instalados.contains($0.id) }.compactMap { $0[keyPath: campo] })
+    }
+
     /// Gate: falta peça no registro, o `plugincheck` quebra.
     static var completo: Bool {
         Set(todos.map(\.id)) == Set(PluginID.allCases)
@@ -240,6 +248,10 @@ enum PluginsInstalados {
 /// O lugar do `AppDelegate`: sai de "cria quinze serviços na mão" pra "cria os
 /// que estão ligados". Ninguém consulta isto ainda — a fiação é a F2.
 final class PluginHost {
+    /// Uma por app: as telas (Ajustes, faixa do notch) precisam saber o que
+    /// está instalado sem que o `AppDelegate` costure o host em cada view.
+    static let shared = PluginHost()
+
     private let defaults: UserDefaults
     private(set) var instalados: Set<PluginID>
     private var vivos: [PluginID: PluginServico] = [:]
@@ -298,6 +310,25 @@ final class PluginHost {
     var secoes: [String] { instaladas.compactMap(\.secao) }
     var paineis: [String] { instaladas.compactMap(\.painel) }
     var rotas: [String] { instaladas.flatMap(\.rotas) }
+
+    /// O avesso: o que as telas precisam **esconder**. Superfície que não é de
+    /// peça nenhuma (Geral, Notch, Música) nunca aparece aqui, logo nunca some.
+    var secoesEscondidas: Set<String> {
+        PluginRegistry.escondidas(\.secao, instalados: instalados)
+    }
+    var paineisEscondidos: Set<String> {
+        PluginRegistry.escondidas(\.painel, instalados: instalados)
+    }
+}
+
+// MARK: - As superfícies perguntando pelo dono
+
+extension NotchSection {
+    /// As seções que sumiram com a peça. Quem desenha o card e o editor de
+    /// ordem passa isto pro `NotchSectionOrder`, que não conhece o registro.
+    static func desinstaladas(_ host: PluginHost = .shared) -> Set<NotchSection> {
+        Set(host.secoesEscondidas.compactMap(NotchSection.init(rawValue:)))
+    }
 }
 
 // MARK: - Conformidades das features convertidas
@@ -312,7 +343,8 @@ extension Pomodoro: PluginServico {
 /// (v0.22.0, `KnoblerApp.swift:410-438`). Ficou aqui a decisão de quem escuta o
 /// quê, a borda de atividade e o filtro "só pausa trava a tela"; o `AppDelegate`
 /// só empresta os efeitos.
-func montarPomodoro(_ efeitos: PomodoroEfeitos) -> Pomodoro {
+func montarPomodoro(_ deps: PluginDeps) -> Pomodoro {
+    let efeitos = deps.pomodoro
     let p = Pomodoro()
     p.configProvider = efeitos.config
     // `onState` chega a cada segundo; a atividade só interessa nas bordas —
@@ -328,6 +360,9 @@ func montarPomodoro(_ efeitos: PomodoroEfeitos) -> Pomodoro {
     p.onPhaseEnd = efeitos.fimDeFase
     p.onPhaseBegin = { fase in
         guard fase == .shortBreak || fase == .longBreak else { return }
+        // quem trava a tela é o Descanso: sem a peça, o efeito não roda nem com
+        // o ajuste antigo ligado (desinstalar não apaga ajuste — 007).
+        guard deps.instalado(.descanso) else { return }
         efeitos.pausaComecou(Pomodoro.duration(of: fase, config: efeitos.config()))
     }
     return p

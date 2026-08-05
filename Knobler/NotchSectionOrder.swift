@@ -81,18 +81,25 @@ enum NotchSectionOrder {
     ///   - fixadas: seções que o usuário quer ver mesmo vazias.
     ///   - agora: injetado pra que o teste não dependa do relógio.
     ///   - travadaNaNota: usuário digitando na nota nesta tela.
+    ///   - desinstaladas: seções de peça desinstalada. Entra por **parâmetro**
+    ///     e não por consulta ao registro pra este arquivo seguir rodando no
+    ///     `sectionordercheck` sem subir o app.
     static func ordenar(base: [NotchSection],
                         estados: [NotchSectionState],
                         fixadas: Set<NotchSection>,
                         agora: Date,
-                        travadaNaNota: Bool) -> [NotchSection] {
+                        travadaNaNota: Bool,
+                        desinstaladas: Set<NotchSection> = []) -> [NotchSection] {
         // duplicata em `estados` é bug de quem chama, mas aqui não pode virar
         // trap: `uniqueKeysWithValues` derruba o app inteiro. A última entrada
         // vence — é a mais nova que o VM escreveu.
         let porSecao = Dictionary(estados.map { ($0.section, $0) }, uniquingKeysWith: { $1 })
         // seções fora da `base` (versão salva antiga) entram no fim, senão
         // sumiriam da UI sem ninguém perceber
-        let ordemBase = base + padrao.filter { !base.contains($0) }
+        // peça desinstalada sai antes de tudo: a fixação dela é **ignorada**,
+        // não apagada (007) — senão a faixa apareceria com um ícone vazio.
+        let ordemBase = visiveis(base: base + padrao.filter { !base.contains($0) },
+                                 desinstaladas: desinstaladas)
         // fixada aparece vazia, na posição da ordem-base: sem `lastEvent`
         // recente ela não é promovida, então cai onde o usuário a deixou.
         let visiveis = ordemBase.filter {
@@ -120,6 +127,14 @@ enum NotchSectionOrder {
         // campo enquanto o teclado está nos dedos.
         guard travadaNaNota, ordenadas.contains(.nota) else { return ordenadas }
         return [.nota] + ordenadas.filter { $0 != .nota }
+    }
+
+    /// A lista que o **editor de ordem** mostra (e o filtro que `ordenar` usa):
+    /// seção de peça desinstalada some da lista, sem aviso e sem item
+    /// acinzentado (002). A ordem salva não é tocada — reinstalar traz de volta.
+    static func visiveis(base: [NotchSection],
+                         desinstaladas: Set<NotchSection>) -> [NotchSection] {
+        base.filter { !desinstaladas.contains($0) }
     }
 
     /// Lê a ordem do UserDefaults sem confiar nela: descarta o que não existe

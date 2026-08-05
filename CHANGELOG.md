@@ -20,6 +20,12 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   de fase, travar a tela na pausa) passou a morar na ficha da peça. A tela do
   card ainda não muda: a seção some sozinha por falta de conteúdo, mas o painel
   de Ajustes e o anel da faixa continuam lá.
+- **A peça desinstalada some da tela inteira**: sem o Pomodoro instalado, o
+  painel dele sai da lista de Ajustes, a seção sai do editor de ordem do card e
+  o anel da faixa fechada não aparece — nem quando a seção estava fixada com o
+  alfinete (a fixação é ignorada, não apagada: reinstalar traz tudo de volta).
+  Sem a peça Descanso, a opção "Travar a tela nas pausas" some do painel do
+  Pomodoro e o efeito não roda.
 
 ## [0.22.0] - 2026-08-04
 

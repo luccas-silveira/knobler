@@ -23,6 +23,8 @@ struct SectionOrderCheck {
         testMaisRecentePrimeiro()
         testNotaTravaTudo()
         testEstadoRepetidoNaoDerruba()
+        testDesinstaladaSomeDoEditor()
+        testFixadaDesinstaladaEIgnorada()
         testSanearDescartaDesconhecida()
         testSanearCompletaFaltantes()
         print("✅ sectionordercheck ok")
@@ -159,6 +161,34 @@ struct SectionOrderCheck {
             fixadas: [],
             agora: agora, travadaNaNota: false)
         assert(out == [.atividade, .shelf, .musica], "duplicata: última entrada não venceu: \(out)")
+    }
+
+    // MARK: - Fase 3: a peça desinstalada leva a seção junto
+
+    /// O editor de ordem esconde a seção de peça desinstalada — some da lista,
+    /// sem aviso. A ordem salva não é tocada: `base` continua com ela.
+    static func testDesinstaladaSomeDoEditor() {
+        let base: [NotchSection] = [.musica, .pomodoro, .shelf]
+        let out = NotchSectionOrder.visiveis(base: base, desinstaladas: [.pomodoro])
+        assert(out == [.musica, .shelf], "seção desinstalada sobrou no editor: \(out)")
+        assert(base.contains(.pomodoro), "a lista salva foi mexida")
+    }
+
+    /// Fixar passa por cima de `hasContent` — sem este filtro a faixa mostraria
+    /// o ícone de uma peça que não existe mais. Fixação é **ignorada**, não
+    /// apagada: `fixadas` continua com ela.
+    static func testFixadaDesinstaladaEIgnorada() {
+        let fixadas: Set<NotchSection> = [.pomodoro]
+        let out = NotchSectionOrder.ordenar(
+            base: [.musica, .pomodoro, .shelf],
+            estados: [viva(.musica, haSegundos: nil),
+                      NotchSectionState(section: .pomodoro, hasContent: false, lastEvent: nil),
+                      viva(.shelf, haSegundos: nil)],
+            fixadas: fixadas,
+            agora: agora, travadaNaNota: false,
+            desinstaladas: [.pomodoro])
+        assert(out == [.musica, .shelf], "fixada desinstalada apareceu: \(out)")
+        assert(fixadas.contains(.pomodoro), "a fixação foi apagada")
     }
 
     /// Chave do UserDefaults com lixo (versão antiga, seção removida) não

@@ -48,6 +48,14 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         }
     }
 
+    /// Painel de peça desinstalada não entra na lista — some, sem item
+    /// acinzentado (002). Painel que não é de peça nenhuma (Geral, Notch,
+    /// Permissões) nunca sai.
+    static var visiveis: [SettingsPane] {
+        let escondidos = PluginHost.shared.paineisEscondidos
+        return allCases.filter { !escondidos.contains($0.rawValue) }
+    }
+
     var color: Color {
         switch self {
         case .geral: return .gray
@@ -79,7 +87,7 @@ struct SettingsView: View {
         // .constant(.all): sem isso o divisor colapsa a sidebar por arrasto e,
         // sem toolbar/menu (LSUIElement), não existe caminho de volta
         NavigationSplitView(columnVisibility: .constant(.all)) {
-            List(SettingsPane.allCases, selection: selection) { pane in
+            List(SettingsPane.visiveis, selection: selection) { pane in
                 Label {
                     Text(pane.title)
                 } icon: {
@@ -238,6 +246,12 @@ struct GeneralSettingsPane: View {
 struct NotchSettingsPane: View {
     @ObservedObject var settings = AppSettings.shared
 
+    /// A ordem salva menos as seções de peça desinstalada.
+    private var visiveis: [NotchSection] {
+        NotchSectionOrder.visiveis(base: settings.notchSectionOrder,
+                                   desinstaladas: NotchSection.desinstaladas())
+    }
+
     var body: some View {
         Form {
             Section("Ordem das seções do card") {
@@ -245,7 +259,7 @@ struct NotchSettingsPane: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 List {
-                    ForEach(settings.notchSectionOrder, id: \.self) { s in
+                    ForEach(visiveis, id: \.self) { s in
                         HStack {
                             Label(s.titulo, systemImage: s.simbolo)
                             Spacer()
@@ -266,7 +280,12 @@ struct NotchSettingsPane: View {
                         }
                     }
                     .onMove { origem, destino in
-                        settings.notchSectionOrder.move(fromOffsets: origem, toOffset: destino)
+                        var nova = visiveis
+                        nova.move(fromOffsets: origem, toOffset: destino)
+                        // as escondidas voltam no fim: são invisíveis, e é lá
+                        // que `sanear` as recolocaria de qualquer jeito.
+                        settings.notchSectionOrder =
+                            nova + settings.notchSectionOrder.filter { !nova.contains($0) }
                     }
                 }
                 .frame(height: 220)
@@ -540,10 +559,14 @@ struct PomodoroSettingsPane: View {
                     title: "Som",
                     subtitle: "Um toque curto no fim de cada foco ou pausa.",
                     isOn: $settings.pomodoroSound)
-                SettingToggle(
-                    title: "Travar a tela nas pausas",
-                    subtitle: "Bloqueio forçado (como o Descanso) enquanto durar a pausa.",
-                    isOn: $settings.pomodoroLockScreen)
+                // sem a peça Descanso não há o que travar a tela: a opção some,
+                // sem alerta e sem item acinzentado (002).
+                if PluginHost.shared.estaInstalado(.descanso) {
+                    SettingToggle(
+                        title: "Travar a tela nas pausas",
+                        subtitle: "Bloqueio forçado (como o Descanso) enquanto durar a pausa.",
+                        isOn: $settings.pomodoroLockScreen)
+                }
             }
         }
         .formStyle(.grouped)

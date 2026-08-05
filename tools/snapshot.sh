@@ -14,6 +14,7 @@ swiftc -O -o build/snapshot \
   Knobler/AnnotationDeckView.swift \
   Knobler/ColorPicker.swift \
   Knobler/Pomodoro.swift \
+  Knobler/Plugin.swift \
   Knobler/CalendarAviso.swift \
   Knobler/Ask.swift \
   Knobler/AskModels.swift \

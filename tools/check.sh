@@ -106,7 +106,7 @@ swift_check eventoscheck          Knobler/NotchViewModel.swift Knobler/NotchSect
   Knobler/Updater.swift \
   Knobler/AnnotationModel.swift Knobler/CalendarAviso.swift \
   Knobler/AppSettings.swift Knobler/Descanso.swift Knobler/Mirror.swift \
-  Knobler/Reminders.swift Knobler/Peer.swift tools/eventoscheck.swift
+  Knobler/Reminders.swift Knobler/Peer.swift Knobler/Plugin.swift tools/eventoscheck.swift
 # Reminders traz o próprio @main atrás de -D (molde do Pomodoro), sem harness.
 run reminderscheck bash -c "xcrun swiftc -parse-as-library -swift-version 5 \
   -D REMINDERS_SELFCHECK Knobler/Reminders.swift -o /tmp/reminderscheck && /tmp/reminderscheck"

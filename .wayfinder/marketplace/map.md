@@ -213,6 +213,21 @@ propósito.
   `plugincheck` foi a 8 casos e confere que ela está ligada, não só que o objeto
   nasceu. Com a peça fora da lista não há objeto nem `Timer` de 1 s (itens 1 e 3
   do piloto). Ajustes e anel da faixa continuam de pé — é a F3.
+- [Fase 3 — as superfícies somem](tickets/013-fase-3-superficies-somem.md)
+  — **executada**: com a peça fora da lista, o painel sai da lista de Ajustes, a
+  seção sai do editor de ordem e o anel da faixa não aparece nem com a seção
+  fixada (a fixação é **ignorada**, não apagada — 007). O filtro entrou como
+  **parâmetro** de `ordenar` (`desinstaladas:`) e virou uma função pura,
+  `NotchSectionOrder.visiveis`, usada pelos dois lados: card e editor. O registro
+  responde o avesso do que já respondia (`secoesEscondidas`/`paineisEscondidos`),
+  e superfície que não é de peça nenhuma (Geral, Notch, Música) nunca aparece
+  ali, logo nunca some. O que o desenho não previa: as telas precisavam do host
+  sem passar por parâmetro em cada view — virou `PluginHost.shared`, como
+  `AppSettings.shared`; e a trava de tela na pausa migrou pra ficha, com a
+  pergunta `deps.instalado(.descanso)`, senão o ajuste antigo ligado travaria a
+  tela sem a peça que trava. `plugincheck` foi a 10 casos e `sectionordercheck`
+  a 14. Piloto (004) tecnicamente concluído: os 5 itens com gate. Falta tela (F4)
+  e papel (F5).
 
 ## Not yet specified
 
