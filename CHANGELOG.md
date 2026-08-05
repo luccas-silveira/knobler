@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-08-05
+
 ### Added
 - **Lembretes vira peça de verdade**: o `ReminderScheduler` agora nasce só com
   a peça instalada, no mesmo padrão do Pomodoro (`montarLembretes` em
