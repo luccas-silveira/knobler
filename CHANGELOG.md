@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-08-04
+
 ### Added
 - **Base do marketplace de plugins**: a ficha de cada feature (nome, frase,
   símbolo, superfícies que ocupa) e a lista de quem está instalado
