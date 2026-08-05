@@ -32,7 +32,8 @@ enum KnoblerMain {
                 && DictationController._enginePolicySelfCheck()
                 && DictationController._stopSelfCheck()
                 && AnnotationController._stopSelfCheck()
-            print(ok ? "selfcheck: dictation+annotation OK" : "selfcheck: FALHOU")
+                && MirrorController._releaseSelfCheck()
+            print(ok ? "selfcheck: dictation+annotation+mirror OK" : "selfcheck: FALHOU")
             exit(ok ? 0 : 1)
         }
         let app = NSApplication.shared
@@ -563,11 +564,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             AnnotationController.shared.start()
             return AnnotationController.shared
         })
+        // A oitava conversão (tarefa 7): sem tipo próprio nascendo (o
+        // singleton já existe), `nascer` só empresta o fechamento que o
+        // `MirrorServico.parar()` chama pra desligar o espelho em todos os
+        // notches e desarmar o auto-open por calendário.
+        plugins.espelhoEfeitos = EspelhoEfeitos(nascer: { [weak self] in
+            MirrorServico {
+                self?.mirrorAutoOpened = false
+                self?.desligarEspelhoEmTodos()
+            }
+        })
         // O nascimento das peças instaladas. Quem está desligado nem é visitado.
         plugins.subir()
         // espelho automático: abre 2min antes da call, fecha quando ela começa
         calendar.onMirrorMoment = { [weak self] imminent in
-            guard let self else { return }
+            guard let self, PluginHost.shared.estaInstalado(.espelho) else { return }
             if imminent, AppSettings.shared.mirrorBeforeMeetings, !self.mirrorAutoOpened {
                 self.mirrorAutoOpened = true
                 if let vm = self.viewModelUnderMouse() {
@@ -575,11 +586,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 }
             } else if !imminent, self.mirrorAutoOpened {
                 self.mirrorAutoOpened = false
-                self.notches.values.forEach {
-                    guard $0.viewModel.mirrorOn else { return }
-                    $0.viewModel.mirrorOn = false
-                    $0.viewModel.setExpandedDirect(false)
-                }
+                self.desligarEspelhoEmTodos()
             }
         }
         calendar.start()
@@ -591,11 +598,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     MirrorController.activate(on: vm, expand: true)
                 }
             } else {
-                self.notches.values.forEach {
-                    guard $0.viewModel.mirrorOn else { return }
-                    $0.viewModel.mirrorOn = false
-                    $0.viewModel.setExpandedDirect(false)
-                }
+                self.desligarEspelhoEmTodos()
             }
         }
 
@@ -1042,6 +1045,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             ?? NSScreen.main
         return target.flatMap { notches[Self.displayID(of: $0)]?.viewModel }
             ?? notches.values.first?.viewModel
+    }
+
+    /// O caminho mais curto da vitrine (`PluginsSettingsPane`, janela de
+    /// Ajustes) até um `NotchViewModel`: não faz sentido usar o monitor sob o
+    /// mouse (ele está sobre a janela de Ajustes, não sobre um notch), então
+    /// o ABRIR de uma peça sem painel mira a tela principal.
+    func viewModelPrincipal() -> NotchViewModel? {
+        NSScreen.main.flatMap { notches[Self.displayID(of: $0)]?.viewModel }
+            ?? notches.values.first?.viewModel
+    }
+
+    /// Desliga o espelho em todos os notches abertos: fecha o card e devolve
+    /// `mirrorOn` a `false`, o que solta a câmera via `dismantleNSView`
+    /// (`MirrorPreviewView`). Usada pela rota `POST /mirror {on:false}`, pelo
+    /// fim da janela do calendário e pelo `parar()` da peça (`MirrorServico`).
+    private func desligarEspelhoEmTodos() {
+        notches.values.forEach {
+            guard $0.viewModel.mirrorOn else { return }
+            $0.viewModel.mirrorOn = false
+            $0.viewModel.setExpandedDirect(false)
+        }
     }
 
     // ponytail: janela sempre no tamanho expandido máximo; o SwiftUI desenha só o

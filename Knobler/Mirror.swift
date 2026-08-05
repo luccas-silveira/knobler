@@ -112,6 +112,21 @@ final class MirrorController: ObservableObject {
         }
     }
 
+    /// Self-check headless do `release()`: prova que soltar a câmera zera a
+    /// sessão sem passar por hardware de verdade (câmera real exige permissão
+    /// TCC, que trava num Mac sem ela concedida — rodável via `--selfcheck`).
+    /// Só a metade "solta a câmera" da peça (`MirrorServico.parar()` abaixo)
+    /// é provada aqui; a outra metade, "desfaz a abertura automática", é
+    /// fechamento emprestado do `AppDelegate` (como `registrarWake` nas
+    /// peças anteriores) e não tem tipo próprio pra self-check isolado.
+    static func _releaseSelfCheck() -> Bool {
+        let c = MirrorController()
+        c.session = AVCaptureSession()
+        c.useCount = 1
+        c.release()
+        return c.session == nil && c.useCount == 0
+    }
+
     /// Diagnóstico pro GET /status.
     var diagnostics: [String: Any] {
         let auth: String
@@ -129,6 +144,26 @@ final class MirrorController: ObservableObject {
             "mirrorUseCount": useCount,
             "mirrorFailed": falhou,
         ]
+    }
+}
+
+/// A oitava conversão (tarefa 7): `MirrorController` é `.shared` (singleton —
+/// as views seguem lendo `.shared` direto, converter em peça não vira
+/// instância), mas ao contrário do Desenho ele não pode conformar
+/// `PluginServico` sozinho — soltar a câmera é só metade do "morrer" da
+/// peça, a outra metade (desarmar o auto-open por calendário,
+/// `mirrorAutoOpened` no `AppDelegate`) não é dele. `MirrorServico` é a
+/// borda pequena que junta as duas, no mesmo desenho do `DescansoServico`
+/// (`Plugin.swift`): o `AppDelegate` empresta o fechamento no `nascer` do
+/// `EspelhoEfeitos`.
+final class MirrorServico: PluginServico {
+    private let desligarTudo: () -> Void
+
+    init(desligarTudo: @escaping () -> Void) { self.desligarTudo = desligarTudo }
+
+    func parar() {
+        desligarTudo()
+        MirrorController.shared.release()
     }
 }
 

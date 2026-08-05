@@ -188,9 +188,24 @@ struct PluginsSettingsPane: View {
     }
 
     /// ABRIR é sempre vivo (convenção da App Store: peça instalada nunca vira
-    /// rótulo cinza morto). Hoje só o Pomodoro chega aqui, e ele tem painel.
+    /// rótulo cinza morto). Peça com painel navega pra ele; sem painel, o
+    /// `switch` abaixo decide a ação — a decisão mora na view (não na ficha,
+    /// que é Foundation puro) porque toda ação passa por AppKit/SwiftUI (ver
+    /// "O ABRIR das peças sem painel" no plano desta etapa).
     private func abrir(_ peca: Plugin) {
-        guard let painel = peca.painel.flatMap(SettingsPane.init(rawValue:)) else { return }
+        guard let painel = peca.painel.flatMap(SettingsPane.init(rawValue:)) else {
+            switch peca.id {
+            case .espelho:
+                // Acende a câmera no notch da tela principal — a mesma
+                // chamada que a rota `POST /mirror` usa.
+                if let vm = KnoblerMain.delegate.viewModelPrincipal() {
+                    MirrorController.activate(on: vm, expand: true)
+                }
+            default:
+                break
+            }
+            return
+        }
         router.pane = painel
     }
 }

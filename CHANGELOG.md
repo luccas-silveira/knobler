@@ -64,6 +64,25 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   é UM closure emprestado (`AnnotationController` é AppKit puro, que
   `Plugin.swift` não pode referenciar — constraint 1). Caso novo no
   `plugincheck` (com um `PluginServico` dublê).
+- **Espelho vira peça de verdade**: a primeira **sem painel de Ajustes**.
+  `MirrorController.shared` continua singleton; `montarEspelho`
+  (`Plugin.swift`) repassa pro closure emprestado `EspelhoEfeitos.nascer`,
+  no mesmo desenho do Ditado/Desenho (`MirrorController` importa AVFoundation
+  e SwiftUI, que `Plugin.swift` não pode referenciar). O `AppDelegate`
+  empresta um `MirrorServico` cujo `parar()` desliga o espelho em todos os
+  notches abertos (soltando a câmera via `dismantleNSView`) e desarma o
+  auto-open por calendário (`mirrorBeforeMeetings`) — peça desinstalada não
+  liga a câmera sozinha antes da próxima reunião. O guard
+  `PluginHost.shared.estaInstalado(.espelho)` da rota `POST /mirror`
+  (`NotchAPIServer.swift`) e do auto-open por calendário seguem de pé. Como é
+  a primeira peça sem painel, resolve também o ABRIR genérico: um `switch
+  peca.id` em `PluginsSettingsPane.abrir(_:)` (decisão do plano desta etapa)
+  que, pro Espelho, acende a câmera no notch da tela principal
+  (`AppDelegate.viewModelPrincipal()`) com a mesma
+  `MirrorController.activate(on:expand:)` da rota. Self-check headless
+  (`MirrorController._releaseSelfCheck()`, `--selfcheck`) prova a metade
+  "solta a câmera" sem depender de permissão de câmera real. Caso novo no
+  `plugincheck` (com um `PluginServico` dublê).
 
 ## [0.23.0] - 2026-08-04
 

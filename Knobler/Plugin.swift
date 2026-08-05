@@ -152,6 +152,17 @@ struct AnotacaoEfeitos {
     var nascer: () -> PluginServico? = { nil }
 }
 
+/// Os efeitos que a montagem do Espelho precisa do app. Mesmo desenho do
+/// `DitadoEfeitos`/`AnotacaoEfeitos`: `MirrorController` importa AVFoundation
+/// e SwiftUI, então referenciar o tipo aqui arrastaria os dois pro compile
+/// isolado do `plugincheck` (constraint 1). `nascer` é a peça inteira: o
+/// `AppDelegate` empresta o fechamento que desliga o espelho em todos os
+/// notches e desarma o auto-open por calendário — é o que o `parar()`
+/// devolvido chama.
+struct EspelhoEfeitos {
+    var nascer: () -> PluginServico? = { nil }
+}
+
 /// O que a peça recebe pra nascer: a pergunta "a outra peça está instalada?"
 /// (a única dependência plugin→plugin é Pomodoro→Descanso, e "não" é caminho
 /// normal) e os efeitos que o app empresta.
@@ -164,6 +175,7 @@ struct PluginDeps {
     var webhooks = WebhooksEfeitos()
     var ditado = DitadoEfeitos()
     var anotacao = AnotacaoEfeitos()
+    var espelho = EspelhoEfeitos()
 }
 
 /// A ficha da peça. Tudo aqui é dado, menos `nascer`.
@@ -258,8 +270,8 @@ enum PluginRegistry {
         Plugin(id: .espelho, nome: "Espelho",
                descricao: "Sua câmera no notch antes da reunião.",
                simbolo: "person.crop.square", secao: "espelho", painel: nil,
-               rotas: ["POST /mirror"], permissao: "camera",
-               nascer: { _ in nil }),
+               rotas: ["POST /mirror"], permissao: "camera", pronta: true,
+               nascer: montarEspelho),
 
         // O nome do card é o do painel ("Desenho"), decidido na F4: os dois
         // aparecem lado a lado na vitrine e o ABRIR levaria a um painel com
@@ -399,6 +411,7 @@ final class PluginHost: ObservableObject {
     var webhooksEfeitos = WebhooksEfeitos()
     var ditadoEfeitos = DitadoEfeitos()
     var anotacaoEfeitos = AnotacaoEfeitos()
+    var espelhoEfeitos = EspelhoEfeitos()
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -410,7 +423,8 @@ final class PluginHost: ObservableObject {
         PluginDeps(instalado: { [weak self] id in self?.instalados.contains(id) ?? false },
                    pomodoro: pomodoroEfeitos, lembretes: lembretesEfeitos,
                    descanso: descansoEfeitos, mensagens: mensagensEfeitos,
-                   webhooks: webhooksEfeitos, ditado: ditadoEfeitos, anotacao: anotacaoEfeitos)
+                   webhooks: webhooksEfeitos, ditado: ditadoEfeitos, anotacao: anotacaoEfeitos,
+                   espelho: espelhoEfeitos)
     }
 
     /// O launch inteiro. Peça desligada nem é visitada — custo zero de verdade.
@@ -671,4 +685,12 @@ func montarDitado(_ deps: PluginDeps) -> PluginServico? {
 /// como o `PluginServico` (ver a conformidade em `AnnotationController.swift`).
 func montarAnotacao(_ deps: PluginDeps) -> PluginServico? {
     deps.anotacao.nascer()
+}
+
+/// A oitava conversão (tarefa 7) e a primeira **sem painel de Ajustes** — o
+/// `abrir` dela mora na vitrine (`PluginsSettingsPane`), não aqui (ver a seção
+/// "O ABRIR das peças sem painel" do plano). Mesmo desenho do `montarDitado`/
+/// `montarAnotacao`: a montagem inteira mora em `deps.espelho.nascer`.
+func montarEspelho(_ deps: PluginDeps) -> PluginServico? {
+    deps.espelho.nascer()
 }
