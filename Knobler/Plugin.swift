@@ -67,6 +67,26 @@ struct LembretesEfeitos {
     var registrarWake: (@escaping () -> Void) -> (() -> Void) = { _ in {} }
 }
 
+/// Os efeitos que a montagem do Descanso precisa do app: os itens (vêm do
+/// `AppSettings`), o overlay em si (janela de shield, quiosque — `DescansoController`,
+/// AppKit) e o wake, no mesmo desenho dos Lembretes.
+///
+/// `iniciarBloqueio`/`pararBloqueioSeAtivo` são a borda pro `DescansoController`:
+/// a ficha não guarda a referência (ele é AppKit, e este arquivo é só-Foundation),
+/// só decide QUANDO chamar. `begin` do `DescansoServico` reexpõe `iniciarBloqueio`
+/// pro efeito `pausaComecou` do Pomodoro, que fala com o serviço
+/// (`plugins.servico(.descanso)`), não com uma referência fixa do `AppDelegate`.
+struct DescansoEfeitos {
+    var itens: () -> [ScreenBreak] = { [] }
+    var iniciarBloqueio: (String, TimeInterval) -> Void = { _, _ in }
+    /// Chamado no `parar()`: encerra o overlay em curso, se houver.
+    var pararBloqueioSeAtivo: () -> Void = {}
+    /// Pro veto de quit (`applicationShouldTerminate`): há bloqueio em curso?
+    var estaAtivo: () -> Bool = { false }
+    var desligarUmaVez: (ScreenBreak) -> Void = { _ in }
+    var registrarWake: (@escaping () -> Void) -> (() -> Void) = { _ in {} }
+}
+
 /// O que a peça recebe pra nascer: a pergunta "a outra peça está instalada?"
 /// (a única dependência plugin→plugin é Pomodoro→Descanso, e "não" é caminho
 /// normal) e os efeitos que o app empresta.
@@ -74,6 +94,7 @@ struct PluginDeps {
     let instalado: (PluginID) -> Bool
     var pomodoro = PomodoroEfeitos()
     var lembretes = LembretesEfeitos()
+    var descanso = DescansoEfeitos()
 }
 
 /// A ficha da peça. Tudo aqui é dado, menos `nascer`.
@@ -142,8 +163,8 @@ enum PluginRegistry {
         Plugin(id: .descanso, nome: "Descanso",
                descricao: "Trava a tela e obriga a levantar.",
                simbolo: "moon.zzz.fill", secao: nil, painel: "descanso",
-               rotas: [], permissao: nil,
-               nascer: { _ in nil }),
+               rotas: [], permissao: nil, pronta: true,
+               nascer: montarDescanso),
 
         Plugin(id: .mensagens, nome: "Mensagens",
                descricao: "Recados entre Macs na mesma rede.",
@@ -304,6 +325,7 @@ final class PluginHost: ObservableObject {
     /// Preenchido pelo `AppDelegate` antes do `subir()`.
     var pomodoroEfeitos = PomodoroEfeitos()
     var lembretesEfeitos = LembretesEfeitos()
+    var descansoEfeitos = DescansoEfeitos()
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -313,7 +335,8 @@ final class PluginHost: ObservableObject {
 
     private func deps() -> PluginDeps {
         PluginDeps(instalado: { [weak self] id in self?.instalados.contains(id) ?? false },
-                   pomodoro: pomodoroEfeitos, lembretes: lembretesEfeitos)
+                   pomodoro: pomodoroEfeitos, lembretes: lembretesEfeitos,
+                   descanso: descansoEfeitos)
     }
 
     /// O launch inteiro. Peça desligada nem é visitada — custo zero de verdade.
@@ -444,4 +467,50 @@ func montarLembretes(_ deps: PluginDeps) -> ReminderScheduler {
     s.wakeUnregister = efeitos.registrarWake { [weak s] in s?.tick() }
     s.start()
     return s
+}
+
+/// A terceira conversão (tarefa 2). O `ScheduleEngine<ScreenBreak>` já é
+/// `PluginServico` pela conformidade genérica acima — o que falta é o overlay:
+/// `parar()` tem que encerrar um bloqueio em curso, e o efeito `pausaComecou`
+/// do Pomodoro (`montarPomodoro` acima) precisa de um jeito de PEDIR um
+/// bloqueio, não só desligar um agendado. `DescansoServico` é essa borda:
+/// guarda o scheduler e repassa pro `DescansoController` (via `efeitos`, sem
+/// conhecer o tipo — AppKit) tanto o pedido de bloqueio quanto o fim dele.
+final class DescansoServico: PluginServico {
+    let scheduler = ScheduleEngine<ScreenBreak>()
+    private let efeitos: DescansoEfeitos
+
+    init(efeitos: DescansoEfeitos) { self.efeitos = efeitos }
+
+    /// Pro efeito `pausaComecou` do Pomodoro: `plugins.servico(.descanso)?.begin(...)`.
+    func begin(label: String, duration: TimeInterval) {
+        efeitos.iniciarBloqueio(label, duration)
+    }
+
+    /// Pro veto de quit em `applicationShouldTerminate`.
+    var isActive: Bool { efeitos.estaAtivo() }
+
+    func parar() {
+        efeitos.pararBloqueioSeAtivo()
+        scheduler.stop()
+    }
+}
+
+/// O nascimento do Descanso: era este bloco que morava no `AppDelegate`
+/// (v0.23.0, `KnoblerApp.swift:477-495`). Ficou aqui a decisão de ligar os
+/// providers e desligar o `oneShot` que acabou de disparar, no mesmo desenho
+/// dos Lembretes; o `AppDelegate` só empresta os efeitos (overlay e o
+/// registro do wake, que exigem AppKit).
+func montarDescanso(_ deps: PluginDeps) -> DescansoServico {
+    let efeitos = deps.descanso
+    let servico = DescansoServico(efeitos: efeitos)
+    let s = servico.scheduler
+    s.itemsProvider = efeitos.itens
+    s.onFire = { b in
+        efeitos.iniciarBloqueio(b.label, TimeInterval(max(1, b.durationMinutes) * 60))
+        if case .oneShot = b.schedule { efeitos.desligarUmaVez(b) }
+    }
+    s.wakeUnregister = efeitos.registrarWake { [weak s] in s?.tick() }
+    s.start()
+    return servico
 }

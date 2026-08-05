@@ -84,10 +84,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var pomodoro: Pomodoro? { plugins.servico(.pomodoro) }
     /// `nil` = a peça Lembretes está desinstalada.
     private var reminderScheduler: ReminderScheduler? { plugins.servico(.lembretes) }
+    /// `nil` = a peça Descanso está desinstalada.
+    private var descansoServico: DescansoServico? { plugins.servico(.descanso) }
     /// Botões de adiamento no card do lembrete. Dois: o "já já" e o "mais tarde".
     static let snoozeOptions: [(title: String, minutes: Int)] =
         [("Adiar 5 min", 5), ("30 min", 30)]
-    private let breakScheduler = ScheduleEngine<ScreenBreak>()
     private let descanso = DescansoController()
     private let annotation = AnnotationController.shared
     private let shelf = ShelfStore()
@@ -438,9 +439,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             },
             // Travar a tela nas pausas do Pomodoro (opt-in): o mesmo overlay do
             // Descanso, pela duração da pausa que acabou de começar a rodar.
+            // Fala com o SERVIÇO (`plugins.servico(.descanso)`), não com uma
+            // referência fixa — sem a peça instalada, `montarPomodoro` já nem
+            // chama este efeito (`deps.instalado(.descanso)`, Plugin.swift).
             pausaComecou: { [weak self] dur in
                 guard AppSettings.shared.pomodoroLockScreen else { return }
-                self?.descanso.begin(label: "Pausa do Pomodoro", duration: dur)
+                self?.descansoServico?.begin(label: "Pausa do Pomodoro", duration: dur)
             })
         // A montagem dos Lembretes mora na ficha da peça (`montarLembretes`, em
         // Plugin.swift). Aqui ficam só os efeitos que passam por AppKit — os
@@ -472,27 +476,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 ) { _ in tick() }
                 return { NSWorkspace.shared.notificationCenter.removeObserver(token) }
             })
+        // A montagem do Descanso mora na ficha da peça (`montarDescanso`,
+        // Plugin.swift). Aqui ficam só os efeitos que passam por AppKit — o
+        // overlay (`DescansoController`, compartilhado com a pausa do
+        // Pomodoro) e o registro do wake.
+        plugins.descansoEfeitos = DescansoEfeitos(
+            itens: { AppSettings.shared.screenBreaks },
+            iniciarBloqueio: { [weak self] label, dur in
+                self?.descanso.begin(label: label, duration: dur)
+            },
+            pararBloqueioSeAtivo: { [weak self] in
+                guard let self, self.descanso.isActive else { return }
+                self.descanso.abort()
+            },
+            estaAtivo: { [weak self] in self?.descanso.isActive ?? false },
+            desligarUmaVez: { b in
+                if let i = AppSettings.shared.screenBreaks.firstIndex(where: { $0.id == b.id }) {
+                    AppSettings.shared.screenBreaks[i].enabled = false
+                }
+            },
+            registrarWake: { tick in
+                let token = NSWorkspace.shared.notificationCenter.addObserver(
+                    forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+                ) { _ in tick() }
+                return { NSWorkspace.shared.notificationCenter.removeObserver(token) }
+            })
         // O nascimento das peças instaladas. Quem está desligado nem é visitado.
         plugins.subir()
-        // Descanso ainda não é peça: o wake dele segue fixo aqui.
-        NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
-        ) { [weak self] _ in
-            self?.breakScheduler.tick()
-        }
-
-        // Descanso: bloqueio agendado dispara o overlay de tela cheia pela duração.
-        // oneShot (inclui "Daqui a X") dispara uma vez → desliga (fica na lista, off).
-        breakScheduler.itemsProvider = { AppSettings.shared.screenBreaks }
-        breakScheduler.onFire = { [weak self] b in
-            self?.descanso.begin(
-                label: b.label, duration: TimeInterval(max(1, b.durationMinutes) * 60))
-            if case .oneShot = b.schedule,
-               let i = AppSettings.shared.screenBreaks.firstIndex(where: { $0.id == b.id }) {
-                AppSettings.shared.screenBreaks[i].enabled = false
-            }
-        }
-        breakScheduler.start()
         // espelho automático: abre 2min antes da call, fecha quando ela começa
         calendar.onMirrorMoment = { [weak self] imminent in
             guard let self else { return }
@@ -1381,8 +1391,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func pomReset() { pomodoro?.reset() }
 
     // Cmd+Q escapa do quiosque (não é coberto pelas flags) → recusar enquanto trava.
+    // Sem a peça Descanso instalada não há serviço, logo não há veto — nunca
+    // há overlay em curso pra travar o quit (005/comportamento esperado).
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        descanso.isActive ? .terminateCancel : .terminateNow
+        (descansoServico?.isActive ?? false) ? .terminateCancel : .terminateNow
     }
 
     func applicationWillTerminate(_ notification: Notification) {

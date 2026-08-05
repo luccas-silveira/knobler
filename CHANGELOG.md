@@ -12,6 +12,14 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   `Plugin.swift`). Desinstalar mata o timer de 15s e desliga o observer de
   wake (`NSWorkspace.didWakeNotification`) — sem isso o observer vazaria.
   Caso novo no `plugincheck`.
+- **Descanso vira peça de verdade**: o agendamento (`ScreenBreak`) nasce só
+  com a peça instalada (`montarDescanso` em `Plugin.swift`), no mesmo padrão
+  dos Lembretes — desinstalar desliga o wake e encerra um bloqueio de tela em
+  curso, se houver. O efeito `pausaComecou` do Pomodoro (trava a tela na
+  pausa) agora fala com o serviço (`plugins.servico(.descanso)`) em vez de
+  uma referência fixa do `AppDelegate`, e o veto de quit em
+  `applicationShouldTerminate` degrada calado sem a peça instalada. Caso novo
+  no `plugincheck`.
 
 ## [0.23.0] - 2026-08-04
 

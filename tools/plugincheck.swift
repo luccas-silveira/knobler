@@ -7,7 +7,7 @@
 //  Rodar:
 //  xcrun swiftc -parse-as-library -swift-version 5 \
 //    Knobler/Plugin.swift Knobler/Pomodoro.swift Knobler/Reminders.swift \
-//    Knobler/NotchSectionOrder.swift tools/plugincheck.swift \
+//    Knobler/Descanso.swift Knobler/NotchSectionOrder.swift tools/plugincheck.swift \
 //    -o /tmp/plugincheck && /tmp/plugincheck
 //
 
@@ -29,6 +29,7 @@ struct PluginCheck {
         testEstadoDoCardNaVitrine()
         testCardMudoNasNaoConvertidas()
         testLembretesNascemEParam()
+        testDescansoNasceEPara()
         print("✅ plugincheck ok")
     }
 
@@ -282,10 +283,10 @@ struct PluginCheck {
                    "\(peca.nome) ofereceu desinstalar sem nunca ter nascido")
         }
 
-        // Pomodoro e Lembretes são as convertidas nesta fase — se um dia deixar
-        // de ser verdade, é este assert que avisa que a vitrine tem card novo
-        // pra abrir.
-        assert(PluginRegistry.todos.filter(\.pronta).map(\.id) == [.pomodoro, .lembretes],
+        // Pomodoro, Lembretes e Descanso são as convertidas nesta fase — se um
+        // dia deixar de ser verdade, é este assert que avisa que a vitrine tem
+        // card novo pra abrir.
+        assert(PluginRegistry.todos.filter(\.pronta).map(\.id) == [.pomodoro, .lembretes, .descanso],
                "mudou quem está convertido: \(PluginRegistry.todos.filter(\.pronta).map(\.id))")
     }
 
@@ -321,5 +322,43 @@ struct PluginCheck {
         host2.subir()
         assert(!host2.estaVivo(.lembretes), "nasceu sem estar instalada")
         assert(host2.servico(.lembretes, as: ReminderScheduler.self) == nil, "achou serviço do nada")
+    }
+
+    // MARK: - Tarefa 2: Descanso
+
+    /// A terceira conversão: pronta, nasce só quando instalada, o wake desliga
+    /// na desinstalação (mesmo mecanismo dos Lembretes) e `parar()` chama o
+    /// efeito de encerrar o overlay em curso — é o que evita um bloqueio de
+    /// tela órfão sobrevivendo à desinstalação da peça.
+    static func testDescansoNasceEPara() {
+        assert(PluginRegistry.ficha(.descanso)?.pronta == true, "Descanso não está pronta")
+
+        let d = defaultsLimpo("plugincheck.descanso")
+        PluginsInstalados.gravar([.descanso], d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+
+        var desligou = false
+        var overlayParado = false
+        let host = PluginHost(defaults: d)
+        host.descansoEfeitos.registrarWake = { _ in { desligou = true } }
+        host.descansoEfeitos.pararBloqueioSeAtivo = { overlayParado = true }
+        host.subir()
+
+        assert(host.estaVivo(.descanso), "a peça não nasceu instalada")
+        assert(host.servico(.descanso, as: DescansoServico.self) != nil, "não achou o serviço")
+
+        host.desinstalar(.descanso)
+        assert(!host.estaVivo(.descanso), "o serviço sobreviveu à desinstalação")
+        assert(desligou, "o wake não foi desligado — observer vazado")
+        assert(overlayParado, "parar() não pediu pro overlay encerrar")
+
+        // sem a peça na lista de instalados, o serviço não nasce.
+        let d2 = defaultsLimpo("plugincheck.semdescanso")
+        PluginsInstalados.gravar([.pomodoro], d2)
+        d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        let host2 = PluginHost(defaults: d2)
+        host2.subir()
+        assert(!host2.estaVivo(.descanso), "nasceu sem estar instalada")
+        assert(host2.servico(.descanso, as: DescansoServico.self) == nil, "achou serviço do nada")
     }
 }
