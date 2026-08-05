@@ -229,7 +229,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         observeAskLifecycle()
 
         setupStatusItem()
-        placeWindows()
+        // ⚠️ `placeWindows()` desceu pra DEPOIS do `plugins.subir()` (fim deste
+        // método): a `NotchView` injeta `lanMessaging`/`messageStore` por
+        // `.environmentObject`, que captura o objeto no instante em que a view é
+        // construída. Com as janelas nascendo antes das peças, `mensagensServico`
+        // ainda era nil e o card ficava preso PRA SEMPRE no par ocioso — lista de
+        // peers e conversas vazias, com o Bonjour de verdade subindo depois.
+        // Nada entre aqui e lá toca `notches` de forma síncrona: são só closures
+        // `[weak self]` que rodam por timer, notificação ou Combine.
 
         // notificações aparecem em TODAS as telas, como os HUDs
         let interceptor = NotificationInterceptor { [weak self] notch in
@@ -592,6 +599,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         plugins.previewLinkEfeitos = PreviewLinkEfeitos(nascer: { LinkPreview.shared })
         // O nascimento das peças instaladas. Quem está desligado nem é visitado.
         plugins.subir()
+        // Só agora as janelas: ver o comentário no lugar de onde esta linha veio.
+        placeWindows()
         // espelho automático: abre 2min antes da call, fecha quando ela começa
         calendar.onMirrorMoment = { [weak self] imminent in
             guard let self, PluginHost.shared.estaInstalado(.espelho) else { return }
@@ -1406,8 +1415,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if let host, let vm = notches[host]?.viewModel { vm.setExpandedDirect(false) }
             return
         }
-        guard let screen, let vm = notches[Self.displayID(of: screen)]?.viewModel else { return }
-        note.hostDisplayID = Self.displayID(of: screen)
+        // A tela pedida, quando ela tem notch; senão o mesmo caminho que o
+        // ABRIR das outras peças usa (`viewModelPrincipal()`). Sem o fallback,
+        // numa máquina em que a `NSScreen.main` não tem janela de notch o botão
+        // da vitrine não fazia nada, calado.
+        guard let vm = screen.flatMap({ notches[Self.displayID(of: $0)]?.viewModel })
+            ?? viewModelPrincipal() else { return }
+        note.hostDisplayID = vm.displayID
         // A trava do `recalcularSecoes` é `typingNote` (= hospedada E editando), e
         // neste instante o `TextEditor` ainda nem entrou na árvore — `editing` é
         // false. Sem pedir o foco aqui, o card abriria no Histórico ou na Música
@@ -1532,6 +1546,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private var settingsWindow: NSWindow?
     private let settingsRouter = SettingsRouter()
+    private var settingsPluginsCancellable: AnyCancellable?
+
+    /// A raiz da janela de Ajustes. Separada porque é refeita quando a vitrine
+    /// instala uma peça cujos objetos ela injeta (ver `showSettings`).
+    private func settingsRootView() -> some View {
+        SettingsView(router: settingsRouter,
+                     webhookClient: webhookClient ?? webhookClientOcioso)
+            // o painel Permissões liga o Bonjour pra sondar a Rede local
+            .environmentObject(lanMessagingParaInjetar)
+    }
 
     @objc private func openSettings() { showSettings(pane: nil) }
 
@@ -1547,11 +1571,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 defer: false
             )
             window.title = "Ajustes do Knobler"
-            window.contentView = NSHostingView(
-                rootView: SettingsView(router: settingsRouter,
-                                        webhookClient: webhookClient ?? webhookClientOcioso)
-                    // o painel Permissões liga o Bonjour pra sondar a Rede local
-                    .environmentObject(lanMessagingParaInjetar))
+            window.contentView = NSHostingView(rootView: settingsRootView())
+            // A vitrine É um painel de Ajustes: quando o usuário clica INSTALAR
+            // em Mensagens ou Notificações externas, esta janela já existe e a
+            // raiz capturou os objetos OCIOSOS. O painel novo aparecia na barra
+            // lateral fiado neles — link de pareamento em branco, `connected`
+            // nunca true, nenhum erro. Refazer a raiz é o caminho mais curto que
+            // faz a peça funcionar de verdade em vez de pedir relançamento.
+            settingsPluginsCancellable = plugins.$instalados
+                .map { $0.intersection([.mensagens, .webhooks]) }
+                .removeDuplicates()
+                .dropFirst()
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] _ in
+                    // sheet aberto → não refaz (o sheet morreria levando o que
+                    // foi digitado), mesmo cuidado do início deste método.
+                    guard let self, let w = self.settingsWindow, w.attachedSheet == nil
+                    else { return }
+                    w.contentView = NSHostingView(rootView: self.settingsRootView())
+                }
             window.isReleasedWhenClosed = false
             window.setContentSize(NSSize(width: 800, height: 520))
             window.contentMinSize = NSSize(width: 720, height: 470)

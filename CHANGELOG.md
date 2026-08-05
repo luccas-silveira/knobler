@@ -132,6 +132,33 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   chama `FileConverter.targets(for:)` de verdade sobre um PNG num diretório
   temporário pra provar o gating, não só o contrato genérico do `PluginHost`.
 
+### Fixed
+- **Lembretes e Descanso paravam de disparar depois que o Mac dormia**: o
+  observer de wake era registrado ANTES do `start()`, e `start()` começa
+  chamando `stop()`, que desliga o wake — o observer morria no nascimento e o
+  `parar()` não tinha mais o que desregistrar. O gate correspondente era vazio
+  (afirmava o desligamento que o próprio `start()` já tinha causado) e agora
+  também exige que o wake esteja de pé com a peça viva.
+- **A seção Mensagens do card ficava vazia pra sempre**: as janelas do notch
+  nasciam antes de `plugins.subir()`, então o `.environmentObject` capturava as
+  instâncias ociosas de `LANMessaging`/`MessageStore` enquanto o Bonjour de
+  verdade subia depois. `placeWindows()` passou pra depois do nascimento das
+  peças.
+- **Instalar Mensagens ou Notificações externas pela vitrine só funcionava de
+  verdade após relançar**: a janela de Ajustes é cacheada e a raiz tinha
+  capturado os objetos ociosos. A raiz agora é refeita quando o par de peças
+  que ela injeta muda.
+- Desinstalar a **Nota rápida** não despeja mais o texto no clipboard geral nem
+  apaga o rascunho — o despejo continua no caminho iniciado pelo usuário.
+- Desinstalar o **Preview de Link** sem nenhum link aberto não instancia mais
+  um `WKWebView` (e seu processo de conteúdo) só pra desmontar nada.
+- `--selfcheck` do Desenho usa uma instância própria em vez do `.shared`: rodar
+  o self-check num processo vivo instalava e derrubava um tap e painéis reais.
+- O ABRIR da **Nota rápida** na vitrine caía no vazio quando a `NSScreen.main`
+  não tinha janela de notch; agora usa o mesmo fallback das outras peças.
+- `tools/check.sh` roda o `Knobler --selfcheck` quando existe build Debug no
+  DerivedData (antes, cinco provas de teardown nunca rodavam automaticamente).
+
 ## [0.23.0] - 2026-08-04
 
 ### Added

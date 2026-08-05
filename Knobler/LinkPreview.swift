@@ -90,8 +90,13 @@ final class LinkPreview: ObservableObject {
     }
 
     func fechar() {
+        let estavaAberto = url != nil
         resetarEstado()
         removerAtalhos()
+        // Nunca abriu nada: tocar a `webView` aqui INSTANCIARIA o `WKWebView`
+        // (lazy) e seu processo de conteúdo só pra desmontar um preview que não
+        // existe — é o caminho do `parar()` da peça na desinstalação.
+        guard estavaAberto else { return }
         // about:blank em vez de soltar a webView: para o áudio/vídeo da página
         // na hora, e o processo de conteúdo fica quente pro próximo link
         webView.load(URLRequest(url: URL(string: "about:blank")!))

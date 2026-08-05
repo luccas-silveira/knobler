@@ -184,7 +184,10 @@ final class AnnotationController: NSObject, ObservableObject {
     /// (`KnoblerApp.swift`), não no `plugincheck` isolado: este arquivo é
     /// AppKit puro (constraint 1 de `Plugin.swift`).
     static func _stopSelfCheck() -> Bool {
-        let c = AnnotationController.shared
+        // Instância própria, NÃO o `.shared` (mesmo cuidado do
+        // `QuickNote._pararSelfCheck`): rodar `--selfcheck` com o app vivo
+        // instalaria e derrubaria um event tap e painéis de verdade.
+        let c = AnnotationController()
         c.start()
         c.stop()
         return c.eventTap == nil

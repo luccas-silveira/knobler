@@ -578,8 +578,12 @@ func montarLembretes(_ deps: PluginDeps) -> ReminderScheduler {
         efeitos.disparou(r)
         if case .oneShot = r.schedule { efeitos.desligarUmaVez(r) }
     }
-    s.wakeUnregister = efeitos.registrarWake { [weak s] in s?.tick() }
+    // ⚠️ o wake é registrado DEPOIS do `start()`: `start()` começa chamando
+    // `stop()`, que derruba o `wakeUnregister` (`Reminders.swift`). Registrar
+    // antes desligava o observer no mesmo instante — lembrete marcado pra uma
+    // hora de sono era perdido, e o `parar()` não tinha mais o que desregistrar.
     s.start()
+    s.wakeUnregister = efeitos.registrarWake { [weak s] in s?.tick() }
     return s
 }
 
@@ -624,8 +628,10 @@ func montarDescanso(_ deps: PluginDeps) -> DescansoServico {
         efeitos.iniciarBloqueio(b.label, TimeInterval(max(1, b.durationMinutes) * 60))
         if case .oneShot = b.schedule { efeitos.desligarUmaVez(b) }
     }
-    s.wakeUnregister = efeitos.registrarWake { [weak s] in s?.tick() }
+    // Mesma ordem dos Lembretes acima: `start()` chama `stop()`, que zera o
+    // `wakeUnregister` — registrar antes matava o observer no nascimento.
     s.start()
+    s.wakeUnregister = efeitos.registrarWake { [weak s] in s?.tick() }
     return servico
 }
 

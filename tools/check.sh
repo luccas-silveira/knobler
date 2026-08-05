@@ -128,6 +128,18 @@ run reminderscheck bash -c "xcrun swiftc -parse-as-library -swift-version 5 \
   -D REMINDERS_SELFCHECK Knobler/Reminders.swift -o /tmp/reminderscheck && /tmp/reminderscheck"
 
 echo "== gates de integração =="
+# `Knobler --selfcheck` (teardown do Ditado, Desenho, Espelho, Nota rápida e
+# Preview de Link). NÃO é hermético: precisa do app inteiro compilado, e um
+# `xcodebuild` do zero leva minutos — caro demais pra um gate que roda a cada
+# push. Por isso o gate só roda o binário que JÁ existir no DerivedData; sem
+# build local ele é pulado, e aí esses self-checks continuam manuais
+# (`xcodebuild ... build` e depois o binário com `--selfcheck`).
+SELFCHECK_BIN=$(ls -td ~/Library/Developer/Xcode/DerivedData/Knobler-*/Build/Products/Debug/Knobler.app/Contents/MacOS/Knobler 2>/dev/null | head -1)
+if [ -n "$SELFCHECK_BIN" ]; then
+  run app-selfcheck bash -c "'$SELFCHECK_BIN' --selfcheck"
+else
+  SKIPPED+=("app-selfcheck (sem build Debug no DerivedData)")
+fi
 run claude-hook          bash tools/claude-hook/test.sh
 run codex-bridge         node tools/codex-agent-bridge-check.mjs
 run agent-requests-e2e   node tools/agent-requests-e2e.mjs

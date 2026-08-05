@@ -323,6 +323,10 @@ struct PluginCheck {
 
         assert(host.estaVivo(.lembretes), "a peça não nasceu instalada")
         assert(host.servico(.lembretes, as: ReminderScheduler.self) != nil, "não achou o serviço")
+        // Com a peça viva o observer está DE PÉ. Sem esta linha o caso é vazio:
+        // o `stop()` interno do `start()` já derrubava o wake registrado antes
+        // dele, e o `desligou` abaixo passava sem que o `parar()` fizesse nada.
+        assert(!desligou, "o wake caiu no nascimento — registrado antes do start()")
 
         host.desinstalar(.lembretes)
         assert(!host.estaVivo(.lembretes), "o serviço sobreviveu à desinstalação")
@@ -360,6 +364,8 @@ struct PluginCheck {
 
         assert(host.estaVivo(.descanso), "a peça não nasceu instalada")
         assert(host.servico(.descanso, as: DescansoServico.self) != nil, "não achou o serviço")
+        // Mesmo motivo do caso dos Lembretes: com a peça viva o wake está de pé.
+        assert(!desligou, "o wake caiu no nascimento — registrado antes do start()")
 
         host.desinstalar(.descanso)
         assert(!host.estaVivo(.descanso), "o serviço sobreviveu à desinstalação")
