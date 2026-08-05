@@ -9,7 +9,8 @@
 //    Knobler/Plugin.swift Knobler/Pomodoro.swift Knobler/Reminders.swift \
 //    Knobler/Descanso.swift Knobler/NotchSectionOrder.swift Knobler/Peer.swift \
 //    Knobler/Wire.swift Knobler/LANMessaging.swift Knobler/MessageStore.swift \
-//    Knobler/Permissions.swift tools/plugincheck.swift -o /tmp/plugincheck && /tmp/plugincheck
+//    Knobler/Permissions.swift Knobler/WebhookClient.swift Knobler/WebhookKeychainStore.swift \
+//    Knobler/NotchNotification.swift tools/plugincheck.swift -o /tmp/plugincheck && /tmp/plugincheck
 //
 
 import Foundation
@@ -32,6 +33,7 @@ struct PluginCheck {
         testLembretesNascemEParam()
         testDescansoNasceEPara()
         testMensagensNascemEParam()
+        testWebhooksNascemEParam()
         print("✅ plugincheck ok")
     }
 
@@ -285,11 +287,11 @@ struct PluginCheck {
                    "\(peca.nome) ofereceu desinstalar sem nunca ter nascido")
         }
 
-        // Pomodoro, Lembretes, Descanso e Mensagens são as convertidas nesta
-        // fase — se um dia deixar de ser verdade, é este assert que avisa que
-        // a vitrine tem card novo pra abrir.
+        // Pomodoro, Lembretes, Descanso, Mensagens e Notificações externas são
+        // as convertidas nesta fase — se um dia deixar de ser verdade, é este
+        // assert que avisa que a vitrine tem card novo pra abrir.
         assert(PluginRegistry.todos.filter(\.pronta).map(\.id) ==
-               [.pomodoro, .lembretes, .descanso, .mensagens],
+               [.pomodoro, .lembretes, .descanso, .mensagens, .webhooks],
                "mudou quem está convertido: \(PluginRegistry.todos.filter(\.pronta).map(\.id))")
     }
 
@@ -398,5 +400,40 @@ struct PluginCheck {
         host2.subir()
         assert(!host2.estaVivo(.mensagens), "nasceu sem estar instalada")
         assert(host2.servico(.mensagens, as: MensagensServico.self) == nil, "achou serviço do nada")
+    }
+
+    // MARK: - Tarefa 4: Notificações externas (webhooks)
+
+    /// A quinta conversão: pronta, nasce só quando instalada, o ajuste
+    /// (opt-in) manda no `start()/stop()` dentro da peça viva, e `parar()`
+    /// desliga o observer do ajuste — observer vazado é o bug que sobrevive
+    /// à desinstalação, mesmo mecanismo das três peças anteriores.
+    static func testWebhooksNascemEParam() {
+        assert(PluginRegistry.ficha(.webhooks)?.pronta == true, "Notificações externas não está pronta")
+
+        let d = defaultsLimpo("plugincheck.webhooks")
+        PluginsInstalados.gravar([.webhooks], d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+
+        var desligou = false
+        let host = PluginHost(defaults: d)
+        host.webhooksEfeitos.registrarMudancaAjuste = { _ in { desligou = true } }
+        host.subir()
+
+        assert(host.estaVivo(.webhooks), "a peça não nasceu instalada")
+        assert(host.servico(.webhooks, as: WebhookClient.self) != nil, "não achou o serviço")
+
+        host.desinstalar(.webhooks)
+        assert(!host.estaVivo(.webhooks), "o serviço sobreviveu à desinstalação")
+        assert(desligou, "o observer do ajuste não foi desligado — vazou")
+
+        // sem a peça na lista de instalados, o serviço não nasce.
+        let d2 = defaultsLimpo("plugincheck.semwebhooks")
+        PluginsInstalados.gravar([.pomodoro], d2)
+        d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        let host2 = PluginHost(defaults: d2)
+        host2.subir()
+        assert(!host2.estaVivo(.webhooks), "nasceu sem estar instalada")
+        assert(host2.servico(.webhooks, as: WebhookClient.self) == nil, "achou serviço do nada")
     }
 }

@@ -60,7 +60,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // Única fonte de estado da feature Ask, compartilhada por todas as telas.
     private var askStore: AskStore?
     private var agentRequestStore: AgentRequestStore?
-    let webhookClient = WebhookClient()
     private var lanCancellables = Set<AnyCancellable>()
     /// ponytail: `@EnvironmentObject` exige o tipo, não aceita opcional — sem a
     /// peça Mensagens instalada não há `MensagensServico`, então as views que
@@ -72,6 +71,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// wrapper genérico em vez de duplicar o par de instâncias ociosas.
     private let lanMessagingOcioso = LANMessaging()
     private let messageStoreOcioso = MessageStore()
+    /// ponytail: `SettingsView(webhookClient:)` exige o tipo, não aceita
+    /// opcional — sem a peça Notificações externas instalada não há
+    /// `WebhookClient` vivo. Mesmo truque do par acima: nunca chama
+    /// `start()`, fica inerte (o painel `webhooks` já some da barra lateral
+    /// sem a peça, F3).
+    private let webhookClientOcioso = WebhookClient()
     private let dictation = DictationController()
     private let devAvisos = DevAvisosController()
     /// Botões dos avisos do desenvolvedor: token do card → URLs (só https).
@@ -96,6 +101,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var descansoServico: DescansoServico? { plugins.servico(.descanso) }
     /// `nil` = a peça Mensagens está desinstalada.
     private var mensagensServico: MensagensServico? { plugins.servico(.mensagens) }
+    /// `nil` = a peça Notificações externas está desinstalada.
+    private var webhookClient: WebhookClient? { plugins.servico(.webhooks) }
     /// Pra `.environmentObject(_:)`: com a peça viva, os objetos do serviço;
     /// sem ela, as instâncias ociosas (ver comentário na declaração delas).
     private var lanMessagingParaInjetar: LANMessaging { mensagensServico?.lanMessaging ?? lanMessagingOcioso }
@@ -375,10 +382,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         apiServer.onNotification = { [weak self] notification in
             self?.publicar(notification)
         }
-        // webhook externo (relay): cada notificação recebida vira card em todas as telas
-        webhookClient.onNotify = { [weak self] notification in
-            self?.publicar(notification)
-        }
         // atividade é global: aparece em todos os monitores
         apiServer.onActivity = { [weak self] activity in
             self?.apiActivity = activity
@@ -520,6 +523,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     .sink { _ in tick() }
                 return { cancellable.cancel() }
             })
+        // A montagem de Notificações externas mora na ficha da peça
+        // (`montarWebhooks`, Plugin.swift). Aqui ficam só o card quando a
+        // notificação chega e o observer do ajuste opt-in
+        // (`webhookNotifications`), que exigem AppKit/Combine.
+        plugins.webhooksEfeitos = WebhooksEfeitos(
+            notificacaoChegou: { [weak self] notification in
+                self?.publicar(notification)
+            },
+            ativado: { AppSettings.shared.webhookNotifications },
+            registrarMudancaAjuste: { tick in
+                let cancellable = AppSettings.shared.$webhookNotifications
+                    .dropFirst()
+                    .sink { _ in tick() }
+                return { cancellable.cancel() }
+            })
         // O nascimento das peças instaladas. Quem está desligado nem é visitado.
         plugins.subir()
         // espelho automático: abre 2min antes da call, fecha quando ela começa
@@ -598,11 +616,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     } else {
                         self?.clearAskPresentation()
                         self?.apiServer.stop()
-                    }
-                    if AppSettings.shared.webhookNotifications {
-                        self?.webhookClient.start()
-                    } else {
-                        self?.webhookClient.stop()
                     }
                     if AppSettings.shared.screenshotsToShelf {
                         self?.screenshots.start()
@@ -1425,8 +1438,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         OSDSuppressor.restore()
         // devolve o preview do print (senão ficaria sem preview E sem shelf)
         ScreenshotPreviewSuppressor.restore()
-        // fecha o socket de push e libera os recursos do relay
-        webhookClient.shutdown()
+        // fecha o socket de push e libera os recursos do relay; sem a peça
+        // instalada não há o que fechar (nada nasceu)
+        webhookClient?.parar()
         // grava o histórico de mensagens e desliga o Bonjour da Rede Local —
         // é o mesmo par que `MensagensServico.parar()` faz; sem a peça
         // instalada não há o que gravar/desligar (nada nasceu).
@@ -1453,7 +1467,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             )
             window.title = "Ajustes do Knobler"
             window.contentView = NSHostingView(
-                rootView: SettingsView(router: settingsRouter, webhookClient: webhookClient)
+                rootView: SettingsView(router: settingsRouter,
+                                        webhookClient: webhookClient ?? webhookClientOcioso)
                     // o painel Permissões liga o Bonjour pra sondar a Rede local
                     .environmentObject(lanMessagingParaInjetar))
             window.isReleasedWhenClosed = false

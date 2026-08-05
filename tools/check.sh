@@ -77,7 +77,8 @@ swift_check colorpickercheck  Knobler/ColorPicker.swift tools/colorpickercheck.s
 swift_check plugincheck       Knobler/Plugin.swift Knobler/Pomodoro.swift \
   Knobler/Reminders.swift Knobler/Descanso.swift Knobler/NotchSectionOrder.swift \
   Knobler/Peer.swift Knobler/Wire.swift Knobler/LANMessaging.swift Knobler/MessageStore.swift \
-  Knobler/Permissions.swift tools/plugincheck.swift
+  Knobler/Permissions.swift Knobler/WebhookClient.swift Knobler/WebhookKeychainStore.swift \
+  Knobler/NotchNotification.swift tools/plugincheck.swift
 CONVERSAO="Knobler/FileConverter.swift Knobler/ImageConverter.swift Knobler/DocumentConverter.swift Knobler/VideoConverter.swift"
 swift_check imageconvertercheck    $CONVERSAO tools/imageconvertercheck.swift
 swift_check documentconvertercheck $CONVERSAO tools/documentconvertercheck.swift
@@ -109,7 +110,8 @@ swift_check eventoscheck          Knobler/NotchViewModel.swift Knobler/NotchSect
   Knobler/AnnotationModel.swift Knobler/CalendarAviso.swift \
   Knobler/AppSettings.swift Knobler/Descanso.swift Knobler/Mirror.swift \
   Knobler/Reminders.swift Knobler/Peer.swift Knobler/LANMessaging.swift \
-  Knobler/MessageStore.swift Knobler/Permissions.swift Knobler/Plugin.swift tools/eventoscheck.swift
+  Knobler/MessageStore.swift Knobler/Permissions.swift Knobler/Plugin.swift \
+  Knobler/WebhookClient.swift Knobler/WebhookKeychainStore.swift tools/eventoscheck.swift
 # Reminders traz o próprio @main atrás de -D (molde do Pomodoro), sem harness.
 run reminderscheck bash -c "xcrun swiftc -parse-as-library -swift-version 5 \
   -D REMINDERS_SELFCHECK Knobler/Reminders.swift -o /tmp/reminderscheck && /tmp/reminderscheck"

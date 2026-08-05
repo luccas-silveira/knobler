@@ -103,6 +103,22 @@ struct MensagensEfeitos {
     var registrarMudancaNome: (@escaping () -> Void) -> (() -> Void) = { _ in {} }
 }
 
+/// Os efeitos que a montagem de Notificações externas (webhooks) precisa do
+/// app: o card quando uma notificação chega e o ajuste opt-in
+/// (`AppSettings.shared.webhookNotifications`) que manda no `start()/stop()`
+/// do `WebhookClient` — instalada e desligada por ajuste é estado normal,
+/// distinto de desinstalada (a peça nem nasce).
+///
+/// `registrarMudancaAjuste` é o mesmo desenho do `registrarMudancaNome` de
+/// Mensagens: a ficha não conhece `AppSettings`/Combine, então o app empresta
+/// a borda — recebe o `tick` a chamar e devolve o jeito de desligar, chamado
+/// no `parar()`.
+struct WebhooksEfeitos {
+    var notificacaoChegou: (NotchNotification) -> Void = { _ in }
+    var ativado: () -> Bool = { false }
+    var registrarMudancaAjuste: (@escaping () -> Void) -> (() -> Void) = { _ in {} }
+}
+
 /// O que a peça recebe pra nascer: a pergunta "a outra peça está instalada?"
 /// (a única dependência plugin→plugin é Pomodoro→Descanso, e "não" é caminho
 /// normal) e os efeitos que o app empresta.
@@ -112,6 +128,7 @@ struct PluginDeps {
     var lembretes = LembretesEfeitos()
     var descanso = DescansoEfeitos()
     var mensagens = MensagensEfeitos()
+    var webhooks = WebhooksEfeitos()
 }
 
 /// A ficha da peça. Tudo aqui é dado, menos `nascer`.
@@ -194,8 +211,8 @@ enum PluginRegistry {
                descricao: "Seus sistemas avisam pelo notch.",
                simbolo: "bell.and.waves.left.and.right.fill",
                secao: nil, painel: "webhooks",
-               rotas: [], permissao: nil,
-               nascer: { _ in nil }),
+               rotas: [], permissao: nil, pronta: true,
+               nascer: montarWebhooks),
 
         Plugin(id: .ditado, nome: "Ditado",
                descricao: "Fale e o texto aparece onde o cursor está.",
@@ -344,6 +361,7 @@ final class PluginHost: ObservableObject {
     var lembretesEfeitos = LembretesEfeitos()
     var descansoEfeitos = DescansoEfeitos()
     var mensagensEfeitos = MensagensEfeitos()
+    var webhooksEfeitos = WebhooksEfeitos()
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -354,7 +372,8 @@ final class PluginHost: ObservableObject {
     private func deps() -> PluginDeps {
         PluginDeps(instalado: { [weak self] id in self?.instalados.contains(id) ?? false },
                    pomodoro: pomodoroEfeitos, lembretes: lembretesEfeitos,
-                   descanso: descansoEfeitos, mensagens: mensagensEfeitos)
+                   descanso: descansoEfeitos, mensagens: mensagensEfeitos,
+                   webhooks: webhooksEfeitos)
     }
 
     /// O launch inteiro. Peça desligada nem é visitada — custo zero de verdade.
@@ -568,4 +587,30 @@ final class MensagensServico: PluginServico {
 /// `registrarMudancaNome`).
 func montarMensagens(_ deps: PluginDeps) -> MensagensServico {
     MensagensServico(efeitos: deps.mensagens)
+}
+
+/// A quinta conversão (tarefa 4). `shutdown()` já fecha o socket, cancela o
+/// `NWPathMonitor` e invalida a sessão — é o "morrer" que a peça precisa, e
+/// também desliga o observer do ajuste (`ajusteUnregister`, ver
+/// `WebhookClient.swift`), pra não vazar quando a peça é desinstalada.
+extension WebhookClient: PluginServico {
+    func parar() { shutdown() }
+}
+
+/// O nascimento de Notificações externas: era `webhookClient.onNotify = ...`
+/// em `KnoblerApp.swift:379` mais o `if AppSettings.shared.webhookNotifications`
+/// que ligava/desligava o socket a cada mudança de qualquer ajuste
+/// (`:602-606`). Ficou aqui a decisão de aplicar o ajuste no nascimento e a
+/// cada mudança dele; o `AppDelegate` empresta o card (AppKit) e o observer
+/// do ajuste (Combine/AppSettings).
+func montarWebhooks(_ deps: PluginDeps) -> WebhookClient {
+    let efeitos = deps.webhooks
+    let client = WebhookClient()
+    client.onNotify = efeitos.notificacaoChegou
+    func aplicarAjuste() {
+        if efeitos.ativado() { client.start() } else { client.stop() }
+    }
+    client.ajusteUnregister = efeitos.registrarMudancaAjuste(aplicarAjuste)
+    aplicarAjuste()
+    return client
 }

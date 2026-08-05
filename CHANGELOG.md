@@ -29,6 +29,15 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   instâncias ociosas quando a peça não está viva — a seção do card e o painel
   já somem sem ela, então nada de fato usa esses objetos ociosos. Caso novo no
   `plugincheck`.
+- **Notificações externas (webhooks) vira peça de verdade**: o `WebhookClient`
+  nasce só com a peça instalada (`montarWebhooks` em `Plugin.swift`). O
+  ajuste opt-in `webhookNotifications` continua mandando no `start()/stop()`
+  do socket **dentro** da peça viva (instalada e desligada por ajuste é
+  estado normal, distinto de desinstalada); desinstalar fecha o socket
+  (`shutdown()`) e desliga o observer do ajuste. `SettingsView(webhookClient:)`
+  recebe uma instância ociosa quando a peça não está viva (mesmo truque do
+  `lanMessagingOcioso`) — o painel `webhooks` já some da barra lateral sem a
+  peça. Caso novo no `plugincheck`.
 
 ## [0.23.0] - 2026-08-04
 
