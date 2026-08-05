@@ -57,7 +57,7 @@ ficha obrigaria a fiar o `AppDelegate` na vitrine por um botão só.
 
 ---
 
-## Tarefa 1 — Lembretes
+## Task 1 — Lembretes
 
 **Alvo**: `ReminderScheduler` (`KnoblerApp.swift:85`), fiado em `KnoblerApp.swift:447-472`.
 
@@ -76,7 +76,7 @@ ficha obrigaria a fiar o `AppDelegate` na vitrine por um botão só.
   falar com `plugins.servico(.lembretes)` e viram no-op quando a peça não está viva.
 - `pronta: true`, `plugincheck` (lista travada + caso novo), `CHANGELOG.md`.
 
-## Tarefa 2 — Descanso
+## Task 2 — Descanso
 
 **Alvo**: `DescansoController` (`KnoblerApp.swift:90`) + o `breakScheduler` que o
 alimenta (`KnoblerApp.swift:476-485`).
@@ -94,7 +94,7 @@ alimenta (`KnoblerApp.swift:476-485`).
   comportamento certo, mas escreva isso como comentário no ponto.
 - `pronta: true`, `plugincheck`, `CHANGELOG.md`.
 
-## Tarefa 3 — Mensagens LAN
+## Task 3 — Mensagens LAN
 
 **Alvo**: `LANMessaging` + `MessageStore` (`KnoblerApp.swift:64-65`), fiação em
 `:359-390`, start condicionado em `:1073`, resposta em `:1043-1046`, `flush()`/`stop()`
@@ -112,7 +112,7 @@ no `applicationWillTerminate` (`:1387-1392`).
   `// ponytail:`.
 - `pronta: true`, `plugincheck`, `CHANGELOG.md`.
 
-## Tarefa 4 — Notificações externas (webhooks)
+## Task 4 — Notificações externas (webhooks)
 
 **Alvo**: `WebhookClient` (`KnoblerApp.swift:63`), `onNotify` em `:397-399`,
 liga/desliga por ajuste em `:563-567`, `shutdown()` em `:1387`.
@@ -127,7 +127,7 @@ liga/desliga por ajuste em `:563-567`, `shutdown()` em `:1387`.
   cliente ocioso) e marque a escolha.
 - `pronta: true`, `plugincheck`, `CHANGELOG.md`.
 
-## Tarefa 5 — Ditado
+## Task 5 — Ditado
 
 **Alvo**: `DictationController` (`KnoblerApp.swift:67`), fiação em `:221-245`,
 diagnóstico no status da API em `:543`.
@@ -145,7 +145,7 @@ diagnóstico no status da API em `:543`.
   comportamento observado no relatório.
 - `pronta: true`, `plugincheck`, `CHANGELOG.md`.
 
-## Tarefa 6 — Desenho (`PluginID.anotacao`)
+## Task 6 — Desenho (`PluginID.anotacao`)
 
 **Alvo**: `AnnotationController.shared` (`AnnotationController.swift:114`), guardado em
 `KnoblerApp.swift:91`, `start()` em `:201`, diagnóstico em `:522`.
@@ -157,7 +157,7 @@ diagnóstico no status da API em `:543`.
 - Não transforme o singleton em instância — é refatoração fora do escopo (constraint 10).
 - `pronta: true`, `plugincheck`, `CHANGELOG.md`.
 
-## Tarefa 7 — Espelho (sem painel, com rota de API)
+## Task 7 — Espelho (sem painel, com rota de API)
 
 **Alvo**: `MirrorController.shared` (`Mirror.swift:13`); abertura automática por
 calendário (`KnoblerApp.swift:487-502`), rota `POST /mirror` (`:505-518`), botão do card
@@ -173,7 +173,7 @@ calendário (`KnoblerApp.swift:487-502`), rota `POST /mirror` (`:505-518`), bot�
   (mesma chamada de `MirrorController.activate(on:expand:)` usada pela rota).
 - `pronta: true`, `plugincheck`, `CHANGELOG.md`.
 
-## Tarefa 8 — Nota rápida (sem painel)
+## Task 8 — Nota rápida (sem painel)
 
 **Alvo**: `QuickNote.shared` (`QuickNote.swift:17`); item de menu da barra
 (`KnoblerApp.swift:1227-1230`) chamando `toggleQuickNote()` (`:1264-1292`); `active =
@@ -187,7 +187,7 @@ false` no `applicationWillTerminate` (`:1381`); consumida por `NotchView.swift:1
   possa acioná-lo sem duplicar a lógica de "tela sob o mouse".
 - `pronta: true`, `plugincheck`, `CHANGELOG.md`.
 
-## Tarefa 9 — Preview de Link (sem painel, sem serviço)
+## Task 9 — Preview de Link (sem painel, sem serviço)
 
 **Alvo**: `LinkPreview.shared` (`LinkPreview.swift:18`), aberto direto de
 `Shelf.swift:155,231` (`abrir(url, on:)`); `KnoblerApp.swift:890` decide scroll.
@@ -202,7 +202,7 @@ false` no `applicationWillTerminate` (`:1381`); consumida por `NotchView.swift:1
   tela nova.
 - `pronta: true`, `plugincheck`, `CHANGELOG.md`.
 
-## Tarefa 10 — Conversão de arquivo (sem painel, sem seção)
+## Task 10 — Conversão de arquivo (sem painel, sem seção)
 
 **Alvo**: `FileConverter` (utilitário estático), chamado de `Shelf.swift:237`,
 `ShelfDrop.swift:72`, `ShelfPreview.swift:68,104`. **Zero toques em `KnoblerApp.swift`**.
