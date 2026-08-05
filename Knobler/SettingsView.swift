@@ -15,7 +15,7 @@ import SwiftUI
 
 enum SettingsPane: String, CaseIterable, Identifiable {
     case geral, notch, desenho, ditado, pomodoro, lembretes, descanso, webhooks, mensagens
-    case permissoes
+    case plugins, permissoes
     var id: String { rawValue }
 
     var title: String {
@@ -29,6 +29,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .descanso: return "Descanso"
         case .webhooks: return "Notificações externas"
         case .mensagens: return "Mensagens"
+        case .plugins: return "Plugins"
         case .permissoes: return "Permissões"
         }
     }
@@ -44,6 +45,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .descanso: return "moon.zzz.fill"
         case .webhooks: return "bell.and.waves.left.and.right.fill"
         case .mensagens: return "bubble.left.and.bubble.right.fill"
+        case .plugins: return "square.grid.2x2.fill"
         case .permissoes: return "lock.shield.fill"
         }
     }
@@ -67,6 +69,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .descanso: return .indigo
         case .webhooks: return .purple
         case .mensagens: return .green
+        case .plugins: return .cyan
         case .permissoes: return .brown
         }
     }
@@ -82,6 +85,10 @@ final class SettingsRouter: ObservableObject {
 struct SettingsView: View {
     @ObservedObject var router: SettingsRouter
     @ObservedObject var webhookClient: WebhookClient
+    /// A barra lateral lê `SettingsPane.visiveis`, que consulta o host. Sem
+    /// observar o host aqui, instalar ou desinstalar pela vitrine só mudaria a
+    /// lista na próxima abertura da janela.
+    @ObservedObject private var host = PluginHost.shared
 
     var body: some View {
         // .constant(.all): sem isso o divisor colapsa a sidebar por arrasto e,
@@ -127,6 +134,7 @@ struct SettingsView: View {
         case .descanso: DescansoTabView()
         case .webhooks: WebhookSettingsView(client: webhookClient)
         case .mensagens: IdentitySettingsView()
+        case .plugins: PluginsSettingsPane(router: router)
         case .permissoes: PermissionsSettingsPane()
         }
     }

@@ -25,6 +25,8 @@ struct PluginCheck {
         testTimerLigaComAPecaViva()
         testSuperficiesSomemComAPeca()
         testSemDescansoNaoTravaATela()
+        testEstadoDoCardNaVitrine()
+        testCardMudoNasNaoConvertidas()
         print("✅ plugincheck ok")
     }
 
@@ -234,5 +236,53 @@ struct PluginCheck {
         host.servico(.pomodoro, as: Pomodoro.self)?.start()
         host.servico(.pomodoro, as: Pomodoro.self)?.skip()
         assert(comDescanso == [Pomodoro.Config.padrao.shortBreak], "pausas: \(comDescanso)")
+    }
+
+    // MARK: - Fase 4: a vitrine
+
+    /// O botão do card sai da lista de instalados, e só dela. Peça instalada diz
+    /// ABRIR — nunca um rótulo cinza morto (convenção da App Store, ticket 006) —
+    /// e é a única que oferece desinstalar.
+    static func testEstadoDoCardNaVitrine() {
+        let d = defaultsLimpo("plugincheck.vitrine")
+        PluginsInstalados.gravar(Set(PluginID.allCases), d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        let host = PluginHost(defaults: d)
+
+        assert(host.estadoDoCard(.pomodoro) == .abrir, "instalada e convertida tem que abrir")
+        assert(host.estadoDoCard(.pomodoro).temMenuDeDesinstalar,
+               "peça instalada não ofereceu desinstalar")
+
+        host.desinstalar(.pomodoro)
+        assert(host.estadoDoCard(.pomodoro) == .instalar, "desinstalada tem que oferecer instalar")
+        assert(!host.estadoDoCard(.pomodoro).temMenuDeDesinstalar,
+               "peça desinstalada ofereceu desinstalar de novo")
+
+        // reinstalar é o desfazer: sem diálogo, sem perda (ticket 007).
+        host.instalar(.pomodoro)
+        assert(host.estadoDoCard(.pomodoro) == .abrir, "reinstalar não voltou ao estado anterior")
+    }
+
+    /// As dez peças que ainda não têm `nascer` de verdade mostram "Em breve" no
+    /// lugar do botão — instalar o que não nasce seria mentira (ticket 009). O
+    /// estado sai da ficha, não de uma lista à parte que alguém esquece de
+    /// atualizar quando converter a próxima peça.
+    static func testCardMudoNasNaoConvertidas() {
+        let d = defaultsLimpo("plugincheck.mudo")
+        PluginsInstalados.gravar(Set(PluginID.allCases), d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        let host = PluginHost(defaults: d)
+
+        for peca in PluginRegistry.todos where !peca.pronta {
+            assert(host.estadoDoCard(peca.id) == .emBreve,
+                   "\(peca.nome) não é convertida e mesmo assim ofereceu botão")
+            assert(!host.estadoDoCard(peca.id).temMenuDeDesinstalar,
+                   "\(peca.nome) ofereceu desinstalar sem nunca ter nascido")
+        }
+
+        // O piloto é a única peça pronta nesta fase — se um dia deixar de ser
+        // verdade, é este assert que avisa que a vitrine tem card novo pra abrir.
+        assert(PluginRegistry.todos.filter(\.pronta).map(\.id) == [.pomodoro],
+               "mudou quem está convertido: \(PluginRegistry.todos.filter(\.pronta).map(\.id))")
     }
 }

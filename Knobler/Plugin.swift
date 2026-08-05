@@ -79,6 +79,12 @@ struct Plugin {
     /// Permissão do sistema que a peça exige.
     let permissao: String?
 
+    /// A peça já nasce de verdade por aqui. Falso = o `AppDelegate` ainda é quem
+    /// cria o serviço, e o `nascer` abaixo é vazio; a vitrine mostra "Em breve"
+    /// no lugar do botão, porque instalar o que não nasce seria mentira
+    /// (ticket 009). Vira `true` na fase que converter a peça.
+    var pronta = false
+
     /// Nasce. Devolve `nil` quando a peça decide não subir (falta dependência,
     /// preferência interna desligada) — isso não é erro. Peça ainda não
     /// convertida tem `nascer` vazio: quem cria o serviço é o `AppDelegate`,
@@ -107,7 +113,7 @@ enum PluginRegistry {
         Plugin(id: .pomodoro, nome: "Pomodoro",
                descricao: "Ciclos de foco com pausa contada.",
                simbolo: "timer", secao: "pomodoro", painel: "pomodoro",
-               rotas: [], permissao: nil,
+               rotas: [], permissao: nil, pronta: true,
                nascer: montarPomodoro),
 
         Plugin(id: .lembretes, nome: "Lembretes",
@@ -148,7 +154,11 @@ enum PluginRegistry {
                rotas: ["POST /mirror"], permissao: "camera",
                nascer: { _ in nil }),
 
-        Plugin(id: .anotacao, nome: "Anotação",
+        // O nome do card é o do painel ("Desenho"), decidido na F4: os dois
+        // aparecem lado a lado na vitrine e o ABRIR levaria a um painel com
+        // outro nome. O `PluginID` e a seção do card seguem `anotacao` — mexer
+        // neles desinstalaria a peça na máquina de quem já usa (003).
+        Plugin(id: .anotacao, nome: "Desenho",
                descricao: "Desenhe por cima da tela.",
                simbolo: "pencil.tip.crop.circle", secao: "anotacao", painel: "desenho",
                rotas: [], permissao: "acessibilidade",
@@ -243,17 +253,36 @@ enum PluginsInstalados {
     }
 }
 
+// MARK: - O botão da vitrine
+
+/// O que o card oferece. O card **não muda de lugar** entre um estado e outro
+/// (006) — só o botão muda, e reinstalar é o desfazer de desinstalar.
+enum EstadoDoCard: Equatable {
+    /// Peça ainda não convertida: a palavra "Em breve" onde iria o botão.
+    case emBreve
+    /// Instalada. `ABRIR` é sempre vivo — nada de rótulo cinza morto.
+    case abrir
+    case instalar
+
+    /// O "⋯" com "Desinstalar (seus dados ficam salvos)" só existe em peça
+    /// instalada — desinstalar o que nunca nasceu não quer dizer nada.
+    var temMenuDeDesinstalar: Bool { self == .abrir }
+}
+
 // MARK: - Quem lê a declaração
 
 /// O lugar do `AppDelegate`: sai de "cria quinze serviços na mão" pra "cria os
 /// que estão ligados". Ninguém consulta isto ainda — a fiação é a F2.
-final class PluginHost {
+final class PluginHost: ObservableObject {
     /// Uma por app: as telas (Ajustes, faixa do notch) precisam saber o que
     /// está instalado sem que o `AppDelegate` costure o host em cada view.
     static let shared = PluginHost()
 
     private let defaults: UserDefaults
-    private(set) var instalados: Set<PluginID>
+    /// `@Published` porque a barra lateral dos Ajustes tem que perder o painel
+    /// no mesmo instante em que o botão da vitrine é clicado — sem isso a lista
+    /// só se corrige na próxima abertura da janela.
+    @Published private(set) var instalados: Set<PluginID>
     private var vivos: [PluginID: PluginServico] = [:]
     /// Preenchido pelo `AppDelegate` antes do `subir()`.
     var pomodoroEfeitos = PomodoroEfeitos()
@@ -277,6 +306,13 @@ final class PluginHost {
     }
 
     func estaInstalado(_ id: PluginID) -> Bool { instalados.contains(id) }
+
+    /// O que o card daquela peça oferece. É a única regra da vitrine: "não
+    /// convertida" ganha de tudo, e o resto sai da lista de instalados.
+    func estadoDoCard(_ id: PluginID) -> EstadoDoCard {
+        guard PluginRegistry.ficha(id)?.pronta == true else { return .emBreve }
+        return instalados.contains(id) ? .abrir : .instalar
+    }
 
     func estaVivo(_ id: PluginID) -> Bool { vivos[id] != nil }
 

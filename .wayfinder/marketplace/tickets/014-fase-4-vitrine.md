@@ -2,8 +2,8 @@
 
 - map: ../map.md
 - label: wayfinder:task
-- status: open
-- assignee: —
+- status: closed
+- assignee: claude (sessão 2026-08-04)
 - blocked-by: 013
 
 ## Question
@@ -33,3 +33,42 @@ pergunta de cada vez.
 Sem gate novo: vitrine é tela. Validar por `tools/snapshot.sh` se o cenário
 couber no harness, senão por screenshot do painel real
 (`Knobler.app/Contents/MacOS/Knobler --ajustes=plugins`, receita em `CLAUDE.md`).
+
+## Resolução (2026-08-04)
+
+**Executada.** `Knobler/PluginsSettingsPane.swift` (novo) + `case plugins` no
+`SettingsPane`. O desenho é cópia do protótipo 006; o que mudou é abaixo.
+
+**O martelo do dono**, as duas perguntas que o ticket exigia:
+
+1. O card da peça `anotacao` passou a se chamar **"Desenho"** — o nome do painel
+   que o `ABRIR` dele abre. Os dois apareceriam lado a lado na vitrine com nomes
+   diferentes. O `PluginID` e a seção do card seguem `anotacao`: renomear id
+   desinstala a peça na máquina de quem já usa (003).
+2. Os três nomes que 006 inventou (Preview de Link, Nota rápida, Conversão de
+   arquivo) ficam como estão.
+
+**Duas coisas que o desenho não previa:**
+
+- **"Essa ficha tem `nascer`?" não é uma pergunta que dê pra fazer em runtime.**
+  `nascer` é uma closure não-opcional; a vazia (`{ _ in nil }`) e a de verdade
+  são indistinguíveis depois de compiladas. Virou o campo `pronta` na ficha, e o
+  `plugincheck` trava a lista de quem está convertido (`[.pomodoro]` hoje) — o
+  assert quebra na fase que converter a próxima peça e esquecer de virar a
+  chave, que é exatamente quando se quer ser avisado.
+- **O `PluginHost` teve de virar `ObservableObject`.** A barra lateral lê
+  `SettingsPane.visiveis`, que consulta o host; sem `@Published` em `instalados`
+  e sem `@ObservedObject` na `SettingsView`, desinstalar pela vitrine só tiraria
+  o painel da lista na próxima abertura da janela.
+
+A cor da capa mora na view (`corDaPeca`), não na ficha: `Plugin.swift` é
+Foundation puro de propósito — é o que deixa o `plugincheck` compilar a máquina
+de peças sem arrastar SwiftUI.
+
+**Validação.** `plugincheck` foi a 12 casos (estado do botão nos três estados,
+ida e volta do desinstalar, e "toda peça não convertida diz Em breve e não
+oferece desinstalar"). `./tools/check.sh` → 35 ok; `tools/snapshot.sh` precisou
+do arquivo novo na lista manual dele. Como o painel é `NavigationSplitView`, não
+entra no harness — foi exercitado **clicando no app rodando**: desinstalar pelo
+`⋯` tira o painel da barra lateral na hora e troca o botão sem o card mudar de
+lugar, `INSTALAR` devolve tudo, `ABRIR` navega pro painel do Pomodoro.

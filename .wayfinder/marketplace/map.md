@@ -229,6 +229,24 @@ propósito.
   a 14. Piloto (004) tecnicamente concluído: os 5 itens com gate. Falta tela (F4)
   e papel (F5).
 
+- [Fase 4 — a vitrine](tickets/014-fase-4-vitrine.md) — **executada**: painel
+  próprio "Plugins" na barra lateral, grade de cards copiada do protótipo 006.
+  O martelo do dono: o card da peça `anotacao` passou a se chamar **"Desenho"**
+  (o nome do painel que ela abre — o `PluginID` e a seção seguem `anotacao`,
+  porque renomear id desinstala a peça na máquina de quem já usa), e os três
+  nomes provisórios de 006 foram confirmados como estão. Duas coisas que o
+  desenho não previa: (a) "essa ficha tem `nascer`?" **não** dá pra perguntar em
+  runtime — closure vazia e closure de verdade são indistinguíveis —, então
+  virou o campo `pronta` na ficha, com o `plugincheck` travando quem está
+  convertido (`[.pomodoro]` hoje) pra ninguém esquecer de virar a chave; (b) o
+  `PluginHost` teve de virar `ObservableObject` — a barra lateral lê
+  `SettingsPane.visiveis`, que consulta o host, e sem observar nada a lista só
+  se corrigiria na próxima abertura da janela. A cor da capa mora na view, não
+  na ficha: `Plugin.swift` é Foundation puro de propósito. `plugincheck` foi a
+  12 casos. Exercitado clicando no app: desinstalar pelo `⋯` tira o painel da
+  barra lateral na hora e troca o botão sem mexer o card de lugar, `INSTALAR`
+  devolve tudo, `ABRIR` navega. Falta só o papel (F5).
+
 ## Not yet specified
 
 - **Permissões por plugin.** Hoje nenhuma permissão é pedida no launch, e o painel

@@ -26,6 +26,15 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   alfinete (a fixação é ignorada, não apagada: reinstalar traz tudo de volta).
   Sem a peça Descanso, a opção "Travar a tela nas pausas" some do painel do
   Pomodoro e o efeito não roda.
+- **Painel "Plugins" nos Ajustes**: a vitrine em grade com os 15 cards — as 4
+  features de fábrica em "Incluído no Knobler" (sem ação: substituem algo que o
+  macOS já fazia) e os 11 plugins abaixo. Cada card mostra capa, nome e uma
+  frase. O Pomodoro, a primeira peça convertida, tem `ABRIR` (leva ao painel
+  dele) e um `⋯` com **"Desinstalar (seus dados ficam salvos)"** — sem pergunta
+  de confirmação, porque nada se perde e reinstalar é o desfazer. As outras dez
+  peças mostram **"Em breve"** no lugar do botão até serem convertidas. O card
+  não muda de lugar ao instalar ou desinstalar; só o botão muda, e o painel da
+  peça aparece ou some da barra lateral na hora.
 
 ## [0.22.0] - 2026-08-04
 

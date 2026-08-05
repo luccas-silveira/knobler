@@ -48,6 +48,7 @@ swiftc -O -o build/snapshot \
   Knobler/AppSettings.swift \
   Knobler/Permissions.swift \
   Knobler/SettingsView.swift \
+  Knobler/PluginsSettingsPane.swift \
   Knobler/IdentitySettingsView.swift \
   Knobler/Reminders.swift \
   Knobler/RemindersView.swift \
