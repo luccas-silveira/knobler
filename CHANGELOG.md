@@ -6,6 +6,159 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- **Lembretes vira peça de verdade**: o `ReminderScheduler` agora nasce só com
+  a peça instalada, no mesmo padrão do Pomodoro (`montarLembretes` em
+  `Plugin.swift`). Desinstalar mata o timer de 15s e desliga o observer de
+  wake (`NSWorkspace.didWakeNotification`) — sem isso o observer vazaria.
+  Caso novo no `plugincheck`.
+- **Descanso vira peça de verdade**: o agendamento (`ScreenBreak`) nasce só
+  com a peça instalada (`montarDescanso` em `Plugin.swift`), no mesmo padrão
+  dos Lembretes — desinstalar desliga o wake e encerra um bloqueio de tela em
+  curso, se houver. O efeito `pausaComecou` do Pomodoro (trava a tela na
+  pausa) agora fala com o serviço (`plugins.servico(.descanso)`) em vez de
+  uma referência fixa do `AppDelegate`, e o veto de quit em
+  `applicationShouldTerminate` degrada calado sem a peça instalada. Caso novo
+  no `plugincheck`.
+- **Mensagens vira peça de verdade**: `LANMessaging` + `MessageStore` nascem
+  juntos com um `MensagensServico` (`montarMensagens` em `Plugin.swift`) só
+  quando a peça está instalada. Desinstalar grava o histórico, desliga o
+  Bonjour e o observer de nome/foto mudado nos Ajustes (mesmo mecanismo do
+  wake nas duas peças anteriores). As views que exigem
+  `.environmentObject(lanMessaging)`/`(messageStore)` (card e Ajustes) recebem
+  instâncias ociosas quando a peça não está viva — a seção do card e o painel
+  já somem sem ela, então nada de fato usa esses objetos ociosos. Caso novo no
+  `plugincheck`.
+- **Notificações externas (webhooks) vira peça de verdade**: o `WebhookClient`
+  nasce só com a peça instalada (`montarWebhooks` em `Plugin.swift`). O
+  ajuste opt-in `webhookNotifications` continua mandando no `start()/stop()`
+  do socket **dentro** da peça viva (instalada e desligada por ajuste é
+  estado normal, distinto de desinstalada); desinstalar fecha o socket
+  (`shutdown()`) e desliga o observer do ajuste. `SettingsView(webhookClient:)`
+  recebe uma instância ociosa quando a peça não está viva (mesmo truque do
+  `lanMessagingOcioso`) — o painel `webhooks` já some da barra lateral sem a
+  peça. Caso novo no `plugincheck`.
+- **Ditado vira peça de verdade**: o `DictationController` nasce só com a
+  peça instalada (`montarDitado` em `Plugin.swift`) — a primeira peça com
+  **gancho global**: o tap da ⌥ direita continua do `VolumeHUDController`
+  (feature de fábrica, não plugin→plugin), e o `AppDelegate` repassa pra
+  `plugins.servico(.ditado)`, que degrada calado (`?.`) sem a peça. Diferente
+  das peças anteriores, `DitadoEfeitos` é UM closure emprestado
+  (`nascer: () -> PluginServico?`) em vez de efeitos tipados: o
+  `DictationController` importa FluidAudio (pacote SPM), que o
+  `tools/plugincheck.swift` (compile `swiftc` avulso, sem resolução de SPM)
+  não consegue arrastar — referenciar o tipo direto em `Plugin.swift`
+  quebraria o gate. `parar()` cancela gravação/transcrição em curso. Caso
+  novo no `plugincheck` (com um `PluginServico` dublê, já que o real não
+  entra no compile do harness).
+- **Desenho vira peça de verdade**: a primeira peça `.shared`.
+  `AnnotationController.shared` continua singleton (as views seguem lendo
+  `.shared` direto) — converter é `montarAnotacao` (`Plugin.swift`) chamando
+  `AnnotationController.shared.start()` e devolvendo o próprio singleton
+  como `PluginServico`. Novo `AnnotationController.stop()` é o `parar()` de
+  verdade: encerra o `end()` em curso, invalida o timer de saúde do
+  `CGEventTap`, remove o observer de `didChangeScreenParametersNotification`,
+  desmonta o tap e fecha/solta todo painel e estado por tela que
+  `refreshScreens()` mantinha — sem isso a peça desinstalada continuaria
+  desenhando por cima da tela. No mesmo desenho do Ditado, `AnotacaoEfeitos`
+  é UM closure emprestado (`AnnotationController` é AppKit puro, que
+  `Plugin.swift` não pode referenciar — constraint 1). Caso novo no
+  `plugincheck` (com um `PluginServico` dublê).
+- **Espelho vira peça de verdade**: a primeira **sem painel de Ajustes**.
+  `MirrorController.shared` continua singleton; `montarEspelho`
+  (`Plugin.swift`) repassa pro closure emprestado `EspelhoEfeitos.nascer`,
+  no mesmo desenho do Ditado/Desenho (`MirrorController` importa AVFoundation
+  e SwiftUI, que `Plugin.swift` não pode referenciar). O `AppDelegate`
+  empresta um `MirrorServico` cujo `parar()` desliga o espelho em todos os
+  notches abertos (soltando a câmera via `dismantleNSView`) e desarma o
+  auto-open por calendário (`mirrorBeforeMeetings`) — peça desinstalada não
+  liga a câmera sozinha antes da próxima reunião. O guard
+  `PluginHost.shared.estaInstalado(.espelho)` da rota `POST /mirror`
+  (`NotchAPIServer.swift`) e do auto-open por calendário seguem de pé. Como é
+  a primeira peça sem painel, resolve também o ABRIR genérico: um `switch
+  peca.id` em `PluginsSettingsPane.abrir(_:)` (decisão do plano desta etapa)
+  que, pro Espelho, acende a câmera no notch da tela principal
+  (`AppDelegate.viewModelPrincipal()`) com a mesma
+  `MirrorController.activate(on:expand:)` da rota. Self-check headless
+  (`MirrorController._releaseSelfCheck()`, `--selfcheck`) prova a metade
+  "solta a câmera" sem depender de permissão de câmera real. Caso novo no
+  `plugincheck` (com um `PluginServico` dublê).
+- **Nota rápida vira peça de verdade**: a segunda **sem painel de Ajustes**.
+  `QuickNote.shared` continua singleton e já nasce dormente (sem `start()`);
+  `montarNotaRapida` (`Plugin.swift`) repassa pro closure emprestado
+  `NotaRapidaEfeitos.nascer`, no mesmo desenho do Espelho (`QuickNote`
+  importa AppKit, que `Plugin.swift` não pode referenciar). O próprio
+  `QuickNote` conforma `PluginServico` (`parar()` reusa o `didSet` de
+  `active`, que já limpa texto/foco/dono e despeja no clipboard antes de
+  sumir). Sem a peça instalada, o item "✎ Nota rápida" some do menu da
+  barra e `toggleQuickNote()` vira no-op — nada pra ligar. O ABRIR da
+  vitrine extrai a lógica em `toggleQuickNote(on:)`, reaproveitada pelo
+  item de menu (tela sob o mouse) e pelo `switch peca.id` de
+  `PluginsSettingsPane.abrir(_:)` (tela principal, mesmo precedente do
+  Espelho — o mouse na vitrine está sobre a janela de Ajustes, não sobre
+  um notch). Self-check headless (`QuickNote._pararSelfCheck()`,
+  `--selfcheck`) prova ligar→desligar numa instância própria com
+  `NSPasteboard` nomeado, sem tocar o clipboard real da máquina. Caso novo
+  no `plugincheck` (com um `PluginServico` dublê).
+- **Preview de Link vira peça de verdade**: a terceira **sem painel de
+  Ajustes**. `LinkPreview.shared` continua singleton, praticamente sem estado
+  e já nasce dormente (nenhum link aberto); `montarPreviewLink`
+  (`Plugin.swift`) repassa pro closure emprestado `PreviewLinkEfeitos.nascer`,
+  no mesmo desenho da Nota rápida (`LinkPreview` importa AppKit/WebKit, que
+  `Plugin.swift` não pode referenciar). O próprio `LinkPreview` conforma
+  `PluginServico` (`parar()` chama `fechar()`). O valor real da conversão
+  mora nos pontos de uso: sem a peça instalada, soltar um link na prateleira
+  não abre mais o preview (`Shelf.swift`, guard silencioso — regra 5, a ação
+  some calada) e o item "Abrir no notch" do menu de contexto do link some
+  ("Abrir no navegador" continua). O ABRIR da vitrine leva pra prateleira
+  (`vm.focar(.shelf)`) em vez de abrir uma seção "link" vazia — sem URL não
+  há o que espiar. Self-check headless (`LinkPreview._fecharSelfCheck()`,
+  `--selfcheck`) prova o reset de estado do `parar()` sem tocar a `WKWebView`
+  real (que carregaria rede/janela de verdade); o caminho `abrir()`→`webView`
+  fica fora do self-check, documentado no comentário do método. Caso novo no
+  `plugincheck` (com um `PluginServico` dublê).
+- **Conversão de arquivo vira peça de verdade** — a décima e última: nenhum
+  card da vitrine diz mais "Em breve". `FileConverter` (`targets`, `convert`,
+  `uniqueURL`) é um utilitário estático e Foundation puro, sem instância nem
+  singleton; `ConversaoServico` (`Plugin.swift`) existe só pra peça ter uma
+  referência viva enquanto instalada — não há timer, observer nem socket pra
+  `parar()` desligar. O valor real mora no único ponto que oferece a
+  conversão: o menu "Converter" da prateleira (`Shelf.swift`), que some
+  calado sem a peça instalada (regra 5) — `ShelfDrop`/`ShelfPreview` só
+  chamam `FileConverter` como consequência desse menu, não são pontos de
+  entrada próprios. O ABRIR da vitrine leva pra prateleira
+  (`vm.focar(.shelf)`), mesma decisão do Preview de Link: sem arquivo não há
+  o que converter. Caso novo no `plugincheck`, desta vez sem dublê — o gate
+  chama `FileConverter.targets(for:)` de verdade sobre um PNG num diretório
+  temporário pra provar o gating, não só o contrato genérico do `PluginHost`.
+
+### Fixed
+- **Lembretes e Descanso paravam de disparar depois que o Mac dormia**: o
+  observer de wake era registrado ANTES do `start()`, e `start()` começa
+  chamando `stop()`, que desliga o wake — o observer morria no nascimento e o
+  `parar()` não tinha mais o que desregistrar. O gate correspondente era vazio
+  (afirmava o desligamento que o próprio `start()` já tinha causado) e agora
+  também exige que o wake esteja de pé com a peça viva.
+- **A seção Mensagens do card ficava vazia pra sempre**: as janelas do notch
+  nasciam antes de `plugins.subir()`, então o `.environmentObject` capturava as
+  instâncias ociosas de `LANMessaging`/`MessageStore` enquanto o Bonjour de
+  verdade subia depois. `placeWindows()` passou pra depois do nascimento das
+  peças.
+- **Instalar Mensagens ou Notificações externas pela vitrine só funcionava de
+  verdade após relançar**: a janela de Ajustes é cacheada e a raiz tinha
+  capturado os objetos ociosos. A raiz agora é refeita quando o par de peças
+  que ela injeta muda.
+- Desinstalar a **Nota rápida** não despeja mais o texto no clipboard geral nem
+  apaga o rascunho — o despejo continua no caminho iniciado pelo usuário.
+- Desinstalar o **Preview de Link** sem nenhum link aberto não instancia mais
+  um `WKWebView` (e seu processo de conteúdo) só pra desmontar nada.
+- `--selfcheck` do Desenho usa uma instância própria em vez do `.shared`: rodar
+  o self-check num processo vivo instalava e derrubava um tap e painéis reais.
+- O ABRIR da **Nota rápida** na vitrine caía no vazio quando a `NSScreen.main`
+  não tinha janela de notch; agora usa o mesmo fallback das outras peças.
+- `tools/check.sh` roda o `Knobler --selfcheck` quando existe build Debug no
+  DerivedData (antes, cinco provas de teardown nunca rodavam automaticamente).
+
 ## [0.23.0] - 2026-08-04
 
 ### Added

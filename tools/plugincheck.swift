@@ -6,7 +6,12 @@
 //
 //  Rodar:
 //  xcrun swiftc -parse-as-library -swift-version 5 \
-//    Knobler/Plugin.swift Knobler/Pomodoro.swift Knobler/NotchSectionOrder.swift \
+//    Knobler/Plugin.swift Knobler/Pomodoro.swift Knobler/Reminders.swift \
+//    Knobler/Descanso.swift Knobler/NotchSectionOrder.swift Knobler/Peer.swift \
+//    Knobler/Wire.swift Knobler/LANMessaging.swift Knobler/MessageStore.swift \
+//    Knobler/Permissions.swift Knobler/WebhookClient.swift Knobler/WebhookKeychainStore.swift \
+//    Knobler/NotchNotification.swift Knobler/FileConverter.swift Knobler/ImageConverter.swift \
+//    Knobler/DocumentConverter.swift Knobler/VideoConverter.swift \
 //    tools/plugincheck.swift -o /tmp/plugincheck && /tmp/plugincheck
 //
 
@@ -27,6 +32,16 @@ struct PluginCheck {
         testSemDescansoNaoTravaATela()
         testEstadoDoCardNaVitrine()
         testCardMudoNasNaoConvertidas()
+        testLembretesNascemEParam()
+        testDescansoNasceEPara()
+        testMensagensNascemEParam()
+        testWebhooksNascemEParam()
+        testDitadoNasceEPara()
+        testAnotacaoNasceEPara()
+        testEspelhoNasceEPara()
+        testNotaRapidaNasceEPara()
+        testPreviewLinkNasceEPara()
+        testConversaoNasceEParaEGateiaTargets()
         print("✅ plugincheck ok")
     }
 
@@ -280,9 +295,445 @@ struct PluginCheck {
                    "\(peca.nome) ofereceu desinstalar sem nunca ter nascido")
         }
 
-        // O piloto é a única peça pronta nesta fase — se um dia deixar de ser
-        // verdade, é este assert que avisa que a vitrine tem card novo pra abrir.
-        assert(PluginRegistry.todos.filter(\.pronta).map(\.id) == [.pomodoro],
+        // Conversão de arquivo (tarefa 10) fecha as dez conversões: as 11
+        // peças estão prontas agora, e nenhuma mostra mais "Em breve" — se um
+        // dia deixar de ser verdade, é este assert que avisa.
+        assert(PluginRegistry.todos.filter(\.pronta).map(\.id) ==
+               [.pomodoro, .lembretes, .descanso, .mensagens, .webhooks, .ditado, .espelho, .anotacao,
+                .notaRapida, .previewLink, .conversao],
                "mudou quem está convertido: \(PluginRegistry.todos.filter(\.pronta).map(\.id))")
+    }
+
+    // MARK: - Tarefa 1: Lembretes
+
+    /// A segunda conversão: pronta, nasce só quando instalada, e desligar a
+    /// peça desliga o wake que a montagem registrou — observer vazado é o bug
+    /// que sobrevive à desinstalação.
+    static func testLembretesNascemEParam() {
+        assert(PluginRegistry.ficha(.lembretes)?.pronta == true, "Lembretes não está pronta")
+
+        let d = defaultsLimpo("plugincheck.lembretes")
+        PluginsInstalados.gravar([.lembretes], d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+
+        var desligou = false
+        let host = PluginHost(defaults: d)
+        host.lembretesEfeitos.registrarWake = { _ in { desligou = true } }
+        host.subir()
+
+        assert(host.estaVivo(.lembretes), "a peça não nasceu instalada")
+        assert(host.servico(.lembretes, as: ReminderScheduler.self) != nil, "não achou o serviço")
+        // Com a peça viva o observer está DE PÉ. Sem esta linha o caso é vazio:
+        // o `stop()` interno do `start()` já derrubava o wake registrado antes
+        // dele, e o `desligou` abaixo passava sem que o `parar()` fizesse nada.
+        assert(!desligou, "o wake caiu no nascimento — registrado antes do start()")
+
+        host.desinstalar(.lembretes)
+        assert(!host.estaVivo(.lembretes), "o serviço sobreviveu à desinstalação")
+        assert(desligou, "o wake não foi desligado — observer vazado")
+
+        // sem a peça na lista de instalados, o serviço não nasce.
+        let d2 = defaultsLimpo("plugincheck.semlembretes")
+        PluginsInstalados.gravar([.pomodoro], d2)
+        d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        let host2 = PluginHost(defaults: d2)
+        host2.subir()
+        assert(!host2.estaVivo(.lembretes), "nasceu sem estar instalada")
+        assert(host2.servico(.lembretes, as: ReminderScheduler.self) == nil, "achou serviço do nada")
+    }
+
+    // MARK: - Tarefa 2: Descanso
+
+    /// A terceira conversão: pronta, nasce só quando instalada, o wake desliga
+    /// na desinstalação (mesmo mecanismo dos Lembretes) e `parar()` chama o
+    /// efeito de encerrar o overlay em curso — é o que evita um bloqueio de
+    /// tela órfão sobrevivendo à desinstalação da peça.
+    static func testDescansoNasceEPara() {
+        assert(PluginRegistry.ficha(.descanso)?.pronta == true, "Descanso não está pronta")
+
+        let d = defaultsLimpo("plugincheck.descanso")
+        PluginsInstalados.gravar([.descanso], d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+
+        var desligou = false
+        var overlayParado = false
+        let host = PluginHost(defaults: d)
+        host.descansoEfeitos.registrarWake = { _ in { desligou = true } }
+        host.descansoEfeitos.pararBloqueioSeAtivo = { overlayParado = true }
+        host.subir()
+
+        assert(host.estaVivo(.descanso), "a peça não nasceu instalada")
+        assert(host.servico(.descanso, as: DescansoServico.self) != nil, "não achou o serviço")
+        // Mesmo motivo do caso dos Lembretes: com a peça viva o wake está de pé.
+        assert(!desligou, "o wake caiu no nascimento — registrado antes do start()")
+
+        host.desinstalar(.descanso)
+        assert(!host.estaVivo(.descanso), "o serviço sobreviveu à desinstalação")
+        assert(desligou, "o wake não foi desligado — observer vazado")
+        assert(overlayParado, "parar() não pediu pro overlay encerrar")
+
+        // sem a peça na lista de instalados, o serviço não nasce.
+        let d2 = defaultsLimpo("plugincheck.semdescanso")
+        PluginsInstalados.gravar([.pomodoro], d2)
+        d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        let host2 = PluginHost(defaults: d2)
+        host2.subir()
+        assert(!host2.estaVivo(.descanso), "nasceu sem estar instalada")
+        assert(host2.servico(.descanso, as: DescansoServico.self) == nil, "achou serviço do nada")
+    }
+
+    // MARK: - Tarefa 3: Mensagens
+
+    /// A quarta conversão: pronta, nasce só quando instalada, e `parar()`
+    /// desliga o observer de mudança de nome (mesmo mecanismo do wake nas
+    /// duas peças anteriores) — observer vazado é o bug que sobrevive à
+    /// desinstalação.
+    static func testMensagensNascemEParam() {
+        assert(PluginRegistry.ficha(.mensagens)?.pronta == true, "Mensagens não está pronta")
+
+        let d = defaultsLimpo("plugincheck.mensagens")
+        PluginsInstalados.gravar([.mensagens], d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+
+        var desligou = false
+        let host = PluginHost(defaults: d)
+        host.mensagensEfeitos.registrarMudancaNome = { _ in { desligou = true } }
+        host.subir()
+
+        assert(host.estaVivo(.mensagens), "a peça não nasceu instalada")
+        assert(host.servico(.mensagens, as: MensagensServico.self) != nil, "não achou o serviço")
+
+        host.desinstalar(.mensagens)
+        assert(!host.estaVivo(.mensagens), "o serviço sobreviveu à desinstalação")
+        assert(desligou, "o observer de nome não foi desligado — vazou")
+
+        // sem a peça na lista de instalados, o serviço não nasce.
+        let d2 = defaultsLimpo("plugincheck.semmensagens")
+        PluginsInstalados.gravar([.pomodoro], d2)
+        d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        let host2 = PluginHost(defaults: d2)
+        host2.subir()
+        assert(!host2.estaVivo(.mensagens), "nasceu sem estar instalada")
+        assert(host2.servico(.mensagens, as: MensagensServico.self) == nil, "achou serviço do nada")
+    }
+
+    // MARK: - Tarefa 4: Notificações externas (webhooks)
+
+    /// A quinta conversão: pronta, nasce só quando instalada, o ajuste
+    /// (opt-in) manda no `start()/stop()` dentro da peça viva, e `parar()`
+    /// desliga o observer do ajuste — observer vazado é o bug que sobrevive
+    /// à desinstalação, mesmo mecanismo das três peças anteriores.
+    static func testWebhooksNascemEParam() {
+        assert(PluginRegistry.ficha(.webhooks)?.pronta == true, "Notificações externas não está pronta")
+
+        let d = defaultsLimpo("plugincheck.webhooks")
+        PluginsInstalados.gravar([.webhooks], d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+
+        var desligou = false
+        let host = PluginHost(defaults: d)
+        host.webhooksEfeitos.registrarMudancaAjuste = { _ in { desligou = true } }
+        host.subir()
+
+        assert(host.estaVivo(.webhooks), "a peça não nasceu instalada")
+        assert(host.servico(.webhooks, as: WebhookClient.self) != nil, "não achou o serviço")
+
+        host.desinstalar(.webhooks)
+        assert(!host.estaVivo(.webhooks), "o serviço sobreviveu à desinstalação")
+        assert(desligou, "o observer do ajuste não foi desligado — vazou")
+
+        // sem a peça na lista de instalados, o serviço não nasce.
+        let d2 = defaultsLimpo("plugincheck.semwebhooks")
+        PluginsInstalados.gravar([.pomodoro], d2)
+        d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        let host2 = PluginHost(defaults: d2)
+        host2.subir()
+        assert(!host2.estaVivo(.webhooks), "nasceu sem estar instalada")
+        assert(host2.servico(.webhooks, as: WebhookClient.self) == nil, "achou serviço do nada")
+    }
+
+    // MARK: - Tarefa 5: Ditado
+
+    /// Dublê do `DictationController` pro harness — o real importa FluidAudio,
+    /// que este `swiftc` avulso não resolve (por isso `DitadoEfeitos.nascer` é
+    /// UM closure emprestado, não efeitos tipados: ver `Plugin.swift`).
+    final class DitadoServicoFake: PluginServico {
+        var parou = false
+        func parar() { parou = true }
+    }
+
+    /// A sexta conversão e a primeira com **gancho global**: `montarDitado`
+    /// só repassa pro closure emprestado (`deps.ditado.nascer`) — o que dá pra
+    /// testar aqui, sem o `DictationController` real, é que a peça pronta
+    /// nasce chamando esse closure quando instalada, `parar()` chega até ele
+    /// na desinstalação, e sem a peça instalada o closure nem é chamado.
+    static func testDitadoNasceEPara() {
+        assert(PluginRegistry.ficha(.ditado)?.pronta == true, "Ditado não está pronta")
+
+        let d = defaultsLimpo("plugincheck.ditado")
+        PluginsInstalados.gravar([.ditado], d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+
+        let fake = DitadoServicoFake()
+        let host = PluginHost(defaults: d)
+        host.ditadoEfeitos.nascer = { fake }
+        host.subir()
+
+        assert(host.estaVivo(.ditado), "a peça não nasceu instalada")
+        assert(host.servico(.ditado, as: DitadoServicoFake.self) === fake, "não achou o serviço")
+
+        host.desinstalar(.ditado)
+        assert(!host.estaVivo(.ditado), "o serviço sobreviveu à desinstalação")
+        assert(fake.parou, "parar() não chegou ao closure emprestado")
+
+        // sem a peça na lista de instalados, o closure de nascer nem é chamado.
+        var chamou = false
+        let d2 = defaultsLimpo("plugincheck.semditado")
+        PluginsInstalados.gravar([.pomodoro], d2)
+        d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        let host2 = PluginHost(defaults: d2)
+        host2.ditadoEfeitos.nascer = { chamou = true; return DitadoServicoFake() }
+        host2.subir()
+        assert(!host2.estaVivo(.ditado), "nasceu sem estar instalada")
+        assert(!chamou, "o closure de nascer foi chamado sem a peça instalada")
+    }
+
+    // MARK: - Tarefa 6: Desenho
+
+    /// Dublê do `AnnotationController` pro harness — o real é AppKit puro e é
+    /// `.shared` (singleton), por isso `AnotacaoEfeitos.nascer` também é UM
+    /// closure emprestado, no mesmo desenho do Ditado: ver `Plugin.swift`.
+    final class AnotacaoServicoFake: PluginServico {
+        var parou = false
+        func parar() { parou = true }
+    }
+
+    /// A sétima conversão e a primeira peça `.shared`: `montarAnotacao` só
+    /// repassa pro closure emprestado (`deps.anotacao.nascer`) — o que dá pra
+    /// testar aqui, sem o `AnnotationController` real, é que a peça pronta
+    /// nasce chamando esse closure quando instalada, `parar()` chega até ele
+    /// na desinstalação, e sem a peça instalada o closure nem é chamado.
+    static func testAnotacaoNasceEPara() {
+        assert(PluginRegistry.ficha(.anotacao)?.pronta == true, "Desenho não está pronta")
+
+        let d = defaultsLimpo("plugincheck.anotacao")
+        PluginsInstalados.gravar([.anotacao], d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+
+        let fake = AnotacaoServicoFake()
+        let host = PluginHost(defaults: d)
+        host.anotacaoEfeitos.nascer = { fake }
+        host.subir()
+
+        assert(host.estaVivo(.anotacao), "a peça não nasceu instalada")
+        assert(host.servico(.anotacao, as: AnotacaoServicoFake.self) === fake, "não achou o serviço")
+
+        host.desinstalar(.anotacao)
+        assert(!host.estaVivo(.anotacao), "o serviço sobreviveu à desinstalação")
+        assert(fake.parou, "parar() não chegou ao closure emprestado")
+
+        // sem a peça na lista de instalados, o closure de nascer nem é chamado.
+        var chamou = false
+        let d2 = defaultsLimpo("plugincheck.semanotacao")
+        PluginsInstalados.gravar([.pomodoro], d2)
+        d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        let host2 = PluginHost(defaults: d2)
+        host2.anotacaoEfeitos.nascer = { chamou = true; return AnotacaoServicoFake() }
+        host2.subir()
+        assert(!host2.estaVivo(.anotacao), "nasceu sem estar instalada")
+        assert(!chamou, "o closure de nascer foi chamado sem a peça instalada")
+    }
+
+    // MARK: - Tarefa 7: Espelho
+
+    /// Dublê do `MirrorServico` pro harness — o real importa AVFoundation e
+    /// SwiftUI, no mesmo desenho do Ditado/Desenho: ver `Plugin.swift`.
+    final class EspelhoServicoFake: PluginServico {
+        var parou = false
+        func parar() { parou = true }
+    }
+
+    /// A oitava conversão e a primeira **sem painel**: `montarEspelho` só
+    /// repassa pro closure emprestado (`deps.espelho.nascer`) — o que dá pra
+    /// testar aqui, sem o `MirrorController` real, é que a peça pronta nasce
+    /// chamando esse closure quando instalada, `parar()` chega até ele na
+    /// desinstalação, e sem a peça instalada o closure nem é chamado.
+    static func testEspelhoNasceEPara() {
+        assert(PluginRegistry.ficha(.espelho)?.pronta == true, "Espelho não está pronta")
+        assert(PluginRegistry.ficha(.espelho)?.painel == nil, "Espelho ganhou painel — não é mais o caso sem painel")
+
+        let d = defaultsLimpo("plugincheck.espelho")
+        PluginsInstalados.gravar([.espelho], d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+
+        let fake = EspelhoServicoFake()
+        let host = PluginHost(defaults: d)
+        host.espelhoEfeitos.nascer = { fake }
+        host.subir()
+
+        assert(host.estaVivo(.espelho), "a peça não nasceu instalada")
+        assert(host.servico(.espelho, as: EspelhoServicoFake.self) === fake, "não achou o serviço")
+
+        host.desinstalar(.espelho)
+        assert(!host.estaVivo(.espelho), "o serviço sobreviveu à desinstalação")
+        assert(fake.parou, "parar() não chegou ao closure emprestado")
+
+        // sem a peça na lista de instalados, o closure de nascer nem é chamado.
+        var chamou = false
+        let d2 = defaultsLimpo("plugincheck.semespelho")
+        PluginsInstalados.gravar([.pomodoro], d2)
+        d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        let host2 = PluginHost(defaults: d2)
+        host2.espelhoEfeitos.nascer = { chamou = true; return EspelhoServicoFake() }
+        host2.subir()
+        assert(!host2.estaVivo(.espelho), "nasceu sem estar instalada")
+        assert(!chamou, "o closure de nascer foi chamado sem a peça instalada")
+    }
+
+    // MARK: - Tarefa 8: Nota rápida
+
+    /// Dublê do `QuickNote` pro harness — o real importa AppKit, no mesmo
+    /// desenho do Ditado/Desenho/Espelho: ver `Plugin.swift`.
+    final class NotaRapidaServicoFake: PluginServico {
+        var parou = false
+        func parar() { parou = true }
+    }
+
+    /// A nona conversão (tarefa 8) e a segunda sem painel: `montarNotaRapida`
+    /// só repassa pro closure emprestado (`deps.notaRapida.nascer`) — o que
+    /// dá pra testar aqui, sem o `QuickNote` real, é que a peça pronta nasce
+    /// chamando esse closure quando instalada, `parar()` chega até ele na
+    /// desinstalação, e sem a peça instalada o closure nem é chamado.
+    static func testNotaRapidaNasceEPara() {
+        assert(PluginRegistry.ficha(.notaRapida)?.pronta == true, "Nota rápida não está pronta")
+        assert(PluginRegistry.ficha(.notaRapida)?.painel == nil,
+               "Nota rápida ganhou painel — não é mais o caso sem painel")
+
+        let d = defaultsLimpo("plugincheck.notarapida")
+        PluginsInstalados.gravar([.notaRapida], d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+
+        let fake = NotaRapidaServicoFake()
+        let host = PluginHost(defaults: d)
+        host.notaRapidaEfeitos.nascer = { fake }
+        host.subir()
+
+        assert(host.estaVivo(.notaRapida), "a peça não nasceu instalada")
+        assert(host.servico(.notaRapida, as: NotaRapidaServicoFake.self) === fake, "não achou o serviço")
+
+        host.desinstalar(.notaRapida)
+        assert(!host.estaVivo(.notaRapida), "o serviço sobreviveu à desinstalação")
+        assert(fake.parou, "parar() não chegou ao closure emprestado")
+
+        // sem a peça na lista de instalados, o closure de nascer nem é chamado.
+        var chamou = false
+        let d2 = defaultsLimpo("plugincheck.semnotarapida")
+        PluginsInstalados.gravar([.pomodoro], d2)
+        d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        let host2 = PluginHost(defaults: d2)
+        host2.notaRapidaEfeitos.nascer = { chamou = true; return NotaRapidaServicoFake() }
+        host2.subir()
+        assert(!host2.estaVivo(.notaRapida), "nasceu sem estar instalada")
+        assert(!chamou, "o closure de nascer foi chamado sem a peça instalada")
+    }
+
+    // MARK: - Tarefa 9: Preview de Link
+
+    /// Dublê do `LinkPreview` pro harness — o real importa AppKit/WebKit,
+    /// mesmo desenho do Ditado/Desenho/Espelho/Nota rápida: ver `Plugin.swift`.
+    final class PreviewLinkServicoFake: PluginServico {
+        var parou = false
+        func parar() { parou = true }
+    }
+
+    /// A décima conversão (tarefa 9) e a terceira sem painel: `montarPreviewLink`
+    /// só repassa pro closure emprestado (`deps.previewLink.nascer`) — mesmo
+    /// contrato genérico provado pras peças anteriores. O self-check real do
+    /// `parar()` (que fecha o preview aberto) mora em `LinkPreview.swift`
+    /// (`_fecharSelfCheck`), ligado ao `--selfcheck` do app.
+    static func testPreviewLinkNasceEPara() {
+        assert(PluginRegistry.ficha(.previewLink)?.pronta == true, "Preview de Link não está pronta")
+        assert(PluginRegistry.ficha(.previewLink)?.painel == nil,
+               "Preview de Link ganhou painel — não é mais o caso sem painel")
+
+        let d = defaultsLimpo("plugincheck.previewlink")
+        PluginsInstalados.gravar([.previewLink], d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+
+        let fake = PreviewLinkServicoFake()
+        let host = PluginHost(defaults: d)
+        host.previewLinkEfeitos.nascer = { fake }
+        host.subir()
+
+        assert(host.estaVivo(.previewLink), "a peça não nasceu instalada")
+        assert(host.servico(.previewLink, as: PreviewLinkServicoFake.self) === fake, "não achou o serviço")
+
+        host.desinstalar(.previewLink)
+        assert(!host.estaVivo(.previewLink), "o serviço sobreviveu à desinstalação")
+        assert(fake.parou, "parar() não chegou ao closure emprestado")
+
+        // sem a peça na lista de instalados, o closure de nascer nem é chamado.
+        var chamou = false
+        let d2 = defaultsLimpo("plugincheck.sempreviewlink")
+        PluginsInstalados.gravar([.pomodoro], d2)
+        d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        let host2 = PluginHost(defaults: d2)
+        host2.previewLinkEfeitos.nascer = { chamou = true; return PreviewLinkServicoFake() }
+        host2.subir()
+        assert(!host2.estaVivo(.previewLink), "nasceu sem estar instalada")
+        assert(!chamou, "o closure de nascer foi chamado sem a peça instalada")
+    }
+
+    // MARK: - Tarefa 10: Conversão de arquivo
+
+    /// A décima primeira e última conversão. Diferente das quatro anteriores,
+    /// `FileConverter` é Foundation puro (nenhum dublê necessário) e o guard
+    /// que importa não é no `nascer` — é no ponto de uso (`Shelf.swift`, "o
+    /// menu Converter some sem a peça"). O gate imita literalmente esse guard
+    /// (`estaInstalado(.conversao) ? FileConverter.targets(for:) : []`) e
+    /// prova com um arquivo `.png` real que `targets(for:)` de fato devolve
+    /// alvos com a peça instalada e uma lista vazia sem ela — não um dublê que
+    /// só prova o contrato genérico do `PluginHost`.
+    static func testConversaoNasceEParaEGateiaTargets() {
+        assert(PluginRegistry.ficha(.conversao)?.pronta == true, "Conversão de arquivo não está pronta")
+        assert(PluginRegistry.ficha(.conversao)?.painel == nil,
+               "Conversão de arquivo ganhou painel — não é mais o caso sem painel")
+
+        let d = defaultsLimpo("plugincheck.conversao")
+        PluginsInstalados.gravar([.conversao], d)
+        d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        let host = PluginHost(defaults: d)
+        host.subir()
+
+        assert(host.estaVivo(.conversao), "a peça não nasceu instalada")
+        assert(host.servico(.conversao, as: ConversaoServico.self) != nil, "não achou o serviço")
+
+        // um PNG de verdade num diretório temporário — targets(for:) lê a
+        // extensão do disco, então precisa existir.
+        let png = FileManager.default.temporaryDirectory
+            .appendingPathComponent("plugincheck-conversao-\(UUID().uuidString).png")
+        FileManager.default.createFile(atPath: png.path, contents: Data())
+        defer { try? FileManager.default.removeItem(at: png) }
+
+        func targetsGated(_ host: PluginHost) -> [ConversionTarget] {
+            host.estaInstalado(.conversao) ? FileConverter.targets(for: png) : []
+        }
+
+        assert(!targetsGated(host).isEmpty, "com a peça instalada, o PNG devia oferecer conversão")
+
+        host.desinstalar(.conversao)
+        assert(!host.estaVivo(.conversao), "o serviço sobreviveu à desinstalação")
+        assert(targetsGated(host).isEmpty,
+               "desinstalada, o gate calado devia esvaziar o menu Converter — vazou: \(targetsGated(host))")
+
+        // sem a peça na lista de instalados desde o início, `subir()` nem a
+        // visita.
+        let d2 = defaultsLimpo("plugincheck.semconversao")
+        PluginsInstalados.gravar([.pomodoro], d2)
+        d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        let host2 = PluginHost(defaults: d2)
+        host2.subir()
+        assert(!host2.estaVivo(.conversao), "nasceu sem estar instalada")
+        assert(targetsGated(host2).isEmpty, "gate vazou sem a peça nunca ter sido instalada")
     }
 }

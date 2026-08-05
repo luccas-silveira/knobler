@@ -2,10 +2,11 @@
 //  tools/quicknotecheck.swift — self-check da nota rápida.
 //  NÃO faz parte do alvo do app.
 //
-//  Rodar:
-//  xcrun swiftc -parse-as-library -swift-version 5 \
-//    Knobler/QuickNote.swift tools/quicknotecheck.swift \
-//    -o /tmp/quicknotecheck && /tmp/quicknotecheck
+//  Rodar: a linha de compilação canônica está em `tools/check.sh`
+//  (entrada `quicknotecheck`) — ganhou o bloco de arquivos do `plugincheck`
+//  na tarefa 8 (nota vira peça): `extension QuickNote: PluginServico`
+//  (`QuickNote.swift`) precisa do protocolo de `Plugin.swift`, que arrasta
+//  os tipos que as outras fichas referenciam.
 //
 
 import AppKit
@@ -18,6 +19,7 @@ struct QuickNoteCheck {
         testSoBrancoNaoMexeNoClipboard()
         testDono()
         testDigitandoSoNaTelaDona()
+        assert(QuickNote._pararSelfCheck(), "PluginServico.parar() não zera a nota")
         print("✅ quicknotecheck ok")
     }
 

@@ -112,6 +112,30 @@ final class MirrorController: ObservableObject {
         }
     }
 
+    /// Self-check headless do `release()`. NÃO chama `acquire()`: ele sempre
+    /// despacha `AVCaptureDeviceInput`/`addInput`/`startRunning` num Mac com
+    /// permissão concedida — rodar `--selfcheck` acenderia o LED da câmera de
+    /// verdade, e num Mac com TCC `.notDetermined` dispararia o diálogo de
+    /// permissão. Nenhum dos dois é aceitável num self-check headless.
+    /// Em vez disso, forja o estado pós-acquire (`session`/`useCount`) e
+    /// prova só que `release()` os zera — cobre a metade "solta a câmera" da
+    /// peça (`MirrorServico.parar()` abaixo), mas **não** cobre o refcount de
+    /// `acquire()` em si (ex.: um `useCount = 1` em vez de `+= 1` quebraria o
+    /// refcount de dois monitores mostrando o mesmo preview, e este check não
+    /// pegaria — exercitar isso sem tocar o bloco de hardware exigiria
+    /// refatorar `acquire()` pra separar a aritmética do refcount da
+    /// abertura do dispositivo, fora do escopo desta peça). A outra metade,
+    /// "desfaz a abertura automática", é fechamento emprestado do
+    /// `AppDelegate` (como `registrarWake` nas peças anteriores) e também não
+    /// tem tipo próprio pra self-check isolado.
+    static func _releaseSelfCheck() -> Bool {
+        let c = MirrorController()
+        c.session = AVCaptureSession()
+        c.useCount = 1
+        c.release()
+        return c.session == nil && c.useCount == 0
+    }
+
     /// Diagnóstico pro GET /status.
     var diagnostics: [String: Any] {
         let auth: String
@@ -129,6 +153,26 @@ final class MirrorController: ObservableObject {
             "mirrorUseCount": useCount,
             "mirrorFailed": falhou,
         ]
+    }
+}
+
+/// A oitava conversão (tarefa 7): `MirrorController` é `.shared` (singleton —
+/// as views seguem lendo `.shared` direto, converter em peça não vira
+/// instância), mas ao contrário do Desenho ele não pode conformar
+/// `PluginServico` sozinho — soltar a câmera é só metade do "morrer" da
+/// peça, a outra metade (desarmar o auto-open por calendário,
+/// `mirrorAutoOpened` no `AppDelegate`) não é dele. `MirrorServico` é a
+/// borda pequena que junta as duas, no mesmo desenho do `DescansoServico`
+/// (`Plugin.swift`): o `AppDelegate` empresta o fechamento no `nascer` do
+/// `EspelhoEfeitos`.
+final class MirrorServico: PluginServico {
+    private let desligarTudo: () -> Void
+
+    init(desligarTudo: @escaping () -> Void) { self.desligarTudo = desligarTudo }
+
+    func parar() {
+        desligarTudo()
+        MirrorController.shared.release()
     }
 }
 

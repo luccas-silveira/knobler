@@ -14,6 +14,19 @@ import AppKit
 import CoreGraphics
 import Foundation
 
+/// Conformidade da peça (ficha em `Plugin.swift`, `montarNotaRapida`). Mora
+/// aqui e não lá porque `QuickNote` importa AppKit e `Plugin.swift` é
+/// Foundation puro (constraint 1) — mesmo motivo do `MirrorServico`. Não há
+/// `start()`: a nota já nasce dormente (`active == false`), então "ligar" a
+/// peça não faz nada além de existir; `parar()` só reusa o `didSet` de
+/// `active` — mas pelo caminho da desinstalação, que preserva texto e clipboard.
+extension QuickNote: PluginServico {
+    /// Desinstalar não é o usuário fechando a nota: não atropela o clipboard
+    /// geral (007 — desinstalar não apaga nem mexe em nada do usuário) e não
+    /// joga o rascunho fora. Reinstalar devolve a nota com o texto.
+    func parar() { desativarPelaDesinstalacao() }
+}
+
 final class QuickNote: ObservableObject {
     static let shared = QuickNote()
 
@@ -21,11 +34,18 @@ final class QuickNote: ObservableObject {
     /// pode mexer no clipboard de verdade da máquina.
     var pasteboard: NSPasteboard = .general
 
+    /// Verdadeiro só durante `desativarPelaDesinstalacao()`. Marca que o
+    /// desligamento NÃO partiu do usuário — a rede de segurança do clipboard e
+    /// o descarte do texto são do caminho do usuário, não da desinstalação.
+    private var desinstalando = false
+
     @Published var active = false {
         didSet {
             guard !active else { return }
-            stashToPasteboard()
-            text = ""
+            if !desinstalando {
+                stashToPasteboard()
+                text = ""
+            }
             editing = false
             hostDisplayID = nil
         }
@@ -77,9 +97,54 @@ final class QuickNote: ObservableObject {
     /// ponytail: sobrescreve o que estava copiado, sem restaurar depois. Perder
     /// a nota é pior que perder o clipboard. Se incomodar, o molde de
     /// salvar/restaurar já existe em `Dictation.swift`.
+    /// Tira a nota da tela sem tocar no clipboard nem no texto. É o `parar()`
+    /// da peça (`PluginServico`, acima).
+    func desativarPelaDesinstalacao() {
+        desinstalando = true
+        active = false
+        desinstalando = false
+    }
+
     private func stashToPasteboard() {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
+    }
+
+    /// Prova o `parar()` da peça (`PluginServico`, ver `Plugin.swift`): liga
+    /// a nota numa tela de brinquedo, escreve um texto, desliga, e checa que
+    /// os quatro campos voltam ao repouso — o vazamento que a conversão em
+    /// peça tinha que impedir era a nota continuar aberta na tela depois de
+    /// desinstalar. Usa uma instância própria (não `.shared`) com um
+    /// `NSPasteboard` nomeado, não o `.general` da máquina de verdade: rodar
+    /// `--selfcheck` não pode sobrescrever o clipboard real do usuário — é
+    /// pra isso que o `pasteboard` é um seam.
+    static func _pararSelfCheck() -> Bool {
+        let pb = NSPasteboard(name: NSPasteboard.Name("knobler.selfcheck.quicknote"))
+        pb.clearContents()
+        pb.setString("copiado antes", forType: .string)
+
+        // Desinstalar: sai da tela, mas o texto sobrevive e o clipboard fica
+        // como estava.
+        let peca = QuickNote()
+        peca.pasteboard = pb
+        peca.adotar(1)
+        peca.text = "rascunho"
+        peca.parar()
+        let desinstalarOK = !peca.active && !peca.editing && peca.hostDisplayID == nil
+            && peca.text == "rascunho"
+            && pb.string(forType: .string) == "copiado antes"
+
+        // Caminho do usuário (interruptor/quit): aí sim despeja e limpa.
+        let usuario = QuickNote()
+        usuario.pasteboard = pb
+        usuario.adotar(1)
+        usuario.text = "rascunho"
+        usuario.active = false
+        let usuarioOK = !usuario.active && usuario.text.isEmpty && !usuario.editing
+            && usuario.hostDisplayID == nil
+            && pb.string(forType: .string) == "rascunho"
+
+        return desinstalarOK && usuarioOK
     }
 }

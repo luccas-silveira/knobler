@@ -30,7 +30,12 @@ enum KnoblerMain {
                 && DictationController._clipboardSelfCheck()
                 && DictationController._flashSelfCheck()
                 && DictationController._enginePolicySelfCheck()
-            print(ok ? "selfcheck: dictation OK" : "selfcheck: FALHOU")
+                && DictationController._stopSelfCheck()
+                && AnnotationController._stopSelfCheck()
+                && MirrorController._releaseSelfCheck()
+                && QuickNote._pararSelfCheck()
+                && LinkPreview._fecharSelfCheck()
+            print(ok ? "selfcheck: dictation+annotation+mirror+quicknote+linkpreview OK" : "selfcheck: FALHOU")
             exit(ok ? 0 : 1)
         }
         let app = NSApplication.shared
@@ -60,11 +65,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // Única fonte de estado da feature Ask, compartilhada por todas as telas.
     private var askStore: AskStore?
     private var agentRequestStore: AgentRequestStore?
-    let webhookClient = WebhookClient()
-    let messageStore = MessageStore()
-    let lanMessaging = LANMessaging()
     private var lanCancellables = Set<AnyCancellable>()
-    private let dictation = DictationController()
+    /// ponytail: `@EnvironmentObject` exige o tipo, não aceita opcional — sem a
+    /// peça Mensagens instalada não há `MensagensServico`, então as views que
+    /// recebem `.environmentObject(lanMessaging)`/`(messageStore)` ganham estas
+    /// instâncias ociosas (nunca chamam `.start()`/populam nada sozinhas). A
+    /// seção `mensagens` do card e o painel de Ajustes já somem sem a peça
+    /// (F3), então nenhuma view de Mensagens de fato usa o que é injetado
+    /// aqui. Teto: se uma 3ª peça precisar do mesmo truque, vale extrair um
+    /// wrapper genérico em vez de duplicar o par de instâncias ociosas.
+    private let lanMessagingOcioso = LANMessaging()
+    private let messageStoreOcioso = MessageStore()
+    /// ponytail: `SettingsView(webhookClient:)` exige o tipo, não aceita
+    /// opcional — sem a peça Notificações externas instalada não há
+    /// `WebhookClient` vivo. Mesmo truque do par acima: nunca chama
+    /// `start()`, fica inerte (o painel `webhooks` já some da barra lateral
+    /// sem a peça, F3).
+    private let webhookClientOcioso = WebhookClient()
     private let devAvisos = DevAvisosController()
     /// Botões dos avisos do desenvolvedor: token do card → URLs (só https).
     /// Existe porque o `actionToken` normal resolve num `AXUIElement` vivo do
@@ -82,11 +99,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// `nil` = a peça Pomodoro está desinstalada. Todo uso daqui pra baixo passa
     /// por `?`, e é isso que faz o timer de 1 s não existir.
     private var pomodoro: Pomodoro? { plugins.servico(.pomodoro) }
-    private let reminderScheduler = ReminderScheduler()
+    /// `nil` = a peça Lembretes está desinstalada.
+    private var reminderScheduler: ReminderScheduler? { plugins.servico(.lembretes) }
+    /// `nil` = a peça Descanso está desinstalada.
+    private var descansoServico: DescansoServico? { plugins.servico(.descanso) }
+    /// `nil` = a peça Mensagens está desinstalada.
+    private var mensagensServico: MensagensServico? { plugins.servico(.mensagens) }
+    /// `nil` = a peça Notificações externas está desinstalada.
+    private var webhookClient: WebhookClient? { plugins.servico(.webhooks) }
+    /// `nil` = a peça Ditado está desinstalada.
+    private var dictation: DictationController? { plugins.servico(.ditado) }
+    /// `nil` = a peça Nota rápida está desinstalada — some o item de menu e
+    /// `toggleQuickNote()` vira no-op.
+    private var quickNote: QuickNote? { plugins.servico(.notaRapida) }
+    /// Pra `.environmentObject(_:)`: com a peça viva, os objetos do serviço;
+    /// sem ela, as instâncias ociosas (ver comentário na declaração delas).
+    private var lanMessagingParaInjetar: LANMessaging { mensagensServico?.lanMessaging ?? lanMessagingOcioso }
+    private var messageStoreParaInjetar: MessageStore { mensagensServico?.messageStore ?? messageStoreOcioso }
     /// Botões de adiamento no card do lembrete. Dois: o "já já" e o "mais tarde".
     static let snoozeOptions: [(title: String, minutes: Int)] =
         [("Adiar 5 min", 5), ("30 min", 30)]
-    private let breakScheduler = ScheduleEngine<ScreenBreak>()
     private let descanso = DescansoController()
     private let annotation = AnnotationController.shared
     private let shelf = ShelfStore()
@@ -158,7 +190,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
            let i = AppSettings.shared.reminders.firstIndex(where: { $0.id == reminder.id }) {
             AppSettings.shared.reminders[i].enabled = true
         }
-        reminderScheduler.snooze(reminder, minutes: minutes)
+        reminderScheduler?.snooze(reminder, minutes: minutes)
     }
 
     private var levelsCancellable: AnyCancellable?
@@ -197,8 +229,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         observeAskLifecycle()
 
         setupStatusItem()
-        placeWindows()
-        annotation.start()
+        // ⚠️ `placeWindows()` desceu pra DEPOIS do `plugins.subir()` (fim deste
+        // método): a `NotchView` injeta `lanMessaging`/`messageStore` por
+        // `.environmentObject`, que captura o objeto no instante em que a view é
+        // construída. Com as janelas nascendo antes das peças, `mensagensServico`
+        // ainda era nil e o card ficava preso PRA SEMPRE no par ocioso — lista de
+        // peers e conversas vazias, com o Bonjour de verdade subindo depois.
+        // Nada entre aqui e lá toca `notches` de forma síncrona: são só closures
+        // `[weak self]` que rodam por timer, notificação ou Combine.
 
         // notificações aparecem em TODAS as telas, como os HUDs
         let interceptor = NotificationInterceptor { [weak self] notch in
@@ -217,31 +255,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         volumeHUD.onAXTrust = { [weak self] _ in self?.refreshAccessibilityBadge() }
         volumeHUD.start()
 
-        // ditado: pílula em TODAS as telas, como os HUDs
-        dictation.onState = { [weak self] phase in
-            self?.notches.values.forEach { $0.viewModel.dictation = phase }
-        }
-        dictation.destinationProvider = { [weak self] in
-            if let id = self?.askStore?.state.active?.id {
-                return .ask(id: id)
-            }
-            guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier else {
-                return nil
-            }
-            return .application(pid: pid)
-        }
+        // ditado: gancho global (a ⌥ direita é do VolumeHUD, feature de
+        // fábrica — não é plugin→plugin, ver `DitadoEfeitos` em
+        // `Plugin.swift`). Sem a peça instalada `dictation` é `nil` e o
+        // encaminhamento vira no-op sozinho.
         volumeHUD.onRightOption = { [weak self] pressed in
-            self?.dictation.rightOptionChanged(pressed)
-        }
-        dictation.start()
-
-        dictation.transcriptSink = { [weak self] text, destination in
-            guard case .ask(let id) = destination,
-                  self?.askStore?.state.active?.id == id else {
-                return false
-            }
-            self?.askStore?.send(.appendText(id: id, text: text))
-            return true
+            self?.dictation?.rightOptionChanged(pressed)
         }
 
         // capturas de tela entram na prateleira e o notch dá um peek
@@ -355,46 +374,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         setupSwipeGestures()
 
-        // Mensagens LAN: perfil próprio + recebimento (card em todas as telas, como notificação)
-        lanMessaging.profileProvider = { AppSettings.shared.myProfile() }
-        lanMessaging.onIncoming = { [weak self] msg, profile, media in
-            guard let self else { return }
-            let name = profile?.name ?? self.messageStore.name(for: msg.peerID) ?? "?"
-            self.messageStore.rememberName(name, for: msg.peerID)
-            var msg = msg
-            msg.mediaFile = media.flatMap { self.messageStore.saveMedia($0.0, ext: $0.1.ext) }
-            self.messageStore.append(msg)
-            let mediaHeight = msg.mediaFile.flatMap { self.messageStore.mediaURL($0) }
-                .map { MessageMedia.cardHeight($0) } ?? 0
-            self.notches.values.forEach {
-                $0.viewModel.showIncoming(.init(peerID: msg.peerID, name: name,
-                                                text: msg.text, allowReply: msg.allowReply,
-                                                mediaFile: msg.mediaFile,
-                                                mediaHeight: mediaHeight))
-            }
-            if let peer = self.lanMessaging.peer(withID: msg.peerID) {
-                self.lanMessaging.fetchProfile(from: peer) { prof in
-                    if let jpeg = prof?.avatarJPEG {
-                        self.messageStore.cacheAvatar(jpeg, for: msg.peerID)
-                    } else if prof != nil {
-                        // perfil veio sem foto = o peer removeu; fetch falho (nil) não apaga
-                        self.messageStore.removeAvatar(for: msg.peerID)
-                    }
-                }
-            }
-        }
-        // trocar nome/foto nos Ajustes re-anuncia o Bonjour (nome novo na lista dos outros)
-        AppSettings.shared.$displayName
-            .dropFirst()
-            .sink { [weak self] _ in self?.lanMessaging.refreshIdentity() }
-            .store(in: &lanCancellables)
-
         // API local: scripts publicam cards no notch (diferencial do Knobler)
         apiServer.onNotification = { [weak self] notification in
-            self?.publicar(notification)
-        }
-        // webhook externo (relay): cada notificação recebida vira card em todas as telas
-        webhookClient.onNotify = { [weak self] notification in
             self?.publicar(notification)
         }
         // atividade é global: aparece em todos os monitores
@@ -437,55 +418,192 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             },
             // Travar a tela nas pausas do Pomodoro (opt-in): o mesmo overlay do
             // Descanso, pela duração da pausa que acabou de começar a rodar.
+            // Fala com o SERVIÇO (`plugins.servico(.descanso)`), não com uma
+            // referência fixa — sem a peça instalada, `montarPomodoro` já nem
+            // chama este efeito (`deps.instalado(.descanso)`, Plugin.swift).
             pausaComecou: { [weak self] dur in
                 guard AppSettings.shared.pomodoroLockScreen else { return }
-                self?.descanso.begin(label: "Pausa do Pomodoro", duration: dur)
+                self?.descansoServico?.begin(label: "Pausa do Pomodoro", duration: dur)
             })
+        // A montagem dos Lembretes mora na ficha da peça (`montarLembretes`, em
+        // Plugin.swift). Aqui ficam só os efeitos que passam por AppKit — os
+        // itens, o card + som do disparo, e o registro do wake.
+        plugins.lembretesEfeitos = LembretesEfeitos(
+            itens: { AppSettings.shared.reminders },
+            disparou: { [weak self] r in
+                guard let self else { return }
+                // fora do laço pelo mesmo motivo do Pomodoro: uma notificação por
+                // tela teria um id diferente cada e empilharia N linhas iguais no
+                // histórico
+                let card = NotchNotification(
+                    appName: nil, title: r.title, body: r.body, openURL: r.openURL,
+                    // token = id do lembrete: o card oferece "Adiar" sem abrir Ajustes
+                    actionTitles: Self.snoozeOptions.map(\.title), actionToken: r.id)
+                self.notches.values.forEach { $0.viewModel.enqueue(card) }
+                if let sound = r.soundName { NSSound(named: NSSound.Name(sound))?.play() }
+            },
+            desligarUmaVez: { r in
+                if let i = AppSettings.shared.reminders.firstIndex(where: { $0.id == r.id }) {
+                    AppSettings.shared.reminders[i].enabled = false
+                }
+            },
+            registrarWake: { tick in
+                // Wake: NSWorkspace.didWakeNotification é postado no notificationCenter
+                // do NSWorkspace, NÃO no default — observar no center errado = handler mudo.
+                let token = NSWorkspace.shared.notificationCenter.addObserver(
+                    forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+                ) { _ in tick() }
+                return { NSWorkspace.shared.notificationCenter.removeObserver(token) }
+            })
+        // A montagem do Descanso mora na ficha da peça (`montarDescanso`,
+        // Plugin.swift). Aqui ficam só os efeitos que passam por AppKit — o
+        // overlay (`DescansoController`, compartilhado com a pausa do
+        // Pomodoro) e o registro do wake.
+        plugins.descansoEfeitos = DescansoEfeitos(
+            itens: { AppSettings.shared.screenBreaks },
+            iniciarBloqueio: { [weak self] label, dur in
+                self?.descanso.begin(label: label, duration: dur)
+            },
+            pararBloqueioSeAtivo: { [weak self] in
+                guard let self, self.descanso.isActive else { return }
+                self.descanso.abort()
+            },
+            estaAtivo: { [weak self] in self?.descanso.isActive ?? false },
+            desligarUmaVez: { b in
+                if let i = AppSettings.shared.screenBreaks.firstIndex(where: { $0.id == b.id }) {
+                    AppSettings.shared.screenBreaks[i].enabled = false
+                }
+            },
+            registrarWake: { tick in
+                let token = NSWorkspace.shared.notificationCenter.addObserver(
+                    forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+                ) { _ in tick() }
+                return { NSWorkspace.shared.notificationCenter.removeObserver(token) }
+            })
+        // A montagem de Mensagens mora na ficha da peça (`montarMensagens`,
+        // Plugin.swift). Aqui ficam só os efeitos que passam por AppSettings/
+        // AppKit/SwiftUI — o perfil próprio, o card + busca de avatar quando
+        // uma mensagem chega, e o observer de nome/foto mudado nos Ajustes.
+        plugins.mensagensEfeitos = MensagensEfeitos(
+            perfilProprio: { AppSettings.shared.myProfile() },
+            mensagemChegou: { [weak self] msg, profile, media in
+                guard let self, let servico = self.mensagensServico else { return }
+                let name = profile?.name ?? servico.messageStore.name(for: msg.peerID) ?? "?"
+                servico.messageStore.rememberName(name, for: msg.peerID)
+                var msg = msg
+                msg.mediaFile = media.flatMap { servico.messageStore.saveMedia($0.0, ext: $0.1.ext) }
+                servico.messageStore.append(msg)
+                let mediaHeight = msg.mediaFile.flatMap { servico.messageStore.mediaURL($0) }
+                    .map { MessageMedia.cardHeight($0) } ?? 0
+                self.notches.values.forEach {
+                    $0.viewModel.showIncoming(.init(peerID: msg.peerID, name: name,
+                                                    text: msg.text, allowReply: msg.allowReply,
+                                                    mediaFile: msg.mediaFile,
+                                                    mediaHeight: mediaHeight))
+                }
+                if let peer = servico.lanMessaging.peer(withID: msg.peerID) {
+                    servico.lanMessaging.fetchProfile(from: peer) { prof in
+                        if let jpeg = prof?.avatarJPEG {
+                            servico.messageStore.cacheAvatar(jpeg, for: msg.peerID)
+                        } else if prof != nil {
+                            // perfil veio sem foto = o peer removeu; fetch falho (nil) não apaga
+                            servico.messageStore.removeAvatar(for: msg.peerID)
+                        }
+                    }
+                }
+            },
+            registrarMudancaNome: { tick in
+                // trocar nome/foto nos Ajustes re-anuncia o Bonjour (nome novo na lista dos outros)
+                let cancellable = AppSettings.shared.$displayName
+                    .dropFirst()
+                    .sink { _ in tick() }
+                return { cancellable.cancel() }
+            })
+        // A montagem de Notificações externas mora na ficha da peça
+        // (`montarWebhooks`, Plugin.swift). Aqui ficam só o card quando a
+        // notificação chega e o observer do ajuste opt-in
+        // (`webhookNotifications`), que exigem AppKit/Combine.
+        plugins.webhooksEfeitos = WebhooksEfeitos(
+            notificacaoChegou: { [weak self] notification in
+                self?.publicar(notification)
+            },
+            ativado: { AppSettings.shared.webhookNotifications },
+            registrarMudancaAjuste: { tick in
+                let cancellable = AppSettings.shared.$webhookNotifications
+                    .dropFirst()
+                    .sink { _ in tick() }
+                return { cancellable.cancel() }
+            })
+        // A montagem do Ditado mora na ficha da peça (`montarDitado`,
+        // Plugin.swift), mas ao contrário das outras o `nascer` inteiro é
+        // emprestado daqui — `DictationController` importa FluidAudio, que o
+        // `plugincheck` (swiftc avulso) não resolve (ver o `ponytail:` em
+        // `DitadoEfeitos`, Plugin.swift).
+        plugins.ditadoEfeitos = DitadoEfeitos(nascer: { [weak self] in
+            guard let self else { return nil }
+            let d = DictationController()
+            d.onState = { [weak self] phase in
+                self?.notches.values.forEach { $0.viewModel.dictation = phase }
+            }
+            d.destinationProvider = { [weak self] in
+                if let id = self?.askStore?.state.active?.id {
+                    return .ask(id: id)
+                }
+                guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier else {
+                    return nil
+                }
+                return .application(pid: pid)
+            }
+            d.transcriptSink = { [weak self] text, destination in
+                guard case .ask(let id) = destination,
+                      self?.askStore?.state.active?.id == id else {
+                    return false
+                }
+                self?.askStore?.send(.appendText(id: id, text: text))
+                return true
+            }
+            d.start()
+            return d
+        })
+        // A montagem do Desenho mora na ficha da peça (`montarAnotacao`,
+        // Plugin.swift), mas ao contrário das outras o `nascer` inteiro é
+        // emprestado daqui — `AnnotationController` é AppKit puro e é
+        // `.shared` (singleton: as views o consomem direto, converter em
+        // peça não vira instância). Ligar é `start()`; o `PluginServico` é o
+        // próprio singleton, cujo `parar()` (`AnnotationController.swift`)
+        // desliga o tap, o observer de tela e os painéis por display.
+        plugins.anotacaoEfeitos = AnotacaoEfeitos(nascer: {
+            AnnotationController.shared.start()
+            return AnnotationController.shared
+        })
+        // A oitava conversão (tarefa 7): sem tipo próprio nascendo (o
+        // singleton já existe), `nascer` só empresta o fechamento que o
+        // `MirrorServico.parar()` chama pra desligar o espelho em todos os
+        // notches e desarmar o auto-open por calendário.
+        plugins.espelhoEfeitos = EspelhoEfeitos(nascer: { [weak self] in
+            MirrorServico {
+                self?.mirrorAutoOpened = false
+                self?.desligarEspelhoEmTodos()
+            }
+        })
+        // A nona conversão (tarefa 8), a segunda sem painel: `QuickNote` é
+        // `.shared` (singleton — `NotchView`/`NotchViewModel` seguem lendo
+        // direto) e já nasce dormente, então `nascer` só devolve o singleton
+        // como o `PluginServico` (conformidade em `QuickNote.swift`); não há
+        // `start()` pra chamar.
+        plugins.notaRapidaEfeitos = NotaRapidaEfeitos(nascer: { QuickNote.shared })
+        // A décima conversão (tarefa 9), a terceira sem painel: `LinkPreview`
+        // é `.shared` (singleton — `Shelf`/`NotchView` seguem lendo direto) e
+        // já nasce dormente (nenhum link aberto), então `nascer` só devolve o
+        // singleton como o `PluginServico` (conformidade em `LinkPreview.swift`).
+        plugins.previewLinkEfeitos = PreviewLinkEfeitos(nascer: { LinkPreview.shared })
         // O nascimento das peças instaladas. Quem está desligado nem é visitado.
         plugins.subir()
-        // Lembretes programados: engine dispara → notch + som. oneShot desliga após disparar.
-        reminderScheduler.itemsProvider = { AppSettings.shared.reminders }
-        reminderScheduler.onFire = { [weak self] r in
-            guard let self else { return }
-            // fora do laço pelo mesmo motivo do Pomodoro: uma notificação por
-            // tela teria um id diferente cada e empilharia N linhas iguais no
-            // histórico
-            let card = NotchNotification(
-                appName: nil, title: r.title, body: r.body, openURL: r.openURL,
-                // token = id do lembrete: o card oferece "Adiar" sem abrir Ajustes
-                actionTitles: Self.snoozeOptions.map(\.title), actionToken: r.id)
-            self.notches.values.forEach { $0.viewModel.enqueue(card) }
-            if let sound = r.soundName { NSSound(named: NSSound.Name(sound))?.play() }
-            if case .oneShot = r.schedule,
-               let i = AppSettings.shared.reminders.firstIndex(where: { $0.id == r.id }) {
-                AppSettings.shared.reminders[i].enabled = false
-            }
-        }
-        // Wake: NSWorkspace.didWakeNotification é postado no notificationCenter do
-        // NSWorkspace, NÃO no default — observar no center errado = handler mudo.
-        NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
-        ) { [weak self] _ in
-            self?.reminderScheduler.tick()
-            self?.breakScheduler.tick()
-        }
-        reminderScheduler.start()
-
-        // Descanso: bloqueio agendado dispara o overlay de tela cheia pela duração.
-        // oneShot (inclui "Daqui a X") dispara uma vez → desliga (fica na lista, off).
-        breakScheduler.itemsProvider = { AppSettings.shared.screenBreaks }
-        breakScheduler.onFire = { [weak self] b in
-            self?.descanso.begin(
-                label: b.label, duration: TimeInterval(max(1, b.durationMinutes) * 60))
-            if case .oneShot = b.schedule,
-               let i = AppSettings.shared.screenBreaks.firstIndex(where: { $0.id == b.id }) {
-                AppSettings.shared.screenBreaks[i].enabled = false
-            }
-        }
-        breakScheduler.start()
+        // Só agora as janelas: ver o comentário no lugar de onde esta linha veio.
+        placeWindows()
         // espelho automático: abre 2min antes da call, fecha quando ela começa
         calendar.onMirrorMoment = { [weak self] imminent in
-            guard let self else { return }
+            guard let self, PluginHost.shared.estaInstalado(.espelho) else { return }
             if imminent, AppSettings.shared.mirrorBeforeMeetings, !self.mirrorAutoOpened {
                 self.mirrorAutoOpened = true
                 if let vm = self.viewModelUnderMouse() {
@@ -493,11 +611,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 }
             } else if !imminent, self.mirrorAutoOpened {
                 self.mirrorAutoOpened = false
-                self.notches.values.forEach {
-                    guard $0.viewModel.mirrorOn else { return }
-                    $0.viewModel.mirrorOn = false
-                    $0.viewModel.setExpandedDirect(false)
-                }
+                self.desligarEspelhoEmTodos()
             }
         }
         calendar.start()
@@ -509,11 +623,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     MirrorController.activate(on: vm, expand: true)
                 }
             } else {
-                self.notches.values.forEach {
-                    guard $0.viewModel.mirrorOn else { return }
-                    $0.viewModel.mirrorOn = false
-                    $0.viewModel.setExpandedDirect(false)
-                }
+                self.desligarEspelhoEmTodos()
             }
         }
 
@@ -540,10 +650,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     "frame": "\(notch.window.frame)",
                 ] as [String: Any]
             }
-            status["dictation"] = self?.dictation.diagnostics ?? [:]
+            status["dictation"] = self?.dictation?.diagnostics ?? [:]
             status["ask"] = self?.apiServer.askDiagnostics ?? [:]
             status["agentRequests"] = self?.apiServer.agentRequestDiagnostics ?? [:]
-            status["lanMessaging"] = self?.lanMessaging.diagnostics ?? [:]
+            status["lanMessaging"] = self?.mensagensServico?.lanMessaging.diagnostics ?? [:]
             // uma pergunta só em vez de descobrir batendo em rota
             status["plugins"] = PluginID.allCases
                 .filter(PluginHost.shared.estaInstalado)
@@ -559,11 +669,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     } else {
                         self?.clearAskPresentation()
                         self?.apiServer.stop()
-                    }
-                    if AppSettings.shared.webhookNotifications {
-                        self?.webhookClient.start()
-                    } else {
-                        self?.webhookClient.stop()
                     }
                     if AppSettings.shared.screenshotsToShelf {
                         self?.screenshots.start()
@@ -967,6 +1072,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             ?? notches.values.first?.viewModel
     }
 
+    /// O caminho mais curto da vitrine (`PluginsSettingsPane`, janela de
+    /// Ajustes) até um `NotchViewModel`: não faz sentido usar o monitor sob o
+    /// mouse (ele está sobre a janela de Ajustes, não sobre um notch), então
+    /// o ABRIR de uma peça sem painel mira a tela principal.
+    func viewModelPrincipal() -> NotchViewModel? {
+        NSScreen.main.flatMap { notches[Self.displayID(of: $0)]?.viewModel }
+            ?? notches.values.first?.viewModel
+    }
+
+    /// Desliga o espelho em todos os notches abertos: fecha o card e devolve
+    /// `mirrorOn` a `false`, o que solta a câmera via `dismantleNSView`
+    /// (`MirrorPreviewView`). Usada pela rota `POST /mirror {on:false}`, pelo
+    /// fim da janela do calendário e pelo `parar()` da peça (`MirrorServico`).
+    private func desligarEspelhoEmTodos() {
+        notches.values.forEach {
+            guard $0.viewModel.mirrorOn else { return }
+            $0.viewModel.mirrorOn = false
+            $0.viewModel.setExpandedDirect(false)
+        }
+    }
+
     // ponytail: janela sempre no tamanho expandido máximo; o SwiftUI desenha só o
     // necessário. Redimensionar NSWindow durante animação é fonte de jank.
     private func placeWindows() {
@@ -998,8 +1124,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                             panel?.allowsKeyboard = active
                             if !active, panel?.isKeyWindow == true { panel?.resignKey() }
                         })
-                        .environmentObject(lanMessaging)
-                        .environmentObject(messageStore)
+                        .environmentObject(lanMessagingParaInjetar)
+                        .environmentObject(messageStoreParaInjetar)
                         .environmentObject(AppSettings.shared))
                 notch = ScreenNotch(window: panel, viewModel: viewModel)
                 notches[id] = notch
@@ -1040,9 +1166,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
                 // resposta rápida do card → envia, grava o outgoing e some em todas as telas
                 viewModel.onSendReply = { [weak self] peerID, text in
-                    guard let self, let peer = self.lanMessaging.peer(withID: peerID) else { return }
-                    self.lanMessaging.send(text, to: peer, allowReply: true) { ok in
-                        self.messageStore.append(PeerMessage(id: UUID().uuidString, peerID: peerID,
+                    guard let self, let servico = self.mensagensServico,
+                          let peer = servico.lanMessaging.peer(withID: peerID) else { return }
+                    servico.lanMessaging.send(text, to: peer, allowReply: true) { ok in
+                        servico.messageStore.append(PeerMessage(id: UUID().uuidString, peerID: peerID,
                             incoming: false, text: text, allowReply: true, at: Date(), delivered: ok))
                     }
                     self.notches.values.forEach { $0.viewModel.dismissIncoming() }
@@ -1070,7 +1197,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 // (app ativo → prompt num momento sensato). start() é idempotente.
                 viewModel.$focus
                     .filter { $0 == .mensagens }
-                    .sink { [weak self] _ in self?.lanMessaging.start() }
+                    .sink { [weak self] _ in self?.mensagensServico?.lanMessaging.start() }
                     .store(in: &lanCancellables)
 
             }
@@ -1224,10 +1351,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         // a anotação inteira (ligar, ferramentas, cores, fundo) mora na seção
         // Anotação do card — o menu não duplica nada disso.
-        let nota = menu.addItem(
-            withTitle: "✎ Nota rápida", action: #selector(toggleQuickNote), keyEquivalent: "")
-        nota.target = self
-        nota.state = QuickNote.shared.active ? .on : .off
+        // Sem a peça instalada, o item some — é a superfície dela fora do card.
+        if let quickNote {
+            let nota = menu.addItem(
+                withTitle: "✎ Nota rápida", action: #selector(toggleQuickNote), keyEquivalent: "")
+            nota.target = self
+            nota.state = quickNote.active ? .on : .off
+        }
         let picker = menu.addItem(
             withTitle: "◉ Selecionar cor…", action: #selector(pickColor), keyEquivalent: "")
         picker.target = self
@@ -1253,27 +1383,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         it.target = self
     }
 
-    /// Interruptor da nota. Ligar abre o card na hora — esperar o hover
-    /// depois de escolher no menu seria um passo a mais sem motivo.
+    /// Interruptor da nota, acionado pelo item de menu (tela sob o mouse). Sem
+    /// a peça instalada é no-op — nada pra ligar/desligar.
+    @objc private func toggleQuickNote() {
+        let mouse = NSEvent.mouseLocation
+        let screen = NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) }
+            ?? NSScreen.main
+        ligarDesligarNota(em: screen)
+    }
+
+    /// O mesmo interruptor, mas com a tela escolhida por quem chama — é o que
+    /// deixa o ABRIR da vitrine (`PluginsSettingsPane`, janela de Ajustes)
+    /// acionar a nota sem duplicar a lógica de "tela sob o mouse": lá o mouse
+    /// está sobre a janela de Ajustes, não sobre um notch, então o chamador
+    /// manda a tela principal (mesmo precedente do Espelho em
+    /// `viewModelPrincipal()`).
     ///
-    /// A nota tem UMA tela dona: a que estava sob o mouse quando ligou. Só ela
+    /// Ligar abre o card na hora — esperar o hover depois de escolher no menu
+    /// seria um passo a mais sem motivo.
+    ///
+    /// A nota tem UMA tela dona: a que estava marcada quando ligou. Só ela
     /// abre e só ela fecha. Sem dono, ligar expandia todos os monitores e nada
     /// os recolhia — o hover-out precisa de um hover-in anterior, e depois do
-    /// menu o ponteiro está no item da barra, não sobre o card. Ficaria um
+    /// menu (ou da vitrine) o ponteiro não está sobre o card. Ficaria um
     /// notch aberto pra sempre, que o PRODUCT.md proíbe.
-    @objc private func toggleQuickNote() {
-        let note = QuickNote.shared
+    func ligarDesligarNota(em screen: NSScreen?) {
+        guard let note = quickNote else { return }
         if note.active {
             let host = note.hostDisplayID
             note.active = false  // didSet limpa texto, editing e o dono
             if let host, let vm = notches[host]?.viewModel { vm.setExpandedDirect(false) }
             return
         }
-        let mouse = NSEvent.mouseLocation
-        let screen = NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) }
-            ?? NSScreen.main
-        guard let screen, let vm = notches[Self.displayID(of: screen)]?.viewModel else { return }
-        note.hostDisplayID = Self.displayID(of: screen)
+        // A tela pedida, quando ela tem notch; senão o mesmo caminho que o
+        // ABRIR das outras peças usa (`viewModelPrincipal()`). Sem o fallback,
+        // numa máquina em que a `NSScreen.main` não tem janela de notch o botão
+        // da vitrine não fazia nada, calado.
+        guard let vm = screen.flatMap({ notches[Self.displayID(of: $0)]?.viewModel })
+            ?? viewModelPrincipal() else { return }
+        note.hostDisplayID = vm.displayID
         // A trava do `recalcularSecoes` é `typingNote` (= hospedada E editando), e
         // neste instante o `TextEditor` ainda nem entrou na árvore — `editing` é
         // false. Sem pedir o foco aqui, o card abriria no Histórico ou na Música
@@ -1371,8 +1519,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func pomReset() { pomodoro?.reset() }
 
     // Cmd+Q escapa do quiosque (não é coberto pelas flags) → recusar enquanto trava.
+    // Sem a peça Descanso instalada não há serviço, logo não há veto — nunca
+    // há overlay em curso pra travar o quit (005/comportamento esperado).
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        descanso.isActive ? .terminateCancel : .terminateNow
+        (descansoServico?.isActive ?? false) ? .terminateCancel : .terminateNow
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -1383,17 +1533,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         OSDSuppressor.restore()
         // devolve o preview do print (senão ficaria sem preview E sem shelf)
         ScreenshotPreviewSuppressor.restore()
-        // fecha o socket de push e libera os recursos do relay
-        webhookClient.shutdown()
-        // grava o histórico de mensagens e desliga o Bonjour da Rede Local
-        messageStore.flush()
+        // fecha o socket de push e libera os recursos do relay; sem a peça
+        // instalada não há o que fechar (nada nasceu)
+        webhookClient?.parar()
+        // grava o histórico de mensagens e desliga o Bonjour da Rede Local —
+        // é o mesmo par que `MensagensServico.parar()` faz; sem a peça
+        // instalada não há o que gravar/desligar (nada nasceu).
+        mensagensServico?.parar()
         // o das notificações também: o debounce de 1s não sobrevive ao quit
         NotificationHistory.shared.flush()
-        lanMessaging.stop()
     }
 
     private var settingsWindow: NSWindow?
     private let settingsRouter = SettingsRouter()
+    private var settingsPluginsCancellable: AnyCancellable?
+
+    /// A raiz da janela de Ajustes. Separada porque é refeita quando a vitrine
+    /// instala uma peça cujos objetos ela injeta (ver `showSettings`).
+    private func settingsRootView() -> some View {
+        SettingsView(router: settingsRouter,
+                     webhookClient: webhookClient ?? webhookClientOcioso)
+            // o painel Permissões liga o Bonjour pra sondar a Rede local
+            .environmentObject(lanMessagingParaInjetar)
+    }
 
     @objc private func openSettings() { showSettings(pane: nil) }
 
@@ -1409,10 +1571,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 defer: false
             )
             window.title = "Ajustes do Knobler"
-            window.contentView = NSHostingView(
-                rootView: SettingsView(router: settingsRouter, webhookClient: webhookClient)
-                    // o painel Permissões liga o Bonjour pra sondar a Rede local
-                    .environmentObject(lanMessaging))
+            window.contentView = NSHostingView(rootView: settingsRootView())
+            // A vitrine É um painel de Ajustes: quando o usuário clica INSTALAR
+            // em Mensagens ou Notificações externas, esta janela já existe e a
+            // raiz capturou os objetos OCIOSOS. O painel novo aparecia na barra
+            // lateral fiado neles — link de pareamento em branco, `connected`
+            // nunca true, nenhum erro. Refazer a raiz é o caminho mais curto que
+            // faz a peça funcionar de verdade em vez de pedir relançamento.
+            settingsPluginsCancellable = plugins.$instalados
+                .map { $0.intersection([.mensagens, .webhooks]) }
+                .removeDuplicates()
+                .dropFirst()
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] _ in
+                    // sheet aberto → não refaz (o sheet morreria levando o que
+                    // foi digitado), mesmo cuidado do início deste método.
+                    guard let self, let w = self.settingsWindow, w.attachedSheet == nil
+                    else { return }
+                    w.contentView = NSHostingView(rootView: self.settingsRootView())
+                }
             window.isReleasedWhenClosed = false
             window.setContentSize(NSSize(width: 800, height: 520))
             window.contentMinSize = NSSize(width: 720, height: 470)

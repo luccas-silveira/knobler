@@ -90,13 +90,25 @@ final class LinkPreview: ObservableObject {
     }
 
     func fechar() {
-        url = nil
-        hostDisplayID = nil
-        titulo = ""
+        let estavaAberto = url != nil
+        resetarEstado()
         removerAtalhos()
+        // Nunca abriu nada: tocar a `webView` aqui INSTANCIARIA o `WKWebView`
+        // (lazy) e seu processo de conteúdo só pra desmontar um preview que não
+        // existe — é o caminho do `parar()` da peça na desinstalação.
+        guard estavaAberto else { return }
         // about:blank em vez de soltar a webView: para o áudio/vídeo da página
         // na hora, e o processo de conteúdo fica quente pro próximo link
         webView.load(URLRequest(url: URL(string: "about:blank")!))
+    }
+
+    /// Separado de `fechar()` só pra `_fecharSelfCheck()` provar o reset de
+    /// estado sem tocar a `webView` (lazy: acessá-la instanciaria um
+    /// `WKWebView` de verdade, que o self-check não pode fazer).
+    private func resetarEstado() {
+        url = nil
+        hostDisplayID = nil
+        titulo = ""
     }
 
     // MARK: - Atalhos de edição
@@ -161,5 +173,30 @@ final class LinkPreview: ObservableObject {
                 }
             },
         ]
+    }
+}
+
+/// A décima conversão (tarefa 9): sem tipo próprio nascendo (o singleton já
+/// existe) e sem `start()` — o preview nasce dormente (nenhum link aberto),
+/// igual à Nota rápida. `parar()` fecha o preview aberto, se houver.
+extension LinkPreview: PluginServico {
+    func parar() { fechar() }
+}
+
+extension LinkPreview {
+    /// Prova o `parar()` da peça (`PluginServico`, ver `Plugin.swift`): abre
+    /// (estado direto, sem passar por `abrir()`) e fecha, checando que o
+    /// estado zera. **Lacuna conhecida**: não exercita `abrir()`/`webView`
+    /// de verdade — `abrir()` chama `webView.load` com a URL real (rede de
+    /// verdade, proibido aqui) e `fechar()` toca a `webView` lazy só depois
+    /// do reset de estado (`resetarEstado()`, coberto). O caminho WKWebView
+    /// fica descoberto pelo self-check.
+    static func _fecharSelfCheck() -> Bool {
+        let lp = LinkPreview.shared
+        lp.url = URL(string: "https://exemplo.com")
+        lp.hostDisplayID = 1
+        lp.titulo = "exemplo"
+        lp.resetarEstado()
+        return lp.url == nil && lp.urlAtiva == nil && lp.hostDisplayID == nil && lp.titulo.isEmpty
     }
 }

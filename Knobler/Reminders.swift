@@ -167,6 +167,11 @@ final class ScheduleEngine<Item: Scheduled> {
     var tolerance: TimeInterval = 90
 
     private var timer: Timer?
+    /// Desliga o observer de wake (`NSWorkspace.didWakeNotification`) que o dono
+    /// registrou. Mora aqui, não em quem chama `stop()`, porque `PluginServico.parar()`
+    /// (`Plugin.swift`) tem que desfazer o que a montagem da peça ligou sem
+    /// conhecer AppKit — o campo é só uma closure, Foundation puro.
+    var wakeUnregister: (() -> Void)?
     /// Próximo disparo por lembrete, chaveado pelo hash do schedule (invalida em edição).
     private var nextFire: [UUID: (hash: Int, date: Date)] = [:]
     /// Adiamentos pendentes (id → quando), espelhados no disco pra sobreviver a restart.
@@ -198,6 +203,7 @@ final class ScheduleEngine<Item: Scheduled> {
 
     func stop() {
         timer?.invalidate(); timer = nil
+        wakeUnregister?(); wakeUnregister = nil
     }
 
     /// `now` injetável pro self-check com relógio falso.

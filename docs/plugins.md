@@ -2,8 +2,7 @@
 
 ![Painel Plugins](images/settings-plugins.png)
 
-*Ajustes → Plugins: o Pomodoro instalado (ABRIR + ⋯) e as peças ainda não
-convertidas ("Em breve").*
+*Ajustes → Plugins: as onze peças, cada uma com ABRIR/INSTALAR + ⋯.*
 
 ![Seção Incluído no Knobler](images/settings-plugins-fabrica.png)
 
@@ -33,8 +32,9 @@ Conversão de arquivo.
   com **"Desinstalar (seus dados ficam salvos)"**.
 - Peça desinstalada mostra **INSTALAR**. É o mesmo card, no mesmo lugar da
   grade — só o botão muda.
-- Peça que ainda não foi convertida mostra **"Em breve"**: ela funciona
-  normalmente, só ainda não dá pra desinstalar.
+- As onze peças hoje são todas assim. Se uma feature nova entrar antes de virar
+  peça, ela aparece com **"Em breve"** no lugar do botão: funciona normalmente,
+  só ainda não dá pra desinstalar.
 
 Não há pergunta de "tem certeza?" ao desinstalar, e é de propósito: **nada é
 apagado**. Seus dados, ajustes, senhas no Chaveiro e perfis de webhook ficam

@@ -73,9 +73,15 @@ swift_check assistentecheck   Knobler/WebhookAssistant.swift tools/assistenteche
 swift_check exemplocheck      Knobler/WebhookTemplate.swift Knobler/WebhookExemplo.swift tools/exemplocheck.swift
 swift_check automapcheck      Knobler/WebhookTemplate.swift Knobler/WebhookPresets.swift Knobler/WebhookAutoMap.swift tools/automapcheck.swift
 swift_check colorpickercheck  Knobler/ColorPicker.swift tools/colorpickercheck.swift
-# a máquina de peças; NotchSectionOrder entra só pra conferir o nome da seção da ficha
+# a máquina de peças; NotchSectionOrder entra só pra conferir o nome da seção
+# da ficha; FileConverter entra pra tarefa 10 (Conversão de arquivo) provar o
+# gating com o `targets(for:)` de verdade, não um dublê.
 swift_check plugincheck       Knobler/Plugin.swift Knobler/Pomodoro.swift \
-  Knobler/NotchSectionOrder.swift tools/plugincheck.swift
+  Knobler/Reminders.swift Knobler/Descanso.swift Knobler/NotchSectionOrder.swift \
+  Knobler/Peer.swift Knobler/Wire.swift Knobler/LANMessaging.swift Knobler/MessageStore.swift \
+  Knobler/Permissions.swift Knobler/WebhookClient.swift Knobler/WebhookKeychainStore.swift \
+  Knobler/NotchNotification.swift Knobler/FileConverter.swift Knobler/ImageConverter.swift \
+  Knobler/DocumentConverter.swift Knobler/VideoConverter.swift tools/plugincheck.swift
 CONVERSAO="Knobler/FileConverter.swift Knobler/ImageConverter.swift Knobler/DocumentConverter.swift Knobler/VideoConverter.swift"
 swift_check imageconvertercheck    $CONVERSAO tools/imageconvertercheck.swift
 swift_check documentconvertercheck $CONVERSAO tools/documentconvertercheck.swift
@@ -89,7 +95,15 @@ swift_check shelfdropcheck        $CONVERSAO Knobler/ShelfDrop.swift \
   Knobler/LinkBrowser.swift tools/shelfdropcheck.swift
 swift_check historycheck          Knobler/NotchNotification.swift Knobler/NotificationHistory.swift Knobler/NotchGesture.swift tools/historycheck.swift
 swift_check sectionordercheck    Knobler/NotchSectionOrder.swift tools/sectionordercheck.swift
-swift_check quicknotecheck        Knobler/QuickNote.swift tools/quicknotecheck.swift
+# Ganhou o mesmo bloco de arquivos do plugincheck na tarefa 8 (nota vira
+# peça): `extension QuickNote: PluginServico` (QuickNote.swift) precisa do
+# protocolo de Plugin.swift, que por sua vez arrasta os tipos que as outras
+# fichas referenciam.
+swift_check quicknotecheck        Knobler/QuickNote.swift Knobler/Plugin.swift Knobler/Pomodoro.swift \
+  Knobler/Reminders.swift Knobler/Descanso.swift Knobler/NotchSectionOrder.swift \
+  Knobler/Peer.swift Knobler/Wire.swift Knobler/LANMessaging.swift Knobler/MessageStore.swift \
+  Knobler/Permissions.swift Knobler/WebhookClient.swift Knobler/WebhookKeychainStore.swift \
+  Knobler/NotchNotification.swift tools/quicknotecheck.swift
 swift_check permissioncheck       Knobler/Permissions.swift tools/permissioncheck.swift
 swift_check annotationcheck      Knobler/AnnotationModel.swift tools/annotationcheck.swift
 swift_check calendariocheck       Knobler/CalendarAviso.swift tools/calendariocheck.swift
@@ -106,12 +120,26 @@ swift_check eventoscheck          Knobler/NotchViewModel.swift Knobler/NotchSect
   Knobler/Updater.swift \
   Knobler/AnnotationModel.swift Knobler/CalendarAviso.swift \
   Knobler/AppSettings.swift Knobler/Descanso.swift Knobler/Mirror.swift \
-  Knobler/Reminders.swift Knobler/Peer.swift Knobler/Plugin.swift tools/eventoscheck.swift
+  Knobler/Reminders.swift Knobler/Peer.swift Knobler/LANMessaging.swift \
+  Knobler/MessageStore.swift Knobler/Permissions.swift Knobler/Plugin.swift \
+  Knobler/WebhookClient.swift Knobler/WebhookKeychainStore.swift tools/eventoscheck.swift
 # Reminders traz o próprio @main atrás de -D (molde do Pomodoro), sem harness.
 run reminderscheck bash -c "xcrun swiftc -parse-as-library -swift-version 5 \
   -D REMINDERS_SELFCHECK Knobler/Reminders.swift -o /tmp/reminderscheck && /tmp/reminderscheck"
 
 echo "== gates de integração =="
+# `Knobler --selfcheck` (teardown do Ditado, Desenho, Espelho, Nota rápida e
+# Preview de Link). NÃO é hermético: precisa do app inteiro compilado, e um
+# `xcodebuild` do zero leva minutos — caro demais pra um gate que roda a cada
+# push. Por isso o gate só roda o binário que JÁ existir no DerivedData; sem
+# build local ele é pulado, e aí esses self-checks continuam manuais
+# (`xcodebuild ... build` e depois o binário com `--selfcheck`).
+SELFCHECK_BIN=$(ls -td ~/Library/Developer/Xcode/DerivedData/Knobler-*/Build/Products/Debug/Knobler.app/Contents/MacOS/Knobler 2>/dev/null | head -1)
+if [ -n "$SELFCHECK_BIN" ]; then
+  run app-selfcheck bash -c "'$SELFCHECK_BIN' --selfcheck"
+else
+  SKIPPED+=("app-selfcheck (sem build Debug no DerivedData)")
+fi
 run claude-hook          bash tools/claude-hook/test.sh
 run codex-bridge         node tools/codex-agent-bridge-check.mjs
 run agent-requests-e2e   node tools/agent-requests-e2e.mjs

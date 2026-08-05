@@ -27,6 +27,11 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     /// Só re-parear resolve, e isso troca o link — por isso é decisão do usuário.
     @Published private(set) var credentialsLocked = false
     var onNotify: ((NotchNotification) -> Void)?
+    /// Desliga o observer do ajuste `webhookNotifications` que a montagem da
+    /// peça registrou (`montarWebhooks`, `Plugin.swift`). Mesmo desenho do
+    /// `wakeUnregister` do `ScheduleEngine` (`Reminders.swift`): o campo é só
+    /// uma closure, pra `PluginServico.parar()` desfazer sem conhecer Combine.
+    var ajusteUnregister: (() -> Void)?
 
     private let base = URL(string: "https://push.appzoi.com.br")!
     private let wsURL = URL(string: "wss://push.appzoi.com.br/ws")!
@@ -76,6 +81,7 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         path.cancel()
         NSWorkspace.shared.notificationCenter.removeObserver(self)
         session.invalidateAndCancel()
+        ajusteUnregister?(); ajusteUnregister = nil
     }
 
     // MARK: Pareamento

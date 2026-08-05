@@ -188,9 +188,48 @@ struct PluginsSettingsPane: View {
     }
 
     /// ABRIR é sempre vivo (convenção da App Store: peça instalada nunca vira
-    /// rótulo cinza morto). Hoje só o Pomodoro chega aqui, e ele tem painel.
+    /// rótulo cinza morto). Peça com painel navega pra ele; sem painel, o
+    /// `switch` abaixo decide a ação — a decisão mora na view (não na ficha,
+    /// que é Foundation puro) porque toda ação passa por AppKit/SwiftUI (ver
+    /// "O ABRIR das peças sem painel" no plano desta etapa).
     private func abrir(_ peca: Plugin) {
-        guard let painel = peca.painel.flatMap(SettingsPane.init(rawValue:)) else { return }
+        guard let painel = peca.painel.flatMap(SettingsPane.init(rawValue:)) else {
+            switch peca.id {
+            case .espelho:
+                // Acende a câmera no notch da tela principal — a mesma
+                // chamada que a rota `POST /mirror` usa.
+                if let vm = KnoblerMain.delegate.viewModelPrincipal() {
+                    MirrorController.activate(on: vm, expand: true)
+                }
+            case .notaRapida:
+                // Mesmo interruptor do item de menu, mas na tela principal:
+                // aqui o mouse está sobre a janela de Ajustes, não sobre um
+                // notch, então "tela sob o mouse" não faria sentido (mesmo
+                // precedente do Espelho acima).
+                KnoblerMain.delegate.ligarDesligarNota(em: NSScreen.main)
+            case .previewLink:
+                // Sem URL não há o que espiar: o preview só existe a partir de
+                // um link solto na prateleira ou de um item já guardado nela
+                // (context menu "Abrir no notch"), então o ABRIR mais honesto
+                // é levar pra lá, não abrir uma seção "link" vazia.
+                if let vm = KnoblerMain.delegate.viewModelPrincipal() {
+                    vm.setExpandedDirect(true)
+                    vm.focar(.shelf)
+                }
+            case .conversao:
+                // Mesma decisão da tarefa anterior (Preview de Link): sem
+                // arquivo não há o que converter, e a ação mora no menu de
+                // contexto de um item da prateleira. O ABRIR mais honesto é
+                // focar a prateleira, não fingir uma seção própria.
+                if let vm = KnoblerMain.delegate.viewModelPrincipal() {
+                    vm.setExpandedDirect(true)
+                    vm.focar(.shelf)
+                }
+            default:
+                break
+            }
+            return
+        }
         router.pane = painel
     }
 }
