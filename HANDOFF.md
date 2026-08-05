@@ -1,3 +1,80 @@
+# 🏁 SESSÃO 2026-08-04 (noite) — Fase 5 do marketplace → v0.23.0
+
+Última fase do mapa wayfinder do marketplace de plugins: docs, imagens e
+release. Fecha o ticket 015 e o **mapa inteiro** (15 tickets). Escopo confirmado
+com o dono no começo: tudo, com release, e autorização pra matar o Knobler de
+`/Applications` durante a captura de tela.
+
+## O que foi feito
+
+**`docs/architecture.md` ganhou "O app é feito de peças"** — seção nova entre
+Composição e Ownership: a peça é dado + uma closure `nascer`, o registro é array
+literal, o `PluginHost` só visita quem está instalado, peça pergunta por peça
+(`deps.instalado`), as superfícies somem sozinhas, desinstalar não apaga nada, e
+`Plugin.swift` importa só `Foundation` de propósito.
+
+**`docs/plugins.md` (novo)** — doc de usuário, ligado em `docs/index.md`: as
+duas seções da vitrine, os três estados do botão, o que some ao desinstalar, o
+aviso de relançar pra peças com gancho global, e o parágrafo pra scripts.
+
+**Duas capturas do painel real** (`NavigationSplitView` não renderiza no harness
+offscreen): `settings-plugins.png` — rolada até a seção Plugins, com ABRIR + ⋯
+no Pomodoro e "Em breve" nas outras — e `settings-plugins-fabrica.png`, o topo
+com as 4 de fábrica.
+
+⚠️ **O item 2 do ticket não era só doc.** O ticket 008 (API local com plugin
+desligado) tinha sido **decidido e nunca implementado** — nenhuma das fases 1–4
+tocou o `NotchAPIServer`. Documentar o `404` sem o `guard` seria doc mentindo,
+então o código de 008 saiu aqui, nas três linhas que ele previa:
+`guard PluginHost.shared.estaInstalado(.espelho)` no `POST /mirror` (sem ele a
+rota responderia `{"ok":true}` chamando callback vazio), a marca
+`(plugin: espelho)` no título e no `usage` do 404 genérico, e
+`status["plugins"]` no `statusProvider` do `AppDelegate`.
+
+**Release v0.23.0** — `./tools/release.sh minor` depois de um `--dry-run` limpo.
+Tag, GitHub Releases e cask do tap; os 5 commits do marketplace foram pushados
+agora (estavam locais desde a F1).
+
+## Validação
+
+- `./tools/check.sh` → **35 ok** (mesmo número da F4: nenhum gate novo).
+- Build Debug ok; a captura saiu do painel real rodando com
+  `--ajustes=plugins`, e o app de `/Applications` foi relançado no fim.
+- Release publicada: <https://github.com/luccas-silveira/knobler/releases/tag/v0.23.0>
+
+**Sem gate novo, de propósito.** Nenhum harness compila `NotchAPIServer.swift`
+nem `KnoblerApp.swift` (fatia que o ticket 009 já tinha constatado), e o guard
+depende do singleton `PluginHost.shared` — provar isso exigiria injetar o host
+no servidor, mais código que o próprio guard. Vale revisitar quando existir uma
+**segunda** rota de peça.
+
+## Pendências e followups
+
+- **As outras 10 conversões.** Trabalho mecânico agora; cada uma acende os
+  botões do card correspondente na vitrine (hoje "Em breve"). Recomendação
+  registrada nesta sessão: a próxima é o **Espelho** — é a única peça com rota
+  de API (dá caminho real ao `guard` escrito hoje) e obriga a resolver o `ABRIR`
+  de peça sem painel, fechando duas dívidas de uma vez. O Descanso é a
+  alternativa (é a ponta da única dependência plugin→plugin).
+- **Dívidas do mapa, nenhuma urgente** ("Not yet specified"): permissões por
+  plugin, ligar plugin sem reiniciar, ponto de entrada do `ABRIR` nas 5 peças
+  sem painel.
+- Herdadas da sessão de webhooks, intocadas: Notion travado (plano pago),
+  `POST /profiles` falhando em silêncio no assistente.
+
+## Armadilhas medidas
+
+- **Screenshot da barra lateral logo após desinstalar pega a `List` no meio da
+  animação** e parece que painéis alheios sumiram. Recapture depois de assentar
+  antes de diagnosticar.
+- **`osascript … get {name, position, size} of every window` devolve os campos
+  achatados** — todos os names, depois todas as positions, depois todas as
+  sizes. Casar posição com a janela errada custou tempo.
+- **Tecla não rola a `ScrollView` do painel**: precisa de
+  `CGEventCreateScrollWheelEvent`/`scrollWheelEvent2` (o `python3` do sistema
+  não tem o módulo `Quartz` — compilar um `.swift` de 10 linhas foi mais rápido
+  que procurar alternativa).
+
 # 🏁 SESSÃO 2026-08-04 — Fase 5 dos webhooks → v0.22.0
 
 Última fase do mapa wayfinder de notificações externas: docs, imagens e release.
