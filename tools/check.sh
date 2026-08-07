@@ -107,7 +107,10 @@ swift_check quicknotecheck        Knobler/QuickNote.swift Knobler/Plugin.swift K
 swift_check permissioncheck       Knobler/Permissions.swift tools/permissioncheck.swift
 swift_check annotationcheck      Knobler/AnnotationModel.swift tools/annotationcheck.swift
 swift_check calendariocheck       Knobler/CalendarAviso.swift tools/calendariocheck.swift
-swift_check onboardingcheck       Knobler/Onboarding.swift tools/onboardingcheck.swift
+# arrasta o Updater: a comparação de versão da página de novidades é o
+# isNewer/versionComponents dele, mesmo caminho do avisoscheck.
+swift_check novidadescheck        Knobler/Updater.swift Knobler/NovidadesCatalogo.swift \
+  tools/novidadescheck.swift
 # arrasta o Updater: a faixa de versão do aviso usa o isNewer/versionComponents
 # dele, e o gate também valida o avisos.json publicado neste repo.
 swift_check avisoscheck           Knobler/Updater.swift Knobler/DevAvisos.swift tools/avisoscheck.swift
