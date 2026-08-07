@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-08-07
+
 ### Added
 - **Página de novidades**: toda versão nova abre uma página com texto, print e
   tutorial do que chegou (`Knobler/Novidades/<versão>.html`, renderizada num
