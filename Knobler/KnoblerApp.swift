@@ -788,6 +788,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         mostrarBoasVindas(paraVersao: 0, gravando: true)
     }
 
+    /// As ações que a página de novidades pode pedir. Enum fechado do lado do
+    /// Swift (`NovidadeAcao`), lista validada pelo `novidadescheck` do lado do
+    /// HTML: string desconhecida morre antes de chegar aqui.
+    func executar(_ acao: NovidadeAcao) {
+        switch acao {
+        case .abrirAjustes(let painel):
+            showSettings(pane: SettingsPane(rawValue: painel))
+        case .instalarPeca(let id):
+            guard let peca = PluginID(rawValue: id) else { return }
+            plugins.instalar(peca)
+        case .abrirCard:
+            viewModelPrincipal()?.setExpandedDirect(true)
+        }
+    }
+
     /// Compõe o domínio Ask com o gateway HTTP antes que o listener possa
     /// receber requisições. O store e os callbacks são registrados de forma
     /// síncrona na Main Actor, antes de qualquer chamada a apiServer.start();
@@ -1559,7 +1574,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func openSettings() { showSettings(pane: nil) }
 
-    private func showSettings(pane: SettingsPane?) {
+    /// Não é `private` porque a página de novidades abre painel pela ponte
+    /// (`executar(_:)`), no mesmo caminho da flag `--ajustes=`.
+    func showSettings(pane: SettingsPane?) {
         // sheet aberto (ex.: MappingEditor com edições) → não trocar o painel,
         // senão o detalhe é recriado e o sheet morre levando o que foi digitado
         if let pane, settingsWindow?.attachedSheet == nil { settingsRouter.pane = pane }
@@ -1600,3 +1617,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 }
+
+extension AppDelegate: NovidadesAcoes {}
