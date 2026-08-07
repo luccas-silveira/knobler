@@ -1,0 +1,53 @@
+/* A página de novidades. Modo escuro por prefers-color-scheme: a janela segue
+   a aparência do sistema, como o resto do app. */
+:root {
+  color-scheme: light dark;
+  --fundo: #ffffff;
+  --texto: #1c1c1e;
+  --secundario: #6e6e73;
+  --linha: rgba(0, 0, 0, 0.1);
+  --destaque: #0a84ff;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fundo: #1c1c1e;
+    --texto: #f5f5f7;
+    --secundario: #98989d;
+    --linha: rgba(255, 255, 255, 0.12);
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 0 40px 48px;
+  background: var(--fundo);
+  color: var(--texto);
+  font: 15px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  -webkit-user-select: text;
+}
+header { padding: 40px 0 24px; }
+h1 { margin: 0; font-size: 34px; font-weight: 600; letter-spacing: -0.02em; }
+.sub { margin: 6px 0 0; color: var(--secundario); }
+.versao { border-top: 1px solid var(--linha); padding-top: 28px; margin-top: 28px; }
+.versao > h2 {
+  font-size: 12px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--secundario); margin: 0 0 20px;
+}
+.novidade { margin: 0 0 40px; }
+.novidade h3 { font-size: 22px; font-weight: 600; margin: 0 0 8px; letter-spacing: -0.01em; }
+.novidade p { margin: 0 0 16px; }
+figure { margin: 0 0 16px; }
+figure img, figure video {
+  width: 100%; height: auto; display: block;
+  border: 1px solid var(--linha); border-radius: 10px;
+}
+figcaption { margin-top: 8px; font-size: 13px; color: var(--secundario); }
+ol.tutorial { margin: 0 0 16px; padding-left: 22px; }
+ol.tutorial li { margin-bottom: 6px; }
+button {
+  font: inherit; font-weight: 500; color: #fff; background: var(--destaque);
+  border: 0; border-radius: 7px; padding: 7px 14px; cursor: pointer;
+}
+button:active { filter: brightness(0.9); }
+footer { border-top: 1px solid var(--linha); padding-top: 20px; color: var(--secundario); font-size: 13px; }
+code { font-family: "SF Mono", ui-monospace, monospace; font-size: 13px; }

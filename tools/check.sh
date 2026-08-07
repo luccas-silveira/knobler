@@ -108,8 +108,16 @@ swift_check permissioncheck       Knobler/Permissions.swift tools/permissionchec
 swift_check annotationcheck      Knobler/AnnotationModel.swift tools/annotationcheck.swift
 swift_check calendariocheck       Knobler/CalendarAviso.swift tools/calendariocheck.swift
 # arrasta o Updater: a comparação de versão da página de novidades é o
-# isNewer/versionComponents dele, mesmo caminho do avisoscheck.
+# isNewer/versionComponents dele, mesmo caminho do avisoscheck. E o mesmo
+# bloco de arquivos do plugincheck: data-alvo="instalarPeca" é validado
+# contra o PluginID de verdade.
 swift_check novidadescheck        Knobler/Updater.swift Knobler/NovidadesCatalogo.swift \
+  Knobler/Plugin.swift Knobler/Pomodoro.swift \
+  Knobler/Reminders.swift Knobler/Descanso.swift Knobler/NotchSectionOrder.swift \
+  Knobler/Peer.swift Knobler/Wire.swift Knobler/LANMessaging.swift Knobler/MessageStore.swift \
+  Knobler/Permissions.swift Knobler/WebhookClient.swift Knobler/WebhookKeychainStore.swift \
+  Knobler/NotchNotification.swift Knobler/FileConverter.swift Knobler/ImageConverter.swift \
+  Knobler/DocumentConverter.swift Knobler/VideoConverter.swift \
   tools/novidadescheck.swift
 # arrasta o Updater: a faixa de versão do aviso usa o isNewer/versionComponents
 # dele, e o gate também valida o avisos.json publicado neste repo.

@@ -12,7 +12,14 @@ targets:
     platform: macOS
     sources:
       # Includes AgentRequestModels.swift and AgentRequestStore.swift.
-      - Knobler
+      - path: Knobler
+        excludes:
+          - Novidades/**
+      # a página de novidades: folder reference (type: folder) pra preservar
+      # midia/ dentro do bundle — os src do HTML são relativos.
+      - path: Knobler/Novidades
+        type: folder
+        buildPhase: resources
       # script que o MediaRemoteSource roda via /usr/bin/perl (now playing universal)
       - path: Vendor/mediaremote-adapter.pl
         buildPhase: resources
