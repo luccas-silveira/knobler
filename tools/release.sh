@@ -87,8 +87,8 @@ NOVIDADE="Knobler/Novidades/$VER.html"
 NEW_MA="${VER%%.*}"; NEW_MI="${VER#*.}"; NEW_MI="${NEW_MI%%.*}"
 OLD_MA="${LAST_VER%%.*}"; OLD_MI="${LAST_VER#*.}"; OLD_MI="${OLD_MI%%.*}"
 if [ -n "$LAST_VER" ] && { [ "$NEW_MA" != "$OLD_MA" ] || [ "$NEW_MI" != "$OLD_MI" ]; } \
-   && [ ! -f "$NOVIDADE" ]; then
-  echo "release MINOR/MAJOR sem página de novidades: crie $NOVIDADE e acrescente \"$VER\" a NovidadesCatalogo.versoes." >&2
+   && { [ ! -f "$NOVIDADE" ] || ! grep -q "\"$VER\"" Knobler/NovidadesCatalogo.swift; }; then
+  echo "release MINOR/MAJOR sem página de novidades: crie $NOVIDADE e acrescente \"$VER\" a NovidadesCatalogo.versoes (as duas coisas — arquivo sem entrada no catálogo nunca aparece)." >&2
   exit 2
 fi
 

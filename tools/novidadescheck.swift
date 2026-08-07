@@ -88,6 +88,10 @@ struct NovidadesCheck {
         NovidadesCatalogo.marcarVisto("0.31.0", limpo)
         check(NovidadesCatalogo.versaoVista(limpo) == "0.31.0", "marcarVisto grava a versão")
 
+        // a sentinela não é gravável: gravá-la faria a boas-vindas reabrir sempre
+        NovidadesCatalogo.marcarVisto("0.0.0", limpo)
+        check(NovidadesCatalogo.versaoVista(limpo) == "0.31.0", "marcarVisto ignora 0.0.0")
+
         conferirConteudo()
 
         print("novidadescheck ok")
@@ -149,14 +153,12 @@ struct NovidadesCheck {
             for acao in valores(de: "data-acao", em: html) {
                 check(acoes.contains(acao), "\(nome): ação desconhecida: \(acao)")
             }
-            if html.contains("data-acao=\"instalarPeca\"") {
-                for alvo in valores(de: "data-alvo", em: html) where !alvo.isEmpty {
-                    // ponytail: o gate não distingue qual data-alvo pertence a
-                    // qual data-acao — aceita alvo válido pra qualquer uma das
-                    // duas listas. Refinar se um alvo errado escapar.
-                    check(pecas.contains(alvo) || paineis.contains(alvo),
-                          "\(nome): alvo desconhecido: \(alvo)")
-                }
+            for alvo in valores(de: "data-alvo", em: html) where !alvo.isEmpty {
+                // ponytail: o gate não distingue qual data-alvo pertence a
+                // qual data-acao — aceita alvo válido pra qualquer uma das
+                // duas listas. Refinar se um alvo errado escapar.
+                check(pecas.contains(alvo) || paineis.contains(alvo),
+                      "\(nome): alvo desconhecido: \(alvo)")
             }
         }
     }

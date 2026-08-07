@@ -43,6 +43,13 @@ protocol NovidadesAcoes: AnyObject {
     func executar(_ acao: NovidadeAcao)
 }
 
+/// O app é `LSUIElement`, sem menu principal: não há ⌘W. Sem isto a única
+/// saída seria o X, e a página promete o Esc. `cancelOperation` é o que a
+/// cadeia de resposta chama no Esc — a `NSWindow` padrão o ignora.
+private final class JanelaNovidades: NSWindow {
+    override func cancelOperation(_ sender: Any?) { close() }
+}
+
 @MainActor
 final class NovidadesWindow: NSObject {
     private var window: NSWindow?
@@ -134,10 +141,10 @@ final class NovidadesWindow: NSObject {
                             allowingReadAccessTo: pasta)
         }
 
-        let window = NSWindow(contentRect: .zero,
-                              styleMask: [.titled, .closable],
-                              backing: .buffered,
-                              defer: false)
+        let window = JanelaNovidades(contentRect: .zero,
+                                     styleMask: [.titled, .closable],
+                                     backing: .buffered,
+                                     defer: false)
         window.title = "Novidades do Knobler"
         window.contentView = web
         window.isReleasedWhenClosed = false
@@ -145,7 +152,8 @@ final class NovidadesWindow: NSObject {
         window.center()
         self.window = window
 
-        // Nenhuma janela do projeto tem delegate: o X e o ⌘W caem todos aqui.
+        // Nenhuma janela do projeto tem delegate: o X e o Esc caem os dois
+        // aqui. (⌘W não existe — o app é LSUIElement, sem menu principal.)
         observer = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification, object: window, queue: .main
         ) { [weak self] _ in

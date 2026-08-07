@@ -58,7 +58,11 @@ enum NovidadesCatalogo {
         return d.bool(forKey: chaveLegadoPermissoes) ? "0.0.0" : nil
     }
 
+    /// `"0.0.0"` é sentinela de "migrou do wizard parcial": gravá-la faria a
+    /// boas-vindas reabrir em todo launch pra sempre. É o que
+    /// `Updater.installedVersion` devolve num build sem `MARKETING_VERSION`.
     static func marcarVisto(_ versao: String, _ d: UserDefaults = .standard) {
+        guard versao != "0.0.0" else { return }
         d.set(versao, forKey: chaveVersao)
     }
 }
