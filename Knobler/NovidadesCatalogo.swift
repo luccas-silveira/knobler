@@ -17,9 +17,7 @@ import Foundation
 enum NovidadesCatalogo {
     /// Versões com arquivo em `Knobler/Novidades/`. Escrita à mão junto do HTML;
     /// o `novidadescheck` confere que arquivo e lista batem.
-    /// Temporariamente `[]`: o `0.25.0.html` só nasce na Task 7 (conteúdo da
-    /// primeira versão real da página). Task 7 preenche de volta.
-    static let versoes: [String] = []
+    static let versoes: [String] = ["0.25.0"]
 
     /// A página da primeira abertura. Não é uma versão: nunca entra na
     /// comparação de SemVer.
