@@ -65,8 +65,15 @@ final class NovidadesWindow: NSObject {
         self.aoFechar = aoFechar
     }
 
+    /// Loga em vez de sumir em silêncio: sem a pasta a janela abriria em branco
+    /// e o rastro seria nenhum. O log fica aqui, e não em cada `guard`, porque
+    /// todos os caminhos passam por este acessor.
     private static var pasta: URL? {
-        Bundle.main.url(forResource: "Novidades", withExtension: nil)
+        guard let url = Bundle.main.url(forResource: "Novidades", withExtension: nil) else {
+            NSLog("knobler novidades: pasta Novidades ausente do bundle — página em branco")
+            return nil
+        }
+        return url
     }
 
     /// Corpos das páginas, concatenados. Página que sumiu do bundle é pulada em
@@ -138,7 +145,7 @@ final class NovidadesWindow: NSObject {
         window.center()
         self.window = window
 
-        // Nenhuma janela do projeto tem delegate: o X e o Esc caem todos aqui.
+        // Nenhuma janela do projeto tem delegate: o X e o ⌘W caem todos aqui.
         observer = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification, object: window, queue: .main
         ) { [weak self] _ in
@@ -163,15 +170,20 @@ final class NovidadesWindow: NSObject {
         aoFechar()
     }
 
-    /// Bloqueia toda requisição de rede do documento. Mais forte que CSP: não
-    /// depende de o HTML cooperar. A página é 100% local; se algum dia um
+    /// Bloqueia toda requisição de **rede** do documento. Mais forte que CSP:
+    /// não depende de o HTML cooperar. A página é 100% local; se algum dia um
     /// `<img>` apontar pra fora, ele simplesmente não carrega.
+    ///
+    /// O filtro casa esquema de rede em vez de `.*` de propósito: `.*` casaria
+    /// também os `file://` do shell, do `estilo.css` e de `midia/*.png`, e o
+    /// que o WebKit faz com content rule list sobre `file://` não é
+    /// documentado. Bloquear o que se quer bloquear é mais barato que apostar.
     ///
     /// `depois` roda sempre — inclusive se a compilação falhar: uma página sem
     /// o filtro é melhor que uma janela em branco, já que o conteúdo é do
     /// bundle assinado.
     private func aplicarBloqueioDeRede(em web: WKWebView, depois: @escaping () -> Void) {
-        let regra = #"[{"trigger":{"url-filter":".*"},"action":{"type":"block"}}]"#
+        let regra = #"[{"trigger":{"url-filter":"^(https?|wss?|ftp)://"},"action":{"type":"block"}}]"#
         guard let store = WKContentRuleListStore.default() else { depois(); return }
         store.compileContentRuleList(forIdentifier: "novidades-sem-rede",
                                      encodedContentRuleList: regra) { lista, _ in
@@ -219,5 +231,20 @@ extension NovidadesWindow: WKNavigationDelegate {
             NSWorkspace.shared.open(url)
         }
         decisionHandler(.cancel)
+    }
+
+    /// Carga que morre deixa rastro: sem isto a janela abre em branco e não há
+    /// o que investigar. Os dois casos existem porque o WebKit separa a falha
+    /// antes de a resposta chegar (provisional) da falha depois dela.
+    func webView(_ webView: WKWebView,
+                 didFailProvisionalNavigation navigation: WKNavigation!,
+                 withError error: Error) {
+        NSLog("knobler novidades: carga do shell falhou — %@", error.localizedDescription)
+    }
+
+    func webView(_ webView: WKWebView,
+                 didFail navigation: WKNavigation!,
+                 withError error: Error) {
+        NSLog("knobler novidades: navegação falhou — %@", error.localizedDescription)
     }
 }
