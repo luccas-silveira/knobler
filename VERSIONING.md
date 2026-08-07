@@ -47,3 +47,8 @@ tag, exige entradas em `## [Unreleased]`, então: renomeia `## [Unreleased]` →
 `## [X.Y.Z] - <data>` no CHANGELOG, bumpa o `project.yml`, commita
 (`release: vX.Y.Z`), builda/assina/zipa, cria a **tag anotada local**, publica no
 GitHub Release (notas = seção do CHANGELOG), bumpa o cask e dá push de tudo.
+
+**MINOR (e MAJOR) exigem página de novidades.** Toda feature escreve a novidade em
+`Knobler/Novidades/<versão>.html` junto da entrada do `CHANGELOG.md`, enquanto
+desenvolve — não no fim do ciclo. `tools/release.sh minor`/`major` aborta sem o
+arquivo; `patch` passa sem. Ver `docs/novidades.md`.

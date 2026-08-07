@@ -77,6 +77,21 @@ if [ -n "$LAST_VER" ] && ! ver_gt "$VER" "$LAST_VER"; then
   echo "versão $VER não é maior que a última tag v$LAST_VER" >&2; exit 2
 fi
 
+# --- página de novidades (obrigatória em MINOR/MAJOR) ------------------------
+# Feature sem página é feature que ninguém descobre. Fix (PATCH) não precisa.
+# Sem tag anterior (primeira release) não dá pra saber se subiu MINOR/MAJOR —
+# não bloqueia. Compara MAJOR e MINOR (não só MINOR): um bump de MAJOR que
+# zera o campo MINOR pra um valor igual ao anterior (ex.: 0.0.5 -> 1.0.0)
+# passaria batido se só o MINOR fosse comparado.
+NOVIDADE="Knobler/Novidades/$VER.html"
+NEW_MA="${VER%%.*}"; NEW_MI="${VER#*.}"; NEW_MI="${NEW_MI%%.*}"
+OLD_MA="${LAST_VER%%.*}"; OLD_MI="${LAST_VER#*.}"; OLD_MI="${OLD_MI%%.*}"
+if [ -n "$LAST_VER" ] && { [ "$NEW_MA" != "$OLD_MA" ] || [ "$NEW_MI" != "$OLD_MI" ]; } \
+   && [ ! -f "$NOVIDADE" ]; then
+  echo "release MINOR/MAJOR sem página de novidades: crie $NOVIDADE e acrescente \"$VER\" a NovidadesCatalogo.versoes." >&2
+  exit 2
+fi
+
 # --- notas do release: seção ## [Unreleased] do CHANGELOG --------------------
 [ -f "$CHANGELOG" ] || { echo "CHANGELOG.md não encontrado" >&2; exit 1; }
 NOTES="$(awk '/^## \[Unreleased\]/{g=1;next} /^## /{if(g)exit} g' "$CHANGELOG" \

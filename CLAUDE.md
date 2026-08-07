@@ -72,6 +72,9 @@ em 0. **Não** existe mais "vN de sessão" — HANDOFF/MEMORY citam a versão de
 release. **Nunca** edite `MARKETING_VERSION` à mão nem crie tag manual: o
 `tools/release.sh` é o único escritor. Escreva as mudanças em `## [Unreleased]` do
 `CHANGELOG.md` conforme desenvolve; publique com `./tools/release.sh <patch|minor|major>`.
+Feature nova escreve a novidade em `Knobler/Novidades/<versão>.html` junto da
+entrada do CHANGELOG (o `release.sh minor`/`major` aborta sem ela) e acrescenta
+a versão a `NovidadesCatalogo.versoes`.
 
 ## Loop de snapshot (feedback visual)
 
