@@ -106,8 +106,8 @@ abrir o espelho, a rede local só ao pôr a seção Mensagens em foco. Recusar n
 quebra o app: só desliga aquele recurso.
 
 Duas fogem dessa regra. A **Acessibilidade** é pedida por este painel, que se
-abre sozinho na primeira execução (logo depois da [janela de
-boas-vindas](onboarding.md)) — sem ela o `CGEventTap` nem chega a ser criado, a
+abre sozinho na primeira execução (logo depois da [página de
+novidades](novidades.md)) — sem ela o `CGEventTap` nem chega a ser criado, a
 ⌥ direita nunca chega ao app e não existe "primeiro uso" que dê pra esperar, o
 ditado ficaria impossível de acionar. É também a permissão que os HUDs de volume
 e brilho usam.
@@ -117,8 +117,8 @@ com o app quando **AirPods no notch** está ligado (o padrão) — o macOS pede
 assim que o Knobler pergunta quais dispositivos estão pareados. Desligue a opção
 em Ajustes › Notch se preferir não conceder.
 
-Na **primeira abertura** o painel se apresenta sozinho, logo que a [janela de
-boas-vindas](onboarding.md) fecha. O Knobler roda como agente (sem ícone no
+Na **primeira abertura** o painel se apresenta sozinho, logo que a [página de
+novidades](novidades.md) fecha. O Knobler roda como agente (sem ícone no
 Dock, sem janela), então sem isso não há de onde partir pra achar as
 permissões. Ele também se apresenta, a qualquer momento, quando a instalação
 está num estado que invalida o TCC (ver abaixo).

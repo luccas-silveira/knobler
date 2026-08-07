@@ -5,7 +5,7 @@
 //  A máquina de peças: a ficha de cada feature, o registro, quem está
 //  instalado e o host que faz as peças nascerem. Só `Foundation` de propósito
 //  — assim o `plugincheck` compila isto isolado, sem arrastar AppKit (mesma
-//  razão do `Onboarding` e do `CalendarAviso`).
+//  razão do `NovidadesCatalogo` e do `CalendarAviso`).
 //
 //  A forma é a do protótipo `.wayfinder/marketplace/prototypes/003-forma-da-peca.swift`:
 //  a peça é DADO (um struct com campos) mais UMA closure `nascer`. Nada de
@@ -365,7 +365,7 @@ enum PluginRegistry {
 /// lixo nos ajustes.
 enum PluginsInstalados {
     static let chave = "pluginsInstalados"
-    /// Truque de versão do `Onboarding`: a migração roda uma vez por versão.
+    /// Truque de versão do `NovidadesCatalogo`: a migração roda uma vez por versão.
     static let chaveMigracao = "plugins.migracao"
     /// Subir isto reinstala tudo em todo mundo — só faz sentido se um dia a
     /// regra "todos instalados" mudar. Hoje: 1.

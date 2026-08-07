@@ -6,6 +6,17 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- **Página de novidades**: toda versão nova abre uma página com texto, print e
+  tutorial do que chegou (`Knobler/Novidades/<versão>.html`, renderizada num
+  `WKWebView` local). Pula versões sem perder nada: quem estava na 0.24 e vai
+  pra 0.27 vê as três. Reabre em **◐ → Novidades…** sem marcar nada como visto.
+
+### Removed
+- A janela de boas-vindas em SwiftUI (`Onboarding.swift`, `OnboardingView.swift`)
+  e o versionamento por passo. A primeira abertura agora é a página de
+  boas-vindas, com print. Quem já tinha visto o wizard não revê nada.
+
 ## [0.24.0] - 2026-08-05
 
 ### Added

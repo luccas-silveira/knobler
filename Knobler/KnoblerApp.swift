@@ -704,88 +704,74 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let pane = arg.split(separator: "=").last
                 .flatMap { SettingsPane(rawValue: String($0)) }
             showSettings(pane: pane)
-        } else if CommandLine.arguments.contains("--boas-vindas") {
+        } else if CommandLine.arguments.contains("--novidades") {
             // modo de captura: mostra tudo e não grava nada
-            mostrarBoasVindas(paraVersao: 0, gravando: false)
+            mostrarNovidades(paginas: NovidadesCatalogo.tudo(), gravando: false)
         } else {
-            apresentarBoasVindasSeNecessario()
+            apresentarNovidadesSeNecessario()
         }
     }
 
     /// O app é LSUIElement: sem janela e sem ícone no Dock, quem instala não tem
-    /// onde procurar nem o app nem as permissões. A janela de boas-vindas conta
-    /// isso na primeira abertura; o painel Permissões vem logo depois que ela
-    /// fecha, e é ele quem pede Acessibilidade.
-    ///
-    /// Passo novo numa versão futura reabre a janela só com ele — quem já viu o
-    /// resto não revê (ver `Onboarding.versaoAtual`).
-    private func apresentarBoasVindasSeNecessario() {
+    /// onde procurar nem o app nem as permissões. A página de novidades conta
+    /// isso na primeira abertura e, a cada versão nova, mostra o que chegou.
+    private func apresentarNovidadesSeNecessario() {
         // Saúde da instalação é problema de agora, não novidade: vai direto pro
-        // painel, sem passar pelo wizard nem pelo versionamento.
+        // painel, sem passar pela página nem pelo versionamento.
         if Permission.installIssue != nil {
             showSettings(pane: .permissoes)
             return
         }
-        let vista = Onboarding.versaoVista()
-        guard !Onboarding.visiveis(paraVersao: vista).isEmpty else { return }
-        // Permissões só na primeira execução de verdade: quem só está vendo um
-        // passo novo já passou por esse painel.
-        mostrarBoasVindas(paraVersao: vista, gravando: true, depoisPermissoes: vista == 0)
+        let vista = NovidadesCatalogo.versaoVista()
+        let paginas = NovidadesCatalogo.aExibir(instalada: Updater.shared.installedVersion,
+                                                vista: vista)
+        guard !paginas.isEmpty else { return }
+        // Permissões só na primeira execução de verdade: quem está vendo uma
+        // versão nova já passou por esse painel.
+        mostrarNovidades(paginas: paginas, gravando: true, depoisPermissoes: vista == nil)
     }
 
-    private var onboardingWindow: NSWindow?
-    private var onboardingObserver: NSObjectProtocol?
+    private var novidadesWindow: NovidadesWindow?
 
-    private func mostrarBoasVindas(paraVersao vista: Int,
-                                   gravando: Bool,
-                                   depoisPermissoes: Bool = false) {
-        if onboardingWindow == nil {
-            let window = NSWindow(
-                contentRect: .zero,
-                styleMask: [.titled, .closable],
-                backing: .buffered,
-                defer: false
-            )
-            window.title = "Bem-vindo ao Knobler"
-            window.contentView = NSHostingView(rootView: OnboardingView(
-                passos: Onboarding.visiveis(paraVersao: vista),
-                mostrarNovidade: vista > 0,
-                aoConcluir: { [weak window] in window?.close() },
-                aoIgnorar: { [weak window] in window?.close() }
-            )
-            // O NSHostingView adota o fitting size do conteúdo e o setContentSize
-            // abaixo não o segura: sem esta moldura a janela nasce com milhares
-            // de pontos de altura (o texto de cada linha se estica sem limite).
-            .frame(width: 800, height: 520))
-            window.isReleasedWhenClosed = false
-            window.setContentSize(NSSize(width: 800, height: 520))
-            window.center()
-            onboardingWindow = window
-            // Nenhuma janela do projeto tem delegate: o X e os dois botões caem
-            // todos aqui, e a versão é gravada num lugar só.
-            onboardingObserver = NotificationCenter.default.addObserver(
-                forName: NSWindow.willCloseNotification, object: window, queue: .main
-            ) { [weak self] _ in
-                guard let self else { return }
-                if let obs = self.onboardingObserver {
-                    NotificationCenter.default.removeObserver(obs)
-                }
-                self.onboardingObserver = nil
-                self.onboardingWindow = nil
-                // No modo de captura (--boas-vindas) tirar print não pode
-                // queimar o onboarding da máquina.
-                guard gravando else { return }
-                Onboarding.marcarVisto()
-                if depoisPermissoes { self.showSettings(pane: .permissoes) }
-            }
+    private func mostrarNovidades(paginas: [String],
+                                  gravando: Bool,
+                                  depoisPermissoes: Bool = false) {
+        // Uma janela só: a página pode abrir sozinha num launch de versão nova e
+        // o menu vir logo depois. A reusada mantém as páginas com que nasceu.
+        if let janela = novidadesWindow { janela.mostrar(); return }
+        let versao = Updater.shared.installedVersion
+        let janela = NovidadesWindow(paginas: paginas, acoes: self) { [weak self] in
+            guard let self else { return }
+            self.novidadesWindow = nil
+            // No modo de captura (--novidades) e na releitura pelo menu, tirar
+            // print ou reler não pode queimar o estado da máquina.
+            guard gravando else { return }
+            NovidadesCatalogo.marcarVisto(versao)
+            if depoisPermissoes { self.showSettings(pane: .permissoes) }
         }
-        onboardingWindow?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        novidadesWindow = janela
+        janela.mostrar()
     }
 
-    /// Porta de volta: quem pede de propósito quer ver tudo.
-    @objc private func openOnboarding() {
-        mostrarBoasVindas(paraVersao: 0, gravando: true)
+    /// Porta de volta: quem pede de propósito quer ver tudo — e reler não grava
+    /// nada, ao contrário do wizard que isto substitui.
+    @objc private func openNovidades() {
+        mostrarNovidades(paginas: NovidadesCatalogo.tudo(), gravando: false)
+    }
+
+    /// As ações que a página de novidades pode pedir. Enum fechado do lado do
+    /// Swift (`NovidadeAcao`), lista validada pelo `novidadescheck` do lado do
+    /// HTML: string desconhecida morre antes de chegar aqui.
+    func executar(_ acao: NovidadeAcao) {
+        switch acao {
+        case .abrirAjustes(let painel):
+            showSettings(pane: SettingsPane(rawValue: painel))
+        case .instalarPeca(let id):
+            guard let peca = PluginID(rawValue: id) else { return }
+            plugins.instalar(peca)
+        case .abrirCard:
+            viewModelPrincipal()?.setExpandedDirect(true)
+        }
     }
 
     /// Compõe o domínio Ask com o gateway HTTP antes que o listener possa
@@ -1367,9 +1353,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             withTitle: "↗ Enviar por AirDrop…", action: #selector(sendAirDrop), keyEquivalent: "")
         airdrop.target = self
         menu.addItem(.separator())
-        let boasVindas = menu.addItem(
-            withTitle: "Boas-vindas…", action: #selector(openOnboarding), keyEquivalent: "")
-        boasVindas.target = self
+        let novidades = menu.addItem(
+            withTitle: "Novidades…", action: #selector(openNovidades), keyEquivalent: "")
+        novidades.target = self
         let settings = menu.addItem(
             withTitle: "Ajustes…", action: #selector(openSettings), keyEquivalent: ",")
         settings.target = self
@@ -1559,7 +1545,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func openSettings() { showSettings(pane: nil) }
 
-    private func showSettings(pane: SettingsPane?) {
+    /// Não é `private` porque a página de novidades abre painel pela ponte
+    /// (`executar(_:)`), no mesmo caminho da flag `--ajustes=`.
+    func showSettings(pane: SettingsPane?) {
         // sheet aberto (ex.: MappingEditor com edições) → não trocar o painel,
         // senão o detalhe é recriado e o sheet morre levando o que foi digitado
         if let pane, settingsWindow?.attachedSheet == nil { settingsRouter.pane = pane }
@@ -1600,3 +1588,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 }
+
+extension AppDelegate: NovidadesAcoes {}

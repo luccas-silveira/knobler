@@ -30,11 +30,12 @@ KnoblerMain
 serviços, conecta callbacks e cria as janelas; ele não deve virar o lugar onde
 regras de domínio novas são implementadas.
 
-**Nenhuma permissão é pedida no launch.** A abertura mostra a janela de
-boas-vindas (só os passos que esta instalação ainda não viu — ver `Onboarding`)
-e, quando ela fecha, o painel Ajustes › Permissões, que é quem pede
-Acessibilidade e Calendário. Instalação com `Permission.installIssue` pula o
-wizard e vai direto ao painel. Quem depende de Acessibilidade ou de Calendário
+**Nenhuma permissão é pedida no launch.** A abertura mostra a página de
+novidades (só as versões que esta instalação ainda não viu — ver
+`NovidadesCatalogo`) e, na primeira execução de verdade, quando ela fecha, o
+painel Ajustes › Permissões, que é quem pede Acessibilidade e Calendário.
+Instalação com `Permission.installIssue` pula a página e vai direto ao painel.
+Quem depende de Acessibilidade ou de Calendário
 repolla o trust a cada 3 s e se liga sozinho quando a concessão chega — não há
 relaunch no caminho.
 
@@ -93,7 +94,7 @@ do usuário.
 | Webhooks | `WebhookClient` + Keychain | Ajustes e notificações |
 | Agenda | `CalendarCountdown`, `ScheduleEngine` | notch e Ajustes |
 | Próximo evento reduzido ao que a UI usa | `CalendarAviso` (sem dependências, por isso testável isolado) | card e pílula do Pomodoro |
-| Passos de boas-vindas já vistos | `Onboarding` (sem dependências, por isso testável isolado) | `OnboardingView`, `AppDelegate` |
+| Versão de novidades já vista | `NovidadesCatalogo` (sem dependências, por isso testável isolado) | `NovidadesWindow`, `AppDelegate` |
 | Versão disponível e instalação | `Updater` | card do notch e Ajustes › Geral |
 | Avisos do desenvolvedor já mostrados | `DevAvisos` (sem dependências, por isso testável isolado) + `avisos.vistos` | card do notch, via `AppDelegate.publicar` |
 | Notificações das últimas 24 h (em disco) | `NotificationHistory.shared` | `HistoryListView` |
