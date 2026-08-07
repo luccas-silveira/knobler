@@ -179,14 +179,28 @@ final class NovidadesWindow: NSObject {
     /// que o WebKit faz com content rule list sobre `file://` não é
     /// documentado. Bloquear o que se quer bloquear é mais barato que apostar.
     ///
+    /// Uma regra por esquema, e não uma alternação: o `url-filter` aceita só um
+    /// subconjunto de regex (classes, ranges, `.`, `*`, `+`, `?`, `^`, `$`) —
+    /// grupo e `|` viram `Disjunctions are not supported yet` e a compilação
+    /// inteira falha em silêncio. `?` é suportado, e o filtro já ignora caixa.
+    ///
     /// `depois` roda sempre — inclusive se a compilação falhar: uma página sem
     /// o filtro é melhor que uma janela em branco, já que o conteúdo é do
-    /// bundle assinado.
+    /// bundle assinado. Mas falha loga: foi o `_` no lugar do erro que deixou a
+    /// regra anterior inerte sem ninguém notar.
     private func aplicarBloqueioDeRede(em web: WKWebView, depois: @escaping () -> Void) {
-        let regra = #"[{"trigger":{"url-filter":"^(https?|wss?|ftp)://"},"action":{"type":"block"}}]"#
+        let regra = #"""
+        [{"trigger":{"url-filter":"^https?://"},"action":{"type":"block"}},
+         {"trigger":{"url-filter":"^wss?://"},"action":{"type":"block"}},
+         {"trigger":{"url-filter":"^ftp://"},"action":{"type":"block"}}]
+        """#
         guard let store = WKContentRuleListStore.default() else { depois(); return }
         store.compileContentRuleList(forIdentifier: "novidades-sem-rede",
-                                     encodedContentRuleList: regra) { lista, _ in
+                                     encodedContentRuleList: regra) { lista, erro in
+            if let erro {
+                NSLog("knobler novidades: bloqueio de rede não compilou — %@",
+                      erro.localizedDescription)
+            }
             // A API não documenta em que fila o completion chega, então o salto
             // é explícito em vez de `MainActor.assumeIsolated` — que abortaria
             // o processo se um dia vier de outra fila.

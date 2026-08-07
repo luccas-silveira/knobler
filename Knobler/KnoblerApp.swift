@@ -736,6 +736,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func mostrarNovidades(paginas: [String],
                                   gravando: Bool,
                                   depoisPermissoes: Bool = false) {
+        // Uma janela só: a página pode abrir sozinha num launch de versão nova e
+        // o menu vir logo depois. A reusada mantém as páginas com que nasceu.
+        if let janela = novidadesWindow { janela.mostrar(); return }
         let versao = Updater.shared.installedVersion
         let janela = NovidadesWindow(paginas: paginas, acoes: self) { [weak self] in
             guard let self else { return }
