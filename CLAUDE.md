@@ -100,7 +100,9 @@ verdade) não renderiza via `ImageRenderer` offscreen** — vira o ícone de
 "proibido" no lugar do conteúdo. Casos confirmados até agora:
 `NavigationSplitView`/`HSplitView` (repro isolado), `TextField` (o rodapé do
 `AskCardView` — por isso `ask-simple.png`/`ask-multiselect.png` cortam antes
-da barra do campo de texto), `WKWebView` (a seção Link — o preview de site não tem PNG no harness),
+da barra do campo de texto), `WKWebView` (a seção Link — o preview de site não
+tem PNG no harness — e `NovidadesWindow`, a janela de novidades: mesma vala,
+por isso `docs/images/novidades.png` também é manual),
 e `NSWorkspace.icon(forFile:)`/`QLThumbnailGenerator`
 (`ShelfThumbnailDragView` — por isso a imagem da prateleira nos docs
 (`docs/images/expanded-shelf.png`) é capturada no app rodando de verdade: o
@@ -140,12 +142,12 @@ passos pequenos antes do down/up. Numa tela
 Retina o PNG sai em @2x: o corte equivalente é
 `sips -c 1108 1604 --cropOffset 74 110` seguido de `sips -z 554 802`.
 
-`boas-vindas-1.png`/`-2.png` seguem a mesma vala (`NSWindow` real): rode
-`Knobler --boas-vindas` — a flag mostra **todos** os passos e não grava a versão
-vista, então tirar print não queima o onboarding da máquina. Rode de
-`/Applications` ou de `~/Applications`: de `/tmp` o `installIssue` manda direto
-pro painel Permissões e o wizard nem abre. Essas duas vão @2x mesmo
-(`screencapture -o -l<id>` já sai 1600x1104, sem sombra e sem halo).
+`docs/images/novidades.png` segue a mesma vala (`WKWebView` real): rode
+`Knobler --novidades` — a flag mostra **tudo** e não grava a versão vista,
+então tirar print não queima o estado da máquina. Rode de `/Applications` ou
+de `~/Applications`: de `/tmp` o `installIssue` manda direto pro painel
+Permissões e a página nem abre. Sai @2x mesmo (`screencapture -o -l<id>`, sem
+sombra e sem halo, não precisa recortar).
 
 ⚠️ **Recapturar `expanded-shelf.png` mexe na máquina do usuário — peça antes.**
 É a única imagem dos docs que exige o card aberto com a prateleira em foco, e a

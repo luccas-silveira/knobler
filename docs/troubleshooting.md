@@ -85,7 +85,7 @@ ela só se prova com um player tocando, que é quando o tap de áudio é criado.
 ## O countdown do calendário não aparece
 
 Desde a 0.19.0 o Knobler **não pede** a permissão de Calendário na abertura (o
-balão caía por cima da janela de boas-vindas). Quem pede é **Ajustes →
+balão caía por cima da página de novidades). Quem pede é **Ajustes →
 Permissões**, botão *Permitir* na linha *Calendários*. Concedida, o countdown
 liga em segundos — sem reabrir o app.
 

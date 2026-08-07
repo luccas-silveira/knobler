@@ -132,9 +132,11 @@ A **ordem** de implementação (agrupada por infra compartilhada) mora em
   contador no histórico — não se paga num canal que emite uma vez por mês.
 - **Wizard de primeira execução** + **Dicas de hotkeys** → viraram um só: a
   janela de boas-vindas, com o passo do que é o app e o dos dois atalhos
-  globais, versionada por passo (`docs/onboarding.md`). O "minimal setup" do
-  pedido original foi cortado: não há o que perguntar — ditado e API já nascem
-  ligados, Mensagens não tem toggle e Spotify não tem login.
+  globais, versionada por passo. O "minimal setup" do pedido original foi
+  cortado: não há o que perguntar — ditado e API já nascem ligados, Mensagens
+  não tem toggle e Spotify não tem login. Mais tarde substituída pela
+  [página de novidades](novidades.md), que versiona por release em vez de por
+  passo.
 - **Integração com Calendário** → durante o Pomodoro, o próximo evento aparece
   numa linha do card de foco e toma a pílula fechada nos últimos 5 min
   (`docs/pomodoro.md`).

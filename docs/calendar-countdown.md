@@ -31,7 +31,7 @@ Detalhes em [pomodoro.md](pomodoro.md).
 - **Calendário (acesso completo)** — *"Knobler mostra a contagem regressiva
   do próximo evento no notch."* Pedido pelo painel **Ajustes → Permissões**
   (botão *Permitir*), não na abertura do app — o balão do EventKit no launch
-  caía por cima da [janela de boas-vindas](onboarding.md). Enquanto não vem, a
+  caía por cima da [página de novidades](novidades.md). Enquanto não vem, a
   feature fica quieta (sem erro, sem retry insistente) e liga sozinha em
   segundos quando a permissão chega, sem reabrir o app. Se negada, fica quieta
   pra sempre até você mudar no Ajustes do Sistema.

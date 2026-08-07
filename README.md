@@ -73,10 +73,10 @@ Dynamic Island para o notch do Mac — nativo, Swift/SwiftUI, macOS 14.2+.
 - **API local** (`127.0.0.1:4477`) — o diferencial: qualquer script publica no notch.
   → [detalhes](docs/local-api.md)
 
-- **Boas-vindas na primeira abertura**: uma janela em dois passos conta onde o
-  app vive e quais são os dois atalhos globais — o app não tem Dock nem janela
-  pra dizer isso sozinho. Versionada por passo: uma versão futura mostra só o
-  que é novo. → [detalhes](docs/onboarding.md)
+- **Página de novidades a cada versão**: uma janela com print e passo a passo
+  conta o que mudou — o app não tem Dock nem janela pra dizer isso sozinho.
+  Versionada por release: uma versão futura mostra só o que é novo, e quem
+  pulou versões vê todas de uma vez. → [detalhes](docs/novidades.md)
 
 Configuração de tudo isso numa janela de Ajustes única. → [detalhes](docs/settings.md)
 
@@ -160,8 +160,8 @@ Permissões** (ver [`docs/settings.md`](docs/settings.md)).
 | Gravação de áudio do sistema | visualizador reagindo ao áudio real do player |
 
 Duas fogem da regra do primeiro uso. A Acessibilidade é pedida pelo painel
-Permissões, que abre sozinho na primeira execução (depois da janela de
-boas-vindas): sem ela o `CGEventTap` não existe e o gatilho do ditado nunca
+Permissões, que abre sozinho na primeira execução (depois da página de
+novidades): sem ela o `CGEventTap` não existe e o gatilho do ditado nunca
 chega ao app. O Bluetooth é pedido na abertura, no registro do monitor de
 AirPods, se o recurso estiver ligado em Ajustes › Notch.
 
