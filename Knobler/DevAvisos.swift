@@ -15,7 +15,7 @@
 //
 //  O arquivo não conhece SwiftUI, AppKit nem AppSettings de propósito — é o que
 //  deixa o `avisoscheck` compilar o filtro isolado (mesma razão do
-//  `CalendarAviso` e do `Onboarding`). Quem converte `Aviso` em
+//  `CalendarAviso` e do `NovidadesCatalogo`). Quem converte `Aviso` em
 //  `NotchNotification` é o AppDelegate.
 //
 
