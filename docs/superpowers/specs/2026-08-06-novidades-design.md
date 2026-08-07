@@ -104,8 +104,6 @@ bug 203302: no macOS o header `Range` chega ao handler) e a tabela de MIME.
 O endurecimento segue o Sparkle (`SUWKWebView.m`), que resolve o mesmo problema —
 release notes locais numa `WKWebView` — há anos:
 
-- **JavaScript do documento desligado.** A ponte roda por `WKUserScript`, que
-  executa mesmo com JS de documento off; é assim que o Sparkle injeta CSS.
 - **`WKContentRuleList` bloqueando `.*`** — corta requisição externa na raiz, sem
   depender de o HTML cooperar. Mais forte que CSP.
 - **`javaScriptCanOpenWindowsAutomatically = NO`.**
@@ -114,6 +112,12 @@ release notes locais numa `WKWebView` — há anos:
   log, `file://` inclusive.
 - **`mediaTypesRequiringUserActionForPlayback = []`** explícito: o default no
   macOS não é documentado. `allowsInlineMediaPlayback` é iOS-only, não usar.
+
+Uma coisa do Sparkle **não** se aplica: lá o JavaScript do documento nasce
+desligado, porque o HTML vem de um feed remoto e eles só precisam injetar CSS.
+Aqui o HTML é 100% do bundle assinado e a página precisa de listener de clique
+pros botões, então `allowsContentJavaScript` fica ligado. O que protege não é
+desligar JS — é o content rule list, que impede o documento de falar com a rede.
 
 ### Catálogo e estado
 
