@@ -419,14 +419,23 @@ struct NotchView: View {
             if hasPreview { height = max(height, topInset + 200) }
             // A altura real vem do próprio card (AlturaDoAskKey); os 18 são os
             // paddings que o `questionCard` acrescenta em volta dele.
-            if askHeight > 0 { height = topInset + 6 + askHeight + 12 }
+            // Com preview não serve: o `preview` tem `.frame(maxHeight: .infinity)`,
+            // então o card preenche a proposta e a medida devolve sempre a altura
+            // atual — não cresce e, pior, não encolhe quando o mouse sai.
+            if askHeight > 0 && !hasPreview { height = topInset + 6 + askHeight + 12 }
             // ponytail: o card para de crescer na tela e o excedente é cortado
             // pela máscara. Sem rolagem — só ocorre com pergunta e opções
             // descomunais ao mesmo tempo; se aparecer de verdade, entra scroll.
             // mesma medida que a janela usa (KnoblerApp.swift): do topo da
-            // tela até o topo do Dock. `visibleFrame.height` sozinho tiraria a
-            // menu bar duas vezes.
-            let teto = NSScreen.main.map { $0.frame.maxY - $0.visibleFrame.minY } ?? 900
+            // tela até o topo do Dock, na tela ONDE ESTE notch desenha (não a
+            // `NSScreen.main`, que é a do foco de teclado — num multi-monitor de
+            // alturas diferentes o teto viria maior que a janela e cortaria).
+            // `visibleFrame.height` sozinho tiraria a menu bar duas vezes.
+            let numero = NSDeviceDescriptionKey("NSScreenNumber")
+            let tela = NSScreen.screens.first {
+                $0.deviceDescription[numero] as? CGDirectDisplayID == vm.displayID
+            }
+            let teto = tela.map { $0.frame.maxY - $0.visibleFrame.minY } ?? 900
             return CGSize(width: hasPreview ? 540 : 460, height: min(height, teto))
         }
     }
