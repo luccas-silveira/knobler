@@ -63,8 +63,10 @@ estado novo entra em `AskCardView`.
 
 Em `Knobler/NotchView.swift`:
 
-- O `AskCardView` reporta a altura real que renderizou (`onGeometryChange`), e
-  `NotchView` guarda esse valor num `@State`.
+- O `AskCardView` reporta a altura real que renderizou, e `NotchView` guarda esse
+  valor num `@State`. A medição usa `GeometryReader` dentro de um `.background`
+  alimentando um `PreferenceKey`, não `onGeometryChange` — este último só existe
+  a partir do macOS 15 e o deployment target é 14.2.
 - `currentSize`, no caso `.question` com `askStore.state.active`, usa a altura
   medida quando existir, com `topInset` somado, e cai na fórmula atual
   (`46 + opções*48 + 44`) enquanto não houver medida — ela vira só o valor de
