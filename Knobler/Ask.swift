@@ -169,7 +169,9 @@ struct AskCardView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(6)
-        .frame(maxHeight: .infinity)
+        // altura natural do texto (com um piso), NÃO `maxHeight: .infinity`: com
+        // infinito o card preenche a proposta e a auto-medição trava na altura atual
+        .frame(minHeight: 120, alignment: .topLeading)
         .background(RoundedRectangle(cornerRadius: 8).fill(.white.opacity(0.06)))
     }
 

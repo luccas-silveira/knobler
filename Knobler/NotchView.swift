@@ -419,10 +419,7 @@ struct NotchView: View {
             if hasPreview { height = max(height, topInset + 200) }
             // A altura real vem do próprio card (AlturaDoAskKey); os 18 são os
             // paddings que o `questionCard` acrescenta em volta dele.
-            // Com preview não serve: o `preview` tem `.frame(maxHeight: .infinity)`,
-            // então o card preenche a proposta e a medida devolve sempre a altura
-            // atual — não cresce e, pior, não encolhe quando o mouse sai.
-            if askHeight > 0 && !hasPreview { height = topInset + 6 + askHeight + 12 }
+            if askHeight > 0 { height = topInset + 6 + askHeight + 12 }
             // ponytail: o card para de crescer na tela e o excedente vaza pra
             // baixo, pra fora da borda da janela (a NotchView é ancorada no
             // topo, `.frame(alignment: .top)`). Sem rolagem — só ocorre com
