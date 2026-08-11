@@ -1194,8 +1194,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 media.state != nil && media.state?.isPlaying != true
             notch.viewModel.activity = currentActivity
 
-            // altura comporta o card com espelho; área transparente não intercepta cliques
-            let size = NSSize(width: 700, height: 520)
+            // altura do topo da tela até o topo do Dock, pro card poder crescer
+            // o quanto precisar; a área transparente não intercepta cliques
+            let size = NSSize(width: 700, height: screen.frame.maxY - screen.visibleFrame.minY)
             let frame = NSRect(
                 x: screen.frame.midX - size.width / 2,
                 y: screen.frame.maxY - size.height,

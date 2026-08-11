@@ -12,6 +12,24 @@ import Network
 import SwiftUI
 import UniformTypeIdentifiers
 
+// `PluginsSettingsPane` chama `KnoblerMain.delegate` no ABRIR das peças sem
+// painel, e o harness não compila `KnoblerApp.swift` (o `@main` de lá brigaria
+// com este arquivo). Dublê inerte só pra satisfazer o compilador: nenhum
+// cenário renderiza a vitrine de Ajustes.
+// ponytail: dublê sem lógica real — teto é uma chamada nova a
+// `KnoblerMain.delegate` vinda de Knobler/PluginsSettingsPane.swift que peça
+// mais do que `viewModelPrincipal`/`ligarDesligarNota`, o que quebra a
+// compilação do harness de novo. Upgrade: injetar as ações da vitrine por
+// protocolo em vez de alcançar o delegate global.
+@MainActor
+enum KnoblerMain {
+    struct DubleDeAppDelegate {
+        func viewModelPrincipal() -> NotchViewModel? { nil }
+        func ligarDesligarNota(em screen: NSScreen?) {}
+    }
+    static let delegate = DubleDeAppDelegate()
+}
+
 let outputDir = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "Snapshots"
 try? FileManager.default.createDirectory(atPath: outputDir, withIntermediateDirectories: true)
 
@@ -313,7 +331,9 @@ let scenarios: [Scenario] = [
     Scenario(name: "dictation-error", realNotch: false) { vm, _, _ in
         vm.dictation = .error("Sem acesso ao microfone")
     },
-    Scenario(name: "ask-simple", realNotch: true) { _, _, askStore in
+    // frameHeight maior que o default 240: a pergunta agora ocupa as linhas que
+    // precisar e o card mede a própria altura — com 240 o PNG cortava a lista.
+    Scenario(name: "ask-simple", realNotch: true, frameHeight: 420) { _, _, askStore in
         askStore.send(.enqueue(AskRequest(id: "s1", questions: [
             AskQuestion(
                 question: "Qual abordagem seguir?", header: "Abordagem",
@@ -328,7 +348,7 @@ let scenarios: [Scenario] = [
                 ])
         ], receivedAt: Date(timeIntervalSince1970: 1_000))))
     },
-    Scenario(name: "ask-multiselect", realNotch: true) { _, _, askStore in
+    Scenario(name: "ask-multiselect", realNotch: true, frameHeight: 420) { _, _, askStore in
         askStore.send(.enqueue(AskRequest(id: "s2", questions: [
             AskQuestion(
                 question: "Quais checagens rodar?", header: "Validação",

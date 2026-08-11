@@ -55,6 +55,11 @@ struct AskCardView: View {
             }
         }
         .foregroundStyle(.white)
+        .background(
+            GeometryReader { proxy in
+                Color.clear.preference(key: AlturaDoAskKey.self, value: proxy.size.height)
+            }
+        )
         // Esc (com o campo focado) = mesmo intent do ✕: pergunta vai pro terminal
         .onExitCommand { askStore.send(.cancelActive) }
     }
@@ -70,7 +75,7 @@ struct AskCardView: View {
             }
             Text(question.question)
                 .font(.subheadline.weight(.semibold))
-                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
             if let source = ask?.source, !source.isEmpty {
                 // quem pergunta: pasta do projeto da sessão do Claude Code
@@ -134,7 +139,10 @@ struct AskCardView: View {
                         Text(option.description)
                             .font(.caption2)
                             .foregroundStyle(.white.opacity(0.6))
-                            .lineLimit(2)
+                            // a opção sob o cursor mostra a descrição inteira;
+                            // as outras seguem em 2 linhas pra lista não inchar
+                            .lineLimit(hovered == option.label ? nil : 2)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 Spacer(minLength: 0)
@@ -161,7 +169,9 @@ struct AskCardView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(6)
-        .frame(maxHeight: .infinity)
+        // altura natural do texto (com um piso), NÃO `maxHeight: .infinity`: com
+        // infinito o card preenche a proposta e a auto-medição trava na altura atual
+        .frame(minHeight: 120, alignment: .topLeading)
         .background(RoundedRectangle(cornerRadius: 8).fill(.white.opacity(0.06)))
     }
 
@@ -200,5 +210,17 @@ struct AskCardView: View {
     private func submitPage(labels: [String], text: String? = nil) {
         askStore.send(.submit(labels: labels, text: text))
         hovered = nil
+    }
+}
+
+// MARK: - Altura medida
+
+/// O card do Ask não tem altura previsível: a pergunta e a descrição sob o
+/// cursor variam de linhas. Ele mede a si mesmo e o `NotchView` usa esse
+/// valor no lugar da estimativa por número de opções.
+struct AlturaDoAskKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
