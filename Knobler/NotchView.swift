@@ -253,7 +253,7 @@ struct NotchView: View {
             color: .black.opacity(mode == .closed ? 0 : 0.35),
             radius: 12, y: 5
         )
-        .frame(width: currentSize.width, height: currentSize.height)
+        .frame(width: currentSize.width, height: currentSize.height, alignment: .top)
         // folga invisível de hover ao redor do card aberto: jitter na borda
         // não fecha; e o hit-test cobre o retângulo todo, não só o desenhado.
         // A constante vem do NotchGesture porque a zona do scroll soma a MESMA
@@ -423,9 +423,11 @@ struct NotchView: View {
             // então o card preenche a proposta e a medida devolve sempre a altura
             // atual — não cresce e, pior, não encolhe quando o mouse sai.
             if askHeight > 0 && !hasPreview { height = topInset + 6 + askHeight + 12 }
-            // ponytail: o card para de crescer na tela e o excedente é cortado
-            // pela máscara. Sem rolagem — só ocorre com pergunta e opções
-            // descomunais ao mesmo tempo; se aparecer de verdade, entra scroll.
+            // ponytail: o card para de crescer na tela e o excedente vaza pra
+            // baixo, pra fora da borda da janela (a NotchView é ancorada no
+            // topo, `.frame(alignment: .top)`). Sem rolagem — só ocorre com
+            // pergunta e opções descomunais ao mesmo tempo; se aparecer de
+            // verdade, entra scroll.
             // mesma medida que a janela usa (KnoblerApp.swift): do topo da
             // tela até o topo do Dock, na tela ONDE ESTE notch desenha (não a
             // `NSScreen.main`, que é a do foco de teclado — num multi-monitor de

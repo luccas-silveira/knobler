@@ -16,6 +16,11 @@ import UniformTypeIdentifiers
 // painel, e o harness não compila `KnoblerApp.swift` (o `@main` de lá brigaria
 // com este arquivo). Dublê inerte só pra satisfazer o compilador: nenhum
 // cenário renderiza a vitrine de Ajustes.
+// ponytail: dublê sem lógica real — teto é uma chamada nova a
+// `KnoblerMain.delegate` vinda de Knobler/PluginsSettingsPane.swift que peça
+// mais do que `viewModelPrincipal`/`ligarDesligarNota`, o que quebra a
+// compilação do harness de novo. Upgrade: injetar as ações da vitrine por
+// protocolo em vez de alcançar o delegate global.
 @MainActor
 enum KnoblerMain {
     struct DubleDeAppDelegate {
