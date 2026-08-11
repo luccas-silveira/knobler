@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-08-11
+
 ### Added
 - O card de pergunta mostra a pergunta inteira e abre a descrição completa da
   opção sob o cursor; o card cresce em altura para caber.
