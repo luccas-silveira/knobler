@@ -55,6 +55,11 @@ struct AskCardView: View {
             }
         }
         .foregroundStyle(.white)
+        .background(
+            GeometryReader { proxy in
+                Color.clear.preference(key: AlturaDoAskKey.self, value: proxy.size.height)
+            }
+        )
         // Esc (com o campo focado) = mesmo intent do ✕: pergunta vai pro terminal
         .onExitCommand { askStore.send(.cancelActive) }
     }
@@ -203,5 +208,17 @@ struct AskCardView: View {
     private func submitPage(labels: [String], text: String? = nil) {
         askStore.send(.submit(labels: labels, text: text))
         hovered = nil
+    }
+}
+
+// MARK: - Altura medida
+
+/// O card do Ask não tem altura previsível: a pergunta e a descrição sob o
+/// cursor variam de linhas. Ele mede a si mesmo e o `NotchView` usa esse
+/// valor no lugar da estimativa por número de opções.
+struct AlturaDoAskKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }

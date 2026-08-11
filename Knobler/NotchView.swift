@@ -32,6 +32,8 @@ struct NotchView: View {
     var onKeyboardEligibilityChanged: ((Bool) -> Void)?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var agentRequestExpanded = false
+    /// Altura que o card do Ask reportou no último layout. 0 = ainda não mediu.
+    @State private var askHeight: CGFloat = 0
     /// Sessão da câmera já rodando — até lá o espelho mostra o spinner.
     @State private var espelhoPronto = false
     /// Barra de endereço da seção Link enquanto nenhuma página está aberta.
@@ -410,11 +412,22 @@ struct NotchView: View {
             }
             let question = ask.questions[min(askStore.state.page, ask.questions.count - 1)]
             let hasPreview = question.options.contains { $0.preview != nil }
+            // Estimativa só do primeiro frame, antes do card se medir:
             // título+chip (46) + opções (48 cada) + rodapé com campo de texto (44)
             var height = topInset + 46 + CGFloat(question.options.count) * 48 + 44
             if question.multiSelect { height += 34 }  // botão Confirmar
             if hasPreview { height = max(height, topInset + 200) }
-            return CGSize(width: hasPreview ? 540 : 460, height: min(height, 500))
+            // A altura real vem do próprio card (AlturaDoAskKey); os 18 são os
+            // paddings que o `questionCard` acrescenta em volta dele.
+            if askHeight > 0 { height = topInset + 6 + askHeight + 12 }
+            // ponytail: o card para de crescer na tela e o excedente é cortado
+            // pela máscara. Sem rolagem — só ocorre com pergunta e opções
+            // descomunais ao mesmo tempo; se aparecer de verdade, entra scroll.
+            // mesma medida que a janela usa (KnoblerApp.swift): do topo da
+            // tela até o topo do Dock. `visibleFrame.height` sozinho tiraria a
+            // menu bar duas vezes.
+            let teto = NSScreen.main.map { $0.frame.maxY - $0.visibleFrame.minY } ?? 900
+            return CGSize(width: hasPreview ? 540 : 460, height: min(height, teto))
         }
     }
 
@@ -679,6 +692,8 @@ struct NotchView: View {
                 .frame(width: currentSize.width - 40)
                 .padding(.top, topInset + 6)
                 .padding(.bottom, 12)
+                .onPreferenceChange(AlturaDoAskKey.self) { askHeight = $0 }
+                .onDisappear { askHeight = 0 }
         } else if let request = agentRequestStore.state.active {
             AgentRequestCard(
                 request: request, store: agentRequestStore,
