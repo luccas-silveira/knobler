@@ -1194,9 +1194,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 media.state != nil && media.state?.isPlaying != true
             notch.viewModel.activity = currentActivity
 
-            // a janela vai até embaixo da tela pro card poder crescer o quanto
-            // precisar; a área transparente não intercepta cliques
-            let size = NSSize(width: 700, height: screen.visibleFrame.height)
+            // altura do topo da tela até o topo do Dock, pro card poder crescer
+            // o quanto precisar; a área transparente não intercepta cliques
+            let size = NSSize(width: 700, height: screen.frame.maxY - screen.visibleFrame.minY)
             let frame = NSRect(
                 x: screen.frame.midX - size.width / 2,
                 y: screen.frame.maxY - size.height,
