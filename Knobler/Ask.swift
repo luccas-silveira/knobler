@@ -70,7 +70,7 @@ struct AskCardView: View {
             }
             Text(question.question)
                 .font(.subheadline.weight(.semibold))
-                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
             if let source = ask?.source, !source.isEmpty {
                 // quem pergunta: pasta do projeto da sessão do Claude Code
@@ -134,7 +134,10 @@ struct AskCardView: View {
                         Text(option.description)
                             .font(.caption2)
                             .foregroundStyle(.white.opacity(0.6))
-                            .lineLimit(2)
+                            // a opção sob o cursor mostra a descrição inteira;
+                            // as outras seguem em 2 linhas pra lista não inchar
+                            .lineLimit(hovered == option.label ? nil : 2)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 Spacer(minLength: 0)
