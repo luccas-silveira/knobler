@@ -326,7 +326,9 @@ let scenarios: [Scenario] = [
     Scenario(name: "dictation-error", realNotch: false) { vm, _, _ in
         vm.dictation = .error("Sem acesso ao microfone")
     },
-    Scenario(name: "ask-simple", realNotch: true) { _, _, askStore in
+    // frameHeight maior que o default 240: a pergunta agora ocupa as linhas que
+    // precisar e o card mede a própria altura — com 240 o PNG cortava a lista.
+    Scenario(name: "ask-simple", realNotch: true, frameHeight: 420) { _, _, askStore in
         askStore.send(.enqueue(AskRequest(id: "s1", questions: [
             AskQuestion(
                 question: "Qual abordagem seguir?", header: "Abordagem",
@@ -341,7 +343,7 @@ let scenarios: [Scenario] = [
                 ])
         ], receivedAt: Date(timeIntervalSince1970: 1_000))))
     },
-    Scenario(name: "ask-multiselect", realNotch: true) { _, _, askStore in
+    Scenario(name: "ask-multiselect", realNotch: true, frameHeight: 420) { _, _, askStore in
         askStore.send(.enqueue(AskRequest(id: "s2", questions: [
             AskQuestion(
                 question: "Quais checagens rodar?", header: "Validação",
