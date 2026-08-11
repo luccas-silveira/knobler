@@ -12,6 +12,19 @@ import Network
 import SwiftUI
 import UniformTypeIdentifiers
 
+// `PluginsSettingsPane` chama `KnoblerMain.delegate` no ABRIR das peças sem
+// painel, e o harness não compila `KnoblerApp.swift` (o `@main` de lá brigaria
+// com este arquivo). Dublê inerte só pra satisfazer o compilador: nenhum
+// cenário renderiza a vitrine de Ajustes.
+@MainActor
+enum KnoblerMain {
+    struct DubleDeAppDelegate {
+        func viewModelPrincipal() -> NotchViewModel? { nil }
+        func ligarDesligarNota(em screen: NSScreen?) {}
+    }
+    static let delegate = DubleDeAppDelegate()
+}
+
 let outputDir = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "Snapshots"
 try? FileManager.default.createDirectory(atPath: outputDir, withIntermediateDirectories: true)
 
