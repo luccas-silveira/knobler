@@ -1709,14 +1709,23 @@ struct AudioBarsView: View {
             // pausado: seis pontinhos parados, como a ilha sem análise
             capaTratada.mask(barras(Self.paradas))
         } else if let bands {
+            // Anima `frame(width:height:)`, não `scaleEffect`: escala
+            // deformaria as pontas em cápsula, e o piso de altura (silêncio
+            // vira ponto redondo) some sob escala uniforme. É relayout por
+            // quadro — custo ainda não medido; a Task 6 mede com o app
+            // rodando de verdade.
             capaTratada.mask(barras(bands.map { CGFloat($0) }))
                 .animation(IlhaVisualizador.mola, value: bands)
         } else {
-            // 30fps bastam pra reserva — 60 dobra o custo sem ganho visível
-            TimelineView(.animation(minimumInterval: 1.0 / 30)) { contexto in
-                capaTratada.mask(barras(IlhaVisualizador.reserva(
-                    em: contexto.date.timeIntervalSinceReferenceDate)))
-            }
+            // capaTratada fica fora do closure: só a máscara muda a 30fps, a
+            // capa borrada/saturada é montada uma vez, não 30×/s.
+            capaTratada.mask(
+                // 30fps bastam pra reserva — 60 dobra o custo sem ganho visível
+                TimelineView(.animation(minimumInterval: 1.0 / 30)) { contexto in
+                    barras(IlhaVisualizador.reserva(
+                        em: contexto.date.timeIntervalSinceReferenceDate))
+                }
+            )
         }
     }
 
@@ -1749,10 +1758,13 @@ struct AudioBarsView: View {
         if ajuste.escurecer > 0 { Color.black.opacity(ajuste.escurecer) }
     }
 
-    /// HStack centralizado com vão igual à largura da barra reproduz os centros
-    /// do `layoutSubviews` da Apple — o `ilhacheck` prova a equivalência.
+    /// Cada barra fica no centro que `IlhaVisualizador.centro(_:largura:)`
+    /// calcula (o `ilhacheck` prova esses centros), em vez de um `HStack` com
+    /// vão fixo: a barra engorda até 0,66 pt no pico, e num `HStack` isso
+    /// empurraria os vizinhos e transbordaria os 22 pt em vez de crescer em
+    /// torno do próprio centro, como o `layoutSubviews` da Apple faz.
     private func barras(_ amplitudes: [CGFloat]) -> some View {
-        HStack(spacing: IlhaVisualizador.larguraDaBarra(Self.area.width)) {
+        ZStack {
             ForEach(0..<IlhaVisualizador.barras, id: \.self) { indice in
                 let amplitude = indice < amplitudes.count ? amplitudes[indice] : 0
                 Capsule(style: .continuous)
@@ -1761,6 +1773,9 @@ struct AudioBarsView: View {
                             amplitude: amplitude, area: Self.area),
                         height: IlhaVisualizador.altura(
                             amplitude: amplitude, area: Self.area))
+                    .position(
+                        x: IlhaVisualizador.centro(indice, largura: Self.area.width),
+                        y: Self.area.height / 2)
             }
         }
         .frame(width: Self.area.width, height: Self.area.height)

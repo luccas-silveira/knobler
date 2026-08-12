@@ -122,9 +122,6 @@ final class MediaController: ObservableObject {
 
     // MARK: - Artwork
 
-    /// Cor vibrante dominante da capa (não a média — média de capa colorida
-    /// vira marrom). Histograma de matiz em 12 baldes, cada pixel pesando
-    /// saturação×brilho; pixels acinzentados/escuros ficam de fora.
     /// Luminância média (Rec. 709) numa amostra de 16x16 — barata e suficiente
     /// pra decidir se as barras precisam clarear ou escurecer.
     private static func luminanciaMedia(_ image: NSImage) -> Double? {
@@ -155,6 +152,9 @@ final class MediaController: ObservableObject {
         return contados > 0 ? soma / Double(contados) : nil
     }
 
+    /// Cor vibrante dominante da capa (não a média — média de capa colorida
+    /// vira marrom). Histograma de matiz em 12 baldes, cada pixel pesando
+    /// saturação×brilho; pixels acinzentados/escuros ficam de fora.
     private static func vibrantTint(_ image: NSImage) -> Color? {
         let side = 16
         guard let rep = NSBitmapImageRep(
