@@ -29,10 +29,17 @@ final class MediaController: ObservableObject {
 
     @Published private(set) var state: PlaybackState?
     @Published private(set) var artwork: NSImage? {
-        didSet { artworkTint = artwork.flatMap(Self.vibrantTint) }
+        didSet {
+            artworkTint = artwork.flatMap(Self.vibrantTint)
+            artworkLuminancia = artwork.flatMap(Self.luminanciaMedia)
+        }
     }
-    /// Cor vibrante dominante da capa — tinge o visualizador como no iPhone.
+    /// Cor vibrante dominante da capa. O visualizador não usa mais (virou
+    /// recorte sobre a própria capa); quem usa é o card aberto.
     @Published private(set) var artworkTint: Color?
+    /// Luminância média da capa em 0…1. O visualizador corrige capa escura ou
+    /// clara demais a partir dela, como o iPhone.
+    @Published private(set) var artworkLuminancia: Double?
     /// Bundle ID do app dono do som (pro tap de áudio saber quem capturar).
     private(set) var activeBundleID: String?
 
@@ -118,6 +125,36 @@ final class MediaController: ObservableObject {
     /// Cor vibrante dominante da capa (não a média — média de capa colorida
     /// vira marrom). Histograma de matiz em 12 baldes, cada pixel pesando
     /// saturação×brilho; pixels acinzentados/escuros ficam de fora.
+    /// Luminância média (Rec. 709) numa amostra de 16x16 — barata e suficiente
+    /// pra decidir se as barras precisam clarear ou escurecer.
+    private static func luminanciaMedia(_ image: NSImage) -> Double? {
+        let side = 16
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil, pixelsWide: side, pixelsHigh: side,
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB, bytesPerRow: side * 4, bitsPerPixel: 32
+        ) else { return nil }
+
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        image.draw(in: NSRect(x: 0, y: 0, width: side, height: side))
+        NSGraphicsContext.restoreGraphicsState()
+
+        var soma = 0.0
+        var contados = 0
+        for y in 0..<side {
+            for x in 0..<side {
+                guard let color = rep.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB)
+                else { continue }
+                soma += 0.2126 * Double(color.redComponent)
+                    + 0.7152 * Double(color.greenComponent)
+                    + 0.0722 * Double(color.blueComponent)
+                contados += 1
+            }
+        }
+        return contados > 0 ? soma / Double(contados) : nil
+    }
+
     private static func vibrantTint(_ image: NSImage) -> Color? {
         let side = 16
         guard let rep = NSBitmapImageRep(

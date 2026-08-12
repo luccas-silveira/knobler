@@ -75,6 +75,31 @@ enum IlhaVisualizador {
     /// razão ~2,5 no lugar de ~3.
     static let bordasDeBanda = [1, 3, 6, 16, 41, 102, 256]
 
+    // MARK: - Pintura das barras (calibração)
+
+    /// A capa entra desfocada e mais saturada atrás das barras — no iPhone as
+    /// barras são recorte, não tinta. Os três valores abaixo não têm fonte: os
+    /// da Apple ficaram em dados que a decompilação não expôs.
+    static let desfoqueDaCapa: CGFloat = 3
+    static let saturacaoDaCapa: Double = 1.6
+    /// Abaixo disto a capa é escura demais e as barras somem no preto do notch;
+    /// acima, clara demais e o desenho perde contorno.
+    static let luminanciaMinima = 0.35
+    static let luminanciaMaxima = 0.85
+
+    /// Quanto clarear e quanto escurecer, dado o brilho médio da capa. Mesma
+    /// forma do `-updateArtworkFilters` da Apple: a distância até o limiar vira
+    /// a opacidade da camada de correção.
+    static func correcaoDeLuminancia(_ luminancia: Double) -> (clarear: Double, escurecer: Double) {
+        (clarear: max(0, luminanciaMinima - luminancia),
+         escurecer: max(0, luminancia - luminanciaMaxima))
+    }
+
+    /// Uma mola por leitura do espectro, todas as barras juntas — é o que a
+    /// Apple faz, e a irregularidade vem do som, não da animação. Números sem
+    /// fonte.
+    static let mola = Animation.spring(response: 0.30, dampingFraction: 0.62)
+
     // MARK: - Animação de reserva (Apple, com uma escolha nossa)
 
     /// Ciclo do `BouncyBars.caar`: doze quadros-chave uniformes, ~0,2418 s cada.

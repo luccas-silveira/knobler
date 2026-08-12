@@ -784,7 +784,8 @@ struct NotchView: View {
                         .transition(.blurReplace)
                 } else if wingsVisible {
                     audioBars
-                        .frame(width: 27, height: 21)
+                        .frame(width: IlhaVisualizador.area.width,
+                               height: IlhaVisualizador.area.height)
                 }
             }
             .padding(.trailing, vm.hasRealNotch ? 12 : 14)
@@ -798,7 +799,8 @@ struct NotchView: View {
         AudioBarsView(
             playing: media.state?.isPlaying == true,
             levels: levels,
-            tint: media.artworkTint ?? .white
+            capa: media.artwork,
+            luminancia: media.artworkLuminancia
         )
     }
 
@@ -1681,71 +1683,87 @@ struct ActivityRingView: View {
 
 // MARK: - Visualizador de áudio
 
-/// Visualizador estilo Dynamic Island do iPhone: 5 barras tingidas pela capa,
-/// dirigidas pelas bandas de frequência do áudio REAL do Spotify (via
-/// SystemAudioLevels). Sem tap (permissão negada / tocando sem captura),
-/// cai numa animação sintética de senoides sobrepostas.
+/// Indicador de reprodução igual ao da Dynamic Island: seis barras que são o
+/// RECORTE por onde a capa desfocada aparece — no iPhone elas não são pintadas
+/// com uma cor da capa, e é isso que dá matiz diferente entre vizinhas.
+/// Alimentado pelas bandas do áudio real; sem tap disponível, toca a animação
+/// de reserva que a Apple usa no app Música. Medidas em `IlhaVisualizador`.
 struct AudioBarsView: View {
     var playing: Bool
     @ObservedObject var levels: SystemAudioLevels
-    var tint: Color = .white
+    var capa: NSImage?
+    var luminancia: Double?
 
     private var bands: [Float]? { levels.bands }
-
-    private static let phases: [Double] = [0.0, 1.9, 0.7, 2.6, 1.3]
-    private static let speeds: [Double] = [7.2, 8.8, 6.1, 9.5, 7.9]
-    // pausado: pontinhos uniformes (altura mínima = largura da barra), como o island
-    private static let idleProfile: [CGFloat] = [0, 0, 0, 0, 0]
+    private static let area = IlhaVisualizador.area
+    private static let paradas = [CGFloat](
+        repeating: 0, count: IlhaVisualizador.barras)
 
     var body: some View {
-        if playing, let bands {
-            // áudio de verdade: as alturas seguem as bandas publicadas a ~30Hz;
-            // a animação interpola entre publicações
-            bars(levels: bands.map { CGFloat($0) })
-                .animation(.linear(duration: 1.0 / 20.0), value: bands)
-        } else if playing {
-            // 30fps bastam pro fallback — 60 dobra o custo sem ganho visível
-            TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
-                bars(levels: Self.syntheticLevels(
-                    at: context.date.timeIntervalSinceReferenceDate))
-            }
+        pintura
+            .frame(width: Self.area.width, height: Self.area.height)
+    }
+
+    @ViewBuilder private var pintura: some View {
+        if !playing {
+            // pausado: seis pontinhos parados, como a ilha sem análise
+            capaTratada.mask(barras(Self.paradas))
+        } else if let bands {
+            capaTratada.mask(barras(bands.map { CGFloat($0) }))
+                .animation(IlhaVisualizador.mola, value: bands)
         } else {
-            bars(levels: Self.idleProfile)
-        }
-    }
-
-    private func bars(levels: [CGFloat]) -> some View {
-        GeometryReader { geo in
-            let count = levels.count
-            // barras finas com vão generoso, como as da Apple
-            let barWidth = geo.size.width / (CGFloat(count) * 2.1)
-            HStack(alignment: .center, spacing: barWidth * 1.1) {
-                ForEach(0..<count, id: \.self) { index in
-                    // altura FIXA + scaleEffect: anima por transform (GPU),
-                    // sem relayout da janela a cada frame — era o maior custo
-                    // de CPU do app com música tocando
-                    Capsule()
-                        .fill(tint)
-                        .frame(width: barWidth, height: geo.size.height)
-                        .scaleEffect(
-                            x: 1,
-                            y: max(barWidth / geo.size.height, min(1, levels[index])),
-                            anchor: .center
-                        )
-                }
+            // 30fps bastam pra reserva — 60 dobra o custo sem ganho visível
+            TimelineView(.animation(minimumInterval: 1.0 / 30)) { contexto in
+                capaTratada.mask(barras(IlhaVisualizador.reserva(
+                    em: contexto.date.timeIntervalSinceReferenceDate)))
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
-    // fallback sintético: duas senoides não-harmônicas por barra
-    private static func syntheticLevels(at time: TimeInterval) -> [CGFloat] {
-        (0..<phases.count).map { index in
-            let fast = sin(time * speeds[index] + phases[index])
-            let slow = sin(time * speeds[index] * 0.37 + phases[index] * 2)
-            let mixed = 0.6 * fast + 0.4 * slow
-            return 0.25 + 0.75 * CGFloat((mixed + 1) / 2)
+    private var capaTratada: some View {
+        ZStack {
+            if let capa {
+                Image(nsImage: capa)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .blur(radius: IlhaVisualizador.desfoqueDaCapa)
+                    .saturation(IlhaVisualizador.saturacaoDaCapa)
+                correcao
+            } else {
+                Color(nsColor: IlhaVisualizador.cinzaSemCapa)
+            }
         }
+        .frame(width: Self.area.width, height: Self.area.height)
+        .clipped()
+        .animation(.easeInOut(duration: IlhaVisualizador.duracaoSemCapa),
+                   value: capa == nil)
+    }
+
+    /// Capa escura demais some no preto do notch; clara demais perde contorno.
+    /// ponytail: a Apple ainda soma saturação junto do clareamento — teto
+    /// conhecido, capa quase preta fica cinza em vez de colorida. Duas camadas
+    /// resolvem o caso que importa.
+    @ViewBuilder private var correcao: some View {
+        let ajuste = IlhaVisualizador.correcaoDeLuminancia(luminancia ?? 0.5)
+        if ajuste.clarear > 0 { Color.white.opacity(ajuste.clarear) }
+        if ajuste.escurecer > 0 { Color.black.opacity(ajuste.escurecer) }
+    }
+
+    /// HStack centralizado com vão igual à largura da barra reproduz os centros
+    /// do `layoutSubviews` da Apple — o `ilhacheck` prova a equivalência.
+    private func barras(_ amplitudes: [CGFloat]) -> some View {
+        HStack(spacing: IlhaVisualizador.larguraDaBarra(Self.area.width)) {
+            ForEach(0..<IlhaVisualizador.barras, id: \.self) { indice in
+                let amplitude = indice < amplitudes.count ? amplitudes[indice] : 0
+                Capsule(style: .continuous)
+                    .frame(
+                        width: IlhaVisualizador.largura(
+                            amplitude: amplitude, area: Self.area),
+                        height: IlhaVisualizador.altura(
+                            amplitude: amplitude, area: Self.area))
+            }
+        }
+        .frame(width: Self.area.width, height: Self.area.height)
     }
 }
 
