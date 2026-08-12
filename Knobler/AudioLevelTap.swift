@@ -4,7 +4,7 @@
 //
 //  Níveis de áudio reais do Spotify via CoreAudio process tap (macOS 14.2+),
 //  como o Dynamic Island do iPhone: tap no processo → FFT (Accelerate) →
-//  5 bandas de frequência normalizadas em 0…1. Mecânica do AudioCap/rtaudio.
+//  6 bandas de frequência normalizadas em 0…1. Mecânica do AudioCap/rtaudio.
 //  Pede permissão de "gravação de áudio do sistema" no primeiro uso; sem
 //  permissão, `bands` fica nil e a UI cai no visualizador sintético.
 //
@@ -16,7 +16,7 @@ import CoreAudio
 import Foundation
 
 final class SystemAudioLevels: ObservableObject {
-    /// 5 bandas (graves → agudos), 0…1, publicadas a ~30Hz. nil = sem tap.
+    /// 6 bandas (graves → agudos), 0…1, publicadas a ~30Hz. nil = sem tap.
     @Published private(set) var bands: [Float]?
 
     private var tapID = AudioObjectID(kAudioObjectUnknown)
@@ -34,13 +34,15 @@ final class SystemAudioLevels: ObservableObject {
 
     // suavização + auto-gain POR BANDA (graves têm sempre mais energia; sem
     // normalização individual as barras dos agudos ficam permanentemente baixas)
-    private var smoothed = [Float](repeating: 0, count: 5)
-    private var runningMax = [Float](repeating: -6, count: 5)
+    private var smoothed = [Float](repeating: 0, count: IlhaVisualizador.barras)
+    private var runningMax = [Float](
+        repeating: -6, count: IlhaVisualizador.barras)
     private var lastPublish = Date.distantPast
 
-    // bordas das bandas em bins de FFT (~47Hz/bin a 48kHz):
-    // 47–140, 140–420, 420–1.2k, 1.2k–4k, 4k–12k Hz
-    private static let bandEdges = [1, 3, 9, 26, 85, 256]
+    /// Seis bandas, como a Dynamic Island. As bordas moram no
+    /// `IlhaVisualizador` junto do resto das medidas.
+    private static let bandEdges = IlhaVisualizador.bordasDeBanda
+    private static let bandCount = IlhaVisualizador.barras
 
     init() {
         vDSP_hann_window(&window, vDSP_Length(Self.fftSize), Int32(vDSP_HANN_NORM))
@@ -128,8 +130,8 @@ final class SystemAudioLevels: ObservableObject {
         teardown()
         DispatchQueue.main.async { [weak self] in
             self?.bands = nil
-            self?.smoothed = [0, 0, 0, 0, 0]
-            self?.runningMax = [Float](repeating: -6, count: 5)
+            self?.smoothed = [Float](repeating: 0, count: Self.bandCount)
+            self?.runningMax = [Float](repeating: -6, count: Self.bandCount)
         }
     }
 
@@ -205,8 +207,8 @@ final class SystemAudioLevels: ObservableObject {
         }
 
         // energia média por banda, escala log
-        var levels = [Float](repeating: 0, count: 5)
-        for band in 0..<5 {
+        var levels = [Float](repeating: 0, count: Self.bandCount)
+        for band in 0..<Self.bandCount {
             let lo = Self.bandEdges[band], hi = Self.bandEdges[band + 1]
             var sum: Float = 0
             for bin in lo..<hi { sum += magnitudes[bin] }
@@ -216,7 +218,7 @@ final class SystemAudioLevels: ObservableObject {
         // por banda: janela de ~22dB abaixo do pico recente vira 0…1 — assim a
         // barra vive no meio e só a batida encosta no topo (pico decai devagar)
         let window: Float = 2.2 // décadas de energia (log10)
-        for band in 0..<5 {
+        for band in 0..<Self.bandCount {
             runningMax[band] = max(runningMax[band] - 0.001, levels[band])
             let normalized = (levels[band] - (runningMax[band] - window)) / window
             let clamped = min(1, max(0, normalized))
