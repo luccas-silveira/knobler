@@ -40,12 +40,12 @@ struct IlhaCheck {
         // simetria: a margem que sobra à direita é a mesma da esquerda
         assert(abs((area.width - ultimo) - barra) < 0.0001, "desenho simétrico")
 
-        // é isto que autoriza a view a usar um HStack centralizado com
-        // spacing == largura da barra em vez de posicionar barra por barra
+        // são estes os centros que a view usa em `.position(x:y:)` por barra —
+        // a soma abaixo prova que ficam simétricos e alinhados ao passo
         let larguraDoConjunto = CGFloat(IlhaVisualizador.barras) * barra
             + CGFloat(IlhaVisualizador.barras - 1) * barra
         assert(abs((area.width - larguraDoConjunto) / 2 - barra / 2) < 0.0001,
-               "HStack centralizado reproduz os centros da Apple")
+               "os centros por posição reproduzem os centros da Apple")
     }
 
     /// `height = max(min(amplitude,1) * altura, largura_da_barra)` e

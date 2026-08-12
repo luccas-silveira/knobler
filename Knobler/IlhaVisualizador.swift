@@ -35,8 +35,10 @@ enum IlhaVisualizador {
         passo(largura) / 2
     }
 
-    /// Centro horizontal da barra `indice`. A view usa um HStack centralizado,
-    /// que reproduz estes centros; a função existe para o check provar isso.
+    /// Centro horizontal da barra `indice`. A view posiciona cada barra neste
+    /// centro (`.position`), em vez de um `HStack` — a barra engorda no pico e
+    /// um `HStack` empurraria os vizinhos; o check prova que estes centros
+    /// batem com os da Apple.
     static func centro(_ indice: Int, largura: CGFloat) -> CGFloat {
         larguraDaBarra(largura) + CGFloat(indice) * passo(largura)
     }
