@@ -16,6 +16,7 @@ struct IlhaCheck {
         testGeometria()
         testAlturas()
         testBandas()
+        testReserva()
         print("✅ ilhacheck ok")
     }
 
@@ -78,5 +79,43 @@ struct IlhaCheck {
         assert(bordas.first == 1 && bordas.last == 256, "mesma faixa de antes")
         assert(zip(bordas, bordas.dropFirst()).allSatisfy { $0 < $1 },
                "bordas estritamente crescentes")
+    }
+
+    /// A tabela vem de `BouncyBars.caar`. O que o check protege: o laço tem que
+    /// fechar (senão a animação dá um pulo a cada 2,66 s), os valores têm que
+    /// caber em 0…1, e as seis barras não podem estar todas em fase (senão o
+    /// desenho vira um bloco subindo e descendo junto).
+    static func testReserva() {
+        assert(IlhaVisualizador.cicloDaReserva == 2.66, "ciclo de 2,66 s")
+        assert(IlhaVisualizador.sequenciasDaReserva.count == 5, "cinco sequências")
+        for (indice, sequencia) in IlhaVisualizador.sequenciasDaReserva.enumerated() {
+            assert(sequencia.count == 12, "doze quadros na sequência \(indice)")
+            assert(sequencia.first == sequencia.last,
+                   "laço sem emenda na sequência \(indice)")
+            assert(sequencia.allSatisfy { $0 >= 0 && $0 <= 1 },
+                   "sequência \(indice) em 0…1")
+        }
+
+        assert(IlhaVisualizador.ordemDaReserva.count == IlhaVisualizador.barras,
+               "uma entrada de ordem por barra")
+
+        // continuidade no ponto de emenda: um passo antes do fim e um depois do
+        // começo têm que estar perto, senão o olho vê o corte
+        let fim = IlhaVisualizador.reserva(em: IlhaVisualizador.cicloDaReserva - 0.01)
+        let comeco = IlhaVisualizador.reserva(em: 0.01)
+        for barra in 0..<IlhaVisualizador.barras {
+            assert(abs(fim[barra] - comeco[barra]) < 0.15,
+                   "emenda suave na barra \(barra)")
+        }
+
+        // as barras não sobem todas juntas
+        let instante = IlhaVisualizador.reserva(em: 1.0)
+        assert(Set(instante.map { Int($0 * 100) }).count > 3,
+               "as barras não estão em fase")
+
+        // amostrar na fase 0 devolve o primeiro quadro-chave
+        assert(abs(IlhaVisualizador.amostra(IlhaVisualizador.sequenciasDaReserva[0],
+                                            fase: 0) - 0.49) < 0.0001,
+               "fase 0 é o primeiro quadro")
     }
 }
