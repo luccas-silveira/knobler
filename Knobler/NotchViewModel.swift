@@ -49,9 +49,6 @@ final class NotchViewModel: ObservableObject {
     }
     /// Algum app está capturando o microfone (pontinho laranja no notch).
     @Published var micInUse = false
-    /// Música pausada some do notch; hover "espia" (peeking) antes de expandir.
-    @Published var musicPaused = false
-    @Published var peeking = false
     @Published var notchSize = CGSize(width: 200, height: 32)
     /// true = notch físico (câmera no meio); false = ilha simulada em monitor externo
     @Published var hasRealNotch = false
@@ -350,8 +347,6 @@ final class NotchViewModel: ObservableObject {
     private var hudWork: DispatchWorkItem?
 
     private var hovering = false
-    /// Pausado: tempo de espiada antes de abrir o card completo.
-    private let peekDwell: TimeInterval = 0.8
 
     /// Encolhe o card depois que o mouse saiu e o atraso venceu.
     ///
@@ -365,9 +360,8 @@ final class NotchViewModel: ObservableObject {
         // o tempo todo. A nota não congela mais — só ganha um atraso maior.
         guard !linkAberto else { return }
         if typingNote { QuickNote.shared.editing = false }
-        if expanded || peeking { lastCollapseAt = Date() }
+        if expanded { lastCollapseAt = Date() }
         expanded = false
-        peeking = false
     }
 
     func setHover(_ inside: Bool) {
@@ -386,26 +380,10 @@ final class NotchViewModel: ObservableObject {
 
         let work = DispatchWorkItem { [weak self] in
             guard let self, self.hovering else { return }
-            if self.musicPaused, !self.peeking, self.pomodoro == nil {
-                // etapa 1: espia as asinhas; mouse parado em cima abre o completo
-                // (só pra música — com Pomodoro ativo abre o card direto)
-                self.peeking = true
-                self.scheduleExpandAfterPeek()
-            } else {
-                self.expanded = true
-            }
-        }
-        pendingWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + openDelay, execute: work)
-    }
-
-    private func scheduleExpandAfterPeek() {
-        let work = DispatchWorkItem { [weak self] in
-            guard let self, self.hovering else { return }
             self.expanded = true
         }
         pendingWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + peekDwell, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + openDelay, execute: work)
     }
 
     /// Abre/fecha por gesto (swipe): imediato, sem os delays do hover.

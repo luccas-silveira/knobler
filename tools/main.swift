@@ -164,16 +164,9 @@ let scenarios: [Scenario] = [
     Scenario(name: "closed-music-external", realNotch: false) { _, media, _ in
         media.injectPreview(state: fakeState(), artwork: fakeArtwork())
     },
-    // pausado: escondida (deve parecer ilha vazia, não miniatura)
-    Scenario(name: "closed-paused-hidden", realNotch: false) { vm, media, _ in
+    // pausado: capa escurecida e as barras nos pontinhos, como a ilha do iPhone
+    Scenario(name: "closed-paused", realNotch: true) { _, media, _ in
         media.injectPreview(state: fakeState(playing: false), artwork: fakeArtwork())
-        vm.musicPaused = true
-    },
-    // pausado + hover: espiada (asinhas com pontinhos)
-    Scenario(name: "closed-paused-peek", realNotch: true) { vm, media, _ in
-        media.injectPreview(state: fakeState(playing: false), artwork: fakeArtwork())
-        vm.musicPaused = true
-        vm.peeking = true
     },
     // nota com texto e card fechado: a asa existe só por causa do pontinho —
     // sem música, sem atividade, sem mic. É o aviso de "tem rascunho aqui".

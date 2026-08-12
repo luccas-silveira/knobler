@@ -81,7 +81,7 @@ struct NotchView: View {
     /// Reduced Motion vira fade rápido.
     private var morphAnimation: Animation {
         if reduceMotion { return .easeOut(duration: 0.15) }
-        let opening = mode != .closed || vm.peeking
+        let opening = mode != .closed
         return opening
             ? .spring(response: 0.42, dampingFraction: 0.76)
             : .spring(response: 0.30, dampingFraction: 0.95)
@@ -151,10 +151,9 @@ struct NotchView: View {
 
     private var hasMusic: Bool { media.state != nil }
 
-    /// Pausado, a música se esconde; hover espia (peeking) antes do card completo.
-    private var wingsVisible: Bool {
-        hasMusic && (media.state?.isPlaying == true || vm.peeking)
-    }
+    /// Com música na sessão, capa e barras ficam — tocando ou pausada, como na
+    /// ilha do iPhone. Pausada, as barras caem pros pontinhos e a capa escurece.
+    private var wingsVisible: Bool { hasMusic }
 
     /// Nota ligada COM texto: o notch fechado precisa dizer que tem coisa lá
     /// dentro. Sem isso o usuário fecha o card, trabalha meia hora, esquece, e
@@ -814,8 +813,14 @@ struct NotchView: View {
                 RoundedRectangle(cornerRadius: 5).fill(.white.opacity(0.15))
             }
         }
-        .frame(width: 25, height: 25)
-        .clipShape(RoundedRectangle(cornerRadius: 7))
+        .frame(width: IlhaVisualizador.capaLado, height: IlhaVisualizador.capaLado)
+        .clipShape(RoundedRectangle(cornerRadius: IlhaVisualizador.capaRaio,
+                                    style: .continuous))
+        // pausado a capa escurece, como no iPhone
+        .opacity(media.state?.isPlaying == true
+                 ? 1 : IlhaVisualizador.capaOpacidadePausada)
+        .animation(.easeInOut(duration: IlhaVisualizador.capaDuracaoDim),
+                   value: media.state?.isPlaying)
     }
 
     // MARK: - Nota rápida
