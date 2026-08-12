@@ -118,7 +118,7 @@ enum IlhaVisualizador {
     static func amostra(_ sequencia: [CGFloat], fase: Double) -> CGFloat {
         let intervalos = sequencia.count - 1        // 11: o último repete o primeiro
         let posicao = fase * Double(intervalos)
-        let quadro = Int(posicao) % intervalos
+        let quadro = Int(posicao.rounded(.down)) % intervalos
         let t = CGFloat(posicao - posicao.rounded(.down))
         func ponto(_ indice: Int) -> CGFloat {
             sequencia[((indice % intervalos) + intervalos) % intervalos]

@@ -117,5 +117,16 @@ struct IlhaCheck {
         assert(abs(IlhaVisualizador.amostra(IlhaVisualizador.sequenciasDaReserva[0],
                                             fase: 0) - 0.49) < 0.0001,
                "fase 0 é o primeiro quadro")
+
+        // fase negativa tem que dar a mesma curva que a fase positiva
+        // equivalente (mod 1) — `Int()` trunca e `.rounded(.down)` usa piso,
+        // e discordam pra posição negativa se não normalizados do mesmo jeito
+        let seq = IlhaVisualizador.sequenciasDaReserva[0]
+        assert(abs(IlhaVisualizador.amostra(seq, fase: -0.3)
+                   - IlhaVisualizador.amostra(seq, fase: 0.7)) < 0.0001,
+               "fase -0,3 coincide com fase 0,7")
+        assert(abs(IlhaVisualizador.amostra(seq, fase: -0.85)
+                   - IlhaVisualizador.amostra(seq, fase: 0.15)) < 0.0001,
+               "fase -0,85 coincide com fase 0,15")
     }
 }
