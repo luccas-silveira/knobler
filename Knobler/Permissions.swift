@@ -63,7 +63,7 @@ enum Permission: String, CaseIterable, Identifiable {
         case .arquivos:
             return "Lê as capturas de tela que entram na prateleira."
         case .audioSistema:
-            return "Anima o visualizador com o áudio real do player, em vez do sintético."
+            return "Anima o visualizador com o áudio real do player, em vez da animação de reserva."
         }
     }
 

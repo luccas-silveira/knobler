@@ -194,7 +194,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private var levelsCancellable: AnyCancellable?
-    private var pausedCancellable: AnyCancellable?
 
     // gesto de swipe no notch (monitor local de scroll)
     private var scrollMonitor: Any?
@@ -363,14 +362,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             name: NSApplication.didChangeScreenParametersNotification,
             object: nil
         )
-
-        // pausado, a música se esconde do notch (peek no hover)
-        pausedCancellable = media.$state
-            .map { $0 != nil && $0?.isPlaying != true }
-            .removeDuplicates()
-            .sink { [weak self] paused in
-                self?.notches.values.forEach { $0.viewModel.musicPaused = paused }
-            }
 
         setupSwipeGestures()
 
@@ -1190,8 +1181,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
             notch.viewModel.notchSize = Self.notchSize(of: screen)
             notch.viewModel.hasRealNotch = screen.safeAreaInsets.top > 0
-            notch.viewModel.musicPaused =
-                media.state != nil && media.state?.isPlaying != true
             notch.viewModel.activity = currentActivity
 
             // altura do topo da tela até o topo do Dock, pro card poder crescer

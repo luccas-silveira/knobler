@@ -94,8 +94,8 @@ crescendo de dentro do notch como a Dynamic Island do iPhone. A superfície é
 preta absoluta (`#000000`) — não cinza-escuro, não translúcida — para casar com
 o bisel real do MacBook. Sobre esse preto, toda a hierarquia é construída com
 branco em camadas de opacidade (85% → 6%), nunca com uma segunda cor de fundo. A
-única cor "de verdade" que entra é a extraída da capa do álbum, e mesmo assim
-só tinge o visualizador — o conteúdo empresta a cor, o sistema não a impõe.
+única cor "de verdade" que entra é a da própria capa do álbum, recortada
+pelas barras do visualizador — o conteúdo empresta a cor, o sistema não a impõe.
 
 Este sistema rejeita explicitamente: o visual de widget/gadget de terceiro
 (cantos errados, sombras pesadas, tipografia fora do sistema); o painel denso
@@ -123,10 +123,12 @@ reservadas para estado e uma cor viva emprestada da capa.
   que precisa ser lido primeiro. Contraste máximo (21:1) sobre o preto.
 
 ### Secondary
-- **Artwork Tint** (dinâmico, extraído da capa via `vibrantTint`, fallback
-  branco): a única cor "viva" do sistema. Tinge exclusivamente as barras do
-  visualizador de áudio no modo música. Muda a cada faixa. Nunca é aplicada a
-  texto — sua função é fazer o notch "vestir" a música que toca, não colorir a UI.
+- **Cor da capa** (recorte direto da arte do álbum, desfocada e mais
+  saturada — não é mais um tom calculado): a única cor "viva" do sistema.
+  Aparece exclusivamente através do recorte das barras do visualizador de
+  áudio no modo música; cada barra mostra uma fatia diferente da capa, então
+  o matiz varia barra a barra. Muda a cada faixa. Nunca é aplicada a texto —
+  sua função é fazer o notch "vestir" a música que toca, não colorir a UI.
 
 ### Tertiary (estado, sistema)
 - **Recording Red** (`#FF3B30`, system red): o ponto pulsante de gravação de mic.
@@ -146,7 +148,7 @@ reservadas para estado e uma cor viva emprestada da capa.
 ### Named Rules
 **The Borrowed Color Rule.** A única cor saturada da UI é emprestada da capa do
 álbum, e só toca o visualizador. Marca nenhuma tinge o notch. Se você está
-prestes a colorir um texto ou um ícone com a `Artwork Tint`, pare — a cor
+prestes a aplicar a cor da capa a um texto ou um ícone, pare — a cor
 pertence ao conteúdo, não à interface.
 
 **The Pure Black Rule.** A superfície é `#000000`, nunca cinza, nunca vidro
@@ -237,16 +239,20 @@ Cada peça interna é discreta e táctil: fills de branco translúcido, cantos d
 - **Arraste:** thumbnail é fonte de drag nativo (arrastar anexa a foto).
 
 ### Visualizer (barras de áudio)
-- **Cor:** `Artwork Tint` — a única peça colorida da UI.
-- **Movimento:** 5 bandas de FFT, atualização linear a 20Hz, render a 30fps.
-- **Estado:** aparece nas "asinhas" do notch fechado quando há música tocando.
+- **Cor:** recorte da própria capa do álbum, desfocada e mais saturada — a
+  única peça colorida da UI.
+- **Movimento:** 6 bandas de FFT; mola (`response 0.30, dampingFraction
+  0.62`) reemitida a cada leitura do espectro, todas as barras juntas.
+- **Estado:** aparece nas "asinhas" do notch fechado quando há música na
+  sessão — tocando (barras animadas) ou pausada (capa escurecida, barras em
+  pontinhos).
 
 ## 6. Do's and Don'ts
 
 ### Do:
 - **Do** manter a superfície em `#000000` puro nos estados sólidos, pra casar com o bisel físico.
 - **Do** construir hierarquia com a escada de opacidade do branco (85% → 6%), não com uma segunda cor.
-- **Do** deixar a cor entrar só pela capa do álbum, e só no visualizador (a **Borrowed Color Rule**).
+- **Do** deixar a cor entrar só pela capa do álbum (hoje um recorte direto dela), e só no visualizador (a **Borrowed Color Rule**).
 - **Do** usar overshoot na abertura (`spring response 0.42, damping 0.76`) e fecho seco (`0.30 / 0.95`) — a assinatura do Dynamic Island.
 - **Do** dar a toda animação um fallback de `prefers-reduced-motion` (fade `easeOut 0.15`).
 - **Do** usar SF Pro pra tudo humano e SF Mono só pra números que correm e endpoints.
@@ -258,6 +264,6 @@ Cada peça interna é discreta e táctil: fills de branco translúcido, cantos d
 - **Don't** usar **skeuomorfismo, neon, glow ou gradiente "gamer"**. A cor vem do conteúdo, nunca de decoração.
 - **Don't** fazer o **notch roubar atenção** — sem piscar ou animar sem comunicar um estado, sem abrir atoa.
 - **Don't** projetar sombra no estado fechado (a **Melt-Into-Bezel Rule**).
-- **Don't** tingir texto ou ícone com a `Artwork Tint`. Ela é só do visualizador.
+- **Don't** aplicar a cor da capa a texto ou ícone. Ela só aparece através do recorte do visualizador.
 - **Don't** importar uma terceira fonte. SF Pro + SF Mono é o sistema inteiro.
 - **Don't** usar cinza-escuro ou vidro translúcido no lugar do preto puro no estado sólido.

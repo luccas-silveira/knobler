@@ -45,8 +45,9 @@ aconteceu.
 - **Skeuomorfismo / neon / "gamer":** sem gradientes berrantes, glow neon,
   texturas 3D falsas. A cor vem do conteúdo (capa do álbum), não de decoração.
 - **Notch que rouba atenção:** não pisca nem anima sem motivo, não fica aberto
-  atoa. Interrompe o mínimo possível; música pausada se esconde, hover "espia"
-  antes de comprometer a abertura.
+  atoa. Interrompe o mínimo possível; música pausada fica discreta (capa
+  escurecida, barras em pontinho) em vez de sumir ou pedir atenção, e o hover
+  abre o card direto — sem etapa intermediária pra decidir.
 
 ## Design Principles
 

@@ -7,10 +7,12 @@ Dynamic Island para o notch do Mac — nativo, Swift/SwiftUI, macOS 14.2+.
 ## O que faz
 
 - **Now Playing** (Spotify e Apple Music): capa + visualizador no notch fechado;
-  hover expande com controles, progresso e shuffle. Música pausada se esconde;
-  hover "espia" antes de abrir. → [detalhes](docs/now-playing.md)
-- **Visualizador com áudio real**: CoreAudio process tap no player + FFT em 5
-  bandas — as barras dançam com a música de verdade, tingidas pela cor da capa.
+  hover expande com controles, progresso e shuffle. Música pausada continua
+  visível, com a capa escurecida e as barras em pontinhos; hover abre o card
+  direto. → [detalhes](docs/now-playing.md)
+- **Visualizador com áudio real**: CoreAudio process tap no player + FFT em 6
+  bandas — as barras dançam com a música de verdade, recortando a própria capa
+  desfocada e saturada por baixo.
 - **HUDs no notch**: volume, brilho e bateria (carregador/20%) substituem o OSD
   nativo. → [detalhes](docs/huds.md)
 - **Notificações do sistema** interceptadas e exibidas no notch (Acessibilidade),
@@ -220,8 +222,8 @@ Duas ressalvas conhecidas, as duas descobertas na v0.13.0:
 
 ## Consumo
 
-Medido em Release com 3 monitores: ~11% de um core com música tocando
-(visualizador a 20Hz), 0,0% parado, ~22MB de RAM.
+Medido em Release com 3 monitores: custo com música tocando não foi
+remedido depois da reescrita do visualizador; parado, 0,0% de CPU e ~22MB de RAM.
 
 ## Licença
 

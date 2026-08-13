@@ -13,12 +13,13 @@
 Mostra o que está tocando no Spotify ou Apple Music — capa do álbum e um
 visualizador de áudio animado no notch fechado; passar o mouse expande com
 controles de play/pause, próxima/anterior, barra de progresso e shuffle. O
-visualizador usa um tap de áudio real via CoreAudio (FFT em 5 bandas) no
-processo do player, como o Dynamic Island do iPhone — as barras dançam com a
-música de verdade, tingidas pela cor dominante da capa. Sem áudio real
-disponível (ou sem a permissão concedida), cai num visualizador sintético.
-Música pausada some do notch; passar o mouse "espia" antes de comprometer a
-abertura.
+visualizador é o da Dynamic Island, nas mesmas medidas: seis barras que não são
+pintadas, e sim o recorte por onde a capa desfocada aparece — por isso cada uma
+tem um tom diferente da vizinha. Elas dançam com o áudio real do player, lido
+por um tap via CoreAudio (FFT em 6 bandas) no processo dele. Sem áudio real
+disponível (ou sem a permissão concedida), toca a animação de reserva que a
+Apple usa no app Música. Música pausada continua no notch: a capa escurece e as
+barras descansam em pontinhos redondos.
 
 ## Como usar
 
@@ -38,5 +39,5 @@ abertura.
 
 - **Gravação de Áudio do Sistema** — *"Knobler lê o áudio do player para
   animar o visualizador no notch, como no iPhone."* Sem ela, o visualizador
-  usa animação sintética em vez do áudio real.
+  toca a animação de reserva da Apple em vez de seguir o áudio.
 - **Automação** (Spotify/Music) — necessária pros comandos de play/pause/skip.

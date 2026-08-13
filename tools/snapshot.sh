@@ -26,6 +26,7 @@ swiftc -O -o build/snapshot \
   Knobler/MediaController.swift \
   Knobler/MediaRemoteSource.swift \
   Knobler/AudioLevelTap.swift \
+  Knobler/IlhaVisualizador.swift \
   Knobler/NotchNotification.swift \
   Knobler/NotificationHistory.swift \
   Knobler/HistoryListView.swift \

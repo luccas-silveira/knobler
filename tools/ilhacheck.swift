@@ -1,0 +1,132 @@
+//
+//  tools/ilhacheck.swift — self-check das medidas do visualizador da ilha.
+//  NÃO faz parte do alvo do app.
+//
+//  Rodar:
+//  xcrun swiftc -parse-as-library -swift-version 5 \
+//    Knobler/IlhaVisualizador.swift tools/ilhacheck.swift -o /tmp/ilhacheck \
+//    && /tmp/ilhacheck
+//
+
+import AppKit
+
+@main
+struct IlhaCheck {
+    static func main() {
+        testGeometria()
+        testAlturas()
+        testBandas()
+        testReserva()
+        print("✅ ilhacheck ok")
+    }
+
+    static let area = IlhaVisualizador.area
+
+    /// Os números vêm de `-[MRUWaveformView layoutSubviews]`: passo = largura/6,
+    /// barra = passo/2 (o vão é igual à largura da barra), centro da barra i =
+    /// barra + i*passo.
+    static func testGeometria() {
+        assert(IlhaVisualizador.barras == 6, "seis barras, como a Dynamic Island")
+        assert(area == CGSize(width: 22, height: 22), "acessório de 22x22 pt")
+
+        let passo = IlhaVisualizador.passo(area.width)
+        let barra = IlhaVisualizador.larguraDaBarra(area.width)
+        assert(abs(passo - 22.0 / 6) < 0.0001, "passo = largura/6")
+        assert(abs(barra - passo / 2) < 0.0001, "o vão é igual à largura da barra")
+
+        assert(abs(IlhaVisualizador.centro(0, largura: area.width) - barra) < 0.0001,
+               "a primeira barra é centrada a uma largura da borda")
+        let ultimo = IlhaVisualizador.centro(5, largura: area.width)
+        // simetria: a margem que sobra à direita é a mesma da esquerda
+        assert(abs((area.width - ultimo) - barra) < 0.0001, "desenho simétrico")
+
+        // são estes os centros que a view usa em `.position(x:y:)` por barra —
+        // a soma abaixo prova que ficam simétricos e alinhados ao passo
+        let larguraDoConjunto = CGFloat(IlhaVisualizador.barras) * barra
+            + CGFloat(IlhaVisualizador.barras - 1) * barra
+        assert(abs((area.width - larguraDoConjunto) / 2 - barra / 2) < 0.0001,
+               "os centros por posição reproduzem os centros da Apple")
+    }
+
+    /// `height = max(min(amplitude,1) * altura, largura_da_barra)` e
+    /// `width = largura_base + 0.66 * amplitude`.
+    static func testAlturas() {
+        let barra = IlhaVisualizador.larguraDaBarra(area.width)
+
+        // piso: amplitude zero vira um ponto redondo, nunca some
+        assert(IlhaVisualizador.altura(amplitude: 0, area: area) == barra,
+               "silêncio vira ponto de diâmetro igual à largura da barra")
+        assert(IlhaVisualizador.altura(amplitude: 1, area: area) == area.height,
+               "amplitude cheia ocupa a área inteira")
+        // amplitude fora da faixa não estoura a moldura nem inverte a barra
+        assert(IlhaVisualizador.altura(amplitude: 3, area: area) == area.height,
+               "amplitude acima de 1 é limitada")
+        assert(IlhaVisualizador.altura(amplitude: -1, area: area) == barra,
+               "amplitude negativa cai no piso")
+
+        assert(IlhaVisualizador.largura(amplitude: 0, area: area) == barra,
+               "sem sinal, a barra tem a largura base")
+        assert(abs(IlhaVisualizador.largura(amplitude: 1, area: area)
+                   - (barra + 0.66)) < 0.0001, "no pico a barra engorda 0,66 pt")
+    }
+
+    /// Seis bandas pedem sete bordas. A faixa coberta (bins 1…256 a ~47Hz/bin)
+    /// é a mesma de antes: mudou só a divisão.
+    static func testBandas() {
+        let bordas = IlhaVisualizador.bordasDeBanda
+        assert(bordas.count == IlhaVisualizador.barras + 1,
+               "uma borda a mais que o número de barras")
+        assert(bordas.first == 1 && bordas.last == 256, "mesma faixa de antes")
+        assert(zip(bordas, bordas.dropFirst()).allSatisfy { $0 < $1 },
+               "bordas estritamente crescentes")
+    }
+
+    /// A tabela vem de `BouncyBars.caar`. O que o check protege: o laço tem que
+    /// fechar (senão a animação dá um pulo a cada 2,66 s), os valores têm que
+    /// caber em 0…1, e as seis barras não podem estar todas em fase (senão o
+    /// desenho vira um bloco subindo e descendo junto).
+    static func testReserva() {
+        assert(IlhaVisualizador.cicloDaReserva == 2.66, "ciclo de 2,66 s")
+        assert(IlhaVisualizador.sequenciasDaReserva.count == 5, "cinco sequências")
+        for (indice, sequencia) in IlhaVisualizador.sequenciasDaReserva.enumerated() {
+            assert(sequencia.count == 12, "doze quadros na sequência \(indice)")
+            assert(sequencia.first == sequencia.last,
+                   "laço sem emenda na sequência \(indice)")
+            assert(sequencia.allSatisfy { $0 >= 0 && $0 <= 1 },
+                   "sequência \(indice) em 0…1")
+        }
+
+        assert(IlhaVisualizador.ordemDaReserva.count == IlhaVisualizador.barras,
+               "uma entrada de ordem por barra")
+
+        // continuidade no ponto de emenda: um passo antes do fim e um depois do
+        // começo têm que estar perto, senão o olho vê o corte
+        let fim = IlhaVisualizador.reserva(em: IlhaVisualizador.cicloDaReserva - 0.01)
+        let comeco = IlhaVisualizador.reserva(em: 0.01)
+        for barra in 0..<IlhaVisualizador.barras {
+            assert(abs(fim[barra] - comeco[barra]) < 0.15,
+                   "emenda suave na barra \(barra)")
+        }
+
+        // as barras não sobem todas juntas
+        let instante = IlhaVisualizador.reserva(em: 1.0)
+        assert(Set(instante.map { Int($0 * 100) }).count > 3,
+               "as barras não estão em fase")
+
+        // amostrar na fase 0 devolve o primeiro quadro-chave
+        assert(abs(IlhaVisualizador.amostra(IlhaVisualizador.sequenciasDaReserva[0],
+                                            fase: 0) - 0.49) < 0.0001,
+               "fase 0 é o primeiro quadro")
+
+        // fase negativa tem que dar a mesma curva que a fase positiva
+        // equivalente (mod 1) — `Int()` trunca e `.rounded(.down)` usa piso,
+        // e discordam pra posição negativa se não normalizados do mesmo jeito
+        let seq = IlhaVisualizador.sequenciasDaReserva[0]
+        assert(abs(IlhaVisualizador.amostra(seq, fase: -0.3)
+                   - IlhaVisualizador.amostra(seq, fase: 0.7)) < 0.0001,
+               "fase -0,3 coincide com fase 0,7")
+        assert(abs(IlhaVisualizador.amostra(seq, fase: -0.85)
+                   - IlhaVisualizador.amostra(seq, fase: 0.15)) < 0.0001,
+               "fase -0,85 coincide com fase 0,15")
+    }
+}
