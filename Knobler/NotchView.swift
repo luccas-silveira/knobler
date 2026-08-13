@@ -1717,8 +1717,7 @@ struct AudioBarsView: View {
             // Anima `frame(width:height:)`, não `scaleEffect`: escala
             // deformaria as pontas em cápsula, e o piso de altura (silêncio
             // vira ponto redondo) some sob escala uniforme. É relayout por
-            // quadro — custo ainda não medido; a Task 6 mede com o app
-            // rodando de verdade.
+            // quadro — custo ainda não medido.
             capaTratada.mask(barras(bands.map { CGFloat($0) }))
                 .animation(IlhaVisualizador.mola, value: bands)
         } else {

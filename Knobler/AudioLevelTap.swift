@@ -6,7 +6,7 @@
 //  como o Dynamic Island do iPhone: tap no processo → FFT (Accelerate) →
 //  6 bandas de frequência normalizadas em 0…1. Mecânica do AudioCap/rtaudio.
 //  Pede permissão de "gravação de áudio do sistema" no primeiro uso; sem
-//  permissão, `bands` fica nil e a UI cai no visualizador sintético.
+//  permissão, `bands` fica nil e a UI cai na animação de reserva.
 //
 
 import Accelerate

@@ -30,13 +30,9 @@ final class MediaController: ObservableObject {
     @Published private(set) var state: PlaybackState?
     @Published private(set) var artwork: NSImage? {
         didSet {
-            artworkTint = artwork.flatMap(Self.vibrantTint)
             artworkLuminancia = artwork.flatMap(Self.luminanciaMedia)
         }
     }
-    /// Cor vibrante dominante da capa. O visualizador não usa mais (virou
-    /// recorte sobre a própria capa); quem usa é o card aberto.
-    @Published private(set) var artworkTint: Color?
     /// Luminância média da capa em 0…1. O visualizador corrige capa escura ou
     /// clara demais a partir dela, como o iPhone.
     @Published private(set) var artworkLuminancia: Double?
@@ -150,56 +146,5 @@ final class MediaController: ObservableObject {
             }
         }
         return contados > 0 ? soma / Double(contados) : nil
-    }
-
-    /// Cor vibrante dominante da capa (não a média — média de capa colorida
-    /// vira marrom). Histograma de matiz em 12 baldes, cada pixel pesando
-    /// saturação×brilho; pixels acinzentados/escuros ficam de fora.
-    private static func vibrantTint(_ image: NSImage) -> Color? {
-        let side = 16
-        guard let rep = NSBitmapImageRep(
-            bitmapDataPlanes: nil, pixelsWide: side, pixelsHigh: side,
-            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-            colorSpaceName: .deviceRGB, bytesPerRow: side * 4, bitsPerPixel: 32
-        ) else { return nil }
-
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
-        image.draw(in: NSRect(x: 0, y: 0, width: side, height: side))
-        NSGraphicsContext.restoreGraphicsState()
-
-        let buckets = 12
-        var weight = [CGFloat](repeating: 0, count: buckets)
-        var hueSum = [CGFloat](repeating: 0, count: buckets)
-        var satSum = [CGFloat](repeating: 0, count: buckets)
-        var briSum = [CGFloat](repeating: 0, count: buckets)
-
-        for y in 0..<side {
-            for x in 0..<side {
-                guard let color = rep.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB)
-                else { continue }
-                let saturation = color.saturationComponent
-                let brightness = color.brightnessComponent
-                guard saturation > 0.15, brightness > 0.2 else { continue }
-                let pixelWeight = saturation * brightness
-                let bucket = min(buckets - 1, Int(color.hueComponent * CGFloat(buckets)))
-                weight[bucket] += pixelWeight
-                hueSum[bucket] += color.hueComponent * pixelWeight
-                satSum[bucket] += saturation * pixelWeight
-                briSum[bucket] += brightness * pixelWeight
-            }
-        }
-
-        guard let best = weight.indices.max(by: { weight[$0] < weight[$1] }),
-              weight[best] > 1.5 // capa essencialmente P&B/cinza → barras brancas
-        else { return nil }
-
-        let total = weight[best]
-        return Color(nsColor: NSColor(
-            hue: hueSum[best] / total,
-            saturation: max(0.5, satSum[best] / total),
-            brightness: max(0.9, briSum[best] / total),
-            alpha: 1
-        ))
     }
 }
