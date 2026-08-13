@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.26.1] - 2026-08-13
+
 ### Fixed
 - Visualizador de música nas medidas certas da Dynamic Island: seis barras finas
   que revelam a capa em vez de serem tingidas por ela, com o piso em pontinho e
