@@ -148,7 +148,7 @@ reservadas para estado e uma cor viva emprestada da capa.
 ### Named Rules
 **The Borrowed Color Rule.** A única cor saturada da UI é emprestada da capa do
 álbum, e só toca o visualizador. Marca nenhuma tinge o notch. Se você está
-prestes a colorir um texto ou um ícone com a `Artwork Tint`, pare — a cor
+prestes a aplicar a cor da capa a um texto ou um ícone, pare — a cor
 pertence ao conteúdo, não à interface.
 
 **The Pure Black Rule.** A superfície é `#000000`, nunca cinza, nunca vidro

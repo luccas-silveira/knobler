@@ -222,8 +222,8 @@ Duas ressalvas conhecidas, as duas descobertas na v0.13.0:
 
 ## Consumo
 
-Medido em Release com 3 monitores: ~11% de um core com música tocando
-(visualizador a 20Hz), 0,0% parado, ~22MB de RAM.
+Medido em Release com 3 monitores: custo com música tocando não foi
+remedido depois da reescrita do visualizador; parado, 0,0% de CPU e ~22MB de RAM.
 
 ## Licença
 
