@@ -6,6 +6,16 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Fixed
+- Visualizador de música nas medidas certas da Dynamic Island: seis barras finas
+  que revelam a capa em vez de serem tingidas por ela, com o piso em pontinho e
+  a análise do áudio em seis bandas. As barras eram grossas, altas demais e
+  pintadas de uma cor só.
+
+### Changed
+- Música pausada continua visível no notch, com a capa escurecida — o hover
+  passa a abrir o card direto, sem a etapa de espiada.
+
 ## [0.26.0] - 2026-08-11
 
 ### Added
