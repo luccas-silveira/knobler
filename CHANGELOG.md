@@ -6,6 +6,20 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- O notch some na tela que estiver com um app em tela cheia, e volta ao sair.
+  Chave em Ajustes › Notch › Visibilidade, ligada por padrão.
+
+### Changed
+- O botão **Desenhar** do card passa a ativar e desativar o atalho do Control em
+  vez de ligar o overlay direto. Desativado, o Control é uma tecla comum; a
+  escolha fica salva e instalação nova nasce desativada.
+
+### Removed
+- Três declarações mortas: `AnnotationController.state(for:)`, `DevAvisos.stop()`
+  e `ColorPicker.Format.label`. Encontradas pelo `periphery scan`, agora
+  configurado em `.periphery.yml`.
+
 ## [0.26.1] - 2026-08-13
 
 ### Fixed

@@ -68,6 +68,10 @@ final class AppSettings: ObservableObject {
     @Published var micIndicator: Bool {
         didSet { UserDefaults.standard.set(micIndicator, forKey: "micIndicator") }
     }
+    /// Esconde o notch na tela que estiver com um app em tela cheia.
+    @Published var ocultarEmTelaCheia: Bool {
+        didSet { UserDefaults.standard.set(ocultarEmTelaCheia, forKey: "ocultarEmTelaCheia") }
+    }
     /// Card de AirPods no notch (connect + bateria L/R/estojo no hover).
     @Published var airpodsNotch: Bool {
         didSet { UserDefaults.standard.set(airpodsNotch, forKey: "airpodsNotch") }
@@ -98,6 +102,11 @@ final class AppSettings: ObservableObject {
     /// Esconde o preview flutuante nativo do print (o shelf já mostra).
     @Published var hideScreenshotPreview: Bool {
         didSet { UserDefaults.standard.set(hideScreenshotPreview, forKey: "hideScreenshotPreview") }
+    }
+    /// O Control só desenha com isto ligado — o botão "Desenhar" do card é a
+    /// chave. Nasce desligado: atalho global que age sozinho assusta.
+    @Published var annotationArmed: Bool {
+        didSet { UserDefaults.standard.set(annotationArmed, forKey: "annotationArmed") }
     }
     /// Modo do atalho de anotação; segue o DemoPro (pressionar e segurar por padrão).
     @Published var annotationActivationMode: AnnotationActivationMode {
@@ -264,6 +273,7 @@ final class AppSettings: ObservableObject {
         mirrorBeforeMeetings = flag("mirrorBeforeMeetings")
         mirrorDeviceID = defaults.string(forKey: "mirrorDeviceID") ?? ""  // "" = automática
         micIndicator = flag("micIndicator")
+        ocultarEmTelaCheia = flag("ocultarEmTelaCheia")
         airpodsNotch = flag("airpodsNotch")
         dictation = flag("dictation")
         dictationCloud = defaults.bool(forKey: "dictationCloud") // default false: local-first
@@ -272,6 +282,7 @@ final class AppSettings: ObservableObject {
         formatModel = defaults.string(forKey: "formatModel") ?? "gemma3:4b"
         screenshotsToShelf = flag("screenshotsToShelf")
         hideScreenshotPreview = flag("hideScreenshotPreview")
+        annotationArmed = defaults.bool(forKey: "annotationArmed")
         annotationActivationMode = AnnotationActivationMode(
             rawValue: defaults.string(forKey: "annotationActivationMode") ?? "") ?? .default
         annotationAutoFade = defaults.bool(forKey: "annotationAutoFade")
