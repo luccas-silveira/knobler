@@ -805,10 +805,15 @@ print("controle positivo: \(rc.quadros.count) quadros, "
       + "\(rc.alturasDistintas) alturas de moldura distintas "
       + "(\(rc.alturas.min() ?? -1)–\(rc.alturas.max() ?? -1) pt)")
 if verboso { print("   alturas: \(rc.alturas)") }
-// Limiar 5 contra 4 trocas de `mode`; com um par só a faixa observada era 5–8
-// (margem zero). Ver a seção de Determinismo da medição 001.
-guard rc.alturasDistintas >= 5 else {
-    print("FALHOU: a animação não corre nesta janela — o harness não mediria nada.")
+// Limiar 3, e ele É derivado: a pergunta do controle é binária — a animação
+// avança ou não. Duas alturas (antes e depois) já provariam que o estado mudou;
+// a TERCEIRA é a que prova que houve um valor NO MEIO, ou seja, interpolação.
+// Pedir mais que isso é pedir uma cadência de amostragem que a máquina não
+// garante: o 5 anterior não vinha de lugar nenhum e chegou a medir 6 num dia
+// com mais fotos e menos alturas (a amostragem cai em platôs da mola).
+guard rc.alturasDistintas >= 3 else {
+    print("FALHOU: a animação não corre nesta janela (menos de 3 alturas distintas) — "
+          + "o harness não mediria nada.")
     exit(1)
 }
 

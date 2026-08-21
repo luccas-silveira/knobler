@@ -94,8 +94,8 @@ dois casos e imprime a conta). Todas caem em cima de uma troca de `mode` — o c
 positivo, o `hover-abre-e-gesto-fecha` e as cinco `*-durante-abertura`. O contraste que
 importa: o **controle do fechado parado**, que não dirige transição nenhuma, mede 32 pt em
 **todas** as fotos (50–51 fotos por corrida, medido em 5 corridas) — a pilulinha fechada nunca some quando nada muda. Não dá para decidir
-pela imagem se esses 10 quadros são o `cacheDisplay` devolvendo buffer não desenhado ou um
-quadro real em que a árvore não desenhou nada; os PNGs ficam em `/tmp/cortecheck-quadros`.
+pela imagem se esses quadros são o `cacheDisplay` devolvendo buffer não desenhado ou
+quadros reais em que a árvore não desenhou nada; os PNGs ficam em `/tmp/cortecheck-quadros`.
 Não é o sintoma relatado (some tudo, não a metade de cima), mas é a única pista de "pisca"
 que a varredura produziu, e é reprodutível.
 
@@ -138,14 +138,19 @@ A varredura inteira foi rodada **5 vezes**; a coluna de veredicto (`corte=N` das
 saiu **idêntica nas 5** — mesmo hash MD5. O que varia entre corridas é o número de fotos por
 combinação (a cadência depende da máquina), não o veredicto.
 
-A trava do controle positivo exige **5 alturas de moldura distintas**. Com um único par
-abrir/fechar a faixa observada era 5–8 — margem zero, e um dia de máquina ocupada derrubaria
-o harness com um "a animação não corre nesta janela" falso. O controle passou a dirigir
-**quatro** trocas de `mode` em vez de uma, e a faixa observada em 5 corridas subiu para
-**9–13** contra a mesma trava de 5.
+A trava do controle positivo exige **3 alturas de moldura distintas**, e o 3 é derivado, não
+escolhido: duas alturas (antes e depois) só provariam que o estado mudou; a terceira é a que
+prova que houve um valor **no meio** — interpolação, que é a única coisa que o controle
+precisa responder. O limiar anterior era 5 e não vinha de lugar nenhum. Contagem por corrida
+medida em 4 corridas do controle com quatro trocas de `mode`: **5, 7, 10 e 11**. Ela oscila
+porque a amostragem às vezes cai em platôs da mola — mais fotos numa corrida não significa
+mais alturas distintas —, e é justamente por isso que a trava não pode depender da cadência:
+contra o piso medido (5) a margem é de 2 alturas.
+Uma faixa de "9–13" chegou a ser escrita aqui a partir de 5 corridas afortunadas e **não**
+se sustenta: corridas com MAIS fotos mediram MENOS alturas.
 
 O harness **não** foi acrescentado a `tools/check.sh`. Não é por indeterminismo — esse foi
-medido e é 3/3. É por dois motivos de ambiente: (1) ele precisa de sessão gráfica, e o
+medido e é 5/5. É por dois motivos de ambiente: (1) ele precisa de sessão gráfica, e o
 controle positivo aborta com código 1 num runner sem WindowServer, o que deixaria a CI
 vermelha em vez de pulada; (2) leva ~4,5 min contra os segundos que cada gate atual leva. A
 forma do gate de regressão é, pelo mapa, decisão da 004 — não desta medição.
@@ -188,9 +193,10 @@ for i in 1 2 3 4 5; do ./tools/cortecheck.sh > /tmp/cc$i.txt 2>&1; done
 for i in 1 2 3 4 5; do grep -o 'corte=[ ]*[0-9]*' /tmp/cc$i.txt | tr -d ' ' | md5 -q; done
 # → cinco hashes iguais
 
-# a margem da trava do controle positivo (trava em 5)
+# a margem da trava do controle positivo (trava em 3, derivada — ver Determinismo)
 grep -h 'controle positivo' /tmp/cc*.txt
-# → 9–13 alturas distintas
+# → a contagem por corrida oscila (5, 7, 10, 11 em 4 corridas); o exato aqui é o
+#   PISO observado, 5, contra a trava de 3
 
 # os quadros suspeitos, um PNG por foto
 ls /tmp/cortecheck-quadros
