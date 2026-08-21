@@ -45,7 +45,7 @@ transações diferentes deixariam exatamente um quadro de estado intermediário 
 | Fase | Tickets | Por quê |
 |---|---|---|
 | 1. Ver o defeito fora do app | **001** reproduzir o corte no harness · **002** auditar moldura contra conteúdo | Sem repro nem inventário, qualquer conserto é chute — e o mapa inteiro assume uma hipótese que ninguém mediu. A 002 anda em paralelo porque não depende da 001: ela lê o código, não o comportamento. |
-| 2. Escolher o conserto e medir o que sobrou | **003** qual mecanismo conserta · **003.1** eventos de ambiente no harness | A 003 decidiu com repro e inventário na mão — e a repro derrubou a hipótese, então a decisão dela foi medir mais uma vez em vez de consertar. A 003.1 nasce dessa decisão e fica na fase do pai: é o mesmo instrumento, dirigido contra o ambiente em vez do estado da interface. |
+| 2. Escolher o conserto e medir o que sobrou | **003** qual mecanismo conserta · **003.1** eventos de ambiente no harness · **003.2** os eventos no código que ele roda | A 003 decidiu com repro e inventário na mão — e a repro derrubou a hipótese, então a decisão dela foi medir mais uma vez em vez de consertar. A 003.1 nasce dessa decisão e fica na fase do pai: é o mesmo instrumento, dirigido contra o ambiente em vez do estado da interface. A 003.2 existe porque a 003.1 mediu contra um `KnoblerApp` sem o código que o usuário de fato executa — mesma pergunta, código certo. |
 | 3. Consertar e travar | **004** aplicar e blindar com gate | O gate é o que impede a regressão de voltar em três meses. A métrica dele é a lacuna de topo — "moldura menor que o conteúdo" está provada cega. |
 
 ## Decisões até aqui
@@ -73,6 +73,10 @@ transações diferentes deixariam exatamente um quadro de estado intermediário 
   duas provas fortes saem do mesmo `cacheDisplay`, e a terceira pode ser cega ao caso. **A pergunta volta ao mapa:** nem estado da interface
   nem ambiente reproduzem o corte, e o que sobra está em "Ainda não especificado". Detalhe e
   comandos em [medicao-003-1-ambiente.md](medicao-003-1-ambiente.md).
+
+- [Eventos de ambiente no harness](tickets/003.1-eventos-de-ambiente.md) — **também não reproduziu.** 8 transições de ambiente, 17 chamadas de janela dirigidas, lacuna de topo **0,0 pt** em todas; 43 combinações no total, zero cortes. O instrumento acusa: um defeito que só existe com a janela fora de ordem foi acusado em 40,0 pt em três das quatro transições de `orderOut`. Mas **5 das 8 não têm sensibilidade demonstrada** — numa delas um defeito de 150 ms passou inteiro, porque fotografar um card de 530 pt custa ~200 ms e a cadência cai para 2–11 Hz. Sobre os quadros vazios: **não são buffer virgem** (o desenho rodou e pintou o fundo na mesma foto), mas provar que o app não desenhou nada exigiria uma câmera que não compartilhe o mesmo caminho. Detalhe em [medicao-003-1-ambiente.md](medicao-003-1-ambiente.md).
+
+- **Achado de processo, sem ticket:** o mapa foi cartografado lendo o repositório principal com mudanças **não commitadas** no disco. O worktree onde tudo foi medido nasceu do último commit e não tinha `applyVisibility` nem o tratamento de Space — 1582 linhas contra 1668. O usuário confirmou que roda a build local com esse código, então ele é suspeito real e a 003.1 não pôde exercitá-lo. O código entrou no worktree em `f8684aa`, **só para ser medido**, e a 003.2 refaz a pergunta contra ele. A 001 e a 002 seguem íntegras: o trabalho pendente não toca `NotchView` nem `NotchViewModel`.
 
 ## Ainda não especificado
 
