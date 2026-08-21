@@ -91,8 +91,11 @@ ultrapassa.
 **Alguns quadros saem sem moldura nenhuma — e sem conteúdo nenhum.** Em 35 combinações,
 algumas fotos por corrida vieram magenta puro: nem pixel de moldura, nem pixel de conteúdo
 (o harness separa os dois casos e imprime a conta). **Sem teto declarado** — foram 6 a 15
-nas nove corridas medidas, e o número não estabiliza porque depende de quantas fotos calham
-de cair exatamente em cima de uma troca de `mode`, o que muda com a cadência da máquina. O
+nas nove corridas medidas **com o instrumento daquela época** (hoje, com a janela de
+observação em 1,6 s, saiu 12–24 nas minhas três varreduras e 24–25 nas da revisão — ver a
+nota no topo da Verificação), e o número não
+estabiliza porque depende de quantas fotos calham de cair exatamente em cima de uma troca de
+`mode`, o que muda com a cadência da máquina. O
 que é estável, e é a metade que importa, é a outra: **nenhuma** dessas fotos tinha conteúdo
 desenhado, em nenhuma corrida. Todas caem em cima de uma troca de `mode` — o controle
 positivo, o `hover-abre-e-gesto-fecha` e as cinco `*-durante-abertura`. O contraste que
@@ -162,11 +165,24 @@ forma do gate de regressão é, pelo mapa, decisão da 004 — não desta mediç
 
 ## Verificação
 
-> A [medição 003.1](medicao-003-1-ambiente.md) mexeu no instrumento depois desta corrida: a
-> janela de observação subiu de 0,8 s para 1,6 s e a varredura ganhou 8 transições de
-> ambiente. As **contagens de quadros** abaixo são do instrumento antigo e saem maiores hoje
-> (e "combinações rodadas" agora é 43, não 35). Os veredictos — 0 corte, lacuna 0,0 pt,
-> controles em 100,0 e 60,0 pt — não mudaram.
+> A [medição 003.1](medicao-003-1-ambiente.md) mexeu no instrumento depois desta corrida, em
+> quatro pontos: a janela de observação subiu de **0,8 s para 1,6 s**; a raiz do envelope
+> passou a ser **ancorada no topo** (`.frame(maxWidth:maxHeight:alignment: .top)` no lugar do
+> tamanho fixo, para o `setFrame` que muda tamanho não fingir lacuna); toda foto vazia passa
+> por um **exame de segunda câmera**, com teto de **8 fotos por camada por corrida**, que
+> custa cadência; e a varredura ganhou **8 transições de ambiente**.
+>
+> As **contagens de quadros** abaixo são do instrumento antigo e saem maiores hoje, "quadros
+> sem moldura NENHUMA" hoje sai bem acima da faixa de 6–15 registrada aqui (**12–24** nas
+> minhas três varreduras, 24–25 nas da revisão), e "combinações rodadas" agora é
+> **43**, não 35. Os veredictos — 0 corte, lacuna 0,0 pt, controles em 100,0 e 60,0 pt — não
+> mudaram.
+>
+> **A receita de determinismo abaixo mudou** e já está corrigida aqui: a 003.1 acrescentou um
+> controle que imprime `quadros com corte=N/N`, e esse N é contagem de quadros, que varia por
+> máquina. Hashear o arquivo inteiro passou a dar hashes diferentes entre corridas boas; o
+> `grep -E '^  [a-z]'` antes do `grep -o` limita a conta às linhas de transição, que é o que
+> o veredicto sempre foi.
 
 ```bash
 # a varredura inteira: compila a NotchView isolada e roda as 35 transições (~4,5 min)
@@ -204,7 +220,8 @@ CORTECHECK_VERBOSE=1 ./tools/cortecheck.sh \
 
 # determinismo: cinco varreduras, veredicto idêntico
 for i in 1 2 3 4 5; do ./tools/cortecheck.sh > /tmp/cc$i.txt 2>&1; done
-for i in 1 2 3 4 5; do grep -o 'corte=[ ]*[0-9]*' /tmp/cc$i.txt | tr -d ' ' | md5 -q; done
+for i in 1 2 3 4 5; do grep -E '^  [a-z]' /tmp/cc$i.txt \
+  | grep -o 'corte=[ ]*[0-9]*' | tr -d ' ' | md5 -q; done
 # → cinco hashes iguais
 
 # a margem da trava do controle positivo (trava em 3, derivada — ver Determinismo)

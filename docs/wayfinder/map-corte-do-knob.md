@@ -59,15 +59,18 @@ transações diferentes deixariam exatamente um quadro de estado intermediário 
 - [Eventos de ambiente no harness](tickets/003.1-eventos-de-ambiente.md) — **o ambiente
   também não pinta o corte.** 8 transições novas dirigem a janela pelos pontos de entrada do
   app (`orderOut`, `orderFrontRegardless`, `setFrame(_:display: true)`): **17 chamadas
-  dirigidas, 15 com mudança observável, lacuna de topo 0,0 pt nas oito** — a varredura
+  dirigidas, 15 com mudança observável, lacuna de topo 0,0 pt nas oito, 5 das quais sem
+  sensibilidade demonstrada** (uma injeção de revisão de 150 ms passou inteira pela
+  transição durante morph, a 10,7 Hz) — a varredura
   inteira fecha em **43 combinações, 0 corte**, com dois controles novos provando que a
   janela escondida não cega a foto e que o desvio de 60 pt continua sendo acusado
   atravessando o evento. Sono e troca de modo de display ficaram de fora porque mexeriam na
   máquina do usuário; a **troca de Space não existe neste código** (sem observador de
-  `activeSpace`, `NotchWindow` é `.canJoinAllSpaces`). Fechou a segunda pergunta: os quadros
-  magenta são **quadro real**, não buffer sem desenho — o fundo desenhou na mesma foto, 0 de
-  22 vazios voltaram numa segunda foto do mesmo giro, e um segundo caminho de captura
-  (aferido) também não achou desenho. **A pergunta volta ao mapa:** nem estado da interface
+  `activeSpace`, `NotchWindow` é `.canJoinAllSpaces`). Fechou a segunda pergunta pela metade que a
+  evidência aguenta: os quadros magenta **não são buffer virgem** — o `cacheDisplay` rodou e
+  desenhou o irmão magenta na mesma foto, e nenhum dos 38/35/26 vazios examinados voltou
+  numa segunda foto do mesmo giro. "Quadro real" é a leitura provável, **com ressalva**: as
+  duas provas fortes saem do mesmo `cacheDisplay`, e a terceira pode ser cega ao caso. **A pergunta volta ao mapa:** nem estado da interface
   nem ambiente reproduzem o corte, e o que sobra está em "Ainda não especificado". Detalhe e
   comandos em [medicao-003-1-ambiente.md](medicao-003-1-ambiente.md).
 

@@ -16,9 +16,26 @@ conteúdo" está provada cega pela [003](tickets/003-qual-mecanismo-conserta.md)
 ## O número
 
 **8 transições de ambiente, 17 chamadas de janela dirigidas, 15 com mudança observável no
-estado da janela. 0 produziram lacuna de topo: `lacuna_topo_max = 0,0 pt` nas oito.** O
-`corte` também é 0 nas oito, e a varredura inteira — as 35 da 001 mais estas 8 — fecha em
-**43 combinações, 0 corte**.
+estado da janela. 0 produziram lacuna de topo: `lacuna_topo_max = 0,0 pt` nas oito — mas
+5 das 8 estão sem sensibilidade demonstrada.** O `corte` também é 0 nas oito, e a varredura
+inteira — as 35 da 001 mais estas 8 — fecha em **43 combinações, 0 corte**.
+
+Sensibilidade demonstrada quer dizer: existe um defeito injetado que **essa transição
+acusou**. A revisão desta medição injetou um desvio de 40 pt gateado em `!janela.isVisible`,
+ou seja, um defeito que só existe enquanto a janela está fora de ordem. Três transições o
+acusaram com **40,0 pt** — `ambiente-orderout-volta-fechado`, `ambiente-orderout-volta-aberto`
+e `ambiente-espaco-simulado`. As outras cinco não, e por dois motivos diferentes:
+
+- `ambiente-orderout-durante-morph` **tinha** o defeito na tela (150 ms com a janela fora de
+  ordem) e **não o acusou, em 2 de 2 corridas**, fotografando a 10,7 Hz. Este é o buraco de
+  cadência, não de gate — e é o número que o "0 de 8" precisa carregar junto.
+- `ambiente-placewindows-parado`, `ambiente-placewindows-durante-morph`,
+  `ambiente-setframe-move-origem` e `ambiente-setframe-muda-tamanho` nunca deixam a janela
+  fora de ordem, então o gate da injeção não as alcançava. Delas o teste não diz nada, nem a
+  favor nem contra.
+
+O zero destas cinco vale menos que o zero das outras três, e o documento não vai fingir o
+contrário.
 
 As duas chamadas sem mudança observável são os `setFrame` com o **mesmo** frame do
 `ambiente-placewindows-*`: elas foram dirigidas de verdade (o app as faz assim, com
@@ -84,7 +101,13 @@ tamanho. Os seis `orderOut` são cinco das transições mais o controle.
 
 A pergunta da 001 era se as fotos magenta puro — sem moldura e sem conteúdo — são o
 `cacheDisplay` devolvendo um buffer que ninguém desenhou, ou um quadro real em que a árvore
-não desenhou nada. **São quadros reais.** Três evidências, todas medidas:
+não desenhou nada. **Não é buffer virgem: o `cacheDisplay` rodou e desenhou o irmão magenta
+na mesma foto.** Essa é a parte que a evidência sustenta sozinha. "Quadro real em que a
+árvore não desenhou nada" é a leitura mais provável, mas **com ressalva**: as duas provas
+fortes abaixo saem do mesmo `cacheDisplay`, e uma cegueira sistemática dele ao
+`compositingGroup` filtrado durante o `.blurReplace` produziria exatamente esses dois
+resultados. A terceira evidência é a que quebraria o empate, e ela é justamente a que pode
+ser cega ao caso. Três evidências, todas medidas:
 
 1. **O fundo desenhou na mesma foto.** O magenta não é buffer virgem: é um
    `Color(red: 1, green: 0, blue: 1)` irmão da `NotchView` dentro da mesma raiz SwiftUI. Se
@@ -114,27 +137,24 @@ vivem no mesmo `ZStack` sob um `.compositingGroup()` seguido de `.mask(shape)`
 parcial: em **0** dos quadros vazios (das três varreduras) havia conteúdo desenhado sem
 moldura. O grupo inteiro contribui zero pixel, ou contribui os dois.
 
-E ele **volta**. Com a janela de observação em 1,6 s, todo quadro vazio passou a ter vizinho
-não vazio dos dois lados nas três varreduras completas (**borda=0**, **0 transições
-terminaram vazias**) — mas esse par de zeros **depende da cadência**, não é exato: numa
-corrida com a máquina ocupada, em que a `ambiente-placewindows-durante-morph` fotografou a
-2,3 Hz e pegou 6 quadros, a série acabou vazia (`borda=2`, uma transição terminando vazia).
-O que a série curta não sabe é se a árvore voltou depois do último quadro, e é por isso que
-a janela de observação dobrou. Onde cada vazio cai na curva de altura, nas três corridas
-completas:
+**Alguns vazios voltam** — `subida > 0` em toda corrida medida, ou seja, sempre há vazio
+entre uma altura menor e uma maior seguinte. Só isso, e o que vem a seguir, sobrevive à
+repetição.
 
-```
-subida=8  descida=0  patamar=16  borda=0
-subida=6  descida=0  patamar=16  borda=0
-subida=11 descida=0  patamar=1   borda=0
-```
+A única coisa **exata** do contorno é **`descida=0`**, que saiu zero em todas as corridas
+medidas, minhas e da revisão (5/5): nenhum vazio cai entre uma altura maior e uma menor, o
+que mata a explicação mais simples — a mola do morph passando por altura zero enquanto
+encolhe.
 
-Dois números aí valem mais que o resto. **`descida=0` em todas as corridas medidas**:
-nenhum vazio cai entre uma altura maior e uma menor, o que mata a explicação mais simples —
-a mola do morph passando por altura zero enquanto encolhe. E **`patamar`**, que são os
-vazios entre dois quadros da **mesma** altura: o notch some e volta do mesmo tamanho, que é
-a definição de piscar. A contagem de patamar oscila muito (16, 16, 1) porque depende de a
-foto calhar de cair na janela do sumiço; o que não oscila é o zero da descida.
+Todo o resto do contorno **oscila com a cadência e não é conclusão**. As minhas três
+varreduras completas mediram `patamar` 16, 16 e 1 e `borda` 0, 0, 0; cinco corridas da
+revisão mediram `borda` 0, 2, 11, 17, 0, `terminaram vazias` 0, 1, 1, 3, 0 e `patamar` **0
+em quatro das cinco**. Uma versão anterior deste documento leu esses números como "o vazio
+sempre volta e nunca sobra no fim da série", e isso **não reproduz**: uma corrida lenta
+termina a série com a árvore ainda vazia, e nesse caso o harness simplesmente não sabe se
+ela voltou depois do último quadro. `patamar > 0` — o notch sumindo e voltando do mesmo
+tamanho, que seria a forma mais limpa de "piscar" — apareceu nas minhas corridas e não nas
+da revisão; não é achado, é sorte de amostragem.
 
 Não é o sintoma relatado — some tudo, não a metade de cima — mas é um pisca real, medido, e
 não um artefato do instrumento.
@@ -142,10 +162,10 @@ não um artefato do instrumento.
 ## Mudanças no instrumento, e por que
 
 - **Janela de observação de 0,8 s → 1,6 s.** As transições que fecham e reabrem o card
-  fotografam a **4–11 Hz** (o `cacheDisplay` de um card de 530 pt custa ~200 ms), e com
+  fotografam a **2–11 Hz** (o `cacheDisplay` de um card de 530 pt custa ~200 ms), e com
   0,8 s os quadros vazios caíam no **fim** da série: sem um quadro depois deles, não dava
-  para dizer se a árvore voltava a desenhar. Foi essa mudança que trocou "borda=15" por
-  "subida=2, borda=0".
+  para dizer se a árvore voltava a desenhar. A janela maior alivia isso, mas **não resolve**
+  — numa corrida lenta a série ainda termina vazia (ver o contorno dos vazios).
 - **Raiz do envelope ancorada no topo** (`.frame(maxWidth: .infinity, maxHeight: .infinity,
   alignment: .top)` no lugar do tamanho fixo). Sem isso, o `setFrame` que muda o tamanho da
   janela centralizaria o conteúdo e a lacuna de topo acusaria um corte que é layout do
@@ -158,6 +178,10 @@ não um artefato do instrumento.
 - **`CORTECHECK_FAMILIA`** roda uma família só — e **nunca** pula um controle.
 
 ## Limites — o que este "0 de 8" não cobre
+
+- **Cinco das oito não têm sensibilidade demonstrada** — ver a seção do número. A injeção de
+  revisão só existia com a janela fora de ordem, então as quatro transições de `setFrame` e
+  `placeWindows` nunca a viram, e a `ambiente-orderout-durante-morph` a viu e não a acusou.
 
 - **A troca de Space não existe neste código.** O brief cita um `applyVisibility` em
   `KnoblerApp.swift:1073` e um tratamento de troca de Space com 0,35 s de atraso: nenhum dos
@@ -175,8 +199,11 @@ não um artefato do instrumento.
   janela mudando de origem e de tamanho, que é o que o `placeWindows` faz depois de uma
   mudança de tela — está varrido; a parte que exige o WindowServer de verdade (o display
   reiniciando, o `backingScaleFactor` mudando, o app voltando do sono) não está.
-- **Cadência.** Continua valendo o limite da 001, e pior nas transições de ambiente durante
-  morph: **4–11 Hz**. Um corte de um quadro a 60 Hz cabe folgado entre duas fotos.
+- **Cadência, e este é o limite que morde.** Continua valendo o da 001, e pior nas
+  transições de ambiente durante morph: **2–11 Hz**. E não é mais um limite teórico: na
+  injeção de revisão, um defeito de **~150 ms** — nove quadros a 60 Hz — passou **inteiro**
+  pela `ambiente-orderout-durante-morph`, em 2 de 2 corridas, com a transição fotografando a
+  10,7 Hz. Um corte que dure menos que isso, nessas transições, este harness não pega.
 - **A janela do harness é uma `NSWindow` comum, não a `NotchWindow`.** `NotchWindow.swift`
   não está em `tools/notchview-fontes.txt`, então o painel de verdade (nível
   `.mainMenu + 3`, `isOpaque = false`, `.canJoinAllSpaces`) não entra na compilação isolada.
@@ -213,10 +240,10 @@ CORTECHECK_FAMILIA=ambiente ./tools/cortecheck.sh \
 #     (o N varia com a máquina; o exato é os dois lados serem iguais)
 #   controle da camada (2ª câmera): cacheDisplay=32.0 pt, camada=32.0 pt — concordam
 #   as 8 linhas ambiente-*: corte= 0 e lacuna_topo_max=  0.0 pt
-#   contorno dos vazios: o exato é descida=0; subida, patamar e borda oscilam com
-#     a cadência (subida 2–11, patamar 0–16, borda 0–2 nas corridas medidas)
-#   transições que TERMINARAM vazias: 0 nas varreduras completas, mas pode dar 1
-#     numa corrida em que a transição fotografe a ~2 Hz — é cadência, não veredicto
+#   contorno dos vazios: o exato é descida=0 (e subida > 0); patamar e borda
+#     oscilam MUITO com a cadência — patamar 0–16 e borda 0–17 nas corridas medidas
+#   transições que TERMINARAM vazias: 0–3 nas corridas medidas. NÃO é veredicto:
+#     mede a cadência da máquina, não o app
 #   quadros vazios examinados: N — sumiram na 2ª foto do mesmo giro: 0,
 #     com desenho na foto por camada: 0/N — o exato é o 0; o N é quantos vazios
 #     couberam no teto de 8, e varia com a cadência
