@@ -3,7 +3,7 @@
 Map: [O knob cortado ao meio](../map-corte-do-knob.md)
 Type: `measure`
 Status: aberto
-Assignee: —
+Assignee: sdd-001
 Blocked by: —
 
 ## Pergunta
