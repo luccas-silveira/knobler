@@ -45,8 +45,8 @@ transações diferentes deixariam exatamente um quadro de estado intermediário 
 | Fase | Tickets | Por quê |
 |---|---|---|
 | 1. Ver o defeito fora do app | **001** reproduzir o corte no harness · **002** auditar moldura contra conteúdo | Sem repro nem inventário, qualquer conserto é chute — e o mapa inteiro assume uma hipótese que ninguém mediu. A 002 anda em paralelo porque não depende da 001: ela lê o código, não o comportamento. |
-| 2. Escolher o conserto | **003** qual mecanismo conserta | Decide com repro e inventário na mão. Vem antes do código porque as rotas (fonte única de verdade da altura, transação única, moldura medida pelo conteúdo) têm custos muito diferentes. |
-| 3. Consertar e travar | **004** aplicar e blindar com gate | O gate é o que impede a regressão de voltar em três meses. |
+| 2. Escolher o conserto e medir o que sobrou | **003** qual mecanismo conserta · **003.1** eventos de ambiente no harness | A 003 decidiu com repro e inventário na mão — e a repro derrubou a hipótese, então a decisão dela foi medir mais uma vez em vez de consertar. A 003.1 nasce dessa decisão e fica na fase do pai: é o mesmo instrumento, dirigido contra o ambiente em vez do estado da interface. |
+| 3. Consertar e travar | **004** aplicar e blindar com gate | O gate é o que impede a regressão de voltar em três meses. A métrica dele é a lacuna de topo — "moldura menor que o conteúdo" está provada cega. |
 
 ## Decisões até aqui
 
@@ -54,16 +54,15 @@ transações diferentes deixariam exatamente um quadro de estado intermediário 
 
 - [Reproduzir o corte no harness](tickets/001-reproduzir-o-corte.md) — **o corte não reproduziu**: 35 combinações em 11 famílias de transição, lacuna de topo **0,0 pt** em todas, veredicto idêntico em 9 corridas. O negativo vale porque o instrumento foi atacado: com a moldura empurrada 60 pt pra baixo dentro da `NotchView` de verdade, o harness acusa 60,0 pt e aborta com erro. Duas coisas que o zero **não** cobre, e ambas importam pro 003: as fotos saem a ~17 Hz, então um piscar de um quadro a 60 Hz cabe entre duas fotos; e a métrica "moldura menor que o conteúdo" é cega a uma divergência de `currentSize`, porque forma e conteúdo dividem o mesmo `ZStack` sob o mesmo `.mask` — encolher a altura encolhe os dois juntos. Achado lateral: em toda corrida algumas fotos saem **sem moldura e sem conteúdo**, sempre em cima de uma troca de `mode`, enquanto o controle parado nunca some. É a única pista de "pisca" que a varredura produziu. O harness (`tools/cortecheck/`) ficou fora do `tools/check.sh` de propósito: precisa de sessão gráfica e leva ~4,5 min. Detalhe e comandos em [medicao-001-repro.md](medicao-001-repro.md).
 
+- [Qual mecanismo conserta](tickets/003-qual-mecanismo-conserta.md) — **a hipótese do mapa caiu.** Encolher a altura não pinta o corte: forma e conteúdo dividem o mesmo `ZStack` sob o mesmo `.mask`, então a injeção de uma moldura 60 pt menor acusou **0 de 34**. A classe inteira "moldura menor que o conteúdo" está morta como mecanismo, e como métrica de gate. Sobrevive o inventário da 002; morre a conclusão que se tirava dele. Quatro rotas foram à mesa com o custo de cada uma e o usuário escolheu **medir mais uma vez**, agora contra eventos de ambiente — nasce daí a 003.1. Ele também trouxe janela, tela cheia e sono de volta ao escopo **como suspeitos da causa**, não como área a consertar.
+
 ## Ainda não especificado
 
-**O plano B deixou de ser fog: virou a rota viva.** A 001 varreu e não achou, e o
-destino "causa raiz achada" agora colide de frente com a decisão de não rodar build
-instrumentada. A 003 decide isso com o usuário, e é a decisão que manda no resto do mapa.
-
-**Os quadros sem moldura e sem conteúdo.** A 001 os mediu mas não soube dizer se são o
-`cacheDisplay` devolvendo buffer não desenhado ou quadro real em que a árvore não
-desenhou nada. Os PNGs estão em `/tmp/cortecheck-quadros`. Distinguir os dois casos pode
-ser ticket próprio — depende do que a 003 escolher.
+**O que fazer se a 003.1 também voltar de mãos vazias.** Duas rotas já apresentadas e não
+escolhidas continuam disponíveis: autodiagnóstico embarcado na build normal (que revisita
+a decisão de não rodar build instrumentada) e conserto defensivo sem causa provada. A
+terceira possibilidade — o defeito depender de hardware que nenhum harness alcança — não
+tem rota escrita ainda.
 
 **Forma do gate de regressão.** Só dá para escrever depois de conhecer a causa. Snapshot
 comparado, asserção sobre a matemática da altura ou harness de transição são candidatos
@@ -71,6 +70,12 @@ com custos diferentes.
 
 ## Fora de escopo
 
-**Posição da janela, multi-monitor, tela cheia e sleep.** O destino é o desenho; a
-recuperação por expandir/recolher mostra que a janela não é a culpada. Se o usuário
-relatar um defeito de posição de verdade, é mapa novo.
+**Posicionamento em multi-monitor e comportamento em tela cheia.** Continuam fora: são
+área a consertar, e o destino é o corte.
+
+Os **eventos** de janela, tela cheia e sono **voltaram ao escopo** em 2026-08-21, por
+decisão do usuário na [003](tickets/003-qual-mecanismo-conserta.md), e só como suspeitos
+da causa. O argumento original para excluí-los — "expandir/recolher conserta, logo a
+janela está certa" — não separa estado da interface de buffer de desenho corrompido:
+expandir/recolher força um redesenho completo dos dois. Se a causa estiver num desses
+eventos, o conserto vem junto.

@@ -4,7 +4,7 @@ Map: [O knob cortado ao meio](../map-corte-do-knob.md)
 Type: `fix`
 Status: aberto
 Assignee: —
-Blocked by: 003
+Blocked by: 003.1
 
 ## Pergunta
 
