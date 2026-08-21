@@ -69,6 +69,7 @@ indirect enum JSONValue {
 /// Lista FECHADA. Um filtro por token, sem argumentos e sem encadeamento.
 /// Todo filtro recebe e devolve texto; inaplicável devolve o valor cru.
 enum TemplateFilters {
+    // periphery:ignore
     static let nomes = ["semHifens", "data", "quill"]
 
     static func apply(_ nome: String, _ cru: String) -> String {

@@ -353,6 +353,7 @@ enum PluginRegistry {
     }
 
     /// Gate: falta peça no registro, o `plugincheck` quebra.
+    // periphery:ignore
     static var completo: Bool {
         Set(todos.map(\.id)) == Set(PluginID.allCases)
     }
@@ -408,6 +409,7 @@ enum EstadoDoCard: Equatable {
 
     /// O "⋯" com "Desinstalar (seus dados ficam salvos)" só existe em peça
     /// instalada — desinstalar o que nunca nasceu não quer dizer nada.
+    // periphery:ignore
     var temMenuDeDesinstalar: Bool { self == .abrir }
 }
 
@@ -469,10 +471,11 @@ final class PluginHost: ObservableObject {
         return instalados.contains(id) ? .abrir : .instalar
     }
 
+    // periphery:ignore
     func estaVivo(_ id: PluginID) -> Bool { vivos[id] != nil }
 
     /// O serviço vivo, pra quem precisa falar com ele.
-    func servico<T: PluginServico>(_ id: PluginID, as tipo: T.Type = T.self) -> T? {
+    func servico<T: PluginServico>(_ id: PluginID, as _: T.Type = T.self) -> T? {
         vivos[id] as? T
     }
 
@@ -494,12 +497,16 @@ final class PluginHost: ObservableObject {
 
     // --- Superfícies desenhadas a partir da lista, não de `switch` na mão ---
 
+    // periphery:ignore
     private var instaladas: [Plugin] {
         PluginRegistry.todos.filter { instalados.contains($0.id) }
     }
 
+    // periphery:ignore
     var secoes: [String] { instaladas.compactMap(\.secao) }
+    // periphery:ignore
     var paineis: [String] { instaladas.compactMap(\.painel) }
+    // periphery:ignore
     var rotas: [String] { instaladas.flatMap(\.rotas) }
 
     /// O avesso: o que as telas precisam **esconder**. Superfície que não é de
@@ -759,6 +766,6 @@ final class ConversaoServico: PluginServico {
     func parar() {}
 }
 
-func montarConversao(_ deps: PluginDeps) -> PluginServico? {
+func montarConversao(_: PluginDeps) -> PluginServico? {
     ConversaoServico()
 }
