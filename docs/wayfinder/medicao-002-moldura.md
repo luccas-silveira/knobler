@@ -79,7 +79,7 @@ correspondente na cadeia do `interactiveNotch`:
 | `vm.focus` | `NotchView.swift:374`, `:383` | até 212 pt (272 mensagens − 60 atividade) |
 | `shelf.preview` | `NotchView.swift:375` | 112 − 76 = 36 pt |
 | `vm.mirrorOn` | `NotchView.swift:376` | 202 − 96 = 106 pt |
-| `linkAberto` | `NotchView.swift:377`, `:384` | `linkWebHeight + 24` (≈ 437 pt em 780 de largura) − 96 = **≈341 pt** |
+| `linkAberto` | `NotchView.swift:377`, `:384` | `linkWebHeight + 24` (438 pt em 780 de largura) − 96 = **342 pt** |
 | `vm.calendarAviso` | `NotchView.swift:378` | 150 − 128 = 22 pt |
 | `vm.activeNotification?.actionTitles` | `NotchView.swift:387` | 36 pt |
 | `vm.incoming?.allowReply` | `NotchView.swift:391` | 108 − 72 = 36 pt (+ `mediaHeight`) |
@@ -89,8 +89,9 @@ correspondente na cadeia do `interactiveNotch`:
 
 `linkAberto` é a maior transição isolada: `Self.linkWebHeight` depende de
 `linkContentWidth` (`NotchView.swift:99`, `linkCardWidth − 44` = 736) na proporção 9:16
-(`:103`), então ≈414 pt + `linkHeaderHeight` (24, `:104`) = 438 pt contra os 96 pt do
-`espelhoDesligadoHeight` usado quando o link está fechado (`:133`).
+(`:103`), então 414 pt (exato — 736 × 9/16 não tem resto) + `linkHeaderHeight` (24,
+`:104`) = 438 pt contra os 96 pt do `espelhoDesligadoHeight` usado quando o link está
+fechado (`:133`).
 
 ## O que isso não é
 
@@ -140,4 +141,29 @@ grep -n 'static let noteEditorHeight\|static let shelfPreviewHeight\|static let 
 
 # precedentes já fechados (comentários)
 grep -n 'quando$\|divergiam, o conteúdo desenhava fora da moldura\|soma$\|combinatória no' Knobler/NotchView.swift
+
+# deltas de altura da Lista 3 — recalcula todos a partir dos números fonte
+# (linhas 124-134 de alturaDaSecao, mais wingWidth em :141), não só o do link
+sed -n '124,134p' Knobler/NotchView.swift
+grep -n 'private let wingWidth' Knobler/NotchView.swift
+python3 -c "
+musica=118; pomodoro_com=150; pomodoro_sem=128; atividade=60
+shelf_preview=112; shelf_grade=76
+espelho_ligado=202; espelho_desligado=96
+mensagens=272
+link_aberto=round((780-44)*9/16)+24; link_fechado=espelho_desligado
+notif_com=36; incoming_tall=108; incoming_curto=72
+wing=44
+print('vm.focus, delta max (mensagens-atividade):', mensagens-atividade)
+print('shelf.preview, delta (112-76):', shelf_preview-shelf_grade)
+print('vm.mirrorOn, delta (202-96):', espelho_ligado-espelho_desligado)
+print('linkAberto, altura aberta:', link_aberto)
+print('linkAberto, delta (438-96):', link_aberto-link_fechado)
+print('vm.calendarAviso, delta (150-128):', pomodoro_com-pomodoro_sem)
+print('vm.activeNotification?.actionTitles, delta:', notif_com)
+print('vm.incoming?.allowReply, delta (108-72):', incoming_tall-incoming_curto)
+print('vm.activity, largura das asas (wingWidth*2):', wing*2)
+"
+# → focus 212, shelf 36, mirror 106, link 438/342, calendario 22,
+#   notification 36, incoming 36, asas 88 — bate com a tabela da Lista 3
 ```

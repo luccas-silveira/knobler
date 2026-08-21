@@ -59,5 +59,5 @@ sem animação equivalente. Moldura e conteúdo trocam de seção em transaçõe
 confirmando em código a hipótese do mapa.
 
 A tabela de divergências (delta de altura por identificador, maior caso: `linkAberto`,
-≈341 pt) está em `medicao-002-moldura.md`. Nenhum conserto foi aplicado — é trabalho da
+342 pt) está em `medicao-002-moldura.md`. Nenhum conserto foi aplicado — é trabalho da
 004.
