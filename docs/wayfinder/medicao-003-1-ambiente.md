@@ -239,11 +239,19 @@ CORTECHECK_FAMILIA=ambiente ./tools/cortecheck.sh
 
 # a injeção de sensibilidade (de onde saem os 40,0 pt, os 150 ms e o "2 de 2").
 # Ela NÃO está no harness: é um patch de revisão — aplicar, rodar, reverter.
-#   1. no envelope do harness, um objeto observável com `@Published var deslocado`
-#      e a raiz do `rodar` vestida por um ViewModifier que o observe, com
-#      `.padding(.top, injecao.deslocado ? 40 : 0)`;
+#   1. no envelope do harness, um objeto observável com `@Published var deslocado`,
+#      e um ViewModifier que o observe com `.padding(.top, injecao.deslocado ? 40 : 0)`
+#      vestindo a **NotchView dentro da raiz**, logo depois do
+#      `.padding(.top, deslocamento)` — NÃO o `ZStack` inteiro: vestir a raiz empurra
+#      o fundo magenta junto, a faixa de 40 pt no topo fica sem magenta, o
+#      classificador lê o que sobra como moldura e a lacuna pode nem aparecer. O
+#      magenta tem que continuar intacto atrás;
 #   2. dentro do `evento(_:_:_:)`, depois de rodar a ação:
-#      `if transicaoCorrente.hasPrefix("ambiente-") { injecao.deslocado = !j.isVisible }`;
+#      `if transicaoCorrente.hasPrefix("ambiente-") { injecao.deslocado = !j.isVisible }`.
+#      O `hasPrefix` não é ruído: sem ele o desvio também entra no
+#      `controle-ambiente-desvio`, que já roda com 60 pt — os 40 somam, o guard de
+#      60,0 pt falha e o harness sai com código 1 ANTES de imprimir qualquer
+#      transição, deixando a corrida sem saída e sem pista;
 #   3. no começo do `rodar`, `injecao.deslocado = false`, senão a transição
 #      seguinte herda o desvio.
 # Com isso o defeito só existe enquanto a janela está fora de ordem: as três
