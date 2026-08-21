@@ -81,7 +81,7 @@ do usuário; cobertas por proxy pelo `.link`, 438 pt, a maior seção do app) e
 
 O harness **não** entrou em `tools/check.sh`: determinismo foi medido (9/9), o impedimento
 é ambiente — precisa de WindowServer (a CI ficaria vermelha, não pulada) e leva ~4,5 min
-contra segundos dos gates atuais. A forma do gate é decisão da 004.
+contra segundos dos gates atuais. A forma do gate é decisão da 005.
 
 Números, séries por quadro e comandos de recontagem em
 [medicao-001-repro.md](../medicao-001-repro.md). A pergunta volta ao mapa: o plano B de

@@ -26,7 +26,7 @@ divergiam, o conteúdo desenhava fora da moldura" —, e o de `alturaDaSecao` re
 a soma combinatória que dava moldura menor que o conteúdo. Dois precedentes na mesma
 matemática são o motivo desta auditoria existir.
 
-O resultado é uma tabela de divergências, não um conserto. Consertar é a 004.
+O resultado é uma tabela de divergências, não um conserto. Consertar é a 005.
 
 Documento auxiliar se a lista passar de meia página: `medicao-002-moldura.md`.
 
@@ -60,4 +60,4 @@ confirmando em código a hipótese do mapa.
 
 A tabela de divergências (delta de altura por identificador, maior caso: `linkAberto`,
 342 pt) está em `medicao-002-moldura.md`. Nenhum conserto foi aplicado — é trabalho da
-004.
+005.

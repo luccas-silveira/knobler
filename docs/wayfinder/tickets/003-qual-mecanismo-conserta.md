@@ -72,11 +72,11 @@ sono — como **suspeitos da causa**, não como área a consertar. Se a causa es
 conserto vem junto; posicionamento em multi-monitor e comportamento em tela cheia
 continuam fora.
 
-### O que muda no 004
+### O que muda no 005
 
 O gate não pode ser escrito contra "moldura menor que o conteúdo": essa métrica é cega,
 provado acima. A métrica provada viva é a **lacuna de topo** — com a moldura empurrada
-60 pt pra baixo, o harness acusa 60,0 pt em todas as combinações. O gate da 004 mira nela.
+60 pt pra baixo, o harness acusa 60,0 pt em todas as combinações. O gate da 005 mira nela.
 
-O [004](004-aplicar-e-travar-o-gate.md) passa a ser bloqueado pela 003.1, não por este
+O gate — hoje o ticket [005](005-aplicar-e-travar-o-gate.md) — passa a ser bloqueado pela medição que vier depois, não por este
 ticket.

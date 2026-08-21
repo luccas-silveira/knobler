@@ -1,10 +1,10 @@
-# 004 — Aplicar o conserto e travar o gate
+# 005 — Aplicar o conserto e travar o gate
 
 Map: [O knob cortado ao meio](../map-corte-do-knob.md)
 Type: `fix`
 Status: aberto
 Assignee: —
-Blocked by: 003.2
+Blocked by: 004
 
 ## Pergunta
 
