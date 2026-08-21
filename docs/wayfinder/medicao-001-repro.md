@@ -91,11 +91,11 @@ ultrapassa.
 **Alguns quadros saem sem moldura nenhuma — e sem conteúdo nenhum.** Em 35 combinações,
 algumas fotos por corrida vieram magenta puro: nem pixel de moldura, nem pixel de conteúdo
 (o harness separa os dois casos e imprime a conta). **Sem teto declarado** — foram 6 a 15
-nas nove corridas medidas **com o instrumento daquela época** (hoje, com a janela de
-observação em 1,6 s, saiu 12–24 nas minhas três varreduras e 24–25 nas da revisão — ver a
-nota no topo da Verificação), e o número não
-estabiliza porque depende de quantas fotos calham de cair exatamente em cima de uma troca de
-`mode`, o que muda com a cadência da máquina. O
+nas nove corridas medidas com o instrumento daquela época, e **6 a 38** somando as corridas
+feitas depois (a janela de observação de 1,6 s da 003.1 subiu o piso). Este contador **não
+tem banda**: ele mede quantas fotos calham de cair exatamente em cima de uma troca de
+`mode`, o que muda com a cadência da máquina — duas bandas já foram escritas aqui e furadas
+na corrida seguinte. O
 que é estável, e é a metade que importa, é a outra: **nenhuma** dessas fotos tinha conteúdo
 desenhado, em nenhuma corrida. Todas caem em cima de uma troca de `mode` — o controle
 positivo, o `hover-abre-e-gesto-fecha` e as cinco `*-durante-abertura`. O contraste que
@@ -173,8 +173,8 @@ forma do gate de regressão é, pelo mapa, decisão da 004 — não desta mediç
 > custa cadência; e a varredura ganhou **8 transições de ambiente**.
 >
 > As **contagens de quadros** abaixo são do instrumento antigo e saem maiores hoje, "quadros
-> sem moldura NENHUMA" hoje sai bem acima da faixa de 6–15 registrada aqui (**12–24** nas
-> minhas três varreduras, 24–25 nas da revisão), e "combinações rodadas" agora é
+> sem moldura NENHUMA" hoje sai bem acima da faixa de 6–15 registrada aqui (**sem teto**: 6 a
+> 38 nas corridas medidas, é cadência), e "combinações rodadas" agora é
 > **43**, não 35. Os veredictos — 0 corte, lacuna 0,0 pt, controles em 100,0 e 60,0 pt — não
 > mudaram.
 >

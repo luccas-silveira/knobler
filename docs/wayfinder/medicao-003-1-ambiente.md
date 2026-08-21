@@ -146,7 +146,7 @@ medidas, minhas e da revisão (5/5): nenhum vazio cai entre uma altura maior e u
 que mata a explicação mais simples — a mola do morph passando por altura zero enquanto
 encolhe.
 
-Todo o resto do contorno **oscila com a cadência e não é conclusão**. As minhas três
+Todo o resto do contorno **oscila com a cadência, sem teto, e não é conclusão**. As minhas três
 varreduras completas mediram `patamar` 16, 16 e 1 e `borda` 0, 0, 0; cinco corridas da
 revisão mediram `borda` 0, 2, 11, 17, 0, `terminaram vazias` 0, 1, 1, 3, 0 e `patamar` **0
 em quatro das cinco**. Uma versão anterior deste documento leu esses números como "o vazio
@@ -154,10 +154,14 @@ sempre volta e nunca sobra no fim da série", e isso **não reproduz**: uma corr
 termina a série com a árvore ainda vazia, e nesse caso o harness simplesmente não sabe se
 ela voltou depois do último quadro. `patamar > 0` — o notch sumindo e voltando do mesmo
 tamanho, que seria a forma mais limpa de "piscar" — apareceu nas minhas corridas e não nas
-da revisão; não é achado, é sorte de amostragem.
+da revisão, e voltou a `17` na primeira corrida depois deste conserto; não é achado, é
+sorte de amostragem.
 
-Não é o sintoma relatado — some tudo, não a metade de cima — mas é um pisca real, medido, e
-não um artefato do instrumento.
+Não é o sintoma relatado — some tudo, não a metade de cima. E, com o `patamar` fora da
+evidência, o que sobra é mais modesto que "pisca": a árvore para de desenhar por um ou mais
+quadros em cima de uma troca de `mode` e **volta** (`subida > 0` em toda corrida). Isso é
+medido e não é artefato do instrumento; que ele apareça na tela do usuário como um piscar é
+leitura, não medida.
 
 ## Mudanças no instrumento, e por que
 
@@ -229,8 +233,22 @@ CORTECHECK_FAMILIA=ambiente ./tools/cortecheck.sh
 # nas oito, 17 eventos dirigidos / 15 com mudança observável, controle do desvio
 # atravessando o orderOut = 60,0 pt, controle da camada = 32,0 pt nos dois caminhos,
 # "sumiram na 2ª foto do mesmo giro" = 0, "com desenho na foto por camada" = 0.
-# Dependem da máquina, e vêm como faixa medida: contagem de quadros, Hz, e quantos
-# quadros vazios a corrida produz (6 a 24 nas corridas medidas).
+# Dependem da máquina: contagem de quadros e Hz vêm como faixa medida. Quantos
+# quadros vazios a corrida produz é **sem teto** — 6 a 38 nas corridas medidas, e
+# não é banda: é cadência. Idem `patamar`, `borda` e "terminou vazia".
+
+# a injeção de sensibilidade (de onde saem os 40,0 pt, os 150 ms e o "2 de 2").
+# Ela NÃO está no harness: é um patch de revisão — aplicar, rodar, reverter.
+#   1. no envelope do harness, um objeto observável com `@Published var deslocado`
+#      e a raiz do `rodar` vestida por um ViewModifier que o observe, com
+#      `.padding(.top, injecao.deslocado ? 40 : 0)`;
+#   2. dentro do `evento(_:_:_:)`, depois de rodar a ação:
+#      `if transicaoCorrente.hasPrefix("ambiente-") { injecao.deslocado = !j.isVisible }`;
+#   3. no começo do `rodar`, `injecao.deslocado = false`, senão a transição
+#      seguinte herda o desvio.
+# Com isso o defeito só existe enquanto a janela está fora de ordem: as três
+# transições que escondem a janela acusam lacuna 40,0 pt, a `orderout-durante-morph`
+# não acusa (150 ms a 10,7 Hz), e as quatro de setFrame/placeWindows nunca o veem.
 
 # as linhas que fecham a conta
 CORTECHECK_FAMILIA=ambiente ./tools/cortecheck.sh \
@@ -240,9 +258,10 @@ CORTECHECK_FAMILIA=ambiente ./tools/cortecheck.sh \
 #     (o N varia com a máquina; o exato é os dois lados serem iguais)
 #   controle da camada (2ª câmera): cacheDisplay=32.0 pt, camada=32.0 pt — concordam
 #   as 8 linhas ambiente-*: corte= 0 e lacuna_topo_max=  0.0 pt
-#   contorno dos vazios: o exato é descida=0 (e subida > 0); patamar e borda
-#     oscilam MUITO com a cadência — patamar 0–16 e borda 0–17 nas corridas medidas
-#   transições que TERMINARAM vazias: 0–3 nas corridas medidas. NÃO é veredicto:
+#   contorno dos vazios: o exato é descida=0 (e subida > 0). patamar e borda são
+#     SEM TETO — 0 a 17 nas corridas medidas, e a faixa já estourou duas vezes;
+#     não trate como banda a bater
+#   transições que TERMINARAM vazias: sem teto (0 a 3 medidos). NÃO é veredicto:
 #     mede a cadência da máquina, não o app
 #   quadros vazios examinados: N — sumiram na 2ª foto do mesmo giro: 0,
 #     com desenho na foto por camada: 0/N — o exato é o 0; o N é quantos vazios
