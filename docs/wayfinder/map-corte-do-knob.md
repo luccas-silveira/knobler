@@ -52,12 +52,18 @@ transações diferentes deixariam exatamente um quadro de estado intermediário 
 
 - [Auditar a moldura contra o conteúdo](tickets/002-auditar-moldura-contra-conteudo.md) — a altura do knob (`currentSize`) lê **20 identificadores dinâmicos**, e o `interactiveNotch` amarra **7** deles a uma `.animation(_:value:)`. Sobram **13 sem animação amarrada**, e **8 deles mudam com o `mode` parado** — ou seja, a moldura pode saltar de tamanho fora de qualquer transação animada. O maior salto isolado é o card do link: **342 pt** de uma vez. A divergência de *valor* entre moldura e conteúdo está fechada (os dois chamam a mesma função); o que resta é divergência de *transação*. O documento não prova que isso produza o corte — quem prova é a 001. Detalhe e comandos de recontagem em [medicao-002-moldura.md](medicao-002-moldura.md).
 
+- [Reproduzir o corte no harness](tickets/001-reproduzir-o-corte.md) — **o corte não reproduziu**: 35 combinações em 11 famílias de transição, lacuna de topo **0,0 pt** em todas, veredicto idêntico em 9 corridas. O negativo vale porque o instrumento foi atacado: com a moldura empurrada 60 pt pra baixo dentro da `NotchView` de verdade, o harness acusa 60,0 pt e aborta com erro. Duas coisas que o zero **não** cobre, e ambas importam pro 003: as fotos saem a ~17 Hz, então um piscar de um quadro a 60 Hz cabe entre duas fotos; e a métrica "moldura menor que o conteúdo" é cega a uma divergência de `currentSize`, porque forma e conteúdo dividem o mesmo `ZStack` sob o mesmo `.mask` — encolher a altura encolhe os dois juntos. Achado lateral: em toda corrida algumas fotos saem **sem moldura e sem conteúdo**, sempre em cima de uma troca de `mode`, enquanto o controle parado nunca some. É a única pista de "pisca" que a varredura produziu. O harness (`tools/cortecheck/`) ficou fora do `tools/check.sh` de propósito: precisa de sessão gráfica e leva ~4,5 min. Detalhe e comandos em [medicao-001-repro.md](medicao-001-repro.md).
+
 ## Ainda não especificado
 
-**Plano B se o harness não reproduzir.** A decisão de não rodar build instrumentada e o
-destino "causa raiz achada" podem colidir aqui. Se a 001 voltar de mãos vazias, a rota
-volta a ser uma conversa — captura sob demanda, teste de estresse mais agressivo, ou
-aceitar um conserto defensivo sem repro.
+**O plano B deixou de ser fog: virou a rota viva.** A 001 varreu e não achou, e o
+destino "causa raiz achada" agora colide de frente com a decisão de não rodar build
+instrumentada. A 003 decide isso com o usuário, e é a decisão que manda no resto do mapa.
+
+**Os quadros sem moldura e sem conteúdo.** A 001 os mediu mas não soube dizer se são o
+`cacheDisplay` devolvendo buffer não desenhado ou quadro real em que a árvore não
+desenhou nada. Os PNGs estão em `/tmp/cortecheck-quadros`. Distinguir os dois casos pode
+ser ticket próprio — depende do que a 003 escolher.
 
 **Forma do gate de regressão.** Só dá para escrever depois de conhecer a causa. Snapshot
 comparado, asserção sobre a matemática da altura ou harness de transição são candidatos
