@@ -359,6 +359,18 @@ let transicoes: [Transicao] = [
                                         text: "Bora almoçar?", allowReply: false)
               })]),
 
+    Transicao(nome: "incoming-perde-a-foto", familia: "lista3-incoming",
+              montar: { c in
+                  c.vm.showIncoming(.init(peerID: "p1", name: "Marina",
+                                          text: "Olha isso", allowReply: true,
+                                          mediaFile: nil, mediaHeight: 200))
+              },
+              passos: [(0, { c in
+                  c.vm.incoming = .init(peerID: "p1", name: "Marina",
+                                        text: "Olha isso", allowReply: true,
+                                        mediaFile: nil, mediaHeight: 0)
+              })]),
+
     // ---- Os MESMOS saltos de foco, agora pelo caminho de verdade: clicar na
     // faixa é `withAnimation(.easeOut(duration: 0.22)) { vm.focar(s) }`
     // (`NotchView.swift:986`) e o swipe horizontal é o mesmo embrulho em torno
@@ -633,7 +645,7 @@ struct Resultado {
 }
 
 @MainActor
-func rodar(_ t: Transicao) -> Resultado {
+func rodar(_ t: Transicao, deslocamento: CGFloat = 0) -> Resultado {
     Cena.limpar()
     let cena = Cena(notchReal: true)
     let raiz = ZStack(alignment: .top) {
@@ -645,6 +657,9 @@ func rodar(_ t: Transicao) -> Resultado {
                   dropTargetsEnabled: false)
             .environmentObject(cena.mensagens)
             .environmentObject(cena.lan)
+            // `deslocamento` só é usado pelo controle do desvio: empurra a
+            // NotchView DE VERDADE 60 pt pra baixo, sem tocar em Knobler/.
+            .padding(.top, deslocamento)
     }
     .frame(width: janelaLargura, height: janelaAltura)
 
@@ -742,8 +757,13 @@ let controle = Transicao(
         c.vm.expanded = true
     },
     foco: .link,
+    // Quatro trocas de `mode`, não uma: com um par só o número de alturas
+    // distintas ficava em 5–8 contra uma trava de 5, e um dia de máquina
+    // ocupada derrubaria o harness com um "a animação não corre" falso.
     passos: [(0, { $0.vm.setExpandedDirect(false) }),
-             (0.60, { $0.vm.setExpandedDirect(true) })])
+             (0.60, { $0.vm.setExpandedDirect(true) }),
+             (1.40, { $0.vm.setExpandedDirect(false) }),
+             (2.00, { $0.vm.setExpandedDirect(true) })])
 
 let qd = controleDoDetector()
 print(String(format: "controle do detector: corte=%@ excedente=%.1f pt (esperado ~100 pt)",
@@ -761,11 +781,32 @@ let rf = rodar(Transicao(nome: "controle-fechado-parado", familia: "controle",
                          passos: [(0, { _ in })]))
 print("controle do fechado parado: alturas \(rf.alturas)")
 
+// Controle do DESVIO na view real. O controle do detector acima é uma view
+// sintética: prova que `medir` sabe somar, não que enxerga defeito na
+// `NotchView`. Este roda a `NotchView` de verdade empurrada 60 pt pra baixo e
+// exige que a lacuna de topo saia 60,0 pt — a mesma assinatura que a injeção de
+// moldura deslocada produz. Sem tocar em Knobler/*.swift: o empurrão é um
+// `.padding(.top,)` no envelope do harness.
+let desvio: CGFloat = 60
+let rdv = rodar(Transicao(nome: "controle-do-desvio-view-real", familia: "controle",
+                          montar: { c in c.vm.expanded = false },
+                          passos: [(0, { _ in })]),
+                deslocamento: desvio)
+print(String(format: "controle do desvio na view real: lacuna_topo_max=%.1f pt "
+                     + "(esperado %.1f), corte=%@",
+             rdv.lacunaTopoMaxPt, Double(desvio), rdv.quadrosComCorte > 0 ? "sim" : "NÃO"))
+guard abs(rdv.lacunaTopoMaxPt - Double(desvio)) < 1, rdv.quadrosComCorte == rdv.quadros.count else {
+    print("FALHOU: o detector não acusa moldura deslocada na NotchView real.")
+    exit(1)
+}
+
 let rc = rodar(controle)
 print("controle positivo: \(rc.quadros.count) quadros, "
       + "\(rc.alturasDistintas) alturas de moldura distintas "
       + "(\(rc.alturas.min() ?? -1)–\(rc.alturas.max() ?? -1) pt)")
 if verboso { print("   alturas: \(rc.alturas)") }
+// Limiar 5 contra 4 trocas de `mode`; com um par só a faixa observada era 5–8
+// (margem zero). Ver a seção de Determinismo da medição 001.
 guard rc.alturasDistintas >= 5 else {
     print("FALHOU: a animação não corre nesta janela — o harness não mediria nada.")
     exit(1)

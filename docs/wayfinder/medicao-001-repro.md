@@ -22,26 +22,39 @@ são "a animação não corre" e "o detector é cego":
 - **Controle do detector** (o detector enxerga): uma moldura sintética de 100 pt com
   conteúdo descendo até 200 pt tem que acusar corte. Acusa, com **excedente de 100,0 pt**
   exatos. Sem isso o harness aborta com código 1.
+- **Controle do desvio na view real** (o detector enxerga *na `NotchView`*): o controle
+  acima é uma view sintética — prova que `medir` sabe somar, não que enxerga defeito na
+  árvore de verdade. Este roda a `NotchView` real empurrada 60 pt pra baixo (um
+  `.padding(.top, 60)` no envelope do harness; nada em `Knobler/*.swift` é tocado) e exige
+  lacuna de topo de **60,0 pt** em **todos** os quadros. Sai 60,0 pt em 5 de 5 corridas.
+  Sem isso o harness aborta com código 1.
 
 ## O número
 
-**34 combinações rodadas, em 11 famílias. 0 produziram moldura menor que o conteúdo.**
+**35 combinações rodadas, em 11 famílias. 0 produziram lacuna no topo da moldura:
+`lacuna_topo_max = 0,0 pt` nas 35.** Lacuna no topo é a forma que o sintoma relatado —
+"aparece apenas a metade de baixo" — teria na imagem, e é a métrica que o controle do
+desvio prova responder na `NotchView` de verdade.
+
+Métrica secundária, com ressalva: **0 combinações produziram moldura menor que o
+conteúdo**, com o pior excedente da varredura em 0,0 pt (o conteúdo encosta na borda de
+baixo da moldura, nunca a ultrapassa). A ressalva está em "o que um zero não cobre":
+encolher só a moldura na `NotchView` real **não** produz conteúdo para fora dela, então
+esse zero mede menos do que o nome sugere.
 
 Famílias varridas: `lista3-focus`, `lista3-link`, `lista3-espelho`, `lista3-calendario`,
-`lista3-shelf`, `lista3-notificacao`, `lista3-incoming` (os identificadores da Lista 3 da
-[medição 002](medicao-002-moldura.md), nos dois sentidos), `faixa-withanimation` (a troca
+`lista3-shelf`, `lista3-notificacao`, `lista3-incoming` (`allowReply` e `mediaHeight`) — os
+identificadores da Lista 3 da
+[medição 002](medicao-002-moldura.md), nos dois sentidos —, `faixa-withanimation` (a troca
 de seção pelo caminho de verdade), `mesma-runloop` (duas mudanças no mesmo giro),
 `chegada-assincrona` (notificação, HUD, Pomodoro, mensagem, link e screenshot chegando no
 meio da animação de expansão) e `hover-vs-gesto` (o `setExpandedDirect` cancelando o
 `pendingWork` do hover).
 
-Todas as 34 moveram a moldura de verdade — nenhuma combinação ficou inerte (a coluna
+Todas as 35 moveram a moldura de verdade — nenhuma combinação ficou inerte (a coluna
 `alturas` do harness é ≥ 2 em todas). O maior salto dirigido foi o card do link em foco
 contra a atividade: **504 → 126 pt**, os 378 pt que a medição 002 previu somando o link
 (342) à diferença de seção.
-
-Nenhum quadro teve lacuna no topo (`lacuna_topo_max = 0,0 pt` nas 34), que é a forma que o
-sintoma relatado — "aparece apenas a metade de baixo" — teria na imagem.
 
 ## O que a varredura mediu de passagem, e vale registrar
 
@@ -71,24 +84,30 @@ foco-link-para-atividade:  [504, 126, 126, 126, 126, ...]   (2 alturas)
 Ou seja: a moldura **não** anda solta no caminho que o usuário usa — ela pega carona na
 transação de 0,22 s. E o conteúdo, que tem curva própria de 0,3 s para o mesmo `vm.focus`
 (`Knobler/NotchView.swift:970`), ainda assim nunca ficou maior que a moldura em nenhuma das
-fotos. O pior excedente medido em toda a varredura — nas 34 combinações, não só nessa
+fotos. O pior excedente medido em toda a varredura — nas 35 combinações, não só nessa
 família — foi **0,0 pt**: o conteúdo chega a encostar na borda de baixo da moldura, nunca a
 ultrapassa.
 
-**Dez quadros saíram sem moldura nenhuma — e sem conteúdo nenhum.** Em 34 combinações, 10
-fotos vieram magenta puro: nem pixel de moldura, nem pixel de conteúdo (o harness separa os
+**Alguns quadros saem sem moldura nenhuma — e sem conteúdo nenhum.** Em 35 combinações,
+6 a 13 fotos por corrida (faixa medida em 5 corridas) vieram magenta puro: nem pixel de moldura, nem pixel de conteúdo (o harness separa os
 dois casos e imprime a conta). Todas caem em cima de uma troca de `mode` — o controle
 positivo, o `hover-abre-e-gesto-fecha` e as cinco `*-durante-abertura`. O contraste que
 importa: o **controle do fechado parado**, que não dirige transição nenhuma, mede 32 pt em
-**todas** as fotos (51 de 51 na corrida citada; o número de fotos por corrida varia com a
-máquina) — a pilulinha fechada nunca some quando nada muda. Não dá para decidir
+**todas** as fotos (50–51 fotos por corrida, medido em 5 corridas) — a pilulinha fechada nunca some quando nada muda. Não dá para decidir
 pela imagem se esses 10 quadros são o `cacheDisplay` devolvendo buffer não desenhado ou um
 quadro real em que a árvore não desenhou nada; os PNGs ficam em `/tmp/cortecheck-quadros`.
 Não é o sintoma relatado (some tudo, não a metade de cima), mas é a única pista de "pisca"
 que a varredura produziu, e é reprodutível.
 
-## Limites desta varredura — o que um "0 de 34" não cobre
+## Limites desta varredura — o que um "0 de 35" não cobre
 
+- **Encolher a moldura sozinha não vaza conteúdo.** `shape.fill(Color.black)` e o conteúdo
+  moram no MESMO `ZStack` (`Knobler/NotchView.swift:181`), e a máscara veste esse ZStack
+  inteiro (`.mask(shape)`, `:249`). Injetar uma moldura 60 pt menor que o conteúdo na
+  `NotchView` real faz os dois encolherem juntos: a varredura acusa 0, e acusaria 0 mesmo
+  com o defeito plantado. É por isso que "moldura menor que o conteúdo" ficou como métrica
+  secundária e a lacuna de topo virou o número do título — essa, sim, o controle do desvio
+  prova que responde na view de verdade.
 - **Cadência.** As fotos saem a **16,8 Hz** em média (o `cacheDisplay` de 1800×1280 px
   custa mais que o giro de runloop). Um corte que dure **um** quadro a 60 Hz (16,7 ms) cabe
   entre duas fotos. O sintoma relatado pelo usuário é um piscar; esta varredura não
@@ -106,16 +125,24 @@ que a varredura produziu, e é reprodutível.
   pt) estão cobertas por proxy: `.link` aberto, com 438 pt, é a maior seção do app e está na
   varredura.
 - **`agentRequestExpanded` (156 pt, item da Lista 3) não foi varrido**: é `@State` privado
-  da `NotchView`, alcançável só por clique de verdade no card.
-- **Só notch real.** Todas as 34 rodaram com `hasRealNotch = true`. `vm.hasRealNotch` e
+  da `NotchView`, alcançável só por clique de verdade no card. É o único item da Lista 3
+  fora da varredura — `vm.incoming?.mediaHeight`, que a 002 marca como "sem teto conhecido",
+  entrou na família `lista3-incoming` (200 → 0 pt).
+- **Só notch real.** Todas as 35 rodaram com `hasRealNotch = true`. `vm.hasRealNotch` e
   `vm.notchSize` são itens da Lista 3, mas mudam por evento de display, não de interação —
   e o mapa já descartou hipótese ligada a eles (o defeito acontece nas duas telas).
 
 ## Determinismo
 
-A varredura inteira foi rodada **3 vezes**; a coluna de veredicto (`corte=N` das 34 linhas)
-saiu **idêntica nas 3** — mesmo hash MD5. O que varia entre corridas é o número de fotos por
+A varredura inteira foi rodada **5 vezes**; a coluna de veredicto (`corte=N` das 35 linhas)
+saiu **idêntica nas 5** — mesmo hash MD5. O que varia entre corridas é o número de fotos por
 combinação (a cadência depende da máquina), não o veredicto.
+
+A trava do controle positivo exige **5 alturas de moldura distintas**. Com um único par
+abrir/fechar a faixa observada era 5–8 — margem zero, e um dia de máquina ocupada derrubaria
+o harness com um "a animação não corre nesta janela" falso. O controle passou a dirigir
+**quatro** trocas de `mode` em vez de uma, e a faixa observada em 5 corridas subiu para
+**9–13** contra a mesma trava de 5.
 
 O harness **não** foi acrescentado a `tools/check.sh`. Não é por indeterminismo — esse foi
 medido e é 3/3. É por dois motivos de ambiente: (1) ele precisa de sessão gráfica, e o
@@ -126,32 +153,44 @@ forma do gate de regressão é, pelo mapa, decisão da 004 — não desta mediç
 ## Verificação
 
 ```bash
-# a varredura inteira: compila a NotchView isolada e roda as 34 transições (~4,5 min)
+# a varredura inteira: compila a NotchView isolada e roda as 35 transições (~4,5 min)
 ./tools/cortecheck.sh
 
 # as linhas que fecham a conta (controles + totais)
 ./tools/cortecheck.sh | grep -E 'controle|combinações|famílias|cadência|quadros sem moldura|com moldura menor'
+# Os valores EXATOS (refazem a conta): 35 combinações, 11 famílias, 0 corte,
+# lacuna_topo_max 0,0 pt, excedente do controle do detector 100,0 pt, lacuna do
+# controle do desvio 60,0 pt. Os demais dependem da máquina — faixa medida em 5
+# corridas, entre parênteses.
 # → controle do detector: corte=sim excedente=100.0 pt
-#   controle do fechado parado: alturas [32, 32, ... ]   (51 fotos, todas 32)
-#   controle positivo: 11 quadros, 8 alturas de moldura distintas (0–530 pt)
-#   combinações rodadas: 34
+#   controle do desvio na view real: lacuna_topo_max=60.0 pt, corte=sim
+#   controle do fechado parado: alturas [32, 32, ... ]   (50–51 fotos, TODAS 32)
+#   controle positivo: (9–13) alturas de moldura distintas, trava em 5
+#   combinações rodadas: 35
 #   famílias: chegada-assincrona, faixa-withanimation, hover-vs-gesto, lista3-calendario,
 #             lista3-espelho, lista3-focus, lista3-incoming, lista3-link,
 #             lista3-notificacao, lista3-shelf, mesma-runloop
-#   cadência média das fotos: ~17 Hz
-#   quadros sem moldura NENHUMA: 10 (com conteúdo desenhado: 0)
+#   cadência média das fotos: (16–18) Hz
+#   quadros sem moldura NENHUMA: (6–13) — com conteúdo desenhado: 0 SEMPRE
 #   com moldura menor que o conteúdo: 0
 
 # a série de alturas por quadro — a prova do salto sem interpolação
 CORTECHECK_VERBOSE=1 ./tools/cortecheck.sh \
   | grep -A1 -E 'foco-link-para-atividade |faixa-link-para-atividade '
+# O que é exato aqui: os extremos (504 e 126 pt) e a CONTAGEM de alturas — 2 sem
+# `withAnimation`, 4 com. Os valores do meio são ilustrativos: dependem de quando
+# a foto cai na curva (medidos entre 486–488 e 146–160 em 5 corridas).
 # → foco-link-para-atividade  alturas: [504, 126, 126, ...]        (2 alturas)
-#   faixa-link-para-atividade alturas: [504, 486, 153, 126, ...]   (4 alturas)
+#   faixa-link-para-atividade alturas: [504, 487, 152, 126, ...]   (4 alturas)
 
-# determinismo: três varreduras, veredicto idêntico
-for i in 1 2 3; do ./tools/cortecheck.sh > /tmp/cc$i.txt 2>&1; done
-for i in 1 2 3; do grep -o 'corte=[ ]*[0-9]*' /tmp/cc$i.txt | tr -d ' ' | md5 -q; done
-# → três hashes iguais
+# determinismo: cinco varreduras, veredicto idêntico
+for i in 1 2 3 4 5; do ./tools/cortecheck.sh > /tmp/cc$i.txt 2>&1; done
+for i in 1 2 3 4 5; do grep -o 'corte=[ ]*[0-9]*' /tmp/cc$i.txt | tr -d ' ' | md5 -q; done
+# → cinco hashes iguais
+
+# a margem da trava do controle positivo (trava em 5)
+grep -h 'controle positivo' /tmp/cc*.txt
+# → 9–13 alturas distintas
 
 # os quadros suspeitos, um PNG por foto
 ls /tmp/cortecheck-quadros
