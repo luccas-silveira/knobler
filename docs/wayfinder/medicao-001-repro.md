@@ -26,7 +26,7 @@ são "a animação não corre" e "o detector é cego":
   acima é uma view sintética — prova que `medir` sabe somar, não que enxerga defeito na
   árvore de verdade. Este roda a `NotchView` real empurrada 60 pt pra baixo (um
   `.padding(.top, 60)` no envelope do harness; nada em `Knobler/*.swift` é tocado) e exige
-  lacuna de topo de **60,0 pt** em **todos** os quadros. Sai 60,0 pt em 5 de 5 corridas.
+  lacuna de topo de **60,0 pt** em **todos** os quadros. Sai 60,0 pt nas 5 corridas da bateria do round 1 e nas 4 do round 2.
   Sem isso o harness aborta com código 1.
 
 ## O número
@@ -89,11 +89,15 @@ família — foi **0,0 pt**: o conteúdo chega a encostar na borda de baixo da m
 ultrapassa.
 
 **Alguns quadros saem sem moldura nenhuma — e sem conteúdo nenhum.** Em 35 combinações,
-6 a 13 fotos por corrida (faixa medida em 5 corridas) vieram magenta puro: nem pixel de moldura, nem pixel de conteúdo (o harness separa os
-dois casos e imprime a conta). Todas caem em cima de uma troca de `mode` — o controle
+algumas fotos por corrida vieram magenta puro: nem pixel de moldura, nem pixel de conteúdo
+(o harness separa os dois casos e imprime a conta). **Sem teto declarado** — foram 6 a 15
+nas nove corridas medidas, e o número não estabiliza porque depende de quantas fotos calham
+de cair exatamente em cima de uma troca de `mode`, o que muda com a cadência da máquina. O
+que é estável, e é a metade que importa, é a outra: **nenhuma** dessas fotos tinha conteúdo
+desenhado, em nenhuma corrida. Todas caem em cima de uma troca de `mode` — o controle
 positivo, o `hover-abre-e-gesto-fecha` e as cinco `*-durante-abertura`. O contraste que
 importa: o **controle do fechado parado**, que não dirige transição nenhuma, mede 32 pt em
-**todas** as fotos (50–51 fotos por corrida, medido em 5 corridas) — a pilulinha fechada nunca some quando nada muda. Não dá para decidir
+**todas** as fotos (50–51 fotos por corrida, bateria de 5 corridas do round 1) — a pilulinha fechada nunca some quando nada muda. Não dá para decidir
 pela imagem se esses quadros são o `cacheDisplay` devolvendo buffer não desenhado ou
 quadros reais em que a árvore não desenhou nada; os PNGs ficam em `/tmp/cortecheck-quadros`.
 Não é o sintoma relatado (some tudo, não a metade de cima), mas é a única pista de "pisca"
@@ -134,23 +138,24 @@ que a varredura produziu, e é reprodutível.
 
 ## Determinismo
 
-A varredura inteira foi rodada **5 vezes**; a coluna de veredicto (`corte=N` das 35 linhas)
-saiu **idêntica nas 5** — mesmo hash MD5. O que varia entre corridas é o número de fotos por
+A varredura inteira foi rodada **5 vezes** (bateria do round 1) e mais **4** depois da
+última mudança de trava (round 2); a coluna de veredicto (`corte=N` das 35 linhas)
+saiu **idêntica nas 9** — mesmo hash MD5 nas duas baterias. O que varia entre corridas é o número de fotos por
 combinação (a cadência depende da máquina), não o veredicto.
 
 A trava do controle positivo exige **3 alturas de moldura distintas**, e o 3 é derivado, não
 escolhido: duas alturas (antes e depois) só provariam que o estado mudou; a terceira é a que
 prova que houve um valor **no meio** — interpolação, que é a única coisa que o controle
 precisa responder. O limiar anterior era 5 e não vinha de lugar nenhum. Contagem por corrida
-medida em 4 corridas do controle com quatro trocas de `mode`: **5, 7, 10 e 11**. Ela oscila
+medida na bateria de 4 corridas do round 2, com quatro trocas de `mode`: **5, 7, 10 e 11**. Ela oscila
 porque a amostragem às vezes cai em platôs da mola — mais fotos numa corrida não significa
 mais alturas distintas —, e é justamente por isso que a trava não pode depender da cadência:
 contra o piso medido (5) a margem é de 2 alturas.
-Uma faixa de "9–13" chegou a ser escrita aqui a partir de 5 corridas afortunadas e **não**
-se sustenta: corridas com MAIS fotos mediram MENOS alturas.
+Uma faixa de "9–13" chegou a ser escrita aqui a partir da bateria de 5 corridas do round 1,
+que calhou de ser afortunada, e **não** se sustenta: corridas com MAIS fotos mediram MENOS alturas.
 
 O harness **não** foi acrescentado a `tools/check.sh`. Não é por indeterminismo — esse foi
-medido e é 5/5. É por dois motivos de ambiente: (1) ele precisa de sessão gráfica, e o
+medido e é 9/9 (5 corridas do round 1 mais 4 do round 2). É por dois motivos de ambiente: (1) ele precisa de sessão gráfica, e o
 controle positivo aborta com código 1 num runner sem WindowServer, o que deixaria a CI
 vermelha em vez de pulada; (2) leva ~4,5 min contra os segundos que cada gate atual leva. A
 forma do gate de regressão é, pelo mapa, decisão da 004 — não desta medição.
@@ -165,18 +170,21 @@ forma do gate de regressão é, pelo mapa, decisão da 004 — não desta mediç
 ./tools/cortecheck.sh | grep -E 'controle|combinações|famílias|cadência|quadros sem moldura|com moldura menor'
 # Os valores EXATOS (refazem a conta): 35 combinações, 11 famílias, 0 corte,
 # lacuna_topo_max 0,0 pt, excedente do controle do detector 100,0 pt, lacuna do
-# controle do desvio 60,0 pt. Os demais dependem da máquina — faixa medida em 5
-# corridas, entre parênteses.
+# controle do desvio 60,0 pt. Os demais dependem da máquina e vêm entre
+# parênteses como faixa medida, não como valor a bater.
 # → controle do detector: corte=sim excedente=100.0 pt
 #   controle do desvio na view real: lacuna_topo_max=60.0 pt, corte=sim
 #   controle do fechado parado: alturas [32, 32, ... ]   (50–51 fotos, TODAS 32)
-#   controle positivo: (9–13) alturas de moldura distintas, trava em 5
+#   controle positivo: alturas de moldura distintas — a contagem OSCILA por
+#     corrida; o que vale é ser ≥ 3 (a trava). Faixa e derivação do 3 na seção
+#     Determinismo.
 #   combinações rodadas: 35
 #   famílias: chegada-assincrona, faixa-withanimation, hover-vs-gesto, lista3-calendario,
 #             lista3-espelho, lista3-focus, lista3-incoming, lista3-link,
 #             lista3-notificacao, lista3-shelf, mesma-runloop
 #   cadência média das fotos: (16–18) Hz
-#   quadros sem moldura NENHUMA: (6–13) — com conteúdo desenhado: 0 SEMPRE
+#   quadros sem moldura NENHUMA: sem teto declarado (6–15 nas corridas medidas;
+#     depende da cadência) — o exato aqui é "com conteúdo desenhado: 0", SEMPRE
 #   com moldura menor que o conteúdo: 0
 
 # a série de alturas por quadro — a prova do salto sem interpolação
@@ -184,7 +192,7 @@ CORTECHECK_VERBOSE=1 ./tools/cortecheck.sh \
   | grep -A1 -E 'foco-link-para-atividade |faixa-link-para-atividade '
 # O que é exato aqui: os extremos (504 e 126 pt) e a CONTAGEM de alturas — 2 sem
 # `withAnimation`, 4 com. Os valores do meio são ilustrativos: dependem de quando
-# a foto cai na curva (medidos entre 486–488 e 146–160 em 5 corridas).
+# a foto cai na curva (medidos entre 486–488 e 146–160 na bateria de 5 corridas do round 1).
 # → foco-link-para-atividade  alturas: [504, 126, 126, ...]        (2 alturas)
 #   faixa-link-para-atividade alturas: [504, 487, 152, 126, ...]   (4 alturas)
 
@@ -195,7 +203,7 @@ for i in 1 2 3 4 5; do grep -o 'corte=[ ]*[0-9]*' /tmp/cc$i.txt | tr -d ' ' | md
 
 # a margem da trava do controle positivo (trava em 3, derivada — ver Determinismo)
 grep -h 'controle positivo' /tmp/cc*.txt
-# → a contagem por corrida oscila (5, 7, 10, 11 em 4 corridas); o exato aqui é o
+# → a contagem por corrida oscila (5, 7, 10, 11 na bateria de 4 corridas); o exato é o
 #   PISO observado, 5, contra a trava de 3
 
 # os quadros suspeitos, um PNG por foto

@@ -46,12 +46,13 @@ porque `shape.fill` e o conteúdo dividem o mesmo `ZStack` sob a mesma máscara
 (`NotchView.swift:181` e `:249`) e encolhem juntos.
 
 O zero tem três travas medidas por trás, para não ser um zero de detector cego: o controle
-positivo (quatro trocas de `mode` produzem 9–13 alturas de moldura distintas contra uma
-trava de 5, provando que a animação corre na janela fora da tela), o controle do detector
+positivo (quatro trocas de `mode` produzem 5 a 11 alturas de moldura distintas contra uma
+trava de 3 — a 3ª altura é a que prova interpolação; a contagem oscila com a cadência, por
+isso a trava não depende dela), o controle do detector
 (moldura sintética de 100 pt com conteúdo de 200 pt acusa excedente de 100,0 pt) e o
 controle do desvio na view real (a `NotchView` de verdade empurrada 60 pt pra baixo acusa
 lacuna de topo de 60,0 pt em todos os quadros). Sem qualquer um dos três o harness aborta
-com código 1. Veredicto idêntico em 5 corridas (mesmo hash MD5).
+com código 1. Veredicto idêntico em 9 corridas (mesmo hash MD5).
 
 Dois achados de passagem, ambos em número:
 
@@ -63,7 +64,9 @@ Dois achados de passagem, ambos em número:
    `withAnimation` no projeto — e aí a moldura interpola (4 alturas: 504, 486, 153, 126).
    A divergência de transação que a 002 previu existe no código, mas não produziu corte em
    nenhuma foto.
-2. **6 a 13 quadros por corrida, em 35 combinações, saíram sem moldura NEM conteúdo** (magenta puro), todos
+2. **Alguns quadros por corrida, em 35 combinações, saíram sem moldura NEM conteúdo** (6 a
+   15 nas corridas medidas; sem teto declarado, porque depende de quantas fotos calham de
+   cair em cima de uma troca de `mode`) (magenta puro), todos
    em cima de uma troca de `mode`, enquanto o controle do fechado parado mede 32 pt em
    todas as suas fotos. Não é o sintoma relatado (some tudo, não a metade de cima) e não dá
    para decidir pela imagem se é buffer não desenhado ou quadro real vazio — fica como
@@ -76,7 +79,7 @@ do usuário; cobertas por proxy pelo `.link`, 438 pt, a maior seção do app) e
 `agentRequestExpanded` (`@State` privado — único item da Lista 3 fora da varredura;
 `vm.incoming?.mediaHeight` entrou, 200 → 0 pt).
 
-O harness **não** entrou em `tools/check.sh`: determinismo foi medido (5/5), o impedimento
+O harness **não** entrou em `tools/check.sh`: determinismo foi medido (9/9), o impedimento
 é ambiente — precisa de WindowServer (a CI ficaria vermelha, não pulada) e leva ~4,5 min
 contra segundos dos gates atuais. A forma do gate é decisão da 004.
 
