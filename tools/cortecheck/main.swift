@@ -85,14 +85,76 @@ func medir(_ host: NSView, escala: Int, etiqueta: String) -> Quadro {
     guard let base = rep.bitmapData else {
         return Quadro(topoMoldura: 0, fimMoldura: -1, fimConteudo: -1, escala: escala)
     }
-    let bpr = rep.bytesPerRow
-    let bpp = rep.bitsPerPixel / 8
+    let q = classificar(base: base, bpr: rep.bytesPerRow, bpp: rep.bitsPerPixel / 8,
+                        largura: rep.pixelsWide, altura: rep.pixelsHigh, escala: escala)
+    if q.temCorte || q.vazio { gravarProva(rep, etiqueta: etiqueta) }
+    if q.vazio { examinarVazio(host, escala: escala, etiqueta: etiqueta) }
+    return q
+}
+
+/// Segunda opinião sobre um quadro que saiu sem moldura NENHUMA, no MESMO giro
+/// de runloop — nada no modelo muda entre as três fotos abaixo, então o que
+/// diferir entre elas é do caminho de captura, não do desenho.
+///
+/// 1. `cacheDisplay` de novo, num bitmap novo: se o notch aparecer aqui, o vazio
+///    era do buffer, não da árvore.
+/// 2. `CALayer.render(in:)`, que é outro caminho e desenha a árvore de MODELO
+///    (o estado final da animação, não o interpolado): se aqui aparecer e no
+///    `cacheDisplay` não, a subárvore existe e a captura a perdeu.
+@MainActor
+func examinarVazio(_ host: NSView, escala: Int, etiqueta: String) {
+    vaziosExaminados += 1
+    if let rep2 = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
+        host.cacheDisplay(in: host.bounds, to: rep2)
+        if let b2 = rep2.bitmapData {
+            let q2 = classificar(base: b2, bpr: rep2.bytesPerRow, bpp: rep2.bitsPerPixel / 8,
+                                 largura: rep2.pixelsWide, altura: rep2.pixelsHigh, escala: escala)
+            if !q2.vazio { vaziosQueSumiramNaSegundaFoto += 1 }
+        }
+    }
+    // A foto por camada custa ~200 ms (desenha os 1800×1280 px na CPU) e come a
+    // cadência das fotos justamente nas transições onde mais interessa amostrar.
+    // ponytail: teto de 8 por corrida — chega pra decidir a pergunta dos magenta;
+    // se um dia for preciso contorno por transição, o teto vira por transição.
+    guard fotosPorCamadaFeitas < tetoDeFotosPorCamada,
+          ProcessInfo.processInfo.environment["CORTECHECK_SEM_CAMADA"] == nil else { return }
+    fotosPorCamadaFeitas += 1
+    let qc = fotoPorCamada(host, escala: escala)
+    if !qc.vazio { vaziosComCamadaDesenhada += 1 }
+}
+
+/// Foto pelo caminho da camada, independente do `cacheDisplay`.
+@MainActor
+func fotoPorCamada(_ host: NSView, escala: Int) -> Quadro {
+    let vazio = Quadro(topoMoldura: 0, fimMoldura: -1, fimConteudo: -1, escala: escala)
+    let largura = Int(host.bounds.width) * escala
+    let altura = Int(host.bounds.height) * escala
+    guard largura > 0, altura > 0, let camada = host.layer,
+          let ctx = CGContext(data: nil, width: largura, height: altura, bitsPerComponent: 8,
+                              bytesPerRow: largura * 4, space: CGColorSpaceCreateDeviceRGB(),
+                              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+    else { return vazio }
+    ctx.scaleBy(x: CGFloat(escala), y: CGFloat(escala))
+    // `render(in:)` desenha na orientação da camada; a classificação conta as
+    // linhas de cima pra baixo, então o eixo Y é espelhado aqui.
+    ctx.translateBy(x: 0, y: host.bounds.height)
+    ctx.scaleBy(x: 1, y: -1)
+    camada.render(in: ctx)
+    guard let base = ctx.data?.assumingMemoryBound(to: UInt8.self) else { return vazio }
+    return classificar(base: base, bpr: largura * 4, bpp: 4,
+                       largura: largura, altura: altura, escala: escala)
+}
+
+/// Classifica um bitmap RGBA já desenhado. Extraído de `medir` para que a
+/// segunda foto e a foto por camada usem exatamente o mesmo critério de pixel.
+func classificar(base: UnsafeMutablePointer<UInt8>, bpr: Int, bpp: Int,
+                 largura: Int, altura: Int, escala: Int) -> Quadro {
     var topoMoldura = -1, fimMoldura = -1, fimConteudo = -1
 
-    for y in 0..<rep.pixelsHigh {
+    for y in 0..<altura {
         var temMoldura = false, temConteudo = false
         var x = 0
-        while x < rep.pixelsWide {
+        while x < largura {
             let p = base + y * bpr + x * bpp
             let r = Int(p[0]), g = Int(p[1]), b = Int(p[2])
             if max(r, max(g, b)) < 16 {
@@ -110,11 +172,21 @@ func medir(_ host: NSView, escala: Int, etiqueta: String) -> Quadro {
         }
         if temConteudo { fimConteudo = y }
     }
-    let q = Quadro(topoMoldura: max(topoMoldura, 0), fimMoldura: fimMoldura,
-                   fimConteudo: fimConteudo, escala: escala)
-    if q.temCorte || q.vazio { gravarProva(rep, etiqueta: etiqueta) }
-    return q
+    return Quadro(topoMoldura: max(topoMoldura, 0), fimMoldura: fimMoldura,
+                  fimConteudo: fimConteudo, escala: escala)
 }
+
+/// Contadores da investigação dos quadros magenta. Cobrem TODO quadro vazio da
+/// corrida, controles inclusive — é nos controles que eles aparecem mais.
+@MainActor
+var vaziosExaminados = 0
+@MainActor
+var vaziosQueSumiramNaSegundaFoto = 0
+@MainActor
+var vaziosComCamadaDesenhada = 0
+let tetoDeFotosPorCamada = 8
+@MainActor
+var fotosPorCamadaFeitas = 0
 
 /// Grava o quadro suspeito. Sem isto, "moldura ausente" viraria um zero na
 /// tabela e ninguém saberia se foi buffer não renderizado ou o piscar de verdade.
@@ -134,6 +206,9 @@ func gravarProva(_ rep: NSBitmapImageRep, etiqueta: String) {
 /// o `limpar()` desfaz o que a transição anterior deixou ligado.
 @MainActor
 final class Cena {
+    /// A janela que hospeda a view. Preenchida pelo `rodar` — é por ela que as
+    /// transições de AMBIENTE (orderOut, setFrame) mexem no que o app mexe.
+    var janela: NSWindow?
     let vm = NotchViewModel()
     let media = MediaController()
     let shelf = ShelfStore()
@@ -204,6 +279,42 @@ func arquivoPNGFalso() -> URL {
     CGImageDestinationFinalize(destino)
     return url
 }
+// MARK: - Eventos de ambiente
+
+/// Registro de todo evento de ambiente dirigido. Sem ele, um `orderOut` que não
+/// esconde nada devolveria um zero falso: o harness teria medido a ausência do
+/// evento, não a ausência do defeito.
+struct EventoDirigido {
+    let transicao: String
+    let chamada: String
+    let antes: String
+    let depois: String
+    var mudou: Bool { antes != depois }
+}
+
+@MainActor
+var eventosDirigidos: [EventoDirigido] = []
+@MainActor
+var transicaoCorrente = "—"
+
+@MainActor
+func estadoDaJanela(_ j: NSWindow) -> String {
+    String(format: "visivel=%@ frame=%.0fx%.0f@%.0f,%.0f", j.isVisible ? "sim" : "nao",
+           j.frame.width, j.frame.height, j.frame.origin.x, j.frame.origin.y)
+}
+
+/// Dirige um evento de ambiente e grava o estado observável da janela antes e
+/// depois — a prova de que o evento aconteceu de verdade.
+@MainActor
+func evento(_ c: Cena, _ chamada: String, _ acao: (NSWindow) -> Void) {
+    guard let j = c.janela else { return }
+    let antes = estadoDaJanela(j)
+    acao(j)
+    let depois = estadoDaJanela(j)
+    eventosDirigidos.append(EventoDirigido(transicao: transicaoCorrente, chamada: chamada,
+                                           antes: antes, depois: depois))
+}
+
 // MARK: - Transições
 
 typealias Acao = @MainActor (Cena) -> Void
@@ -608,14 +719,132 @@ let transicoes: [Transicao] = [
               passos: [(0, { $0.vm.setExpandedDirect(false) }),
                        (0.60, { $0.vm.setHover(true) }),
                        (0.90, { $0.vm.focar(.link) })]),
+
+    // ---- Ambiente: o que acontece com a JANELA, não com a interface. Os
+    // pontos de entrada são os mesmos do app — `placeWindows`
+    // (`Knobler/KnoblerApp.swift:1195`) faz `setFrame(_:display: true)` seguido
+    // de `orderFrontRegardless()`, e `orderOut(nil)` (`:1205`) some com a
+    // janela. Ver os limites na medição 003.1: este worktree NÃO tem
+    // observador de troca de Space nem de sono.
+    Transicao(nome: "ambiente-orderout-volta-fechado", familia: "ambiente",
+              montar: { c in c.vm.expanded = false },
+              passos: [(0, { c in evento(c, "orderOut", { $0.orderOut(nil as Any?) }) }),
+                       (0.30, { c in evento(c, "orderFrontRegardless", { $0.orderFrontRegardless() }) })]),
+
+    Transicao(nome: "ambiente-orderout-volta-aberto", familia: "ambiente",
+              montar: { c in
+                  LinkPreview.shared.abrir(linkDeTeste, on: 1)
+                  c.vm.expanded = true
+              },
+              foco: .link,
+              passos: [(0, { c in evento(c, "orderOut", { $0.orderOut(nil as Any?) }) }),
+                       (0.30, { c in evento(c, "orderFrontRegardless", { $0.orderFrontRegardless() }) })]),
+
+    Transicao(nome: "ambiente-orderout-durante-morph", familia: "ambiente",
+              montar: { c in
+                  LinkPreview.shared.abrir(linkDeTeste, on: 1)
+                  c.vm.expanded = true
+              },
+              foco: .link,
+              passos: [(0, { $0.vm.setExpandedDirect(false) }),
+                       (0.05, { c in evento(c, "orderOut", { $0.orderOut(nil as Any?) }) }),
+                       (0.20, { c in evento(c, "orderFrontRegardless", { $0.orderFrontRegardless() }) }),
+                       (0.60, { $0.vm.setExpandedDirect(true) })]),
+
+    // A forma que o brief descreve pra troca de Space: esconder, esperar 0,35 s,
+    // devolver. Este worktree não tem esse observador (ver medição), então o que
+    // roda aqui é a FORMA do evento, não uma chamada do app.
+    Transicao(nome: "ambiente-espaco-simulado", familia: "ambiente",
+              montar: { c in
+                  LinkPreview.shared.abrir(linkDeTeste, on: 1)
+                  c.vm.expanded = true
+              },
+              foco: .link,
+              passos: [(0, { c in evento(c, "orderOut", { $0.orderOut(nil as Any?) }) }),
+                       (0.35, { c in evento(c, "orderFrontRegardless", { $0.orderFrontRegardless() }) })]),
+
+    // `placeWindows` literal: setFrame com o MESMO frame e display: true,
+    // seguido de orderFrontRegardless no mesmo giro. É o que
+    // `didChangeScreenParametersNotification` dispara com a tela igual.
+    Transicao(nome: "ambiente-placewindows-parado", familia: "ambiente",
+              montar: { c in c.vm.expanded = false },
+              passos: [(0, { c in placeWindowsFalso(c) })]),
+
+    Transicao(nome: "ambiente-placewindows-durante-morph", familia: "ambiente",
+              montar: { c in
+                  LinkPreview.shared.abrir(linkDeTeste, on: 1)
+                  c.vm.expanded = true
+              },
+              foco: .link,
+              passos: [(0, { $0.vm.setExpandedDirect(false) }),
+                       (0.05, { c in placeWindowsFalso(c) }),
+                       (0.60, { $0.vm.setExpandedDirect(true) })]),
+
+    // Mudança de resolução, o lado que dá pra simular: a janela muda de origem
+    // (a tela ficou de outro tamanho) sem tocar no hardware.
+    Transicao(nome: "ambiente-setframe-move-origem", familia: "ambiente",
+              montar: { c in
+                  LinkPreview.shared.abrir(linkDeTeste, on: 1)
+                  c.vm.expanded = true
+              },
+              foco: .link,
+              passos: [(0, { c in
+                           guard let j = c.janela else { return }
+                           let f = j.frame.offsetBy(dx: 137, dy: -211)
+                           evento(c, "setFrame(origem)", { $0.setFrame(f, display: true) })
+                       }),
+                       (0.50, { c in
+                           guard let j = c.janela else { return }
+                           let f = j.frame.offsetBy(dx: -137, dy: 211)
+                           evento(c, "setFrame(origem de volta)", { $0.setFrame(f, display: true) })
+                       })]),
+
+    // O outro lado da mudança de resolução: a janela muda de TAMANHO com a
+    // view viva dentro. É o caso que o `placeWindows` evita de propósito
+    // (ponytail em `KnoblerApp.swift`: "redimensionar durante animação é jank").
+    Transicao(nome: "ambiente-setframe-muda-tamanho", familia: "ambiente",
+              montar: { c in
+                  LinkPreview.shared.abrir(linkDeTeste, on: 1)
+                  c.vm.expanded = true
+              },
+              foco: .link,
+              passos: [(0, { c in
+                           guard let j = c.janela else { return }
+                           let f = NSRect(x: j.frame.minX, y: j.frame.minY,
+                                          width: 700, height: janelaAltura + 260)
+                           evento(c, "setFrame(tamanho)", { $0.setFrame(f, display: true) })
+                       }),
+                       (0.50, { c in
+                           guard let j = c.janela else { return }
+                           let f = NSRect(x: j.frame.minX, y: j.frame.minY,
+                                          width: janelaLargura, height: janelaAltura)
+                           evento(c, "setFrame(tamanho de volta)", { $0.setFrame(f, display: true) })
+                       })]),
 ]
+
+/// O `placeWindows` do app, na mesma ordem e no mesmo giro de runloop:
+/// `setFrame(_:display: true)` e `orderFrontRegardless()`
+/// (`Knobler/KnoblerApp.swift:1195`-`1196`).
+@MainActor
+func placeWindowsFalso(_ c: Cena) {
+    guard let j = c.janela else { return }
+    let f = j.frame
+    evento(c, "setFrame(igual)+orderFrontRegardless", {
+        $0.setFrame(f, display: true)
+        $0.orderFrontRegardless()
+    })
+}
 
 // MARK: - Motor
 
 let janelaLargura: CGFloat = 900
 let janelaAltura: CGFloat = 640
-/// Quanto tempo a observação dura DEPOIS do último passo.
-let observacao: TimeInterval = 0.8
+/// Quanto tempo a observação dura DEPOIS do último passo. Subiu de 0,8 s para
+/// 1,6 s na medição 003.1: as transições que fecham e reabrem o card fotografam
+/// a 4 Hz (o `cacheDisplay` do card de 530 pt custa ~200 ms), e com 0,8 s os
+/// quadros vazios caíam no FIM da série — sem um quadro depois deles, não dava
+/// para dizer se a árvore voltava a desenhar.
+let observacao: TimeInterval = 1.6
 /// Giro de runloop entre uma foto e outra. A foto em si custa ~30 ms
 /// (`cacheDisplay` de 1800×1520 px), então a cadência real fica em ~15 Hz.
 let passoDeFoto: TimeInterval = 0.01
@@ -642,10 +871,36 @@ struct Resultado {
     var alturas: [Int] { quadros.map { Int($0.alturaMolduraPt.rounded()) } }
     var alturasDistintas: Int { Set(alturas).count }
     var hz: Double { duracao > 0 ? Double(quadros.count) / duracao : 0 }
+    /// A série terminou sem a árvore voltar a desenhar. É o caso que mais
+    /// parece o sintoma relatado: não é um quadro que pisca, é um estado.
+    var terminouVazio: Bool { quadros.last?.vazio ?? false }
+
+    /// Onde cada quadro vazio cai na curva de altura: entre um vizinho menor e
+    /// um maior (subida), o contrário (descida), ou entre alturas iguais
+    /// (patamar). Uma mola que passasse por zero só produziria vazio em
+    /// DESCIDA; vazio em subida ou em patamar não sai de encolhimento.
+    var contornoDosVazios: (subida: Int, descida: Int, patamar: Int, borda: Int) {
+        var r = (subida: 0, descida: 0, patamar: 0, borda: 0)
+        for (i, q) in quadros.enumerated() where q.vazio {
+            let antes = quadros[..<i].last(where: { !$0.vazio })?.alturaMolduraPt
+            let depois = quadros[(i + 1)...].first(where: { !$0.vazio })?.alturaMolduraPt
+            // "borda" = a série acabou (ou começou) vazia, e aí não há vizinho
+            // dos dois lados pra dizer se o vazio estava subindo ou descendo.
+            guard let a = antes, let d = depois else { r.borda += 1; continue }
+            if d > a { r.subida += 1 } else if d < a { r.descida += 1 } else { r.patamar += 1 }
+        }
+        return r
+    }
 }
 
+/// Altura da moldura no mesmo instante, medida pelos dois caminhos de captura.
+/// Preenchida pelo controle da camada.
 @MainActor
-func rodar(_ t: Transicao, deslocamento: CGFloat = 0) -> Resultado {
+var camadaControle: (porCacheDisplay: Double, porCamada: Double)?
+
+@MainActor
+func rodar(_ t: Transicao, deslocamento: CGFloat = 0, conferirCamada: Bool = false) -> Resultado {
+    transicaoCorrente = t.nome
     Cena.limpar()
     let cena = Cena(notchReal: true)
     let raiz = ZStack(alignment: .top) {
@@ -661,13 +916,18 @@ func rodar(_ t: Transicao, deslocamento: CGFloat = 0) -> Resultado {
             // NotchView DE VERDADE 60 pt pra baixo, sem tocar em Knobler/.
             .padding(.top, deslocamento)
     }
-    .frame(width: janelaLargura, height: janelaAltura)
+    // Ancorada no TOPO em vez de tamanho fixo: quando um evento de ambiente
+    // muda o tamanho da janela, um conteúdo centralizado desceria junto e a
+    // lacuna de topo acusaria corte que é só layout do envelope. Com a janela
+    // no tamanho de sempre isto é idêntico ao `.frame(width:height:)` anterior.
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
     let host = NSHostingView(rootView: AnyView(raiz))
     host.frame = NSRect(x: 0, y: 0, width: janelaLargura, height: janelaAltura)
     let janela = NSWindow(contentRect: host.frame, styleMask: [.borderless],
                           backing: .buffered, defer: false)
     janela.contentView = host
+    cena.janela = janela
     // fora de qualquer tela: a animação continua correndo (é o que o controle
     // positivo prova) e nada aparece pro usuário.
     janela.setFrameOrigin(NSPoint(x: -20000, y: -20000))
@@ -687,6 +947,9 @@ func rodar(_ t: Transicao, deslocamento: CGFloat = 0) -> Resultado {
     // tamanho na mesma runloop (sem animação) apareceria como "altura única" e
     // seria confundida com transição que não aconteceu.
     var quadros: [Quadro] = [medir(host, escala: escala, etiqueta: "\(t.nome)-000")]
+    if conferirCamada {
+        camadaControle = (quadros[0].alturaMolduraPt, fotoPorCamada(host, escala: escala).alturaMolduraPt)
+    }
     var pendentes = t.passos
     let fimDosPassos = (t.passos.map(\.0).max() ?? 0) + observacao
     let inicio = Date()
@@ -778,8 +1041,22 @@ guard qd.temCorte else {
 // "o `cacheDisplay` devolveu buffer em branco" quando o card fecha.
 let rf = rodar(Transicao(nome: "controle-fechado-parado", familia: "controle",
                          montar: { c in c.vm.expanded = false },
-                         passos: [(0, { _ in })]))
+                         passos: [(0, { _ in })]),
+               conferirCamada: true)
 print("controle do fechado parado: alturas \(rf.alturas)")
+
+// Controle da SEGUNDA CÂMERA. A pergunta dos quadros magenta é "a captura
+// perdeu o desenho ou não havia desenho", e ela só se responde com um caminho
+// de captura independente. Este exige que `CALayer.render(in:)` meça a MESMA
+// pilulinha que o `cacheDisplay` mede num quadro que ninguém discute. Se ele
+// falhar, a foto por camada é cega e o veredicto sobre os magenta cai com ela.
+let camadaOK: Bool = {
+    guard let c = camadaControle else { return false }
+    return c.porCamada > 0 && abs(c.porCamada - c.porCacheDisplay) <= 2
+}()
+print(String(format: "controle da camada (2ª câmera): cacheDisplay=%.1f pt, camada=%.1f pt — %@",
+             camadaControle?.porCacheDisplay ?? -1, camadaControle?.porCamada ?? -1,
+             camadaOK ? "concordam" : "NÃO CONCORDAM (a foto por camada é cega)"))
 
 // Controle do DESVIO na view real. O controle do detector acima é uma view
 // sintética: prova que `medir` sabe somar, não que enxerga defeito na
@@ -817,14 +1094,52 @@ guard rc.alturasDistintas >= 3 else {
     exit(1)
 }
 
+// Filtro de família: roda uma família só, SEM pular nenhum controle — o
+// `## Verificação` da medição precisa de um comando que caiba num minuto.
+let familiaFiltro = ProcessInfo.processInfo.environment["CORTECHECK_FAMILIA"]
+// Controle do AMBIENTE: a pilulinha parada com a janela FORA de ordem. Se o
+// `cacheDisplay` parar de devolver o desenho só por a janela estar escondida,
+// todo quadro medido durante um `orderOut` sairia vazio por artefato do
+// instrumento — e a família `ambiente` inteira mediria o instrumento.
+let passosDoOrderOut: [(TimeInterval, Acao)] = [
+    (0, { c in evento(c, "orderOut", { $0.orderOut(nil as Any?) }) }),
+    (0.30, { c in evento(c, "orderFrontRegardless", { $0.orderFrontRegardless() }) }),
+]
+let rao = rodar(Transicao(nome: "controle-ambiente-orderout-parado", familia: "controle",
+                          montar: { c in c.vm.expanded = false },
+                          passos: [(0, { c in evento(c, "orderOut", { $0.orderOut(nil as Any?) }) })]))
+print("controle do ambiente (orderOut parado): alturas \(rao.alturas)")
+guard rao.alturas.allSatisfy({ $0 == 32 }), rao.quadrosComCorte == 0 else {
+    print("FALHOU: com a janela fora de ordem o `cacheDisplay` deixa de devolver o "
+          + "desenho — a família `ambiente` mediria o instrumento, não o app.")
+    exit(1)
+}
+
+// Controle do DESVIO dentro do ambiente. O controle do desvio lá em cima prova
+// que o detector enxerga na NotchView parada; este prova que ele continua
+// enxergando ATRAVESSANDO o evento — se o orderOut cegasse a medida, o zero da
+// família seria zero de instrumento.
+let rad = rodar(Transicao(nome: "controle-ambiente-desvio", familia: "controle",
+                          montar: { c in c.vm.expanded = false },
+                          passos: passosDoOrderOut),
+                deslocamento: desvio)
+print(String(format: "controle do desvio atravessando o orderOut: lacuna_topo_max=%.1f pt "
+                     + "(esperado %.1f), quadros com corte=%d/%d",
+             rad.lacunaTopoMaxPt, Double(desvio), rad.quadrosComCorte, rad.quadros.count))
+guard abs(rad.lacunaTopoMaxPt - Double(desvio)) < 1,
+      rad.quadrosComCorte == rad.quadros.count else {
+    print("FALHOU: o detector perde a moldura deslocada durante o evento de ambiente.")
+    exit(1)
+}
+
 var resultados: [Resultado] = []
-for t in transicoes {
+for t in transicoes where familiaFiltro == nil || t.familia == familiaFiltro {
     let r = rodar(t)
     resultados.append(r)
     let rotulo = r.nome.padding(toLength: 32, withPad: " ", startingAt: 0)
-    print(String(format: "  %@ quadros=%2d alturas=%2d corte=%2d excedente_max=%6.1f pt "
+    print(String(format: "  %@ quadros=%2d %4.1f Hz alturas=%2d corte=%2d excedente_max=%6.1f pt "
                          + "lacuna_topo_max=%5.1f pt",
-                 rotulo, r.quadros.count, r.alturasDistintas, r.quadrosComCorte,
+                 rotulo, r.quadros.count, r.hz, r.alturasDistintas, r.quadrosComCorte,
                  r.excedenteMaxPt, r.lacunaTopoMaxPt))
     if verboso { print("     alturas: \(r.alturas)") }
 }
@@ -843,6 +1158,38 @@ let vaziosLimpos = resultados.flatMap(\.quadros).filter { $0.vazio && $0.fimCont
 print("quadros sem moldura NENHUMA: \(vaziosLimpos + vaziosComConteudo)"
       + " (com conteúdo desenhado: \(vaziosComConteudo))")
 print("provas dos quadros suspeitos em \(pastaDeProvas)")
+var vaziosSubida = 0, vaziosDescida = 0, vaziosPatamar = 0, vaziosBorda = 0
+for r in resultados {
+    let c = r.contornoDosVazios
+    vaziosSubida += c.subida
+    vaziosDescida += c.descida
+    vaziosPatamar += c.patamar
+    vaziosBorda += c.borda
+}
+print("  contorno dos vazios: subida=\(vaziosSubida) descida=\(vaziosDescida) "
+      + "patamar=\(vaziosPatamar) borda=\(vaziosBorda)")
+let terminaramVazias = resultados.filter(\.terminouVazio)
+print("  transições que TERMINARAM vazias: \(terminaramVazias.count)"
+      + (terminaramVazias.isEmpty ? "" : " — \(terminaramVazias.map(\.nome).joined(separator: ", "))"))
+print("quadros vazios examinados (a corrida INTEIRA, controles inclusive): \(vaziosExaminados)"
+      + " — sumiram na 2ª foto do mesmo giro: \(vaziosQueSumiramNaSegundaFoto)"
+      + ", com desenho na foto por camada: \(vaziosComCamadaDesenhada)/\(fotosPorCamadaFeitas)"
+      + " (2ª câmera \(camadaOK ? "aferida" : "CEGA"))")
+
+// Eventos de ambiente: quantos foram dirigidos e quantos mexeram de verdade no
+// estado observável da janela. `setFrame` com o mesmo frame não tem estado que
+// flipe — ele conta como dirigido e NÃO como mudança observada.
+print("eventos de ambiente dirigidos: \(eventosDirigidos.count)"
+      + " — com mudança observável na janela: \(eventosDirigidos.filter(\.mudou).count)")
+for e in eventosDirigidos where verboso {
+    print("   \(e.transicao) · \(e.chamada): \(e.antes) → \(e.depois)"
+          + (e.mudou ? "" : "  (sem estado que flipe)"))
+}
+let porChamada = Dictionary(grouping: eventosDirigidos, by: \.chamada)
+    .mapValues { ($0.count, $0.filter(\.mudou).count) }
+for (chamada, c) in porChamada.sorted(by: { $0.key < $1.key }) {
+    print("   \(chamada): \(c.0) dirigidos, \(c.1) com mudança observável")
+}
 print("com moldura menor que o conteúdo: \(comCorte.count)")
 for r in comCorte {
     print(String(format: "  %@ — %d/%d quadros, excedente máximo %.1f pt, lacuna de topo %.1f pt",

@@ -162,6 +162,12 @@ forma do gate de regressão é, pelo mapa, decisão da 004 — não desta mediç
 
 ## Verificação
 
+> A [medição 003.1](medicao-003-1-ambiente.md) mexeu no instrumento depois desta corrida: a
+> janela de observação subiu de 0,8 s para 1,6 s e a varredura ganhou 8 transições de
+> ambiente. As **contagens de quadros** abaixo são do instrumento antigo e saem maiores hoje
+> (e "combinações rodadas" agora é 43, não 35). Os veredictos — 0 corte, lacuna 0,0 pt,
+> controles em 100,0 e 60,0 pt — não mudaram.
+
 ```bash
 # a varredura inteira: compila a NotchView isolada e roda as 35 transições (~4,5 min)
 ./tools/cortecheck.sh
