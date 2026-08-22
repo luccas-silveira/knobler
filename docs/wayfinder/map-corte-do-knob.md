@@ -77,12 +77,33 @@ transações diferentes deixariam exatamente um quadro de estado intermediário 
 
 - [Eventos de ambiente no harness](tickets/003.1-eventos-de-ambiente.md) — **também não reproduziu.** 8 transições de ambiente, 17 chamadas de janela dirigidas, lacuna de topo **0,0 pt** em todas; 43 combinações no total, zero cortes. O instrumento acusa: um defeito que só existe com a janela fora de ordem foi acusado em 40,0 pt em três das quatro transições de `orderOut`. Mas **5 das 8 não têm sensibilidade demonstrada** — numa delas um defeito de 150 ms passou inteiro, porque fotografar um card de 530 pt custa ~200 ms e a cadência cai para 2–11 Hz. Sobre os quadros vazios: **não são buffer virgem** (o desenho rodou e pintou o fundo na mesma foto), mas provar que o app não desenhou nada exigiria uma câmera que não compartilhe o mesmo caminho. Detalhe em [medicao-003-1-ambiente.md](medicao-003-1-ambiente.md).
 
+- [Os eventos no código que ele roda](tickets/004-o-codigo-que-ele-roda.md) — **o código
+  real também não pinta o corte, e agora as oito transições provam que enxergariam.** 8
+  transições novas dirigem a réplica de `applyVisibility` (`KnoblerApp.swift:1073`) e de
+  `fullscreenDisplays()` (`:1040`) pelos três chamadores nas cadências deles: **68 chamadas
+  de `applyVisibility` dirigidas** (58 vindas de mudança em `AppSettings`, uma delas uma
+  rajada de 30 no mesmo giro), **106 varreduras de `CGWindowListCopyWindowInfo` na main
+  thread**, 87 eventos de janela registrados — **lacuna de topo 0,0 pt nas oito**, e a
+  varredura inteira fecha em **51 combinações, 0 corte**. A sensibilidade que faltava está
+  fechada: a injeção de 40 pt, gateada no ponto de acionamento do código real em vez de em
+  `!janela.isVisible`, foi acusada por **8 de 8**, nas formas persistente e transiente de
+  150 ms, 2 de 2 corridas cada — contra 5 das 8 cegas na 003.1. A janela do harness virou a
+  `NotchWindow` de verdade, fechando o limite que a 003.1 deixou escrito. Dois achados sem
+  causa provada: `applyVisibility` ordena a janela pra frente **mesmo já visível** a cada
+  mudança de Ajuste (66 dos 67 `orderFrontRegardless` sem estado que flipasse), e
+  `fullscreenDisplays()` custa **máximo 16–21 ms** na main thread — mais que um quadro a
+  60 Hz — com `ocultarEmTelaCheia` **ligada por padrão** na máquina do usuário. **A pergunta
+  volta ao mapa sem a saída "foi medido contra o código errado":** estado da interface (35),
+  ambiente simulado (8) e código real (8) foram varridos, e nenhum reproduz. Detalhe e
+  comandos em [medicao-004-codigo-real.md](medicao-004-codigo-real.md).
+
 - **Achado de processo, sem ticket:** o mapa foi cartografado lendo o repositório principal com mudanças **não commitadas** no disco. O worktree onde tudo foi medido nasceu do último commit e não tinha `applyVisibility` nem o tratamento de Space — 1582 linhas contra 1668. O usuário confirmou que roda a build local com esse código, então ele é suspeito real e a 003.1 não pôde exercitá-lo. O código entrou no worktree em `f8684aa`, **só para ser medido**, e a [004](tickets/004-o-codigo-que-ele-roda.md) refaz a pergunta contra ele. A 001 e a 002 seguem íntegras: o trabalho pendente não toca `NotchView` nem `NotchViewModel`.
 
 ## Ainda não especificado
 
-**O que fazer agora que a 003.1 voltou de mãos vazias.** Ela voltou: 43 combinações, 0
-corte. Duas rotas já apresentadas e não escolhidas continuam disponíveis: autodiagnóstico embarcado na build normal (que revisita
+**O que fazer agora que a varredura inteira voltou de mãos vazias.** A 003.1 voltou com
+43 combinações e a 004 fechou em 51, todas em 0 corte — inclusive contra o código que o
+usuário roda. Duas rotas já apresentadas e não escolhidas continuam disponíveis: autodiagnóstico embarcado na build normal (que revisita
 a decisão de não rodar build instrumentada) e conserto defensivo sem causa provada. A
 terceira possibilidade — o defeito depender de hardware que nenhum harness alcança — não
 tem rota escrita ainda.

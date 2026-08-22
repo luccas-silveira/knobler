@@ -2,8 +2,8 @@
 
 Map: [O knob cortado ao meio](../map-corte-do-knob.md)
 Type: `measure`
-Status: aberto
-Assignee: —
+Status: fechado (2026-08-21)
+Assignee: sdd-004
 Blocked by: 003.1
 
 ## Pergunta
@@ -44,3 +44,31 @@ Mesma regra de sempre: número medido ou nada, `## Verificação` refazível, e 
 entrega válida**. Se o código real também não produzir o corte, diga quantas chamadas foram
 dirigidas e devolva a pergunta ao mapa — a essa altura o mapa terá varrido estado, ambiente
 simulado e ambiente real sem achar, e isso por si só é um resultado que muda a rota.
+
+## Resolução
+
+**O código real também não produz o corte — e desta vez as oito transições provam que
+enxergariam.** 8 transições novas na família `real` do harness dirigem a réplica de
+`applyVisibility` (`KnoblerApp.swift:1073`) e de `fullscreenDisplays()` (`:1040`) pelos
+**três** chamadores nas cadências deles: **68 chamadas de `applyVisibility` dirigidas** (58
+delas vindas de mudança em `AppSettings`, incluindo uma rajada de 30 no mesmo giro de
+runloop), **106 varreduras de `CGWindowListCopyWindowInfo` na main thread** e **87 eventos
+de janela registrados** com o antes e o depois. **Lacuna de topo 0,0 pt nas oito**, e a
+varredura inteira fecha em **51 combinações, 0 corte**.
+
+A sensibilidade que faltava na 003.1 está fechada: a injeção de 40 pt, agora gateada no
+**ponto de acionamento do código real** em vez de em `!janela.isVisible`, foi acusada por
+**8 de 8** transições, nas duas formas — persistente e transiente de 150 ms —, em 2 de 2
+corridas cada. A 003.1 fechou com 5 das 8 cegas; a 004 fecha com 0.
+
+Dois achados laterais, medidos e sem causa provada: `applyVisibility` ordena a janela pra
+frente **mesmo já visível**, a cada mudança de Ajuste (66 dos 67 `orderFrontRegardless`
+dirigidos não tinham estado que flipasse); e `fullscreenDisplays()` custa **mediana
+0,4–0,8 ms e máximo 16–21 ms** na main thread — mais que um quadro a 60 Hz — com a chave
+`ocultarEmTelaCheia` **ligada por padrão** e ausente do plist do usuário, ou seja, rodando
+na máquina dele.
+
+A janela do harness passou a ser a `NotchWindow` de verdade, fechando o limite que a 003.1
+tinha deixado escrito. A pergunta volta ao mapa sem a saída "foi medido contra o código
+errado". Detalhe, limites e comandos em
+[medicao-004-codigo-real.md](../medicao-004-codigo-real.md).
