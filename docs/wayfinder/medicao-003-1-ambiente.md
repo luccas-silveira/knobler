@@ -243,6 +243,12 @@ veredicto.
 > harness também virou a **`NotchWindow` de verdade**, fechando o limite que esta medição
 > deixou escrito.
 >
+> **E a nota também tem prazo.** As linhas acima valem enquanto o `f8684aa` estiver no
+> branch. Depois do revert dele — e no `master` — o `grep -rn 'activeSpace' Knobler/*.swift`
+> volta a devolver **nada**, exatamente como o texto original desta medição diz, e as linhas
+> de `setFrame`/`orderOut` voltam pras do worktree antigo. Quem lê isto no `master` deve
+> ignorar esta nota até o usuário commitar o trabalho local dele.
+>
 > **Os veredictos e os valores exatos desta medição não mudaram** — 0 corte nas oito, lacuna
 > 0,0 pt, 17 eventos dirigidos / 15 com mudança observável, controles em 60,0 e 32,0 pt —, e
 > a revisão da 004 os reconferiu. Só os dois `grep` de contexto e o total da varredura

@@ -16,6 +16,15 @@ depois de cada troca de Space (`:371`-`374`) e **cada** mudança em `AppSettings
 a ser a `NotchWindow` de verdade. Nada em `Knobler/*.swift` foi tocado: a réplica e a
 instrumentação vivem no envelope (`tools/cortecheck/main.swift`).
 
+> **Nota de validade.** O código que esta medição dirige — `applyVisibility`,
+> `fullscreenDisplays` e o observador de troca de Space — existe **só no intervalo entre o
+> commit `f8684aa` e o merge deste branch**. Ele é trabalho local do usuário, trazido pro
+> worktree para ser medido, e sai do branch no revert do `f8684aa`. No `master`,
+> `grep -n 'applyVisibility' Knobler/KnoblerApp.swift` volta a devolver **vazio** até o
+> usuário commitar o trabalho dele, e com ele todas as linhas de `KnoblerApp.swift` citadas
+> aqui. O que a medição afirma continua valendo sobre o código que o usuário **roda**; o que
+> envelhece é onde achá-lo.
+
 ## O número
 
 **8 transições novas, 68 chamadas de `applyVisibility` dirigidas, 106 varreduras de
@@ -209,6 +218,12 @@ ligada por padrão. Ele não pintou o corte neste harness — mas é o caminho m
 tornar mais barato, e é onde um autodiagnóstico embarcado teria o que observar.
 
 ## Verificação
+
+> **Antes de rodar qualquer coisa daqui:** todos os `grep` contra
+> `Knobler/KnoblerApp.swift` deste bloco só devolvem alguma coisa entre o commit `f8684aa` e
+> o merge deste branch — ver a nota de validade no `## Método`. No `master` eles saem vazios
+> até o usuário commitar o trabalho local. Os comandos de `./tools/cortecheck.sh` seguem
+> valendo: o harness dirige uma **réplica**, que mora no envelope e não no app.
 
 ```bash
 # só a família nova, com todos os controles (~1 min de corrida + a compilação)
