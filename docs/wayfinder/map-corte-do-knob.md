@@ -79,7 +79,8 @@ transações diferentes deixariam exatamente um quadro de estado intermediário 
   transição durante morph, a 10,7 Hz) — a varredura
   inteira fecha em **43 combinações, 0 corte**, com dois controles novos provando que a
   janela escondida não cega a foto e que o desvio de 60 pt continua sendo acusado
-  atravessando o evento. Sono e troca de modo de display ficaram de fora porque mexeriam na
+  atravessando o evento — um defeito que só existe com a janela fora de ordem foi acusado
+  em 40,0 pt em **três das quatro** transições de `orderOut`. Sono e troca de modo de display ficaram de fora porque mexeriam na
   máquina do usuário; a **troca de Space não existe neste código** (sem observador de
   `activeSpace`, `NotchWindow` é `.canJoinAllSpaces`). Fechou a segunda pergunta pela metade que a
   evidência aguenta: os quadros magenta **não são buffer virgem** — o `cacheDisplay` rodou e
@@ -88,8 +89,6 @@ transações diferentes deixariam exatamente um quadro de estado intermediário 
   duas provas fortes saem do mesmo `cacheDisplay`, e a terceira pode ser cega ao caso. **A pergunta volta ao mapa:** nem estado da interface
   nem ambiente reproduzem o corte, e o que sobra está em "Ainda não especificado". Detalhe e
   comandos em [medicao-003-1-ambiente.md](medicao-003-1-ambiente.md).
-
-- [Eventos de ambiente no harness](tickets/003.1-eventos-de-ambiente.md) — **também não reproduziu.** 8 transições de ambiente, 17 chamadas de janela dirigidas, lacuna de topo **0,0 pt** em todas; 43 combinações no total, zero cortes. O instrumento acusa: um defeito que só existe com a janela fora de ordem foi acusado em 40,0 pt em três das quatro transições de `orderOut`. Mas **5 das 8 não têm sensibilidade demonstrada** — numa delas um defeito de 150 ms passou inteiro, porque fotografar um card de 530 pt custa ~200 ms e a cadência cai para 2–11 Hz. Sobre os quadros vazios: **não são buffer virgem** (o desenho rodou e pintou o fundo na mesma foto), mas provar que o app não desenhou nada exigiria uma câmera que não compartilhe o mesmo caminho. Detalhe em [medicao-003-1-ambiente.md](medicao-003-1-ambiente.md).
 
 - [Os eventos no código que ele roda](tickets/004-o-codigo-que-ele-roda.md) — **o código
   real também não pinta o corte, e agora as oito transições provam que enxergariam.** 8
@@ -101,7 +100,8 @@ transações diferentes deixariam exatamente um quadro de estado intermediário 
   varredura inteira fecha em **51 combinações, 0 corte**. A sensibilidade que faltava está
   fechada: a injeção de 40 pt, gateada no ponto de acionamento do código real em vez de em
   `!janela.isVisible`, foi acusada por **8 de 8**, nas formas persistente e transiente de
-  150 ms, 2 de 2 corridas cada — contra 5 das 8 cegas na 003.1. A janela do harness virou a
+  150 ms, 2 de 2 corridas cada, **verificado independentemente pela revisão** — contra 5
+  das 8 cegas na 003.1. A janela do harness virou a
   `NotchWindow` de verdade, fechando o limite que a 003.1 deixou escrito. Dois achados sem
   causa provada: `applyVisibility` ordena a janela pra frente **mesmo já visível** a cada
   mudança de Ajuste (66 dos 67 `orderFrontRegardless` sem estado que flipasse), e
@@ -110,8 +110,6 @@ transações diferentes deixariam exatamente um quadro de estado intermediário 
   volta ao mapa sem a saída "foi medido contra o código errado":** estado da interface (35),
   ambiente simulado (8) e código real (8) foram varridos, e nenhum reproduz. Detalhe e
   comandos em [medicao-004-codigo-real.md](medicao-004-codigo-real.md).
-
-- [Os eventos no código que ele roda](tickets/004-o-codigo-que-ele-roda.md) — **o negativo mais forte do mapa, e também é zero.** 68 chamadas de `applyVisibility` dirigidas (58 vindas de mudança nos Ajustes, uma delas em rajada de 30 no mesmo giro), 106 varreduras da lista de janelas do sistema, 87 eventos de janela: **lacuna de topo 0,0 pt**, 51 combinações, zero cortes. O que separa esta das anteriores é a sensibilidade: **8 de 8** transições acusam um defeito plantado, nas formas persistente e transiente de 150 ms, verificado independentemente pela revisão — contra 5 das 8 cegas na 003.1. O instrumento passou a usar a `NotchWindow` de verdade. Dois achados laterais, medidos e explicitamente **não** apontados como causa: o app chama `orderFrontRegardless` com a janela já visível em 66 de 67 vezes, e `fullscreenDisplays()` custa até ~21 ms na thread principal — mais que um quadro a 60 Hz — com a opção ligada por padrão. Detalhe em [medicao-004-codigo-real.md](medicao-004-codigo-real.md).
 
 - [O que fazer sem a causa](tickets/005-o-que-fazer-sem-a-causa.md) — **a premissa de que uma varredura acharia a causa caiu**, e com ela o destino original. 51 combinações distintas, varridas três vezes conforme o instrumento crescia (35 → 43 → 51, cumulativos), zero cortes, a última com sensibilidade provada em 8 de 8 transições. Quatro rotas foram à mesa com o custo de cada uma; o usuário escolheu **detectar, gravar e se curar** — o conserto corre só quando a medição diz que o defeito está presente, e deixa prova de que estava. O que sobrevive: a lacuna de topo como métrica, o harness como instrumento, e os dois achados laterais da 004 seguem não sendo causa.
 
@@ -125,11 +123,15 @@ transações diferentes deixariam exatamente um quadro de estado intermediário 
   mesmo estado. A violação grava doze campos em JSONL no Application Support e refaz a
   subárvore da moldura (`.id`), com espera de 2 s entre curas. O gate
   (`tools/cortedetectorcheck.swift`) tem duas metades — o harness e o grep da fiação na
-  `NotchView` — e **falha contra o código de antes** nos dois estados testados. Limite
-  declarado: o detector lê layout; se o defeito nascer abaixo dele, o log fica vazio — e um
-  log vazio ao lado de um corte testemunhado também é evidência.
-
-- [Detectar, gravar, curar e travar](tickets/006-aplicar-e-travar-o-gate.md) — **feito, e é o único ticket do mapa que escreveu código de produção.** O app mede a lacuna de topo em execução por **centenas de nanossegundos**, contra um teto de ~21 ms; quando ela quebra, grava a prova em JSONL (geometria, `mode`, seção, o que animava, o que acabou de acontecer — nenhum conteúdo do usuário) e refaz a subárvore da moldura, **só** com a violação presente. Teto de **5 curas por sessão**: depois disso continua gravando e para de reconstruir, para que uma premissa que caia num refactor futuro não vire laço permanente que reinicia câmera e avatares. Gravação com a mesma janela de 2 s, contando as suprimidas. O gate `cortedetectorcheck` trava **comportamento**, não formato: a revisão montou quatro mutantes que preservam a API e mudam a lógica, e o gate reprovou os quatro. `./tools/check.sh` = 38 ok, snapshot verde, zero falsos positivos em 51 combinações, cadência indistinguível de antes.
+  `NotchView` — e **falha contra o código de antes** nos dois estados testados. Ele trava
+  **comportamento**, não formato: a revisão montou quatro mutantes que preservam a API e
+  mudam a lógica, e o gate reprovou os quatro. Teto de **5 curas por sessão** — passado ele
+  o vigia continua gravando e para de reconstruir, para que uma premissa que caia num
+  refactor futuro não vire laço permanente reiniciando câmera e avatares —, e a gravação
+  ganhou a mesma janela de 2 s, contando as suprimidas (treze campos na prova, nenhum com
+  conteúdo do usuário). `./tools/check.sh` = **38 ok**, snapshot verde, build sem warning.
+  Limite declarado: o detector lê layout; se o defeito nascer abaixo dele, o log fica vazio
+  — e um log vazio ao lado de um corte testemunhado também é evidência.
 
 - **Achado de processo, sem ticket:** o mapa foi cartografado lendo o repositório principal com mudanças **não commitadas** no disco. O worktree onde tudo foi medido nasceu do último commit e não tinha `applyVisibility` nem o tratamento de Space — 1582 linhas contra 1668. O usuário confirmou que roda a build local com esse código, então ele é suspeito real e a 003.1 não pôde exercitá-lo. O código entrou no worktree em `f8684aa`, **só para ser medido**, e a [004](tickets/004-o-codigo-que-ele-roda.md) refaz a pergunta contra ele. A 001 e a 002 seguem íntegras: o trabalho pendente não toca `NotchView` nem `NotchViewModel`.
 
@@ -144,16 +146,40 @@ transições. O destino
 "causa raiz achada" não foi alcançado por varredura, e não há mais varredura a fazer com
 este instrumento.
 
-**O limite que sobrou é a câmera.** Fotografar um card de 530 pt custa ~200 ms, então a
-cadência cai para 2–11 Hz. Um corte que dure um quadro a 60 Hz cabe folgado entre duas
-fotos. Elevar isso não é ajuste: é outro mecanismo de captura, e ninguém especificou qual.
+**Os zeros não são "não achamos" — são evidência positiva de onde o defeito NÃO mora.** A
+[003](tickets/003-qual-mecanismo-conserta.md) provou que moldura e conteúdo dividem o mesmo
+`ZStack` sob o mesmo `.compositingGroup()` + `.mask(shape)`: o grupo contribui zero pixel ou
+contribui os dois. A [003.1](tickets/003.1-eventos-de-ambiente.md) mediu isso por outro
+caminho — em **0** dos quadros vazios das três varreduras havia conteúdo desenhado sem
+moldura. Uma metade persistente, que é exatamente o sintoma, a árvore mascarada **não sabe
+produzir**. O defeito mora fora dela.
+
+**E o limite maior não é de cadência, é de camada.** As três varreduras compartilham uma
+câmera só, e ela nunca olha para a tela: `cacheDisplay` e `CALayer.render(in:)` **redesenham
+a árvore de modelo**. Nenhuma das 51 combinações leu um pixel que o compositor tenha
+composto. Um backing store parcialmente atualizado é invisível a **100%** do conjunto, por
+construção, independente de cadência — e a cadência (~200 ms por foto, 2–11 Hz, um corte de
+um quadro a 60 Hz cabendo entre duas fotos) é só o limite que já estava escrito.
+
+**Logo: "o defeito continua e o JSONL fica vazio" não é uma hipótese entre outras — é o
+desfecho esperado.** A detecção da 006 lê geometria de layout, a mesma camada que as três
+varreduras já inocentaram. O log vazio ao lado de um corte testemunhado é o resultado a
+esperar, e ele *é* informação: joga a causa para baixo do layout.
+
+**O "outro mecanismo de captura" dá para especificar, e é isto:** fotografar o pixel do
+**compositor** — `ScreenCaptureKit`, ou `CGWindowListCreateImage` contra o `windowNumber` da
+`NotchWindow` — e comparar, no mesmo giro, com a foto de modelo do `cacheDisplay`. É a mesma
+forma do controle da segunda câmera que a 003.1 já montou, com o caminho trocado pelo único
+que enxerga a camada suspeita. Mesmo custo de ~200 ms por foto, mesmo teto de 8 transições,
+e **não** exige build instrumentada no dia a dia — a decisão travada do mapa continua de pé.
+
+**Um negativo já conferido, para poupar a próxima sessão:** a hipótese "a janela recorta o
+topo" não se sustenta. O `placeWindows` (`Knobler/KnoblerApp.swift:1249-1256`) prega o topo
+da janela no topo da tela, e qualquer variação de `visibleFrame` encolhe o **rodapé**, nunca
+a cabeça.
 
 **Se a prova aparecer e apontar a causa**, o conserto dela é mapa novo — este fecha na
 detecção.
-
-**Se o defeito continuar aparecendo e o arquivo de provas ficar vazio**, a causa nasce
-abaixo da geometria de layout (composição ou buffer), e aí o caminho é outro mecanismo de
-captura, com outro custo. É o limite declarado da 006.
 
 **Os dois achados laterais da 004 podem virar trabalho próprio** — não como causa do corte,
 que eles não são, mas como custo: um ordenamento de janela redundante a cada mudança de
