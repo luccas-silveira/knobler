@@ -120,7 +120,7 @@ transações diferentes deixariam exatamente um quadro de estado intermediário 
   gravou **zero** provas — falso positivo nenhum —, com o mesmo MD5 de veredicto da 004
   (`c0c4bef1223da3d33361af1a4a4640aa`) em 6 corridas, 3 antes e 3 depois; a maior diferença
   de cadência é **+1,0 Hz** de mediana, dentro dos 4,5 Hz de dispersão entre corridas do
-  mesmo estado. A violação grava doze campos em JSONL no Application Support e refaz a
+  mesmo estado. A violação grava treze campos em JSONL no Application Support e refaz a
   subárvore da moldura (`.id`), com espera de 2 s entre curas. O gate
   (`tools/cortedetectorcheck.swift`) tem duas metades — o harness e o grep da fiação na
   `NotchView` — e **falha contra o código de antes** nos dois estados testados. Ele trava
@@ -170,11 +170,14 @@ esperar, e ele *é* informação: joga a causa para baixo do layout.
 **compositor** — `ScreenCaptureKit`, ou `CGWindowListCreateImage` contra o `windowNumber` da
 `NotchWindow` — e comparar, no mesmo giro, com a foto de modelo do `cacheDisplay`. É a mesma
 forma do controle da segunda câmera que a 003.1 já montou, com o caminho trocado pelo único
-que enxerga a camada suspeita. Mesmo custo de ~200 ms por foto, mesmo teto de 8 transições,
+que enxerga a camada suspeita. Mesmo custo de ~200 ms por foto, mesmo teto de 8 fotos por camada por corrida,
 e **não** exige build instrumentada no dia a dia — a decisão travada do mapa continua de pé.
 
 **Um negativo já conferido, para poupar a próxima sessão:** a hipótese "a janela recorta o
-topo" não se sustenta. O `placeWindows` (`Knobler/KnoblerApp.swift:1249-1256`) prega o topo
+topo" não se sustenta. O `placeWindows` (`Knobler/KnoblerApp.swift:1249-1256` — como toda
+referência a `KnoblerApp.swift` neste mapa e nas medições 003.1 e 004, a linha só vale entre
+o commit `f8684aa` e o merge; no `master` ela volta a ser outra até o usuário commitar o
+trabalho local dele) prega o topo
 da janela no topo da tela, e qualquer variação de `visibleFrame` encolhe o **rodapé**, nunca
 a cabeça.
 

@@ -41,7 +41,7 @@ mode` até `:466`. `mode` é a própria chave do switch, então entra na lista.
 Constantes citadas no brief que compõem os números acima (não mudam em runtime, mas são
 os valores somados): `alturaDaSecao` (`NotchView.swift:122-138`), `noteEditorHeight`
 (`:95`), `shelfPreviewHeight` (`:118`), `espelhoDesligadoHeight` (`:121`), `linkWebHeight`
-(`:106`), `linkHeaderHeight` (`:107`), `sectionStripHeight` (`:978`),
+(`:106`), `linkHeaderHeight` (`:107`), `sectionStripHeight` (`:1006`),
 `HistoryListView.listHeight` (`HistoryListView.swift:15`, valor 260),
 `AnnotationDeckView.alturaDaGrade` (`AnnotationDeckView.swift:36`, valor 106).
 
@@ -88,7 +88,7 @@ correspondente na cadeia do `interactiveNotch`:
 | `askHeight` | `NotchView.swift:449` | medido do conteúdo real via `PreferenceKey` — sem teto fixo, é a própria causa da divergência quando o card cresce |
 
 `linkAberto` é a maior transição isolada: `Self.linkWebHeight` depende de
-`linkContentWidth` (`NotchView.swift:102`, `linkCardWidth − 44` = 736) na proporção 9:16
+`linkContentWidth` (`NotchView.swift:103`, `linkCardWidth − 44` = 736) na proporção 9:16
 (`:106`), então 414 pt (exato — 736 × 9/16 não tem resto) + `linkHeaderHeight` (24,
 `:107`) = 438 pt contra os 96 pt do `espelhoDesligadoHeight` usado quando o link está
 fechado (`:136`).
@@ -122,9 +122,9 @@ de animação diferentes, exatamente o mecanismo que o mapa registrou como hipó
 # Lista 1 — região de currentSize
 sed -n '376,466p' Knobler/NotchView.swift
 
-# Lista 2 — .animation(_:value:) do interactiveNotch (região 267-299)
+# Lista 2 — .animation(_:value:) do interactiveNotch (região 295-327)
 sed -n '295,327p' Knobler/NotchView.swift | grep -n '\.animation('
-# → 7 ocorrências (linhas relativas 26,27,29,30,31,32,33 = absolutas 292,293,295,296,297,298,299)
+# → 7 ocorrências (linhas relativas 26,27,29,30,31,32,33 = absolutas 320,321,323,324,325,326,327)
 
 # confirma que NENHUMA delas mede vm.focus, shelf.preview, vm.mirrorOn, linkAberto,
 # vm.calendarAviso, vm.activeNotification, vm.incoming ou agentRequestExpanded

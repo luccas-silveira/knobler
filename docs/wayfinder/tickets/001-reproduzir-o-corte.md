@@ -43,7 +43,7 @@ Pomodoro/mensagem/link/screenshot no meio da expansão, e o `setExpandedDirect` 
 teria na imagem. Como métrica secundária, 0 produziram moldura menor que o conteúdo, com o
 pior excedente da varredura em 0,0 pt; esse segundo zero mede menos do que o nome sugere,
 porque `shape.fill` e o conteúdo dividem o mesmo `ZStack` sob a mesma máscara
-(`NotchView.swift:181` e `:249`) e encolhem juntos.
+(`NotchView.swift:208` e `:275`) e encolhem juntos.
 
 O zero tem três travas medidas por trás, para não ser um zero de detector cego: o controle
 positivo (quatro trocas de `mode` produzem 5 a 11 alturas de moldura distintas contra uma
@@ -59,7 +59,7 @@ Dois achados de passagem, ambos em número:
 1. **A moldura salta sem interpolar quando `focar` roda em transação vazia** — 504 → 126 pt
    entre duas fotos consecutivas, 2 alturas na série inteira. Confirma empiricamente a
    leitura de código da 002. **Mas o caminho de verdade não é esse**: clicar na faixa
-   (`NotchView.swift:986`) e o swipe (`KnoblerApp.swift:1006`) embrulham o `focar` num
+   (`NotchView.swift:1014`) e o swipe (`KnoblerApp.swift:1006`) embrulham o `focar` num
    `withAnimation(.easeOut(duration: 0.22))` — as duas únicas ocorrências de
    `withAnimation` no projeto — e aí a moldura interpola (4 alturas: 504, 486, 153, 126).
    A divergência de transação que a 002 previu existe no código, mas não produziu corte em

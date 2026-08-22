@@ -128,7 +128,7 @@ rc=0
 ```
 
 O harness exige: topo no lugar e desvio dentro da tolerância **não** acusam; 60 pt acusam
-60,0; a prova sai com os doze campos numa linha JSON e o arquivo poda em 50; a cura corre na
+60,0; a prova sai com os treze campos numa linha JSON e o arquivo poda em 50; a cura corre na
 violação e **não** corre dentro da espera; e o custo do caminho normal fica abaixo de 1 ms
 (asserção folgada de propósito — número apertado vira gate instável em máquina carregada).
 

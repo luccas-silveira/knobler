@@ -34,7 +34,7 @@ Documento auxiliar se a lista passar de meia página: `medicao-002-moldura.md`.
 
 Medição completa em [`medicao-002-moldura.md`](../medicao-002-moldura.md).
 
-Em números: `currentSize` (`Knobler/NotchView.swift:348-438`) lê **20 identificadores
+Em números: `currentSize` (`Knobler/NotchView.swift:376-466`) lê **20 identificadores
 dinâmicos**. O `interactiveNotch` (`:267-299`) tem **7** chamadas de
 `.animation(_:value:)`, das quais todas as 7 caem dentro dos 20 (2 delas — os `.active`
 de `askStore`/`agentRequestStore` — cobertas pelo `.id` correspondente). Sobram **13**
@@ -53,7 +53,7 @@ identificadores (`vm.focus`, `shelf.preview`, `vm.mirrorOn`, `linkAberto`,
 `agentRequestExpanded`) podem mudar com `mode` parado — sem trocar de caso no switch — e
 nesse caso a moldura não tem curva de animação amarrada na cadeia do `interactiveNotch`.
 Achado concreto: `expandedContent` anima `vm.focus` com a própria curva
-(`.animation(.easeOut(duration: 0.3), value: vm.focus)`, `NotchView.swift:970`), separada
+(`.animation(.easeOut(duration: 0.3), value: vm.focus)`, `NotchView.swift:998`), separada
 da `morphAnimation` do `interactiveNotch` — e `currentSize` lê `vm.focus` (`:374`, `:383`)
 sem animação equivalente. Moldura e conteúdo trocam de seção em transações diferentes,
 confirmando em código a hipótese do mapa.
