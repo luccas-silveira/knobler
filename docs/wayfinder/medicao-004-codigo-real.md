@@ -152,15 +152,18 @@ cheia. Por isso o ramo do `orderOut` foi alcançado por uma **costura** declarad
   contado como dirigido e não como mudança observável, de propósito.
 - **Corridas do binário em sequência derrubam o controle sintético.** Rodando
   `./build/cortecheck` várias vezes seguidas, o controle do detector passou a medir
-  540,0 pt em vez de 100,0 (a primeira foto sai antes do primeiro desenho) e o harness
-  abortou com código 1 — 6 vezes seguidas, e recuperou depois de uma pausa. É o controle
+  540,0 pt em vez de 100,0 e o harness abortou com código 1 — 6 vezes seguidas, e recuperou
+  depois de uma pausa. O medido é isso; "a primeira foto sai antes do primeiro desenho" é a
+  leitura compatível, não medida. É o controle
   fazendo o trabalho dele: ele aborta em vez de devolver um zero falso. Rode pelo
   `tools/cortecheck.sh`, que recompila e dá o intervalo.
 
 ## Determinismo
 
-A família `real` rodou 3 vezes pelo `tools/cortecheck.sh`: a coluna de veredicto
-(`corte=N`) saiu com o **mesmo MD5** nas corridas que completaram. O que varia é contagem de
+A família `real` rodou **3 vezes** pelo `tools/cortecheck.sh`, todas com código 0: a coluna
+de veredicto (`corte=N`) saiu com o **mesmo MD5 nas três**
+(`c0c4bef1223da3d33361af1a4a4640aa`) — e o mesmo hash saiu nas duas corridas diretas do
+binário que completaram antes disso. O que varia é contagem de
 quadros, cadência, o custo do `CGWindowListCopyWindowInfo` e quantos quadros vazios a corrida
 calha de pegar — não o veredicto.
 
