@@ -108,6 +108,20 @@ transações diferentes deixariam exatamente um quadro de estado intermediário 
 
 - [O que fazer sem a causa](tickets/005-o-que-fazer-sem-a-causa.md) — **a premissa de que uma varredura acharia a causa caiu**, e com ela o destino original. 129 combinações medidas em três varreduras, zero cortes, a última com sensibilidade provada em 8 de 8 transições. Quatro rotas foram à mesa com o custo de cada uma; o usuário escolheu **detectar, gravar e se curar** — o conserto corre só quando a medição diz que o defeito está presente, e deixa prova de que estava. O que sobrevive: a lacuna de topo como métrica, o harness como instrumento, e os dois achados laterais da 004 seguem não sendo causa.
 
+- [Detectar, gravar, curar e travar](tickets/006-aplicar-e-travar-o-gate.md) — **entregue,
+  e o custo cabe.** O invariante da lacuna de topo passou a ser medido em execução na
+  geometria de layout da `NotchView`: **134–157 ns por medida**, contra os ~21 ms que a 004
+  achou na main thread. A varredura inteira (**51 combinações**) rodou com a sonda viva e
+  gravou **zero** provas — falso positivo nenhum —, com o mesmo MD5 de veredicto da 004
+  (`c0c4bef1223da3d33361af1a4a4640aa`) em 6 corridas, 3 antes e 3 depois; a maior diferença
+  de cadência é **+1,0 Hz** de mediana, dentro dos 4,5 Hz de dispersão entre corridas do
+  mesmo estado. A violação grava doze campos em JSONL no Application Support e refaz a
+  subárvore da moldura (`.id`), com espera de 2 s entre curas. O gate
+  (`tools/cortedetectorcheck.swift`) tem duas metades — o harness e o grep da fiação na
+  `NotchView` — e **falha contra o código de antes** nos dois estados testados. Limite
+  declarado: o detector lê layout; se o defeito nascer abaixo dele, o log fica vazio — e um
+  log vazio ao lado de um corte testemunhado também é evidência.
+
 - **Achado de processo, sem ticket:** o mapa foi cartografado lendo o repositório principal com mudanças **não commitadas** no disco. O worktree onde tudo foi medido nasceu do último commit e não tinha `applyVisibility` nem o tratamento de Space — 1582 linhas contra 1668. O usuário confirmou que roda a build local com esse código, então ele é suspeito real e a 003.1 não pôde exercitá-lo. O código entrou no worktree em `f8684aa`, **só para ser medido**, e a [004](tickets/004-o-codigo-que-ele-roda.md) refaz a pergunta contra ele. A 001 e a 002 seguem íntegras: o trabalho pendente não toca `NotchView` nem `NotchViewModel`.
 
 ## Ainda não especificado
