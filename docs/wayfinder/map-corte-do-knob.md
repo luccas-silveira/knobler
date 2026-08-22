@@ -4,12 +4,18 @@ Aberto em 2026-08-21
 
 ## Destino
 
-A causa do knob aparecer cortado ao meio está identificada, corrigida e coberta por um
-gate hermético em `tools/check.sh` que falha se o defeito voltar.
+O app **detecta** o knob cortado ao meio quando isso acontece, **deixa prova** do estado em
+que aconteceu, **se cura** refazendo o layout, e um gate hermético em `tools/check.sh`
+falha se essa proteção quebrar.
 
-O mapa cobre o **desenho** do notch — moldura, máscara e animação. Não cobre a posição da
-`NotchWindow` na tela, multi-monitor, tela cheia nem sleep: o defeito se conserta com um
-ciclo de expandir/recolher, então a janela está certa e o estado de desenho é que quebra.
+Este destino foi reescrito em 2026-08-22, na [005](tickets/005-o-que-fazer-sem-a-causa.md).
+Ele dizia "causa identificada, corrigida e coberta por gate", e a causa não foi
+identificada: três varreduras com o instrumento provado mediram zero. A prova gravada é o
+que mantém a causa alcançável depois.
+
+O mapa cobre o **desenho** do notch. Posicionamento em multi-monitor e comportamento em
+tela cheia continuam fora — os eventos de janela entraram no escopo como suspeitos da
+causa, não como área a consertar.
 
 ## Notas
 
@@ -47,7 +53,8 @@ transações diferentes deixariam exatamente um quadro de estado intermediário 
 | 1. Ver o defeito fora do app | **001** reproduzir o corte no harness · **002** auditar moldura contra conteúdo | Sem repro nem inventário, qualquer conserto é chute — e o mapa inteiro assume uma hipótese que ninguém mediu. A 002 anda em paralelo porque não depende da 001: ela lê o código, não o comportamento. |
 | 2. Escolher o conserto e medir o que sobrou | **003** qual mecanismo conserta · **003.1** eventos de ambiente no harness | A 003 decidiu com repro e inventário na mão — e a repro derrubou a hipótese, então a decisão dela foi medir mais uma vez em vez de consertar. A 003.1 nasce dessa decisão e fica na fase do pai: é o mesmo instrumento, dirigido contra o ambiente em vez do estado da interface. |
 | 3. Medir contra o código que ele roda | **004** os eventos no código que ele roda | A 003.1 mediu contra um `KnoblerApp` sem o código que o usuário de fato executa. Mesma pergunta, código certo — e é a última carta antes de aceitar que o mapa não vai achar a causa varrendo. |
-| 4. Consertar e travar | **005** aplicar e blindar com gate | O gate é o que impede a regressão de voltar em três meses. A métrica dele é a lacuna de topo — "moldura menor que o conteúdo" está provada cega. |
+| 4. Decidir sem a causa | **005** o que fazer sem a causa | As três varreduras deram zero e a premissa do mapa caiu. Decisão do usuário, não do agente: as rotas têm perfis de risco muito diferentes e é ele quem paga. |
+| 5. Detectar, curar e travar | **006** detectar, gravar, curar e travar | A prova gravada é o que mantém a causa alcançável depois de o app parar de exibir o defeito. O gate mira a lacuna de topo — "moldura menor que o conteúdo" está provada cega. |
 
 ## Decisões até aqui
 
@@ -99,6 +106,8 @@ transações diferentes deixariam exatamente um quadro de estado intermediário 
 
 - [Os eventos no código que ele roda](tickets/004-o-codigo-que-ele-roda.md) — **o negativo mais forte do mapa, e também é zero.** 68 chamadas de `applyVisibility` dirigidas (58 vindas de mudança nos Ajustes, uma delas em rajada de 30 no mesmo giro), 106 varreduras da lista de janelas do sistema, 87 eventos de janela: **lacuna de topo 0,0 pt**, 51 combinações, zero cortes. O que separa esta das anteriores é a sensibilidade: **8 de 8** transições acusam um defeito plantado, nas formas persistente e transiente de 150 ms, verificado independentemente pela revisão — contra 5 das 8 cegas na 003.1. O instrumento passou a usar a `NotchWindow` de verdade. Dois achados laterais, medidos e explicitamente **não** apontados como causa: o app chama `orderFrontRegardless` com a janela já visível em 66 de 67 vezes, e `fullscreenDisplays()` custa até ~21 ms na thread principal — mais que um quadro a 60 Hz — com a opção ligada por padrão. Detalhe em [medicao-004-codigo-real.md](medicao-004-codigo-real.md).
 
+- [O que fazer sem a causa](tickets/005-o-que-fazer-sem-a-causa.md) — **a premissa de que uma varredura acharia a causa caiu**, e com ela o destino original. 129 combinações medidas em três varreduras, zero cortes, a última com sensibilidade provada em 8 de 8 transições. Quatro rotas foram à mesa com o custo de cada uma; o usuário escolheu **detectar, gravar e se curar** — o conserto corre só quando a medição diz que o defeito está presente, e deixa prova de que estava. O que sobrevive: a lacuna de topo como métrica, o harness como instrumento, e os dois achados laterais da 004 seguem não sendo causa.
+
 - **Achado de processo, sem ticket:** o mapa foi cartografado lendo o repositório principal com mudanças **não commitadas** no disco. O worktree onde tudo foi medido nasceu do último commit e não tinha `applyVisibility` nem o tratamento de Space — 1582 linhas contra 1668. O usuário confirmou que roda a build local com esse código, então ele é suspeito real e a 003.1 não pôde exercitá-lo. O código entrou no worktree em `f8684aa`, **só para ser medido**, e a [004](tickets/004-o-codigo-que-ele-roda.md) refaz a pergunta contra ele. A 001 e a 002 seguem íntegras: o trabalho pendente não toca `NotchView` nem `NotchViewModel`.
 
 ## Ainda não especificado
@@ -112,10 +121,6 @@ este instrumento.
 **O limite que sobrou é a câmera.** Fotografar um card de 530 pt custa ~200 ms, então a
 cadência cai para 2–11 Hz. Um corte que dure um quadro a 60 Hz cabe folgado entre duas
 fotos. Elevar isso não é ajuste: é outro mecanismo de captura, e ninguém especificou qual.
-
-**As rotas que continuam sobre a mesa**, as duas já apresentadas e não escolhidas:
-autodiagnóstico embarcado na build normal, que revisita a decisão de não rodar build
-instrumentada; e conserto defensivo sem causa provada, com o gate na lacuna de topo.
 
 **Os dois achados laterais da 004 podem virar trabalho próprio** — não como causa do corte,
 que eles não são, mas como custo: um ordenamento de janela redundante a cada mudança de
