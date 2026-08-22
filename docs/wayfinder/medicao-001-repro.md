@@ -172,10 +172,15 @@ forma do gate de regressão é, pelo mapa, decisão da 004 — não desta mediç
 > por um **exame de segunda câmera**, com teto de **8 fotos por camada por corrida**, que
 > custa cadência; e a varredura ganhou **8 transições de ambiente**.
 >
+> A [medição 004](medicao-004-codigo-real.md) mexeu num quinto ponto: a janela do harness
+> deixou de ser uma `NSWindow` comum e passou a ser a **`NotchWindow` de verdade** (nível
+> `.mainMenu + 3`, `isOpaque = false`, `.canJoinAllSpaces`), e a varredura ganhou mais
+> **8 transições** contra o código real.
+>
 > As **contagens de quadros** abaixo são do instrumento antigo e saem maiores hoje, "quadros
 > sem moldura NENHUMA" hoje sai bem acima da faixa de 6–15 registrada aqui (**sem teto**: 6 a
 > 38 nas corridas medidas, é cadência), e "combinações rodadas" agora é
-> **43**, não 35. Os veredictos — 0 corte, lacuna 0,0 pt, controles em 100,0 e 60,0 pt — não
+> **51**, não 35 nem 43. Os veredictos — 0 corte, lacuna 0,0 pt, controles em 100,0 e 60,0 pt — não
 > mudaram.
 >
 > **A receita de determinismo abaixo mudou** e já está corrigida aqui: a 003.1 acrescentou um

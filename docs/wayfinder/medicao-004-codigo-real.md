@@ -31,7 +31,7 @@ e estas 8 — fecha em **51 combinações, 0 corte**.
 | `real-ajustes-rajada` | 30 mudanças no **mesmo giro** (o que um campo de texto dos Ajustes faz) → 30 `applyVisibility` de uma vez, no morph | 29 | 11 Hz | 0,0 pt |
 | `real-espaco-entra-telacheia` | a troca de Space de verdade: 0,35 s → `applyVisibility` → `orderOut`; 0,35 s → `applyVisibility` → `orderFrontRegardless` | 196 | 68 Hz | 0,0 pt |
 | `real-espaco-durante-morph` | o `applyVisibility` atrasado caindo **dentro** da mola (troca a 0,05 s, efeito a 0,40 s) | 36 | 12 Hz | 0,0 pt |
-| `real-placewindows-applyvisibility` | o fim do `placeWindows`: `setFrame(igual, display: true)` + `orderFrontRegardless` e, logo depois, `applyVisibility` — dois `orderFrontRegardless` no mesmo giro | 22 | 10 Hz | 0,0 pt |
+| `real-placewindows-applyvisibility` | o fim do `placeWindows`: `setFrame(igual, display: true)` + `applyVisibility` — **um** `orderFrontRegardless`, vindo de dentro do `applyVisibility` (a réplica dirige um a mais, herdado da 003.1 — ver limites) | 22 | 10 Hz | 0,0 pt |
 | `real-telacheia-liga-desliga` | o interruptor "ocultar em tela cheia": muda `AppSettings` **e** vira o ramo da decisão, 4 vezes | 189 | 67 Hz | 0,0 pt |
 | `real-fullscreendisplays-varredura` | só o syscall: `CGWindowListCopyWindowInfo` na main thread a 33 Hz durante a mola, sem tocar na janela | 67 | 23 Hz | 0,0 pt |
 
@@ -95,11 +95,13 @@ essa chave **vem ligada por padrão** (`AppSettings.swift:260`, `flag()` devolve
 a chave não existe) e **não está gravada** no `com.zoi.knobler.plist` do usuário — ou seja, a
 varredura roda na máquina dele.
 
-**106 varreduras: mediana 0,4–0,8 ms, máximo 16,1–20,9 ms, total 90–188 ms** (faixa de
-quatro corridas). O `CGWindowListCopyWindowInfo` é síncrono e roda na main thread. O máximo
-importa: **16 a 21 ms é mais que um quadro a 60 Hz**, e ele acontece dentro do mesmo giro de
-runloop que a animação da `NotchView` precisa para desenhar. Numa rajada de Ajustes são 30
-dessas varreduras no mesmo giro.
+**106 varreduras: mediana ~0,3–0,8 ms, máximo ~14–21 ms, total ~73–188 ms** — oito corridas,
+minhas e da revisão. São **ordens de grandeza, não valores a bater**: o custo do
+`CGWindowListCopyWindowInfo` depende de quantas janelas o sistema tem abertas na hora. O que
+sobrevive à variação é a forma: submilissegundo na mediana, **mais de um quadro a 60 Hz no
+pior caso**. Ele é síncrono, roda na main thread, e cai no mesmo giro de runloop que a
+animação da `NotchView` precisa para desenhar. Numa rajada de Ajustes são 30 dessas
+varreduras no mesmo giro.
 
 Isso é um custo medido, **não uma causa**: `real-fullscreendisplays-varredura` roda 40
 varreduras a 33 Hz durante a mola, sem tocar na janela, e a lacuna de topo continua 0,0 pt.
@@ -136,6 +138,19 @@ cheia. Por isso o ramo do `orderOut` foi alcançado por uma **costura** declarad
   as chamadas de `NSWindow` e a `NotchWindow`. São réplica: o corpo das duas funções (copiado
   literalmente) e a cadência dos chamadores. Se o defeito estiver numa linha que a cópia não
   reproduz, esta medição não o vê.
+- **A réplica do `placeWindows` é a forma PRÉ-`f8684aa`, e dirige um evento a mais que o
+  app.** `placeWindowsFalso` foi herdado da 003.1 e faz `setFrame(igual, display: true)`
+  **seguido de `orderFrontRegardless()`**, que era o que o `placeWindows` fazia nas linhas
+  1195-1196 do worktree antigo. No código medido esse `orderFrontRegardless` **não existe
+  ali**: `placeWindows` faz `setFrame(frame, display: true)` (`:1256`) e, no fim,
+  `applyVisibility()` (`:1269`) — e o **único** `orderFrontRegardless` do arquivo está
+  dentro do `applyVisibility` (`:1077`), que o comentário de `:1071` chama de "único lugar
+  que ordena a janela pra frente". Ou seja: `real-placewindows-applyvisibility` dirige
+  **dois** ordenamentos onde o app dirige **um**. Isso não derruba o negativo — o harness
+  dirige um superconjunto do que o app faz, e o subconjunto puro (`setFrame` sozinho) já
+  está coberto em 0,0 pt pelas duas `ambiente-setframe-*` da 003.1. O `placeWindowsFalso`
+  ficou como está de propósito: corrigi-lo mudaria os 68/106/87 e o MD5 do determinismo,
+  forçando uma remedição inteira para trocar um superconjunto por um subconjunto já medido.
 - **Uma janela, não N.** `applyVisibility` percorre `notches` e ordena **todas** as janelas
   numa varredura só. O harness tem uma. Se o corte nascer da interação entre duas janelas
   sendo ordenadas no mesmo giro — o caso multi-monitor —, ele está fora daqui.
@@ -143,6 +158,10 @@ cheia. Por isso o ramo do `orderOut` foi alcançado por uma **costura** declarad
   medição, e entrar em tela cheia de verdade mexeria na sessão gráfica do usuário. A costura
   força a decisão; o que ela **não** encena é o que o WindowServer faz de verdade numa
   troca de Space (o Space mudando, a composição, a janela `.canJoinAllSpaces` migrando).
+- **A costura de tela cheia é fiel por sorte, não por construção.** `displayDaCena` é fixo
+  em 1 (`tools/cortecheck/main.swift`), e nesta máquina o `CGDirectDisplayID` da tela
+  principal é 1 — então o ramo real de `applyVisibility` bateria. Numa máquina onde não for,
+  só a costura `telaCheiaForcada` alcança o `orderOut`, e o ramo real nunca dispararia.
 - **Sono, troca de resolução e Space real continuam fora**, pelo mesmo motivo da 003.1: são
   eventos de sistema que atingem a máquina do usuário, não só o harness.
 - **Cadência.** Continua o limite que morde: 10–23 Hz nas transições durante morph. As oito
@@ -150,13 +169,19 @@ cheia. Por isso o ramo do `orderOut` foi alcançado por uma **costura** declarad
   corte de um quadro a 60 Hz, num acionamento só, continua podendo passar.
 - **O `orderFrontRegardless` numa janela já visível não tem estado que flipe.** Ele está
   contado como dirigido e não como mudança observável, de propósito.
-- **Corridas do binário em sequência derrubam o controle sintético.** Rodando
-  `./build/cortecheck` várias vezes seguidas, o controle do detector passou a medir
-  540,0 pt em vez de 100,0 e o harness abortou com código 1 — 6 vezes seguidas, e recuperou
-  depois de uma pausa. O medido é isso; "a primeira foto sai antes do primeiro desenho" é a
-  leitura compatível, não medida. É o controle
-  fazendo o trabalho dele: ele aborta em vez de devolver um zero falso. Rode pelo
-  `tools/cortecheck.sh`, que recompila e dá o intervalo.
+- **Duas razões para rodar pelo `tools/cortecheck.sh` e nunca pelo binário direto.**
+  1. *Intermitente:* rodando `./build/cortecheck` várias vezes seguidas, o controle do
+     detector passou a medir 540,0 pt em vez de 100,0 e o harness abortou com código 1 —
+     6 vezes seguidas numa sessão, e recuperou depois de uma pausa. **Não é
+     determinístico:** a revisão desta medição rodou 10 corridas seguidas sem pausa e o
+     controle saiu 100,0 pt em todas. O medido é isso; "a primeira foto sai antes do
+     primeiro desenho" é a leitura compatível, não medida. Ao bater nela: deixe a máquina
+     respirar e rode de novo pelo `.sh`. Ela não produz zero falso, produz aborto — o
+     controle fazendo o trabalho dele.
+  2. *Falso positivo silencioso, e este é o pior:* o binário **não recompila**. A revisão
+     reverteu a injeção de sensibilidade no fonte, rodou `./build/cortecheck` e executou o
+     binário **ainda injetado** — código 0 e "com moldura menor que o conteúdo: 8". Um
+     resultado que parece medição e é o patch de revisão. O `.sh` recompila sempre.
 
 ## Determinismo
 
@@ -195,7 +220,8 @@ CORTECHECK_FAMILIA=real ./tools/cortecheck.sh
 # observável), controle do desvio atravessando o orderOut = 60,0 pt, controle da camada
 # = 32,0 pt nos dois caminhos.
 # Dependem da máquina: contagem de quadros, Hz, o custo do CGWindowListCopyWindowInfo
-# (mediana 0,3–0,8 ms, máx 16–21 ms, total 90–188 ms em quatro corridas), quantos
+# (mediana ~0,3–0,8 ms, máx ~14–21 ms, total ~73–188 ms em oito corridas — ordem de
+# grandeza, não valor a bater: depende de quantas janelas o sistema tem abertas), quantos
 # quadros vazios a corrida produz, o contorno deles e quantas transições terminam vazias.
 # Dependem do estado da máquina AGORA: quais displays estão em tela cheia (foi "nenhum").
 

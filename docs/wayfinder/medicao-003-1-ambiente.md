@@ -18,7 +18,8 @@ conteúdo" está provada cega pela [003](tickets/003-qual-mecanismo-conserta.md)
 **8 transições de ambiente, 17 chamadas de janela dirigidas, 15 com mudança observável no
 estado da janela. 0 produziram lacuna de topo: `lacuna_topo_max = 0,0 pt` nas oito — mas
 5 das 8 estão sem sensibilidade demonstrada.** O `corte` também é 0 nas oito, e a varredura
-inteira — as 35 da 001 mais estas 8 — fecha em **43 combinações, 0 corte**.
+inteira — as 35 da 001 mais estas 8 — fechava em **43 combinações, 0 corte** (hoje são 51,
+com as 8 da [004](medicao-004-codigo-real.md); o veredicto não mudou).
 
 Sensibilidade demonstrada quer dizer: existe um defeito injetado que **essa transição
 acusou**. A revisão desta medição injetou um desvio de 40 pt gateado em `!janela.isVisible`,
@@ -217,13 +218,35 @@ leitura, não medida.
 
 ## Determinismo
 
-A família `ambiente` rodou **3 vezes** e a varredura completa (43 combinações) rodou **3
-vezes**: a coluna de veredicto das transições (`corte=N`) saiu com o **mesmo MD5 nas três**,
+A família `ambiente` rodou **3 vezes** e a varredura completa (43 combinações na época,
+51 hoje) rodou **3 vezes**: a coluna de veredicto das transições (`corte=N`) saiu com o **mesmo MD5 nas três**,
 nos dois casos. O que varia entre corridas é a contagem de quadros por transição, a cadência
 e quantos quadros vazios a corrida calha de pegar (12 a 24 na varredura completa) — não o
 veredicto.
 
 ## Verificação
+
+> **Nota de 2026-08-21, escrita pela [medição 004](medicao-004-codigo-real.md).** Dois
+> comandos deste bloco devolvem hoje o **oposto** do que está escrito, e a causa é o commit
+> `f8684aa`, que trouxe pro worktree o código não commitado do repositório principal —
+> depois desta corrida:
+>
+> - `grep -rn 'activeSpace' Knobler/*.swift` está documentado abaixo como "nada". Hoje bate
+>   em `KnoblerApp.swift:371`: o observador de troca de Space **existe** no código medido, e
+>   é a 004 que o dirige.
+> - `grep -n 'setFrame\|orderFrontRegardless\|orderOut' Knobler/KnoblerApp.swift` está
+>   documentado como `1195` / `1196` / `1205`. Hoje é `1256` (setFrame), `1077`
+>   (orderFrontRegardless, **dentro do `applyVisibility`**, o único do arquivo) e `1265`
+>   (orderOut). O `orderFrontRegardless` que o `placeWindows` fazia saiu de lá.
+>
+> E **"combinações rodadas" é 51**, não 43: a 004 acrescentou 8 transições. A janela do
+> harness também virou a **`NotchWindow` de verdade**, fechando o limite que esta medição
+> deixou escrito.
+>
+> **Os veredictos e os valores exatos desta medição não mudaram** — 0 corte nas oito, lacuna
+> 0,0 pt, 17 eventos dirigidos / 15 com mudança observável, controles em 60,0 e 32,0 pt —, e
+> a revisão da 004 os reconferiu. Só os dois `grep` de contexto e o total da varredura
+> envelheceram.
 
 ```bash
 # só a família de ambiente, com todos os controles (~1 min)
@@ -281,9 +304,9 @@ CORTECHECK_VERBOSE=1 CORTECHECK_FAMILIA=ambiente ./tools/cortecheck.sh | grep '�
 # → ambiente-orderout-volta-aberto · orderOut: visivel=sim … → visivel=nao …
 #   ambiente-setframe-muda-tamanho · setFrame(tamanho): … 900x640@… → 700x900@…
 
-# a varredura inteira, 35 da 001 + 8 de ambiente (~3 min)
+# a varredura inteira, 35 da 001 + 8 de ambiente (~3 min; hoje +8 da 004 e ~5 min)
 ./tools/cortecheck.sh | grep -E 'combinações rodadas|com moldura menor|corte= *[1-9]'
-# → combinações rodadas: 43
+# → combinações rodadas: 43 na época desta medição, 51 hoje
 #   com moldura menor que o conteúdo: 0
 #   a única linha com corte>0 é a do controle do desvio atravessando o orderOut
 #     (é exatamente o que ele prova)

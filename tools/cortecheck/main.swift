@@ -898,9 +898,12 @@ let transicoes: [Transicao] = [
                        (0.90, { $0.vm.setExpandedDirect(true) }),
                        (1.30, { c in applyVisibilityReal(c) })]),
 
-    // Chamador 1: o fim do `placeWindows`. `setFrame(_:display: true)` +
-    // `orderFrontRegardless` por tela e, logo depois, o `applyVisibility` que
-    // ordena tudo de novo — dois `orderFrontRegardless` no mesmo giro.
+    // Chamador 1: o fim do `placeWindows` — `setFrame(_:display: true)` por
+    // tela (`KnoblerApp.swift:1256`) e, no fim, `applyVisibility()` (`:1269`).
+    // UM `orderFrontRegardless`, e ele vem de dentro do `applyVisibility`
+    // (`:1077`, o único do arquivo). O `placeWindowsFalso` que esta transição
+    // reaproveita é a forma PRÉ-`f8684aa`, com um `orderFrontRegardless`
+    // próprio: ela dirige um a mais que o app. Ver os limites da medição 004.
     Transicao(nome: "real-placewindows-applyvisibility", familia: "real",
               montar: { c in
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
@@ -952,6 +955,10 @@ let transicoes: [Transicao] = [
 /// O display que a cena finge ter. `applyVisibility` decide POR display
 /// (`notches` é um dicionário por `CGDirectDisplayID`); a cena tem uma janela
 /// só, então ela é o display 1.
+// ponytail: fixo em 1 — nesta máquina o `CGDirectDisplayID` da tela principal
+// É 1, então o ramo real da costura bate por sorte, não por construção. Numa
+// máquina onde não for, só a costura `telaCheiaForcada` alcança o `orderOut`.
+// Upgrade: ler o ID de `NSScreen.main` como o `Self.displayID(of:)` do app faz.
 let displayDaCena: CGDirectDisplayID = 1
 
 /// A costura da medição, e a única parte da decisão que é encenada: liga o
@@ -1028,9 +1035,10 @@ func applyVisibilityReal(_ c: Cena) {
     }
 }
 
-/// Chamador 1: o fim do `placeWindows` (`KnoblerApp.swift:1269`) — o `setFrame`
-/// + `orderFrontRegardless` de cada tela e, logo depois, o `applyVisibility`
-/// que ordena tudo de novo. Dois `orderFrontRegardless` no mesmo giro.
+/// Chamador 1: o fim do `placeWindows` — `setFrame(_:display: true)` por tela
+/// (`KnoblerApp.swift:1256`) e, no fim, `applyVisibility()` (`:1269`). O
+/// `placeWindowsFalso` herdado da 003.1 traz um `orderFrontRegardless` próprio
+/// que o `placeWindows` de hoje NÃO tem — dirige um evento a mais que o app.
 @MainActor
 func placeWindowsReal(_ c: Cena) {
     placeWindowsFalso(c)
@@ -1075,9 +1083,11 @@ let formatModelOriginal = AppSettings.shared.formatModel
 @MainActor
 let ocultarEmTelaCheiaOriginal = AppSettings.shared.ocultarEmTelaCheia
 
-/// O `placeWindows` do app, na mesma ordem e no mesmo giro de runloop:
-/// `setFrame(_:display: true)` e `orderFrontRegardless()`
-/// (`Knobler/KnoblerApp.swift:1195`-`1196`).
+/// O `placeWindows` do app como ele era ANTES do `f8684aa`: `setFrame(_:display:
+/// true)` e `orderFrontRegardless()` no mesmo giro (eram as linhas 1195-1196).
+/// No código medido o `orderFrontRegardless` saiu daqui e mora só no
+/// `applyVisibility` (`KnoblerApp.swift:1077`). Mantido como está de propósito:
+/// mudá-lo mudaria os 87 eventos e o hash do determinismo da medição 004.
 @MainActor
 func placeWindowsFalso(_ c: Cena) {
     guard let j = c.janela else { return }
