@@ -17,7 +17,7 @@ Quatro entregas, e a ordem importa porque cada uma depende da anterior:
 desenhada e o topo onde ela deveria estar. Zero é o normal — as três varreduras mediram
 0,0 pt em 129 combinações. "Moldura menor que o conteúdo" **não serve** e está provada
 cega: forma e conteúdo dividem o mesmo `ZStack` sob o mesmo `.mask(shape)`
-(`NotchView.swift:181` e `:249`), então encolher a altura encolhe os dois juntos. Isso está
+(`NotchView.swift:207` e `:275`), então encolher a altura encolhe os dois juntos. Isso está
 medido na [003](003-qual-mecanismo-conserta.md) e não se re-discute.
 
 **2. A detecção dentro do app.** O invariante precisa ser verificado em execução, não só no

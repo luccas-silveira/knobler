@@ -71,7 +71,7 @@ confirmação empírica do que a medição 002 leu no código: esses identificad
 `.animation(_:value:)` amarrada na cadeia do `interactiveNotch`.
 
 **Mas o caminho de verdade não chama `focar` pelado.** Clicar na faixa de seções é
-`withAnimation(.easeOut(duration: 0.22)) { vm.focar(s) }` (`Knobler/NotchView.swift:986`) e
+`withAnimation(.easeOut(duration: 0.22)) { vm.focar(s) }` (`Knobler/NotchView.swift:1014`) e
 o swipe horizontal é o mesmo embrulho em volta de `focarVizinho`
 (`Knobler/KnoblerApp.swift:1006`) — as duas únicas ocorrências de `withAnimation` no
 projeto inteiro. Com a transação ambiente do app, a mesma transição interpola:
@@ -83,7 +83,7 @@ foco-link-para-atividade:  [504, 126, 126, 126, 126, ...]   (2 alturas)
 
 Ou seja: a moldura **não** anda solta no caminho que o usuário usa — ela pega carona na
 transação de 0,22 s. E o conteúdo, que tem curva própria de 0,3 s para o mesmo `vm.focus`
-(`Knobler/NotchView.swift:970`), ainda assim nunca ficou maior que a moldura em nenhuma das
+(`Knobler/NotchView.swift:998`), ainda assim nunca ficou maior que a moldura em nenhuma das
 fotos. O pior excedente medido em toda a varredura — nas 35 combinações, não só nessa
 família — foi **0,0 pt**: o conteúdo chega a encostar na borda de baixo da moldura, nunca a
 ultrapassa.
@@ -109,8 +109,8 @@ que a varredura produziu, e é reprodutível.
 ## Limites desta varredura — o que um "0 de 35" não cobre
 
 - **Encolher a moldura sozinha não vaza conteúdo.** `shape.fill(Color.black)` e o conteúdo
-  moram no MESMO `ZStack` (`Knobler/NotchView.swift:181`), e a máscara veste esse ZStack
-  inteiro (`.mask(shape)`, `:249`). Injetar uma moldura 60 pt menor que o conteúdo na
+  moram no MESMO `ZStack` (`Knobler/NotchView.swift:207`), e a máscara veste esse ZStack
+  inteiro (`.mask(shape)`, `:275`). Injetar uma moldura 60 pt menor que o conteúdo na
   `NotchView` real faz os dois encolherem juntos: a varredura acusa 0, e acusaria 0 mesmo
   com o defeito plantado. É por isso que "moldura menor que o conteúdo" ficou como métrica
   secundária e a lacuna de topo virou o número do título — essa, sim, o controle do desvio
@@ -239,9 +239,9 @@ ls /tmp/cortecheck-quadros
 
 # as duas únicas transações explícitas do projeto (o caminho de verdade da troca de foco)
 grep -rn 'withAnimation' Knobler/*.swift
-# → Knobler/NotchView.swift:986 e Knobler/KnoblerApp.swift:1006
+# → Knobler/NotchView.swift:1014 e Knobler/KnoblerApp.swift:1006
 
 # o `withAnimation` do conteúdo, com duração diferente (0.3 contra 0.22)
 grep -n '\.animation(.*value: vm\.focus)' Knobler/NotchView.swift
-# → Knobler/NotchView.swift:970
+# → Knobler/NotchView.swift:998
 ```

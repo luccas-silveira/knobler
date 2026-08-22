@@ -133,7 +133,7 @@ o controle passando num quadro estático.
 
 O mecanismo que o código sugere, e que é leitura, não medida: moldura e conteúdo do notch
 vivem no mesmo `ZStack` sob um `.compositingGroup()` seguido de `.mask(shape)`
-(`Knobler/NotchView.swift:182`, `:248`, `:249`). O `compositingGroup` junta os dois num
+(`Knobler/NotchView.swift:208`, `:274`, `:275`). O `compositingGroup` junta os dois num
 único buffer fora da tela antes da máscara — é exatamente por isso que o vazio nunca é
 parcial: em **0** dos quadros vazios (das três varreduras) havia conteúdo desenhado sem
 moldura. O grupo inteiro contribui zero pixel, ou contribui os dois.
