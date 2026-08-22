@@ -96,6 +96,17 @@ swift_check shelfdropcheck        $CONVERSAO Knobler/ShelfDrop.swift \
   Knobler/LinkBrowser.swift tools/shelfdropcheck.swift
 swift_check historycheck          Knobler/NotchNotification.swift Knobler/NotificationHistory.swift Knobler/NotchGesture.swift tools/historycheck.swift
 swift_check sectionordercheck    Knobler/NotchSectionOrder.swift tools/sectionordercheck.swift
+# Knob cortado ao meio (mapa docs/wayfinder/map-corte-do-knob.md): invariante da
+# lacuna de topo, prova e cura. O grep é a METADE do gate — o detector compila e
+# passa sozinho mesmo se um refactor arrancar a sonda ou o `.id` da cura da
+# NotchView, que é justamente como este trabalho sumiria da CI sem dar erro.
+run cortedetectorcheck bash -c '
+for p in "SensorDeCorte(vigia: vigia" "id(vigia.geracao)" "coordinateSpace(name: CorteDoKnob.espacoRaiz)"; do
+  grep -qF "$p" Knobler/NotchView.swift || { echo "sumiu da NotchView: $p"; exit 1; }
+done
+xcrun swiftc -parse-as-library -swift-version 5 \
+  Knobler/CorteDoKnob.swift tools/cortedetectorcheck.swift \
+  -o /tmp/cortedetectorcheck && /tmp/cortedetectorcheck'
 # Ganhou o mesmo bloco de arquivos do plugincheck na tarefa 8 (nota vira
 # peça): `extension QuickNote: PluginServico` (QuickNote.swift) precisa do
 # protocolo de Plugin.swift, que por sua vez arrasta os tipos que as outras
