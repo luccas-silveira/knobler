@@ -32,6 +32,9 @@ struct NotchView: View {
     var onKeyboardEligibilityChanged: ((Bool) -> Void)?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var agentRequestExpanded = false
+    /// Detecção do knob cortado ao meio: mede a lacuna de topo, grava a prova
+    /// e dispara a cura. Um por display, como a própria NotchView.
+    @StateObject private var vigia = VigiaDoCorte()
     /// Altura que o card do Ask reportou no último layout. 0 = ainda não mediu.
     @State private var askHeight: CGFloat = 0
     /// Sessão da câmera já rodando — até lá o espelho mostra o spinner.
@@ -147,6 +150,25 @@ struct NotchView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        // a raiz é o "onde a moldura deveria estar" do invariante da lacuna de
+        // topo — ver Knobler/CorteDoKnob.swift
+        .coordinateSpace(name: CorteDoKnob.espacoRaiz)
+    }
+
+    /// O retrato do instante da violação. Montado SÓ quando ela acontece.
+    private func contextoDoCorte(_ moldura: CGRect) -> ContextoDoCorte {
+        let ultimo = vm.eventos.max { $0.value < $1.value }
+        return ContextoDoCorte(
+            mode: "\(mode)",
+            foco: vm.focus?.rawValue,
+            alturaEsperada: Double(currentSize.height),
+            ultimoEvento: ultimo.map {
+                String(format: "%@ há %.1f s", $0.key.rawValue,
+                       Date().timeIntervalSince($0.value))
+            },
+            animando: abs(moldura.height - currentSize.height) > CorteDoKnob.toleranciaPt,
+            displayID: vm.displayID ?? 0,
+            notchReal: vm.hasRealNotch)
     }
 
     private var hasMusic: Bool { media.state != nil }
@@ -253,6 +275,8 @@ struct NotchView: View {
             radius: 12, y: 5
         )
         .frame(width: currentSize.width, height: currentSize.height, alignment: .top)
+        // mede a lacuna de topo da moldura desenhada; não desenha nada
+        .background(SensorDeCorte(vigia: vigia, contexto: contextoDoCorte))
         // folga invisível de hover ao redor do card aberto: jitter na borda
         // não fecha; e o hit-test cobre o retângulo todo, não só o desenhado.
         // A constante vem do NotchGesture porque a zona do scroll soma a MESMA

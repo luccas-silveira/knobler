@@ -2,6 +2,7 @@
 # Lista MANUAL: .swift novo em Knobler/ que a NotchView use entra aqui.
 # Lida por tools/snapshot.sh (poses) e tools/cortecheck.sh (transicoes).
 Knobler/NotchShape.swift
+Knobler/CorteDoKnob.swift
 Knobler/NotchView.swift
 Knobler/NotchViewModel.swift
 Knobler/AirPodsBattery.swift
