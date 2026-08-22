@@ -85,8 +85,10 @@ estado em `Snapshots/*.png` — é o jeito de "ver" a UI sem abrir o app.
 ./tools/snapshot.sh          # regenera Snapshots/*.png; leia os PNGs pra validar
 ```
 
-⚠️ A lista de arquivos em `tools/snapshot.sh` é **manual**. Ao adicionar um
-`.swift` novo em `Knobler/` que a `NotchView` use, adicione-o lá também.
+⚠️ A lista de arquivos que a `NotchView` arrasta vive em
+`tools/notchview-fontes.txt` e é **manual**. Ao adicionar um `.swift` novo em
+`Knobler/` que a `NotchView` use, acrescente-o lá — `tools/snapshot.sh` (poses) e
+`tools/cortecheck.sh` (transições) leem essa mesma lista.
 
 ⚠️ **Quatro PNGs não são determinísticos** e mudam de hash a cada rodada mesmo
 sem mudança nenhuma de código: `closed-music`, `closed-music-external`,
