@@ -2,6 +2,12 @@
 
 Aberto em 2026-08-21
 
+**Fechado em 2026-08-22** — os sete tickets fecharam. A causa não foi encontrada: 129
+combinações medidas em três varreduras, zero cortes, a última com sensibilidade provada em
+todas as transições. O mapa entrega o que a [005](tickets/005-o-que-fazer-sem-a-causa.md)
+redefiniu no lugar dela — detecção, prova, autocura e gate —, e a prova gravada é o que
+mantém a causa alcançável na próxima vez que o defeito aparecer na máquina do usuário.
+
 ## Destino
 
 O app **detecta** o knob cortado ao meio quando isso acontece, **deixa prova** do estado em
@@ -122,6 +128,8 @@ transações diferentes deixariam exatamente um quadro de estado intermediário 
   declarado: o detector lê layout; se o defeito nascer abaixo dele, o log fica vazio — e um
   log vazio ao lado de um corte testemunhado também é evidência.
 
+- [Detectar, gravar, curar e travar](tickets/006-aplicar-e-travar-o-gate.md) — **feito, e é o único ticket do mapa que escreveu código de produção.** O app mede a lacuna de topo em execução por **centenas de nanossegundos**, contra um teto de ~21 ms; quando ela quebra, grava a prova em JSONL (geometria, `mode`, seção, o que animava, o que acabou de acontecer — nenhum conteúdo do usuário) e refaz a subárvore da moldura, **só** com a violação presente. Teto de **5 curas por sessão**: depois disso continua gravando e para de reconstruir, para que uma premissa que caia num refactor futuro não vire laço permanente que reinicia câmera e avatares. Gravação com a mesma janela de 2 s, contando as suprimidas. O gate `cortedetectorcheck` trava **comportamento**, não formato: a revisão montou quatro mutantes que preservam a API e mudam a lógica, e o gate reprovou os quatro. `./tools/check.sh` = 38 ok, snapshot verde, zero falsos positivos em 51 combinações, cadência indistinguível de antes.
+
 - **Achado de processo, sem ticket:** o mapa foi cartografado lendo o repositório principal com mudanças **não commitadas** no disco. O worktree onde tudo foi medido nasceu do último commit e não tinha `applyVisibility` nem o tratamento de Space — 1582 linhas contra 1668. O usuário confirmou que roda a build local com esse código, então ele é suspeito real e a 003.1 não pôde exercitá-lo. O código entrou no worktree em `f8684aa`, **só para ser medido**, e a [004](tickets/004-o-codigo-que-ele-roda.md) refaz a pergunta contra ele. A 001 e a 002 seguem íntegras: o trabalho pendente não toca `NotchView` nem `NotchViewModel`.
 
 ## Ainda não especificado
@@ -135,6 +143,13 @@ este instrumento.
 **O limite que sobrou é a câmera.** Fotografar um card de 530 pt custa ~200 ms, então a
 cadência cai para 2–11 Hz. Um corte que dure um quadro a 60 Hz cabe folgado entre duas
 fotos. Elevar isso não é ajuste: é outro mecanismo de captura, e ninguém especificou qual.
+
+**Se a prova aparecer e apontar a causa**, o conserto dela é mapa novo — este fecha na
+detecção.
+
+**Se o defeito continuar aparecendo e o arquivo de provas ficar vazio**, a causa nasce
+abaixo da geometria de layout (composição ou buffer), e aí o caminho é outro mecanismo de
+captura, com outro custo. É o limite declarado da 006.
 
 **Os dois achados laterais da 004 podem virar trabalho próprio** — não como causa do corte,
 que eles não são, mas como custo: um ordenamento de janela redundante a cada mudança de
