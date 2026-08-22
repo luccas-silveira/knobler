@@ -12,6 +12,15 @@ enum ColorPicker {
     /// Formato copiado pro clipboard. O card mostra os outros.
     enum Format: String, CaseIterable {
         case hex, rgb, swiftUI, css
+
+        var label: String {
+            switch self {
+            case .hex: return "HEX"
+            case .rgb: return "RGB"
+            case .swiftUI: return "SwiftUI"
+            case .css: return "CSS"
+            }
+        }
     }
 
     /// Abre a lupa, copia a cor no formato escolhido e devolve a cor amostrada

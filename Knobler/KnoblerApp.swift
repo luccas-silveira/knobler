@@ -194,7 +194,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private var levelsCancellable: AnyCancellable?
-    private var visibilityCancellable: AnyCancellable?
 
     // gesto de swipe no notch (monitor local de scroll)
     private var scrollMonitor: Any?
@@ -229,7 +228,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         observeAskLifecycle()
 
         setupStatusItem()
-        setupEditMenu()
         // ⚠️ `placeWindows()` desceu pra DEPOIS do `plugins.subir()` (fim deste
         // método): a `NotchView` injeta `lanMessaging`/`messageStore` por
         // `.environmentObject`, que captura o objeto no instante em que a view é
@@ -365,18 +363,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             object: nil
         )
 
-        // entrar/sair de tela cheia troca de Space; a lista de janelas só
-        // reflete o estado final depois da transição, daí o atraso
-        NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.activeSpaceDidChangeNotification,
-            object: nil, queue: .main
-        ) { [weak self] _ in
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { self?.applyVisibility() }
-        }
-        // desligar a chave nos Ajustes devolve o notch na hora
-        visibilityCancellable = AppSettings.shared.objectWillChange
-            .sink { [weak self] in DispatchQueue.main.async { self?.applyVisibility() } }
-
         setupSwipeGestures()
 
         // API local: scripts publicam cards no notch (diferencial do Knobler)
@@ -410,9 +396,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self?.pomodoroAtivo = ativo
                 self?.pushActivity()
             },
-            fimDeFase: { [weak self] _, next in
+            fimDeFase: { [weak self] ended, next in
                 guard let self else { return }
-                let (title, body) = Self.pomodoroNotice(next: next)
+                let (title, body) = Self.pomodoroNotice(ended: ended, next: next)
                 // uma notificação só, montada FORA do laço: o id é um UUID novo a
                 // cada init, então uma por tela viraria N linhas no histórico (o
                 // dedupe do record() é por id). Os outros pontos de entrada já
@@ -1031,53 +1017,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         placeWindows()
     }
 
-    /// Displays com um app em tela cheia agora. Janela de outro processo, na
-    /// camada normal, visível e cobrindo o frame inteiro da tela = tela cheia.
-    /// `kCGWindowBounds` tem origem no topo-esquerdo da tela principal, o
-    /// oposto do `NSScreen.frame` — daí a conversão de Y.
-    // ponytail: Split View não conta — nenhuma das duas janelas cobre a tela
-    // inteira sozinha. Somar os bounds por tela resolveria, se alguém pedir.
-    private static func fullscreenDisplays() -> Set<CGDirectDisplayID> {
-        let opts: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
-        guard let janelas = CGWindowListCopyWindowInfo(opts, kCGNullWindowID) as? [[String: Any]],
-              let primeira = NSScreen.screens.first else { return [] }
-        let meuPID = ProcessInfo.processInfo.processIdentifier
-
-        let cheias: [CGRect] = janelas.compactMap { j in
-            guard (j[kCGWindowLayer as String] as? Int) == 0,
-                  (j[kCGWindowAlpha as String] as? Double ?? 1) > 0,
-                  (j[kCGWindowOwnerPID as String] as? Int32) != meuPID,
-                  let b = j[kCGWindowBounds as String] as? [String: CGFloat],
-                  let x = b["X"], let y = b["Y"], let w = b["Width"], let h = b["Height"]
-            else { return nil }
-            return CGRect(x: x, y: y, width: w, height: h)
-        }
-        guard !cheias.isEmpty else { return [] }
-
-        var ids = Set<CGDirectDisplayID>()
-        for screen in NSScreen.screens {
-            let f = screen.frame
-            let cg = CGRect(x: f.minX, y: primeira.frame.maxY - f.maxY,
-                            width: f.width, height: f.height)
-            if cheias.contains(where: { $0.insetBy(dx: -1, dy: -1).contains(cg) }) {
-                ids.insert(Self.displayID(of: screen))
-            }
-        }
-        return ids
-    }
-
-    /// Mostra/esconde cada notch conforme a tela dele estar em tela cheia.
-    /// Único lugar que ordena a janela pra frente — `placeWindows` chama no fim.
-    // ponytail: com "Monitores usam Spaces separados" desligado, entrar em tela
-    // cheia numa tela apaga as outras; corrigir exige ler o Space de cada display.
-    private func applyVisibility() {
-        let cheias = AppSettings.shared.ocultarEmTelaCheia ? Self.fullscreenDisplays() : []
-        for (id, notch) in notches {
-            if cheias.contains(id) { notch.window.orderOut(nil) }
-            else { notch.window.orderFrontRegardless() }
-        }
-    }
-
     /// Expande o card mostrando a prateleira por 1,5s e fecha. Pergunta ou
     /// ditado na tela têm prioridade → só adiciona, sem peek. Nova captura
     /// renova o timer; mouse em cima segura: o fechamento pula quem está sob o cursor.
@@ -1254,6 +1193,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 height: size.height
             )
             notch.window.setFrame(frame, display: true)
+            notch.window.orderFrontRegardless()
         }
 
         // remove janelas de monitores desconectados
@@ -1265,8 +1205,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             notch.window.orderOut(nil)
             notches.removeValue(forKey: id)
         }
-
-        applyVisibility()
     }
 
     private static func displayID(of screen: NSScreen) -> CGDirectDisplayID {
@@ -1283,8 +1221,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return CGSize(width: 200, height: max(height, 32))
     }
 
-    /// Título/corpo da notificação de fim de fase, conforme o que vem a seguir.
-    private static func pomodoroNotice(next: PomodoroPhase) -> (String, String) {
+    /// Título/corpo da notificação de fim de fase, conforme o que acabou e o que vem.
+    private static func pomodoroNotice(ended: PomodoroPhase,
+                                       next: PomodoroPhase) -> (String, String) {
         let s = AppSettings.shared
         switch next {
         case .focus:
@@ -1294,31 +1233,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .longBreak:
             return ("Foco concluído", "Pausa longa — \(s.pomodoroLongBreak) min")
         }
-    }
-
-    /// App agente (`LSUIElement`) não ganha barra de menus, e sem barra de
-    /// menus o AppKit não tem onde despachar ⌘X/⌘C/⌘V/⌘A/⌘Z — os campos de
-    /// texto do app ficavam sem copiar e colar. Este menu nunca aparece na
-    /// tela: existe só pelos atalhos, resolvidos pela responder chain
-    /// (`target` nil).
-    private func setupEditMenu() {
-        let edicao = NSMenu(title: "Edição")
-        edicao.addItem(withTitle: "Desfazer", action: Selector(("undo:")), keyEquivalent: "z")
-        let refazer = edicao.addItem(
-            withTitle: "Refazer", action: Selector(("redo:")), keyEquivalent: "z")
-        refazer.keyEquivalentModifierMask = [.command, .shift]
-        edicao.addItem(.separator())
-        edicao.addItem(withTitle: "Recortar", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
-        edicao.addItem(withTitle: "Copiar", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
-        edicao.addItem(withTitle: "Colar", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
-        edicao.addItem(withTitle: "Selecionar tudo",
-                       action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
-
-        let item = NSMenuItem()
-        item.submenu = edicao
-        let barra = NSMenu()
-        barra.addItem(item)
-        NSApp.mainMenu = barra
     }
 
     private func setupStatusItem() {

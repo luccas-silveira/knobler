@@ -53,7 +53,7 @@ final class ScreenshotWatcher {
         self.query = nil
     }
 
-    @objc private func finishedGathering(_: Notification) {
+    @objc private func finishedGathering(_ note: Notification) {
         // marca o baseline: capturas já existentes não entram no shelf
         gathered = true
     }

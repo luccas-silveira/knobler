@@ -51,7 +51,6 @@ final class Pomodoro {
     private var timer: Timer?
     /// Leitura só, pro gate: o tique de 1 s está de pé? Peça desinstalada não
     /// tem objeto nenhum, então nem esta pergunta existe.
-    // periphery:ignore
     var timerAtivo: Bool { timer != nil }
 
     // MARK: - Ações
@@ -194,7 +193,6 @@ extension Pomodoro {
         }
     }
 
-    // periphery:ignore
     static func selfCheck() {
         // foco natural 1..3 (cyclesUntilLong=4) → pausa curta, contador sobe
         assert(advance(from: .focus, completedFocus: 0, cyclesUntilLong: 4, counts: true) == (.shortBreak, 1))

@@ -70,7 +70,6 @@ enum WebhookPresets {
 
     /// O primeiro preset cuja assinatura mínima bate com o payload. Nenhum = nil
     /// (o payload real segue valendo; quem some é o preset).
-    // periphery:ignore
     static func reconhece(_ payload: JSONValue?) -> WebhookPreset? {
         todos.first { p in p.assinatura.allSatisfy { node(at: $0, payload) != nil } }
     }

@@ -216,6 +216,11 @@ final class DevAvisosController {
         self.timer = timer
     }
 
+    func stop() {
+        timer?.invalidate()
+        timer = nil
+    }
+
     /// Chamado na main queue (timer e launch). O toggle e os vistos são lidos
     /// aqui, antes do request: ler de dentro do callback exigiria um
     /// `main.sync`, que é deadlock esperando acontecer.
