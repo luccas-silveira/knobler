@@ -146,7 +146,11 @@ struct NotchView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // a cura: o `.id` só muda quando o vigia mede uma violação da
+            // lacuna de topo, e trocá-lo reconstrói a subárvore da moldura —
+            // o mesmo efeito do ciclo manual de expandir/recolher
             interactiveNotch
+                .id(vigia.geracao)
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

@@ -149,7 +149,14 @@ final class VigiaDoCorte: ObservableObject {
     @Published private(set) var geracao = 0
 
     private(set) var violacoes = 0
+    private(set) var curas = 0
     private(set) var ultimaProva: ProvaDoCorte?
+
+    /// Espera mínima entre duas curas. A cura reconstrói a subárvore, o que
+    /// gera geometria nova, que volta pro vigia: sem a espera, um defeito que
+    /// sobrevivesse ao remendo viraria laço de reconstrução.
+    let esperaEntreCuras: TimeInterval = 2
+    private var ultimaCura: Date?
 
     private let registro: RegistroDeProvas
 
@@ -165,11 +172,21 @@ final class VigiaDoCorte: ObservableObject {
         let lacuna = CorteDoKnob.lacunaDeTopo(molduraMinY: moldura.minY)
         guard CorteDoKnob.viola(lacuna: lacuna) else { return false }
         violacoes += 1
+        // A CURA, e só aqui: refazer a subárvore da moldura é o que o ciclo
+        // manual de expandir/recolher faz pro usuário. O gatilho é a violação
+        // medida — um refazimento sem defeito presente seria o remendo cego
+        // que a 005 rejeitou.
+        let curar = agora.timeIntervalSince(ultimaCura ?? .distantPast) >= esperaEntreCuras
         let prova = ProvaDoCorte(data: agora, lacunaPt: Double(lacuna),
                                  moldura: moldura, contexto: contexto(),
-                                 violacao: violacoes, curou: false)
+                                 violacao: violacoes, curou: curar)
         ultimaProva = prova
         registro.gravar(prova)
+        if curar {
+            ultimaCura = agora
+            curas += 1
+            geracao += 1
+        }
         return true
     }
 }
