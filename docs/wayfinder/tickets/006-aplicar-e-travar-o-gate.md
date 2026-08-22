@@ -15,7 +15,7 @@ Quatro entregas, e a ordem importa porque cada uma depende da anterior:
 
 **1. O invariante.** A métrica é a **lacuna de topo**: a distância entre o topo da moldura
 desenhada e o topo onde ela deveria estar. Zero é o normal — as três varreduras mediram
-0,0 pt em 129 combinações. "Moldura menor que o conteúdo" **não serve** e está provada
+0,0 pt nas 51 combinações distintas das três varreduras (35 → 43 → 51, cumulativos). "Moldura menor que o conteúdo" **não serve** e está provada
 cega: forma e conteúdo dividem o mesmo `ZStack` sob o mesmo `.mask(shape)`
 (`NotchView.swift:207` e `:275`), então encolher a altura encolhe os dois juntos. Isso está
 medido na [003](003-qual-mecanismo-conserta.md) e não se re-discute.

@@ -2,8 +2,9 @@
 
 Aberto em 2026-08-21
 
-**Fechado em 2026-08-22** — os sete tickets fecharam. A causa não foi encontrada: 129
-combinações medidas em três varreduras, zero cortes, a última com sensibilidade provada em
+**Fechado em 2026-08-22** — os sete tickets fecharam. A causa não foi encontrada: **51
+combinações distintas**, varridas três vezes conforme o instrumento crescia (35 → 43 → 51,
+totais cumulativos e não somáveis), zero cortes, a última com sensibilidade provada em
 todas as transições. O mapa entrega o que a [005](tickets/005-o-que-fazer-sem-a-causa.md)
 redefiniu no lugar dela — detecção, prova, autocura e gate —, e a prova gravada é o que
 mantém a causa alcançável na próxima vez que o defeito aparecer na máquina do usuário.
@@ -112,7 +113,7 @@ transações diferentes deixariam exatamente um quadro de estado intermediário 
 
 - [Os eventos no código que ele roda](tickets/004-o-codigo-que-ele-roda.md) — **o negativo mais forte do mapa, e também é zero.** 68 chamadas de `applyVisibility` dirigidas (58 vindas de mudança nos Ajustes, uma delas em rajada de 30 no mesmo giro), 106 varreduras da lista de janelas do sistema, 87 eventos de janela: **lacuna de topo 0,0 pt**, 51 combinações, zero cortes. O que separa esta das anteriores é a sensibilidade: **8 de 8** transições acusam um defeito plantado, nas formas persistente e transiente de 150 ms, verificado independentemente pela revisão — contra 5 das 8 cegas na 003.1. O instrumento passou a usar a `NotchWindow` de verdade. Dois achados laterais, medidos e explicitamente **não** apontados como causa: o app chama `orderFrontRegardless` com a janela já visível em 66 de 67 vezes, e `fullscreenDisplays()` custa até ~21 ms na thread principal — mais que um quadro a 60 Hz — com a opção ligada por padrão. Detalhe em [medicao-004-codigo-real.md](medicao-004-codigo-real.md).
 
-- [O que fazer sem a causa](tickets/005-o-que-fazer-sem-a-causa.md) — **a premissa de que uma varredura acharia a causa caiu**, e com ela o destino original. 129 combinações medidas em três varreduras, zero cortes, a última com sensibilidade provada em 8 de 8 transições. Quatro rotas foram à mesa com o custo de cada uma; o usuário escolheu **detectar, gravar e se curar** — o conserto corre só quando a medição diz que o defeito está presente, e deixa prova de que estava. O que sobrevive: a lacuna de topo como métrica, o harness como instrumento, e os dois achados laterais da 004 seguem não sendo causa.
+- [O que fazer sem a causa](tickets/005-o-que-fazer-sem-a-causa.md) — **a premissa de que uma varredura acharia a causa caiu**, e com ela o destino original. 51 combinações distintas, varridas três vezes conforme o instrumento crescia (35 → 43 → 51, cumulativos), zero cortes, a última com sensibilidade provada em 8 de 8 transições. Quatro rotas foram à mesa com o custo de cada uma; o usuário escolheu **detectar, gravar e se curar** — o conserto corre só quando a medição diz que o defeito está presente, e deixa prova de que estava. O que sobrevive: a lacuna de topo como métrica, o harness como instrumento, e os dois achados laterais da 004 seguem não sendo causa.
 
 - [Detectar, gravar, curar e travar](tickets/006-aplicar-e-travar-o-gate.md) — **entregue,
   e o custo cabe.** O invariante da lacuna de topo passou a ser medido em execução na
@@ -134,9 +135,12 @@ transações diferentes deixariam exatamente um quadro de estado intermediário 
 
 ## Ainda não especificado
 
-**O mapa varreu tudo o que dava para varrer, e não achou.** Estado da interface (35
-combinações), ambiente simulado (43) e o código real que o usuário executa (51): zero
-cortes nas três, a última com sensibilidade provada em todas as transições. O destino
+**O mapa varreu tudo o que dava para varrer, e não achou.** São **51 combinações
+distintas**, varridas três vezes conforme o instrumento crescia: estado da interface (35),
+mais ambiente simulado (43 no total) e mais o código real que o usuário executa (51 no
+total). Os totais são **cumulativos** — a 003.1 e a 004 dizem isso nelas mesmas —, então
+não se somam. Zero cortes nas três, a última com sensibilidade provada em todas as
+transições. O destino
 "causa raiz achada" não foi alcançado por varredura, e não há mais varredura a fazer com
 este instrumento.
 

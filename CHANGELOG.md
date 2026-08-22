@@ -12,7 +12,10 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   sem syscall e sem captura de tela); a violação grava uma linha JSON em
   `Application Support/Knobler/corte-do-knob.jsonl` — geometria, modo, seção em
   foco, o que animava e o último evento — e refaz o layout, o mesmo efeito do
-  ciclo de expandir/recolher. O conserto corre só quando a medição acusa. Gate
+  ciclo de expandir/recolher, no máximo cinco vezes por sessão. O conserto corre só
+  quando a medição acusa — e a evidência das três varreduras diz que ele deve
+  disparar raramente ou nunca: a medida enxerga a geometria de layout, e se o
+  defeito nascer abaixo dela o log fica vazio, o que também é informação. Gate
   hermético em `tools/cortedetectorcheck.swift`.
 - O notch some na tela que estiver com um app em tela cheia, e volta ao sair.
   Chave em Ajustes › Notch › Visibilidade, ligada por padrão.

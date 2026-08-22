@@ -108,6 +108,11 @@ que a varredura produziu, e é reprodutível.
 
 ## Limites desta varredura — o que um "0 de 35" não cobre
 
+- **Rodar o harness acende a câmera do Mac.** Dez transições ligam o espelho
+  (`vm.mirrorOn = true` em `tools/cortecheck/main.swift`), e com ele a
+  `AVCaptureSession` e a luz verde. É esperado, some no fim da corrida, e é o motivo de
+  `./tools/cortecheck.sh` não ser um comando para rodar em reunião.
+
 - **Encolher a moldura sozinha não vaza conteúdo.** `shape.fill(Color.black)` e o conteúdo
   moram no MESMO `ZStack` (`Knobler/NotchView.swift:207`), e a máscara veste esse ZStack
   inteiro (`.mask(shape)`, `:275`). Injetar uma moldura 60 pt menor que o conteúdo na

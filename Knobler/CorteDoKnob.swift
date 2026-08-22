@@ -3,9 +3,10 @@
 //  Knobler
 //
 //  O knob às vezes aparece cortado ao meio — só a metade de baixo, na posição
-//  certa —, e um ciclo de expandir/recolher conserta. Cinco medições varreram
-//  129 combinações (estado da interface, ambiente simulado e o código real do
-//  usuário) e não acharam a causa; a decisão da 005 foi detectar, gravar a
+//  certa —, e um ciclo de expandir/recolher conserta. Três varreduras cobriram
+//  51 combinações distintas (estado da interface, ambiente simulado e o código
+//  real do usuário; os totais 35 → 43 → 51 são cumulativos, não somáveis) e
+//  não acharam a causa; a decisão da 005 foi detectar, gravar a
 //  prova e se curar, com o conserto disparado SÓ pela violação medida.
 //
 //  O invariante é a LACUNA DE TOPO: a distância entre o topo da moldura
