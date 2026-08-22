@@ -67,6 +67,8 @@ struct ProvaDoCorte {
     /// Quantas violações já tinham acontecido nesta sessão, contando esta.
     var violacao: Int
     var curou: Bool
+    /// Violações que caíram dentro da janela desta prova e não viraram linha.
+    var suprimidas: Int = 0
 
     var json: [String: Any] {
         [
@@ -82,6 +84,7 @@ struct ProvaDoCorte {
             "display": Int(contexto.displayID),
             "notch_real": contexto.notchReal,
             "violacao": violacao,
+            "violacoes_suprimidas": suprimidas,
             "curou": curou,
         ]
     }
@@ -152,11 +155,25 @@ final class VigiaDoCorte: ObservableObject {
     private(set) var curas = 0
     private(set) var ultimaProva: ProvaDoCorte?
 
-    /// Espera mínima entre duas curas. A cura reconstrói a subárvore, o que
-    /// gera geometria nova, que volta pro vigia: sem a espera, um defeito que
-    /// sobrevivesse ao remendo viraria laço de reconstrução.
+    /// Espera mínima entre duas curas — e a mesma janela vale pra gravação da
+    /// prova. A cura reconstrói a subárvore, o que gera geometria nova, que
+    /// volta pro vigia; e o `onChange` da sonda dispara uma vez por passada de
+    /// layout, então um defeito presente durante um morph produziria 60–120
+    /// provas por segundo do mesmo instante. Uma delas diz o que 120 dizem.
     let esperaEntreCuras: TimeInterval = 2
     private var ultimaCura: Date?
+    private var ultimaGravacao: Date?
+    private var suprimidas = 0
+
+    /// Teto de curas por sessão. O invariante vale "por construção" — raiz
+    /// ancorada no topo —, mas um `.padding(.top)` ou um `Spacer` acima num
+    /// refactor futuro tornaria `minY` legitimamente ≠ 0, e aí a cura
+    /// reconstruiria o card pra sempre: a `MirrorPreviewView` reinicia a
+    /// AVCaptureSession (com a luz da câmera), o `RemoteAvatarLoader` refaz a
+    /// rede, o scroll volta ao topo. Passado o teto, o vigia continua GRAVANDO
+    /// e para de curar — o log dizendo que o defeito sobreviveu a 5 curas é o
+    /// sinal diagnóstico.
+    let maximoDeCuras = 5
 
     private let registro: RegistroDeProvas
 
@@ -176,11 +193,22 @@ final class VigiaDoCorte: ObservableObject {
         // manual de expandir/recolher faz pro usuário. O gatilho é a violação
         // medida — um refazimento sem defeito presente seria o remendo cego
         // que a 005 rejeitou.
-        let curar = agora.timeIntervalSince(ultimaCura ?? .distantPast) >= esperaEntreCuras
+        let curar = curas < maximoDeCuras
+            && agora.timeIntervalSince(ultimaCura ?? .distantPast) >= esperaEntreCuras
+        // grava sempre que cura (o evento importa) ou uma vez por janela
+        guard curar
+            || agora.timeIntervalSince(ultimaGravacao ?? .distantPast) >= esperaEntreCuras
+        else {
+            suprimidas += 1
+            return true
+        }
         let prova = ProvaDoCorte(data: agora, lacunaPt: Double(lacuna),
                                  moldura: moldura, contexto: contexto(),
-                                 violacao: violacoes, curou: curar)
+                                 violacao: violacoes, curou: curar,
+                                 suprimidas: suprimidas)
         ultimaProva = prova
+        ultimaGravacao = agora
+        suprimidas = 0
         registro.gravar(prova)
         if curar {
             ultimaCura = agora

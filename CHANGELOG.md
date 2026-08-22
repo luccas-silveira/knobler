@@ -8,8 +8,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ### Added
 - O knob detecta quando aparece cortado ao meio, grava a prova e se cura sozinho.
-  A medida é a lacuna de topo da moldura (134–157 ns por medida, sem syscall e sem
-  captura de tela); a violação grava uma linha JSON em
+  A medida é a lacuna de topo da moldura (centenas de nanossegundos por medida, sob 1 µs,
+  sem syscall e sem captura de tela); a violação grava uma linha JSON em
   `Application Support/Knobler/corte-do-knob.jsonl` — geometria, modo, seção em
   foco, o que animava e o último evento — e refaz o layout, o mesmo efeito do
   ciclo de expandir/recolher. O conserto corre só quando a medição acusa. Gate

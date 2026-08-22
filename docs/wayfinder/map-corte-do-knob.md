@@ -110,8 +110,8 @@ transações diferentes deixariam exatamente um quadro de estado intermediário 
 
 - [Detectar, gravar, curar e travar](tickets/006-aplicar-e-travar-o-gate.md) — **entregue,
   e o custo cabe.** O invariante da lacuna de topo passou a ser medido em execução na
-  geometria de layout da `NotchView`: **134–157 ns por medida**, contra os ~21 ms que a 004
-  achou na main thread. A varredura inteira (**51 combinações**) rodou com a sonda viva e
+  geometria de layout da `NotchView`: **centenas de nanossegundos por medida, sob 1 µs**,
+  contra os ~21 ms que a 004 achou na main thread. A varredura inteira (**51 combinações**) rodou com a sonda viva e
   gravou **zero** provas — falso positivo nenhum —, com o mesmo MD5 de veredicto da 004
   (`c0c4bef1223da3d33361af1a4a4640aa`) em 6 corridas, 3 antes e 3 depois; a maior diferença
   de cadência é **+1,0 Hz** de mediana, dentro dos 4,5 Hz de dispersão entre corridas do

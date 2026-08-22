@@ -74,7 +74,7 @@ Dois números medidos, não estimados:
 
 | O que | Medido | Teto da 006 |
 |---|---|---|
-| Caminho normal do invariante | **134–157 ns por medida** (100 000 medidas, 2 corridas) | os ~21 ms de `fullscreenDisplays()` da [004](../medicao-004-codigo-real.md) |
+| Caminho normal do invariante | **centenas de nanossegundos por medida, sob 1 µs** (100 000 medidas por corrida; 134–311 ns em seis corridas, minhas e da revisão) | os ~21 ms de `fullscreenDisplays()` da [004](../medicao-004-codigo-real.md) |
 | Cadência da varredura `real` com a sonda viva | medianas por transição **10,0–70,2 Hz** contra **9,9–70,6 Hz** sem ela (3 corridas de cada estado) | — |
 
 O maior delta de mediana é **+1,0 Hz** (`real-ajustes-durante-morph`), e a dispersão entre
@@ -149,6 +149,30 @@ torna a entrega meia: um log de provas **vazio** ao lado de um corte testemunhad
 usuário é, ele próprio, evidência — joga a causa para baixo do layout e mata a hipótese de
 transação divergente da [002](../medicao-002-moldura.md), que é a única que o mapa ainda
 tinha de pé.
+
+**Consertos da revisão (2026-08-22), com o gate estendido junto.**
+
+- **Teto de 5 curas por sessão.** A espera de 2 s impede o laço apertado, não o total. O
+  invariante vale "por construção" — raiz ancorada no topo —, mas um `.padding(.top)` ou um
+  `Spacer` acima num refactor futuro tornaria `minY` legitimamente ≠ 0, e aí **toda**
+  interação espaçada de mais de 2 s reconstruiria a subárvore: a `MirrorPreviewView`
+  reinicia a `AVCaptureSession` (luz da câmera junto), o `RemoteAvatarLoader` refaz a rede,
+  o scroll volta ao topo. Passado o teto o vigia **continua gravando** e para de curar — o
+  log dizendo que o defeito sobreviveu a 5 curas é o sinal diagnóstico.
+- **A gravação ganhou a mesma janela de 2 s da cura.** O `onChange` da sonda dispara uma vez
+  por passada de layout: com o defeito presente durante um morph seriam 60–120 `log.error`
+  por segundo e outras tantas regravações atômicas do arquivo inteiro numa fila serial. As
+  violações suprimidas entram contadas no campo `violacoes_suprimidas` da próxima prova
+  (treze campos agora). Grava sempre que cura, porque o evento importa.
+- **O número do custo virou ordem de grandeza.** As corridas da revisão deram 257–311 ns
+  contra os 134–174 das minhas: o harness compila **sem `-O`** e o valor anda por fator ~2.
+  O CHANGELOG e o mapa passam a dizer "centenas de nanossegundos, sob 1 µs"; a asserção
+  folgada do harness (`< 1 ms`) já era a forma certa e ficou.
+
+O gate novo **falha contra a lógica de antes destes consertos**: compilado contra o
+`CorteDoKnob.swift` do commit anterior, o harness dá **16 erros de compilação** (`value of
+type 'ProvaDoCorte' has no member 'suprimidas'` e os `vigia.maximoDeCuras`) e binário
+nenhum — o `&&` da linha do `check.sh` derruba o gate.
 
 **Não tocado, de propósito:** os dois achados laterais da 004 (`orderFrontRegardless`
 redundante e os 21 ms de `fullscreenDisplays()`) continuam não sendo causa e não foram

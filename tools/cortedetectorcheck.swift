@@ -78,7 +78,8 @@ enum Gate {
         //    animava, o que acabou de acontecer — e onde.
         let json = prova.json
         for campo in ["data", "lacuna_pt", "moldura", "altura_esperada", "mode", "foco",
-                      "ultimo_evento", "animando", "display", "notch_real", "violacao", "curou"] {
+                      "ultimo_evento", "animando", "display", "notch_real", "violacao",
+                      "violacoes_suprimidas", "curou"] {
             exigir(json[campo] != nil, "a prova não tem o campo \(campo)")
         }
         let linha = prova.linha
@@ -86,17 +87,43 @@ enum Gate {
                 && !linha.contains("\n"),
                "a linha da prova não é um JSON de uma linha: \(linha)")
 
-        // 4. A espera entre curas: a segunda violação grava e NÃO cura.
+        // 4. A janela de 2 s: a segunda violação conta, NÃO grava e NÃO cura —
+        //    durante um morph a sonda dispara a cada passada de layout, e 120
+        //    provas do mesmo instante dizem o que 1 diz.
         exigir(vigia.avaliar(moldura: cortado, contexto: contexto(), agora: agora.addingTimeInterval(0.5)),
                "a segunda violação não acusou")
         exigir(vigia.violacoes == 2 && vigia.curas == 1 && vigia.geracao == 1,
                "curou dentro da espera de \(vigia.esperaEntreCuras) s")
-        exigir(vigia.ultimaProva?.curou == false, "a prova diz que curou dentro da espera")
-        // passada a espera, cura de novo
+        exigir(vigia.ultimaProva?.violacao == 1,
+               "gravou prova dentro da janela (deveria só contar como suprimida)")
+        // passada a janela, grava de novo — com a suprimida contada — e cura
         exigir(vigia.avaliar(moldura: cortado, contexto: contexto(),
                              agora: agora.addingTimeInterval(vigia.esperaEntreCuras + 0.1)),
                "a terceira violação não acusou")
         exigir(vigia.curas == 2 && vigia.geracao == 2, "não curou depois da espera")
+        exigir(vigia.ultimaProva?.suprimidas == 1,
+               "a prova não contou a violação suprimida: \(vigia.ultimaProva?.suprimidas ?? -1)")
+
+        // 4b. O TETO de curas. Passado ele o vigia continua gravando e para de
+        //     reconstruir: cada cura reinicia a câmera do espelho e os avatares,
+        //     e um invariante que virasse falso por refactor curaria pra sempre.
+        var t = vigia.esperaEntreCuras + 0.1
+        while vigia.curas < vigia.maximoDeCuras {
+            t += vigia.esperaEntreCuras + 0.1
+            vigia.avaliar(moldura: cortado, contexto: contexto(), agora: agora.addingTimeInterval(t))
+            exigir(t < 100, "o teto de curas nunca foi alcançado")
+        }
+        exigir(vigia.geracao == vigia.maximoDeCuras,
+               "geração \(vigia.geracao) ≠ teto \(vigia.maximoDeCuras)")
+        let violacoesNoTeto = vigia.violacoes
+        t += vigia.esperaEntreCuras + 0.1
+        exigir(vigia.avaliar(moldura: cortado, contexto: contexto(), agora: agora.addingTimeInterval(t)),
+               "a violação depois do teto não acusou")
+        exigir(vigia.curas == vigia.maximoDeCuras && vigia.geracao == vigia.maximoDeCuras,
+               "curou além do teto de \(vigia.maximoDeCuras)")
+        exigir(vigia.violacoes == violacoesNoTeto + 1, "parou de contar violação depois do teto")
+        exigir(vigia.ultimaProva?.violacao == vigia.violacoes && vigia.ultimaProva?.curou == false,
+               "parou de gravar a prova depois do teto — é o sinal diagnóstico")
 
         // 5. A prova persiste, e o arquivo não cresce sem fim.
         for i in 0..<60 {
@@ -120,14 +147,18 @@ enum Gate {
         //    de desenho por medida. Teto da 006: os ~21 ms da varredura
         //    síncrona da 004 são o que NÃO fazer. Asserção folgada de propósito
         //    (1 ms): número apertado vira gate instável em máquina carregada.
+        let violacoesAntesDoCusto = vigia.violacoes
         let n = 100_000
         let t0 = DispatchTime.now().uptimeNanoseconds
         for i in 0..<n {
             vigia.avaliar(moldura: moldura(topo: CGFloat(i % 2)), contexto: contexto(), agora: agora)
         }
         let ns = Double(DispatchTime.now().uptimeNanoseconds - t0) / Double(n)
-        print(String(format: "custo do invariante: %.0f ns por medida (%d medidas)", ns, n))
-        exigir(vigia.violacoes == 3, "o caminho normal contou violação no laço de custo")
+        // build sem -O: o número anda entre corridas (~130-290 ns medidos). O
+        // que o gate trava é a ordem de grandeza, não o valor.
+        print(String(format: "custo do invariante: %.0f ns por medida (%d medidas, sem -O)", ns, n))
+        exigir(vigia.violacoes == violacoesAntesDoCusto,
+               "o caminho normal contou violação no laço de custo")
         exigir(ns < 1_000_000, "o invariante custa \(ns) ns por medida — mais de 1 ms")
 
         print("cortedetectorcheck ok — invariante, prova e cura travados")
