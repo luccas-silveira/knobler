@@ -97,20 +97,30 @@ transações diferentes deixariam exatamente um quadro de estado intermediário 
   ambiente simulado (8) e código real (8) foram varridos, e nenhum reproduz. Detalhe e
   comandos em [medicao-004-codigo-real.md](medicao-004-codigo-real.md).
 
+- [Os eventos no código que ele roda](tickets/004-o-codigo-que-ele-roda.md) — **o negativo mais forte do mapa, e também é zero.** 68 chamadas de `applyVisibility` dirigidas (58 vindas de mudança nos Ajustes, uma delas em rajada de 30 no mesmo giro), 106 varreduras da lista de janelas do sistema, 87 eventos de janela: **lacuna de topo 0,0 pt**, 51 combinações, zero cortes. O que separa esta das anteriores é a sensibilidade: **8 de 8** transições acusam um defeito plantado, nas formas persistente e transiente de 150 ms, verificado independentemente pela revisão — contra 5 das 8 cegas na 003.1. O instrumento passou a usar a `NotchWindow` de verdade. Dois achados laterais, medidos e explicitamente **não** apontados como causa: o app chama `orderFrontRegardless` com a janela já visível em 66 de 67 vezes, e `fullscreenDisplays()` custa até ~21 ms na thread principal — mais que um quadro a 60 Hz — com a opção ligada por padrão. Detalhe em [medicao-004-codigo-real.md](medicao-004-codigo-real.md).
+
 - **Achado de processo, sem ticket:** o mapa foi cartografado lendo o repositório principal com mudanças **não commitadas** no disco. O worktree onde tudo foi medido nasceu do último commit e não tinha `applyVisibility` nem o tratamento de Space — 1582 linhas contra 1668. O usuário confirmou que roda a build local com esse código, então ele é suspeito real e a 003.1 não pôde exercitá-lo. O código entrou no worktree em `f8684aa`, **só para ser medido**, e a [004](tickets/004-o-codigo-que-ele-roda.md) refaz a pergunta contra ele. A 001 e a 002 seguem íntegras: o trabalho pendente não toca `NotchView` nem `NotchViewModel`.
 
 ## Ainda não especificado
 
-**O que fazer agora que a varredura inteira voltou de mãos vazias.** A 003.1 voltou com
-43 combinações e a 004 fechou em 51, todas em 0 corte — inclusive contra o código que o
-usuário roda. Duas rotas já apresentadas e não escolhidas continuam disponíveis: autodiagnóstico embarcado na build normal (que revisita
-a decisão de não rodar build instrumentada) e conserto defensivo sem causa provada. A
-terceira possibilidade — o defeito depender de hardware que nenhum harness alcança — não
-tem rota escrita ainda.
+**O mapa varreu tudo o que dava para varrer, e não achou.** Estado da interface (35
+combinações), ambiente simulado (43) e o código real que o usuário executa (51): zero
+cortes nas três, a última com sensibilidade provada em todas as transições. O destino
+"causa raiz achada" não foi alcançado por varredura, e não há mais varredura a fazer com
+este instrumento.
 
-**Forma do gate de regressão.** Só dá para escrever depois de conhecer a causa. Snapshot
-comparado, asserção sobre a matemática da altura ou harness de transição são candidatos
-com custos diferentes.
+**O limite que sobrou é a câmera.** Fotografar um card de 530 pt custa ~200 ms, então a
+cadência cai para 2–11 Hz. Um corte que dure um quadro a 60 Hz cabe folgado entre duas
+fotos. Elevar isso não é ajuste: é outro mecanismo de captura, e ninguém especificou qual.
+
+**As rotas que continuam sobre a mesa**, as duas já apresentadas e não escolhidas:
+autodiagnóstico embarcado na build normal, que revisita a decisão de não rodar build
+instrumentada; e conserto defensivo sem causa provada, com o gate na lacuna de topo.
+
+**Os dois achados laterais da 004 podem virar trabalho próprio** — não como causa do corte,
+que eles não são, mas como custo: um ordenamento de janela redundante a cada mudança de
+Ajuste, e uma varredura síncrona de até 21 ms na thread principal. Se virarem ticket, é
+outro mapa: o destino deste é o corte.
 
 ## Fora de escopo
 
