@@ -18,6 +18,7 @@
 //
 
 import AppKit
+import Combine
 import ImageIO
 import Network
 import SwiftUI
@@ -209,6 +210,10 @@ final class Cena {
     /// A janela que hospeda a view. Preenchida pelo `rodar` — é por ela que as
     /// transições de AMBIENTE (orderOut, setFrame) mexem no que o app mexe.
     var janela: NSWindow?
+    /// Assinatura de `AppSettings.objectWillChange` → `applyVisibility`, a
+    /// mesma de `KnoblerApp.swift:377`-`378`. Uma por transição: o `rodar` a
+    /// desfaz no fim, senão a transição seguinte herdaria o assinante.
+    var visibilityCancellable: AnyCancellable?
     let vm = NotchViewModel()
     let media = MediaController()
     let shelf = ShelfStore()
@@ -820,7 +825,255 @@ let transicoes: [Transicao] = [
                                           width: janelaLargura, height: janelaAltura)
                            evento(c, "setFrame(tamanho de volta)", { $0.setFrame(f, display: true) })
                        })]),
+    // ---- 004: o código que o usuário roda de verdade. `applyVisibility`
+    // (`KnoblerApp.swift:1073`), o `fullscreenDisplays()` que ela varre a cada
+    // chamada, e os TRÊS chamadores com as cadências deles: o fim do
+    // `placeWindows` (`:1269`), 0,35 s depois de cada troca de Space
+    // (`:371`-`374`) e CADA mudança em `AppSettings` (`:377`-`378`).
+
+    // Chamador 3, parado: o notch na pilulinha e os Ajustes mudando. Cada
+    // mudança ordena a janela pra frente OUTRA VEZ, já visível, e varre a lista
+    // de janelas do sistema antes.
+    Transicao(nome: "real-ajustes-parado", familia: "real",
+              montar: { c in
+                  c.vm.expanded = false
+                  assinarAjustes(c)
+              },
+              passos: (0..<12).map { i -> (TimeInterval, Acao) in
+                  (Double(i) * 0.05, { _ in mudarUmAjuste() })
+              }),
+
+    // O mesmo, com a mola do morph correndo por cima: é a combinação que o
+    // usuário produz mexendo nos Ajustes com o card abrindo ou fechando.
+    Transicao(nome: "real-ajustes-durante-morph", familia: "real",
+              montar: { c in
+                  LinkPreview.shared.abrir(linkDeTeste, on: 1)
+                  c.vm.expanded = true
+                  assinarAjustes(c)
+              },
+              foco: .link,
+              passos: [(0, { $0.vm.setExpandedDirect(false) })]
+                  + (0..<16).map { i -> (TimeInterval, Acao) in
+                      (0.02 + Double(i) * 0.02, { _ in mudarUmAjuste() })
+                  }
+                  + [(0.90, { $0.vm.setExpandedDirect(true) })]),
+
+    // A rajada: 30 mudanças no MESMO giro de runloop (o que um campo de texto
+    // ou um slider dos Ajustes faz). Os 30 `async` caem juntos no giro
+    // seguinte → 30 `applyVisibility`, 30 varreduras da lista de janelas e 30
+    // `orderFrontRegardless` de uma vez, no meio do morph.
+    Transicao(nome: "real-ajustes-rajada", familia: "real",
+              montar: { c in
+                  LinkPreview.shared.abrir(linkDeTeste, on: 1)
+                  c.vm.expanded = true
+                  assinarAjustes(c)
+              },
+              foco: .link,
+              passos: [(0, { $0.vm.setExpandedDirect(false) }),
+                       (0.05, { _ in for _ in 0..<30 { mudarUmAjuste() } }),
+                       (0.90, { $0.vm.setExpandedDirect(true) })]),
+
+    // Chamador 2: a troca de Space. O app não esconde nada na troca em si —
+    // ele espera 0,35 s e roda `applyVisibility`, que decide pelo que a lista
+    // de janelas disser. Aqui a costura força o ramo do `orderOut` (entrou em
+    // tela cheia) e depois o solta (saiu), com o mesmo atraso das duas vezes.
+    Transicao(nome: "real-espaco-entra-telacheia", familia: "real",
+              montar: { c in c.vm.expanded = false },
+              passos: [(0, { _ in telaCheiaForcada = true }),
+                       (0.35, { c in applyVisibilityReal(c) }),
+                       (0.90, { _ in telaCheiaForcada = false }),
+                       (1.25, { c in applyVisibilityReal(c) })]),
+
+    // O `applyVisibility` atrasado caindo DENTRO da mola: a troca de Space
+    // acontece a 0,05 s do card começar a fechar, e o efeito dela chega a
+    // 0,40 s — no meio da animação.
+    Transicao(nome: "real-espaco-durante-morph", familia: "real",
+              montar: { c in
+                  LinkPreview.shared.abrir(linkDeTeste, on: 1)
+                  c.vm.expanded = true
+              },
+              foco: .link,
+              passos: [(0, { $0.vm.setExpandedDirect(false) }),
+                       (0.40, { c in applyVisibilityReal(c) }),
+                       (0.90, { $0.vm.setExpandedDirect(true) }),
+                       (1.30, { c in applyVisibilityReal(c) })]),
+
+    // Chamador 1: o fim do `placeWindows`. `setFrame(_:display: true)` +
+    // `orderFrontRegardless` por tela e, logo depois, o `applyVisibility` que
+    // ordena tudo de novo — dois `orderFrontRegardless` no mesmo giro.
+    Transicao(nome: "real-placewindows-applyvisibility", familia: "real",
+              montar: { c in
+                  LinkPreview.shared.abrir(linkDeTeste, on: 1)
+                  c.vm.expanded = true
+              },
+              foco: .link,
+              passos: [(0, { $0.vm.setExpandedDirect(false) }),
+                       (0.05, { c in placeWindowsReal(c) }),
+                       (0.60, { $0.vm.setExpandedDirect(true) }),
+                       (0.65, { c in placeWindowsReal(c) })]),
+
+    // O interruptor "ocultar em tela cheia" nos Ajustes: ele é ao mesmo tempo
+    // uma mudança de `AppSettings` (dispara `applyVisibility`) e o que decide
+    // se `fullscreenDisplays()` chega a ser chamado.
+    Transicao(nome: "real-telacheia-liga-desliga", familia: "real",
+              montar: { c in
+                  c.vm.expanded = false
+                  assinarAjustes(c)
+              },
+              passos: (0..<4).map { i -> (TimeInterval, Acao) in
+                  (Double(i) * 0.40, { _ in
+                      AppSettings.shared.ocultarEmTelaCheia.toggle()
+                  })
+              }),
+
+    // Só o syscall, sem tocar na janela: `CGWindowListCopyWindowInfo` na main
+    // thread a 33 Hz enquanto a mola corre. Separa "a varredura atrapalha o
+    // desenho" de "ordenar a janela atrapalha o desenho".
+    Transicao(nome: "real-fullscreendisplays-varredura", familia: "real",
+              montar: { c in
+                  LinkPreview.shared.abrir(linkDeTeste, on: 1)
+                  c.vm.expanded = true
+              },
+              foco: .link,
+              passos: [(0, { $0.vm.setExpandedDirect(false) })]
+                  + (0..<40).map { i -> (TimeInterval, Acao) in
+                      (0.02 + Double(i) * 0.03, { _ in
+                          let t0 = Date()
+                          telasCheiasVistasDeVerdade.formUnion(telasEmTelaCheia())
+                          custoFullscreenDisplaysMs.append(
+                              Date().timeIntervalSince(t0) * 1000)
+                      })
+                  }
+                  + [(1.30, { $0.vm.setExpandedDirect(true) })]),
 ]
+
+// MARK: - O código real: applyVisibility, fullscreenDisplays e os três chamadores
+
+/// O display que a cena finge ter. `applyVisibility` decide POR display
+/// (`notches` é um dicionário por `CGDirectDisplayID`); a cena tem uma janela
+/// só, então ela é o display 1.
+let displayDaCena: CGDirectDisplayID = 1
+
+/// A costura da medição, e a única parte da decisão que é encenada: liga o
+/// ramo do `orderOut` sem sequestrar um Space de verdade. Entrar em tela cheia
+/// pra valer mexeria na sessão gráfica do usuário.
+@MainActor
+var telaCheiaForcada = false
+
+@MainActor
+var custoFullscreenDisplaysMs: [Double] = []
+@MainActor
+var telasCheiasVistasDeVerdade: Set<CGDirectDisplayID> = []
+@MainActor
+var chamadasApplyVisibility = 0
+
+/// Réplica LITERAL de `AppDelegate.fullscreenDisplays()`
+/// (`Knobler/KnoblerApp.swift:1040`). O `CGWindowListCopyWindowInfo` é o mesmo
+/// syscall que o app faz, na main thread, a cada chamada — é o que esta
+/// medição quer cronometrar. A única diferença: no app o `meuPID` exclui as
+/// janelas do próprio Knobler; aqui o harness é outro processo, então o
+/// Knobler de verdade (se estiver rodando) passaria pelo filtro de PID — mas
+/// não pelo de camada, porque `NotchWindow` é `.mainMenu + 3` e o filtro exige
+/// camada 0.
+@MainActor
+func telasEmTelaCheia() -> Set<CGDirectDisplayID> {
+    let opts: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+    guard let janelas = CGWindowListCopyWindowInfo(opts, kCGNullWindowID) as? [[String: Any]],
+          let primeira = NSScreen.screens.first else { return [] }
+    let meuPID = ProcessInfo.processInfo.processIdentifier
+
+    let cheias: [CGRect] = janelas.compactMap { j in
+        guard (j[kCGWindowLayer as String] as? Int) == 0,
+              (j[kCGWindowAlpha as String] as? Double ?? 1) > 0,
+              (j[kCGWindowOwnerPID as String] as? Int32) != meuPID,
+              let b = j[kCGWindowBounds as String] as? [String: CGFloat],
+              let x = b["X"], let y = b["Y"], let w = b["Width"], let h = b["Height"]
+        else { return nil }
+        return CGRect(x: x, y: y, width: w, height: h)
+    }
+    guard !cheias.isEmpty else { return [] }
+
+    var ids = Set<CGDirectDisplayID>()
+    for screen in NSScreen.screens {
+        let f = screen.frame
+        let cg = CGRect(x: f.minX, y: primeira.frame.maxY - f.maxY,
+                        width: f.width, height: f.height)
+        if cheias.contains(where: { $0.insetBy(dx: -1, dy: -1).contains(cg) }) {
+            let key = NSDeviceDescriptionKey("NSScreenNumber")
+            ids.insert(screen.deviceDescription[key] as? CGDirectDisplayID ?? 0)
+        }
+    }
+    return ids
+}
+
+/// Réplica de `AppDelegate.applyVisibility()` (`Knobler/KnoblerApp.swift:1073`):
+/// lê a chave dos Ajustes, varre as janelas do sistema e ordena TODAS as
+/// janelas de notch — `orderOut` na tela em tela cheia, `orderFrontRegardless`
+/// nas outras. Repare que o ramo de baixo ordena pra frente uma janela que já
+/// está visível, toda vez, e é esse o caminho que roda a cada mudança de Ajuste.
+@MainActor
+func applyVisibilityReal(_ c: Cena) {
+    let t0 = Date()
+    let cheias = AppSettings.shared.ocultarEmTelaCheia ? telasEmTelaCheia() : []
+    if AppSettings.shared.ocultarEmTelaCheia {
+        custoFullscreenDisplaysMs.append(Date().timeIntervalSince(t0) * 1000)
+        telasCheiasVistasDeVerdade.formUnion(cheias)
+    }
+    chamadasApplyVisibility += 1
+    let escondeEstaTela = cheias.contains(displayDaCena) || telaCheiaForcada
+    if escondeEstaTela {
+        evento(c, "applyVisibility→orderOut", { $0.orderOut(nil as Any?) })
+    } else {
+        evento(c, "applyVisibility→orderFrontRegardless", { $0.orderFrontRegardless() })
+    }
+}
+
+/// Chamador 1: o fim do `placeWindows` (`KnoblerApp.swift:1269`) — o `setFrame`
+/// + `orderFrontRegardless` de cada tela e, logo depois, o `applyVisibility`
+/// que ordena tudo de novo. Dois `orderFrontRegardless` no mesmo giro.
+@MainActor
+func placeWindowsReal(_ c: Cena) {
+    placeWindowsFalso(c)
+    applyVisibilityReal(c)
+}
+
+/// Chamador 3: `AppSettings.objectWillChange` → `DispatchQueue.main.async` →
+/// `applyVisibility` (`KnoblerApp.swift:377`-`378`). A assinatura é a de
+/// verdade, com o mesmo hop de runloop.
+@MainActor
+func assinarAjustes(_ c: Cena) {
+    c.visibilityCancellable = AppSettings.shared.objectWillChange
+        .sink { [weak c] in
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    guard let c else { return }
+                    applyVisibilityReal(c)
+                }
+            }
+        }
+}
+
+/// Uma mudança em `AppSettings` que não muda nada na tela: o que interessa é o
+/// `objectWillChange`, que é o gatilho real. `formatModel` é texto de um campo
+/// dos Ajustes que a `NotchView` não desenha — mas a `NotchView` observa o
+/// `AppSettings.shared` inteiro (`NotchView.swift:17`), então o corpo dela é
+/// reavaliado do mesmo jeito que no app.
+@MainActor
+var mudancasDeAjuste = 0
+@MainActor
+func mudarUmAjuste() {
+    mudancasDeAjuste += 1
+    AppSettings.shared.formatModel = "cortecheck-\(mudancasDeAjuste)"
+}
+
+/// Valores originais dos Ajustes mexidos, pra devolver no fim da corrida. O
+/// harness não tem bundle id, então `UserDefaults.standard` dele mora em
+/// `~/Library/Preferences/cortecheck.plist` — não encosta no
+/// `com.zoi.knobler.plist` do usuário. A devolução é cinto e suspensório.
+@MainActor
+let formatModelOriginal = AppSettings.shared.formatModel
+@MainActor
+let ocultarEmTelaCheiaOriginal = AppSettings.shared.ocultarEmTelaCheia
 
 /// O `placeWindows` do app, na mesma ordem e no mesmo giro de runloop:
 /// `setFrame(_:display: true)` e `orderFrontRegardless()`
@@ -901,6 +1154,7 @@ var camadaControle: (porCacheDisplay: Double, porCamada: Double)?
 @MainActor
 func rodar(_ t: Transicao, deslocamento: CGFloat = 0, conferirCamada: Bool = false) -> Resultado {
     transicaoCorrente = t.nome
+    telaCheiaForcada = false
     Cena.limpar()
     let cena = Cena(notchReal: true)
     let raiz = ZStack(alignment: .top) {
@@ -924,8 +1178,13 @@ func rodar(_ t: Transicao, deslocamento: CGFloat = 0, conferirCamada: Bool = fal
 
     let host = NSHostingView(rootView: AnyView(raiz))
     host.frame = NSRect(x: 0, y: 0, width: janelaLargura, height: janelaAltura)
-    let janela = NSWindow(contentRect: host.frame, styleMask: [.borderless],
-                          backing: .buffered, defer: false)
+    // O painel de VERDADE, não uma NSWindow comum: `applyVisibility` ordena
+    // `NotchWindow`s (nível `.mainMenu + 3`, `isOpaque = false`,
+    // `.canJoinAllSpaces`), e a medição 003.1 deixou isso escrito como o limite
+    // a atacar se um evento de janela virasse suspeito. Virou.
+    let janela = NotchWindow(contentRect: host.frame,
+                             styleMask: [.borderless, .nonactivatingPanel],
+                             backing: .buffered, defer: false)
     janela.contentView = host
     cena.janela = janela
     // fora de qualquer tela: a animação continua correndo (é o que o controle
@@ -966,6 +1225,8 @@ func rodar(_ t: Transicao, deslocamento: CGFloat = 0, conferirCamada: Bool = fal
     }
     janela.orderOut(nil as Any?)
     janela.contentView = nil
+    cena.visibilityCancellable = nil
+    telaCheiaForcada = false
     return Resultado(nome: t.nome, familia: t.familia, quadros: quadros,
                      duracao: Date().timeIntervalSince(inicio))
 }
@@ -1190,6 +1451,31 @@ let porChamada = Dictionary(grouping: eventosDirigidos, by: \.chamada)
 for (chamada, c) in porChamada.sorted(by: { $0.key < $1.key }) {
     print("   \(chamada): \(c.0) dirigidos, \(c.1) com mudança observável")
 }
+// O código real: quantas vezes `applyVisibility` foi dirigida, e o que a
+// varredura da lista de janelas custou na main thread.
+print("")
+print("chamadas de applyVisibility dirigidas: \(chamadasApplyVisibility)"
+      + " — mudanças em AppSettings: \(mudancasDeAjuste)")
+if custoFullscreenDisplaysMs.isEmpty {
+    print("fullscreenDisplays(): 0 varreduras (ocultarEmTelaCheia estava desligado)")
+} else {
+    let ordenado = custoFullscreenDisplaysMs.sorted()
+    print(String(format: "fullscreenDisplays(): %d varreduras na main thread — "
+                         + "min %.1f ms, mediana %.1f ms, máx %.1f ms, total %.0f ms",
+                 ordenado.count, ordenado.first ?? 0, ordenado[ordenado.count / 2],
+                 ordenado.last ?? 0, ordenado.reduce(0, +)))
+}
+print("displays que o CGWindowList apontou como em tela cheia AGORA: "
+      + (telasCheiasVistasDeVerdade.isEmpty ? "nenhum"
+         : telasCheiasVistasDeVerdade.sorted().map(String.init).joined(separator: ", "))
+      + " — o ramo do orderOut nas transições `real-` vem da costura, não daqui")
+print("ocultarEmTelaCheia no início da corrida: "
+      + (ocultarEmTelaCheiaOriginal ? "ligado" : "desligado"))
+
+// devolve os Ajustes mexidos
+AppSettings.shared.formatModel = formatModelOriginal
+AppSettings.shared.ocultarEmTelaCheia = ocultarEmTelaCheiaOriginal
+
 print("com moldura menor que o conteúdo: \(comCorte.count)")
 for r in comCorte {
     print(String(format: "  %@ — %d/%d quadros, excedente máximo %.1f pt, lacuna de topo %.1f pt",
