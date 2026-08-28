@@ -2,7 +2,7 @@
 
 Map: [Shelf de arquivos — empilhamento, ordem e saída](../map-shelf-de-arquivos.md)
 Type: `wayfinder:task`
-Status: em andamento
+Status: fechado
 Assignee: claude
 Blocked by: —
 

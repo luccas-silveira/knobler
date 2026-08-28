@@ -82,6 +82,18 @@ Decisões que dependem do mecanismo e caem junto com ele:
   mapa. Detalhe e fontes em
   [pesquisa-002](pesquisa-002-shelfs-do-macos.md).
 
+- [003 — O mais novo na esquerda](tickets/003-o-mais-novo-na-esquerda.md)
+  — **a inversão foi no armazenamento, não na exibição**: o índice 0 passou a
+  ser o mais novo e o excesso sai pelo fim, e é essa a semântica que o 004
+  herda. O motivo é o gate: a shelf não renderiza offscreen, então a única
+  metade que um check hermético alcança é o array — pôr a regra na view a
+  deixaria sem prova nenhuma. As três regras vivem em `Knobler/ShelfOrdem.swift`
+  e `tools/shelfordemcheck.swift` as cobre. O re-arraste compara por `path`
+  porque a pasta volta do UserDefaults sem a barra final do Finder, e por URL
+  crua duplicaria depois de um restart. Custo aceito: quem já tinha itens
+  guardados vê a ordem trocada no primeiro lançamento. **Nada disso prova a tela
+  — que o mais novo apareça à esquerda no app rodando é do 009.**
+
 ## Ainda não especificado
 
 - **Persistência das pilhas.** Hoje `shelfItems` é um array de caminhos no
