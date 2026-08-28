@@ -153,6 +153,18 @@ Decisões que dependem do mecanismo e caem junto com ele:
   passou a ser zerado no fim da sessão de arraste — senão o primeiro clique
   depois de um arraste era engolido. Vinte asserções novas; a tela é do 009.
 
+- [009 — As três mudanças no app rodando](tickets/009-as-tres-mudancas-no-app-rodando.md)
+  — **oito gestos provados na tela, três faltando, e o que falta é limite do
+  harness e não do app.** Saída ao arrastar (com os originais intactos), recusa
+  no vazio, empilhar arrastando um sobre outro, abrir a pilha no clique, tirar
+  um arquivo pelo ✕ com a grade fechando sozinha, voltar e desempilhar: tudo
+  passou, medido em `defaults read shelfItems` e não em pixel. **Nenhum drop
+  vindo de fora entrou pela mão sintética**, o que deixa a ordem (item 1) e o
+  drop de vários (metade do item 2) sem prova. A sessão de arraste do Finder
+  abre, e o arraste saindo do notch chega ao Finder — só a recepção falha. Fica
+  registrado que o painel de 700pt engole qualquer alvo a meia tela, e que o
+  card fechado só aceita soltura na faixa do notch.
+
 ## Ainda não especificado
 
 - **O backlog do 002.** O que a pesquisa levantou fora das três decisões deste
