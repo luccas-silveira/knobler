@@ -53,7 +53,7 @@ Decisões que dependem do mecanismo e caem junto com ele:
 
 | Fase | Tickets | Por quê |
 |---|---|---|
-| 1. O que ainda não foi olhado | **001** o que os destinos devolvem · **002** o que as outras shelfs fazem · **003** o mais novo na esquerda | O 001 pode matar a saída ao arrastar inteira, então vem antes de qualquer código dela. O 003 é a mudança menor e independente: entrega valor sozinho e fixa a semântica de ordem que o modelo de pilha vai herdar. |
+| 1. O que ainda não foi olhado — **fechada** | **001** o que os destinos devolvem · **002** o que as outras shelfs fazem · **003** o mais novo na esquerda | O 001 pode matar a saída ao arrastar inteira, então vem antes de qualquer código dela. O 003 é a mudança menor e independente: entrega valor sozinho e fixa a semântica de ordem que o modelo de pilha vai herdar. |
 | 2. As duas bases | **004** modelo de pilha e persistência · **005** o item sai ao ser arrastado pra fora | Nada do empilhamento se constrói antes do modelo de dados, e a saída é o mecanismo que a pilha vai reusar. |
 | 3. O empilhamento em si | **006** um drop de vários vira uma pilha · **007** empilhar e desempilhar à mão · **008** a pilha expandida | Três frentes independentes sobre a mesma base, tocáveis em paralelo. |
 | 4. A prova | **009** as três mudanças no app rodando | O destino é o app rodando; até aqui nada foi visto na tela de verdade. |
