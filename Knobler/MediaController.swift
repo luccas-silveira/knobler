@@ -51,6 +51,7 @@ final class MediaController: ObservableObject {
     deinit { source.stop() }
 
     /// Usado pelo harness de renderização offline (verificação visual pré-entrega).
+    // periphery:ignore
     func injectPreview(state: PlaybackState?, artwork: NSImage?) {
         self.state = state
         self.artwork = artwork

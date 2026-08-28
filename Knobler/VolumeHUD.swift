@@ -94,6 +94,10 @@ final class VolumeHUDController {
         NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
             self?.logKey("kb=\(event.keyCode)")
         }
+        NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
+            guard event.keyCode == 61 else { return }
+            self?.logKey("mon61=\(event.modifierFlags.rawValue & 0x40 != 0 ? 1 : 0)")
+        }
     }
 
     /// Estado do tap pro GET /status da API local (diagnóstico).
@@ -183,6 +187,7 @@ final class VolumeHUDController {
                 // o ditado gravando. Lemos o bit device-específico da ⌥ direita
                 // (NX_DEVICERALTKEYMASK = 0x40; a esquerda é 0x20).
                 let pressed = cgEvent.flags.rawValue & 0x40 != 0
+                logKey("tap61=\(pressed ? 1 : 0)")
                 DispatchQueue.main.async { [weak self] in
                     self?.onRightOption?(pressed)
                 }

@@ -93,10 +93,11 @@ struct AnnotationDeckView: View {
 
     private var raiz: [DeckItem] {
         [
-            DeckItem(symbol: annotation.isActive ? "pencil.tip.crop.circle.fill"
-                                                 : "pencil.tip.crop.circle",
-                     title: annotation.isActive ? "Desenhando" : "Desenhar",
-                     ativo: annotation.isActive) { annotation.toggle() },
+            DeckItem(symbol: annotation.armed ? "pencil.tip.crop.circle.fill"
+                                              : "pencil.tip.crop.circle",
+                     title: annotation.isActive ? "Desenhando"
+                          : annotation.armed ? "Desenho ativado" : "Desenhar",
+                     ativo: annotation.armed) { annotation.toggleArmed() },
             DeckItem(symbol: annotation.selectedTool.symbol,
                      title: "Ferramenta") { page = .ferramentas },
             DeckItem(symbol: "paintpalette", title: "Cor",

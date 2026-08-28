@@ -20,6 +20,7 @@ enum LinkBrowser {
     /// Texto → URL. Sem esquema vira `https://`; o que não parece domínio vai
     /// pra busca. Existe separado da view porque é a única parte com regra —
     /// e regra sem teste é onde nasce "digitei e não foi".
+    // periphery:ignore
     static func url(deEntrada texto: String) -> URL? {
         let limpo = texto.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !limpo.isEmpty else { return nil }

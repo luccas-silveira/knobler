@@ -135,6 +135,9 @@ final class AnnotationController: NSObject, ObservableObject {
     private var trustedAtCreation = false
     private var keyMonitor: Any?
     @Published private(set) var isActive = false
+    /// O Control só desenha com isto ligado — o botão "Desenhar" do card é a
+    /// chave. Persistido; nasce desligado.
+    @Published private(set) var armed = AppSettings.shared.annotationArmed
     var mode: AnnotationActivationMode { AppSettings.shared.annotationActivationMode }
     @Published private(set) var selectedTool = AppSettings.shared.annotationDefaultTool
     @Published private(set) var background: AnnotationBackground = AnnotationBackground(
@@ -203,6 +206,7 @@ final class AnnotationController: NSObject, ObservableObject {
             "tapExists": eventTap != nil,
             "tapEnabled": eventTap.map { CGEvent.tapIsEnabled(tap: $0) } ?? false,
             "isActive": isActive,
+            "armed": armed,
             "tool": selectedTool.rawValue,
             "background": background.rawValue,
             "lineWidth": lineWidth,
@@ -211,6 +215,14 @@ final class AnnotationController: NSObject, ObservableObject {
 
     func toggle() {
         isActive ? end() : begin()
+    }
+
+    /// Liga e desliga o atalho. Desligar no meio do traço age como soltar o
+    /// Control: encerra o desenho e deixa a tinta.
+    func toggleArmed() {
+        armed.toggle()
+        AppSettings.shared.annotationArmed = armed
+        if !armed { end() }
     }
 
     func begin() {
@@ -243,10 +255,6 @@ final class AnnotationController: NSObject, ObservableObject {
 
     private func atualizarTinta() {
         temTinta = states.values.contains { !$0.document.elements.isEmpty }
-    }
-
-    func state(for displayID: CGDirectDisplayID) -> AnnotationOverlayState? {
-        states[displayID]
     }
 
     func select(tool: AnnotationTool) {
@@ -317,6 +325,7 @@ final class AnnotationController: NSObject, ObservableObject {
     }
 
     private func rightControlChanged(_ pressed: Bool) {
+        guard armed else { return }
         switch mode {
         case .pressAndHold:
             pressed ? begin() : end()

@@ -6,6 +6,35 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- O knob detecta quando aparece cortado ao meio, grava a prova e se cura sozinho.
+  A medida é a lacuna de topo da moldura (centenas de nanossegundos por medida, sob 1 µs,
+  sem syscall e sem captura de tela); a violação grava uma linha JSON em
+  `Application Support/Knobler/corte-do-knob.jsonl` — geometria, modo, seção em
+  foco, o que animava e o último evento — e refaz o layout, o mesmo efeito do
+  ciclo de expandir/recolher, no máximo cinco vezes por sessão. O conserto corre só
+  quando a medição acusa — e a evidência das três varreduras diz que ele deve
+  disparar raramente ou nunca: a medida enxerga a geometria de layout, e se o
+  defeito nascer abaixo dela o log fica vazio, o que também é informação. Gate
+  hermético em `tools/cortedetectorcheck.swift`.
+- O notch some na tela que estiver com um app em tela cheia, e volta ao sair.
+  Chave em Ajustes › Notch › Visibilidade, ligada por padrão.
+
+### Changed
+- O botão **Desenhar** do card passa a ativar e desativar o atalho do Control em
+  vez de ligar o overlay direto. Desativado, o Control é uma tecla comum; a
+  escolha fica salva e instalação nova nasce desativada.
+
+### Fixed
+- ⌘C, ⌘V, ⌘X, ⌘A e ⌘Z voltam a funcionar nos campos de texto do app. Como agente
+  o Knobler não tem barra de menus, e sem ela o sistema não tinha onde despachar
+  os atalhos de edição.
+
+### Removed
+- Três declarações mortas: `AnnotationController.state(for:)`, `DevAvisos.stop()`
+  e `ColorPicker.Format.label`. Encontradas pelo `periphery scan`, agora
+  configurado em `.periphery.yml`.
+
 ## [0.26.1] - 2026-08-13
 
 ### Fixed

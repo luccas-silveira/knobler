@@ -24,6 +24,9 @@ struct EventosCheck {
         // gravada e contaminaria a rodada seguinte com uma seção a mais na
         // lista — falha confusa, longe de quem a causou.
         UserDefaults.standard.set([String](), forKey: "notchSectionsFixadas")
+        // o atalho do desenho nasce desligado; a preferência da máquina não
+        // pode responder por ele.
+        UserDefaults.standard.removeObject(forKey: "annotationArmed")
         testPomodoroTiqueNaoCarimba()
         testPomodoroFaseECorridaCarimbam()
         testAtividadeProgressoNaoCarimba()
@@ -47,6 +50,7 @@ struct EventosCheck {
         testFocoSobreviveAoRelaunch()
         testFocoVazioNaoApagaOSalvo()
         testPublicarAltura()
+        testDesenhoNasceDesativado()
         // estes mexem na preferência salva; ficam por último pra não desarrumar
         // a ordem de fábrica que os testes acima assumem.
         testFocoInicialPulaFixadaVazia()
@@ -507,6 +511,12 @@ struct EventosCheck {
         assert(vm.alturaAtual == 120, "ruído sub-pixel republicou a altura")
         vm.publicarAltura(140)
         assert(vm.alturaAtual == 140, "altura nova não publicada")
+    }
+
+    /// Instalação nova não deixa o Control desenhando sozinho: quem liga é o
+    /// botão "Desenhar" do card.
+    static func testDesenhoNasceDesativado() {
+        assert(!AppSettings.shared.annotationArmed, "o desenho nasceu ativado")
     }
 
     // MARK: - ordem-base dos Ajustes

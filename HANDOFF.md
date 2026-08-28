@@ -1,5 +1,13 @@
 # 🏁 SESSÃO 2026-08-05 — as 10 conversões restantes → v0.24.0
 
+## ⏳ Pendências pro próximo release (2026-08-20)
+
+- Falta o teste de ponta a ponta no app rodando: subir a build Debug, entrar em
+  tela cheia e conferir `GET /status` (`notches[].visible == false` só na tela
+  cheia), sair, e desligar a chave nos Ajustes pra ver o notch voltar na hora.
+- Split View não é detectado como tela cheia (nenhuma das duas janelas cobre a
+  tela sozinha). Teto conhecido, marcado com `// ponytail:` em `KnoblerApp.swift`.
+
 Fecha a etapa do marketplace: **nenhum card da vitrine diz mais "Em breve"**. As
 11 features são peças de verdade — nascem pelo `PluginHost`, morrem no `parar()`
 e somem caladas dos pontos de uso quando desinstaladas.

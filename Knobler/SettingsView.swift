@@ -88,6 +88,7 @@ struct SettingsView: View {
     /// A barra lateral lê `SettingsPane.visiveis`, que consulta o host. Sem
     /// observar o host aqui, instalar ou desinstalar pela vitrine só mudaria a
     /// lista na próxima abertura da janela.
+    // periphery:ignore
     @ObservedObject private var host = PluginHost.shared
 
     var body: some View {
@@ -297,6 +298,12 @@ struct NotchSettingsPane: View {
                     }
                 }
                 .frame(height: 220)
+            }
+            Section("Visibilidade") {
+                SettingToggle(
+                    title: "Esconder em tela cheia",
+                    subtitle: "O notch some na tela que estiver com um app em tela cheia.",
+                    isOn: $settings.ocultarEmTelaCheia)
             }
             Section("Cards e avisos") {
                 SettingToggle(

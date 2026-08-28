@@ -5,9 +5,13 @@ gravar o conteúdo que está por baixo.
 
 ## Uso
 
-O atalho padrão é o **Control esquerdo**. No modo padrão, segure a tecla para
-desenhar e solte para voltar a usar o Mac. O modo **Alternar** pode ser
-escolhido em Ajustes › Desenho: uma pressão entra e outra sai.
+O atalho padrão é o **Control esquerdo**, e ele só age com o desenho ativado no
+card — o botão **Desenhar** da seção Anotação. Desativado, o Control é uma tecla
+comum. A escolha fica salva; instalação nova nasce desativada.
+
+Com o desenho ativado: no modo padrão, segure a tecla para desenhar e solte para
+voltar a usar o Mac. O modo **Alternar** pode ser escolhido em Ajustes › Desenho:
+uma pressão entra e outra sai.
 
 A tecla liga e desliga só o **desenho**, não a visibilidade: o que já foi
 desenhado continua na tela depois de soltar o Control, sem bloquear cliques.
@@ -21,7 +25,9 @@ barra de menus não tem nada disso.
 
 ![A seção Anotação do card, com o botão Desenhar, as nove ferramentas e a linha de cores e ações](images/foco-anotacao.png)
 
-- **Desenhar** liga e desliga o overlay sem usar a tecla.
+- **Desenhar** ativa e desativa o atalho do Control — é o que libera a tecla.
+  Ativado, o botão mostra "Desenho ativado"; enquanto o traço corre, "Desenhando".
+  Desativar no meio do desenho age como soltar o Control: o traço fica.
 - Linha do meio: desenho livre, linha, seta, retângulo, elipse, texto, laser,
   holofote e borracha.
 - Linha de baixo: seis cores, desfazer, refazer, **apagar tudo** e os quadros
