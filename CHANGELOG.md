@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-08-28
+
 ### Added
 - O knob detecta quando aparece cortado ao meio, grava a prova e se cura sozinho.
   A medida é a lacuna de topo da moldura (centenas de nanossegundos por medida, sob 1 µs,
