@@ -54,6 +54,7 @@ Knobler/RemindersView.swift
 Knobler/Descanso.swift
 Knobler/DescansoView.swift
 Knobler/Shelf.swift
+Knobler/ShelfOrdem.swift
 Knobler/ShelfPreview.swift
 Knobler/ShelfDrop.swift
 Knobler/LinkBrowser.swift

@@ -6,6 +6,12 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Changed
+- A prateleira passou a mostrar o item mais novo na esquerda; o mais antigo é o
+  que cai pela direita quando ela enche. Soltar de novo um arquivo que já está
+  lá puxa ele pra frente da fila em vez de ignorar o arraste. Quem já tinha
+  itens guardados vê a ordem trocada uma vez, no primeiro lançamento.
+
 ## [0.27.0] - 2026-08-28
 
 ### Added

@@ -29,11 +29,8 @@ final class ShelfStore: ObservableObject {
     }
 
     func add(_ url: URL) {
-        guard !items.contains(url) else { return }
-        items.append(url)
-        if items.count > Self.capacity {
-            items.removeFirst(items.count - Self.capacity)
-        }
+        // uma atribuição só: o didSet grava no UserDefaults a cada uma
+        items = ShelfOrdem.inserir(url, em: items, capacidade: Self.capacity)
     }
 
     func remove(_ url: URL) {

@@ -2,8 +2,8 @@
 
 Map: [Shelf de arquivos — empilhamento, ordem e saída](../map-shelf-de-arquivos.md)
 Type: `wayfinder:task`
-Status: aberto
-Assignee: —
+Status: em andamento
+Assignee: claude
 Blocked by: —
 
 ## Pergunta
