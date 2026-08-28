@@ -25,6 +25,11 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   vez de ligar o overlay direto. Desativado, o Control é uma tecla comum; a
   escolha fica salva e instalação nova nasce desativada.
 
+### Fixed
+- ⌘C, ⌘V, ⌘X, ⌘A e ⌘Z voltam a funcionar nos campos de texto do app. Como agente
+  o Knobler não tem barra de menus, e sem ela o sistema não tinha onde despachar
+  os atalhos de edição.
+
 ### Removed
 - Três declarações mortas: `AnnotationController.state(for:)`, `DevAvisos.stop()`
   e `ColorPicker.Format.label`. Encontradas pelo `periphery scan`, agora

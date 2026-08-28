@@ -90,78 +90,12 @@ estado em `Snapshots/*.png` — é o jeito de "ver" a UI sem abrir o app.
 `Knobler/` que a `NotchView` use, acrescente-o lá — `tools/snapshot.sh` (poses) e
 `tools/cortecheck.sh` (transições) leem essa mesma lista.
 
-⚠️ **Quatro PNGs não são determinísticos** e mudam de hash a cada rodada mesmo
-sem mudança nenhuma de código: `closed-music`, `closed-music-external`,
-`foco-atividade-indeterminada` e `update-installing` (visualizador animado,
-barra de progresso). Neles o snapshot é inspeção visual, não detector de
-regressão — não gaste tempo investigando o diff. O harness gera 57 PNGs no
-total; os outros 53 são byte-idênticos entre rodadas.
+⚠️ **Recapturar `docs/images/expanded-shelf.png` mexe na máquina do usuário —
+peça antes.**
 
-⚠️ **Qualquer view que dependa de um `NSView` real (janela/WindowServer de
-verdade) não renderiza via `ImageRenderer` offscreen** — vira o ícone de
-"proibido" no lugar do conteúdo. Casos confirmados até agora:
-`NavigationSplitView`/`HSplitView` (repro isolado), `TextField` (o rodapé do
-`AskCardView` — por isso `ask-simple.png`/`ask-multiselect.png` cortam antes
-da barra do campo de texto), `WKWebView` (a seção Link — o preview de site não
-tem PNG no harness — e `NovidadesWindow`, a janela de novidades: mesma vala,
-por isso `docs/images/novidades.png` também é manual),
-e `NSWorkspace.icon(forFile:)`/`QLThumbnailGenerator`
-(`ShelfThumbnailDragView` — por isso a imagem da prateleira nos docs
-(`docs/images/expanded-shelf.png`) é capturada no app rodando de verdade: o
-`foco-shelf.png` do harness sai com o ícone de "proibido" no lugar das
-miniaturas), e `ScrollView`
-(`NSScrollView` por baixo) — sintoma diferente dos outros: não vira o ícone
-de "proibido", o conteúdo simplesmente não aparece (área inteira preta),
-mesmo com `LazyVStack` trocado por `VStack` simples. Confirmado na
-`HistoryListView` (seção de histórico) e na **thread** da `MessagesView` (a
-conversa aberta) — por isso a seção de histórico não entra populada no harness,
-só vazia (`foco-historico-vazio.png`, que não usa `ScrollView`), e não há
-cenário de conversa aberta. A **lista de peers** da `MessagesView` não usa
-`ScrollView` e renderiza normalmente: `messages-online.png` é gerado pelo
-harness e vale como detector de regressão. A seção `espelho`
-também fica de fora: precisa de câmera real. Ao adicionar
-cenário novo ao harness, desconfie de qualquer subview que envolva um
-desses. Por isso `settings-*.png`
-(8 painéis de Ajustes) e `mapping-editor.png` **não** são gerados por
-`tools/snapshot.sh` — são
-mantidos à mão — junto com `nota-placeholder.png` (campo da nota rápida: é um
-`TextEditor`, logo um `ScrollView`; a receita de captura está num comentário em
-`docs/nota-rapida.md`). Pros painéis:
-rode `Knobler.app/Contents/MacOS/Knobler --ajustes=<painel>`
-(painéis: `geral notch desenho ditado pomodoro lembretes descanso webhooks
-mensagens permissoes`), tire o screenshot da janela real e salve em
-`docs/images/`
-(as imagens usadas pelos docs de usuário ficam ali, não em `Snapshots/` —
-`Snapshots/` é gitignored e serve só de QA visual local). `screencapture -l<windowID>`
-captura a sombra própria do macOS (PNG com alpha) — corte pra
-`802x554+55+37` antes de salvar (bordas reais da janela, sem halo).
-⚠️ `-l` **reescala** a janela: num sheet o PNG sai com a janela-mãe em volta, e
-coordenada de clique tirada dessa imagem erra o alvo. Pra automatizar clique +
-captura use `screencapture -R x,y,w,h` com os bounds de
-`CGWindowListCopyWindowInfo` e `sips -z` pra 1x. Clique sintético: SwiftUI só
-responde com `CGWarpMouseCursorPosition` **mais** eventos `.mouseMoved` em
-passos pequenos antes do down/up. Numa tela
-Retina o PNG sai em @2x: o corte equivalente é
-`sips -c 1108 1604 --cropOffset 74 110` seguido de `sips -z 554 802`.
-
-`docs/images/novidades.png` segue a mesma vala (`WKWebView` real): rode
-`Knobler --novidades` — a flag mostra **tudo** e não grava a versão vista,
-então tirar print não queima o estado da máquina. Rode de `/Applications` ou
-de `~/Applications`: de `/tmp` o `installIssue` manda direto pro painel
-Permissões e a página nem abre. Sai @2x mesmo (`screencapture -o -l<id>`, sem
-sombra e sem halo, não precisa recortar).
-
-⚠️ **Recapturar `expanded-shelf.png` mexe na máquina do usuário — peça antes.**
-É a única imagem dos docs que exige o card aberto com a prateleira em foco, e a
-receita passa por fechar o Knobler que estiver rodando (senão são dois notches
-na mesma tela), escrever `shelfItems` e `notchSectionOrder` via `defaults`,
-subir a build Debug, e então **mover o cursor e clicar** — o hover só acorda com
-`CGWarpMouseCursorPosition` em passos pequenos, e o clique no ícone da faixa
-encolhe o card, então o ponteiro tem que subir logo depois ou o card recolhe
-antes do `screencapture`. Confira o resultado por `GET /status`
-(`notches[].focus == "shelf"`), não pelo palpite. Restaure `defaults` e relance
-o app do usuário no fim. Um card transitório (Ask, notificação) pode tomar o
-notch no meio e estragar a captura — capture algumas vezes e escolha.
+Catálogo das views que não renderizam offscreen, PNGs não determinísticos e
+receitas de captura das imagens de `docs/images/`: skill `snapshot-ui`
+(`.claude/skills/snapshot-ui/SKILL.md`).
 
 ## MCP servers (ativos após reiniciar a sessão)
 

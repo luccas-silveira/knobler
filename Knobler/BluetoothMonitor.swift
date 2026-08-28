@@ -53,14 +53,14 @@ final class BluetoothMonitor: NSObject {
         warnedLow = false
     }
 
-    @objc private func bluetoothConnected(_ note: IOBluetoothUserNotification,
+    @objc private func bluetoothConnected(_: IOBluetoothUserNotification,
                                           device: IOBluetoothDevice) {
         registerDisconnect(device)
         refresh(announce: true)
     }
 
     @objc private func bluetoothDisconnected(_ note: IOBluetoothUserNotification,
-                                             device: IOBluetoothDevice) {
+                                             device _: IOBluetoothDevice) {
         // nota one-shot já disparou — remove a ref morta (evita acúmulo por ciclo)
         disconnectNotes.removeAll { $0 === note }
         refresh(announce: true)

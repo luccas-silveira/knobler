@@ -1,0 +1,18 @@
+# Varredura de código morto: `periphery scan` (a config é lida automaticamente).
+#
+# Duas retenções globais, porque sem elas o ruído enterra o achado:
+#
+# retain_assign_only_properties — timer, monitor de evento e observer são
+#   guardados em propriedade só pra manter a referência viva. Ninguém lê o
+#   valor, e apagar quebra o app.
+# retain_objc_annotated — assinatura de callback do AppKit/IOBluetooth é fixa;
+#   parâmetro não usado ali não é escolha nossa.
+#
+# O que os harnesses de `tools/` usam mas o app não fica marcado no código com
+# `// periphery:ignore` — eles compilam arquivos de `Knobler/` fora do target,
+# então a varredura não os enxerga.
+project: Knobler.xcodeproj
+schemes:
+  - Knobler
+retain_assign_only_properties: true
+retain_objc_annotated: true

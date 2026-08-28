@@ -19,6 +19,7 @@ final class LANMessaging: ObservableObject {
 
     /// Usado pelo harness de renderização offline (tools/main.swift) — evita
     /// subir Bonjour real.
+    // periphery:ignore
     func injectPreview(peers: [Peer]) {
         self.peers = peers
     }
