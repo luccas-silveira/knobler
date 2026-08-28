@@ -112,3 +112,21 @@ enum ShelfOrdem {
     }
 
 }
+
+/// Sinal de que o arraste em curso foi solto DENTRO da prateleira.
+///
+/// `ShelfDropDelegate.performDrop` liga, `startDrag` limpa no começo de cada
+/// arraste e o fim da sessão consome. É um aperto de mão e não geometria porque
+/// o painel do notch tem 700pt de largura e vai do topo da tela até o Dock: um
+/// Finder no meio da tela cairia dentro do frame e passaria por drop interno.
+/// Tudo roda na main thread, e `performDrop` vem antes do fim da sessão.
+enum ShelfArrasteInterno {
+    static var pendente = false
+
+    /// Lê e zera de uma vez: um arraste que terminou fora não pode herdar a
+    /// marca de um anterior.
+    static func consumir() -> Bool {
+        defer { pendente = false }
+        return pendente
+    }
+}

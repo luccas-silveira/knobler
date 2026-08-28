@@ -8,7 +8,8 @@
 //  log de arraste nenhum.
 //
 //    xcrun swiftc -swift-version 5 \
-//      Knobler/ShelfThumbnailDragView.swift tools/sondaarraste/main.swift \
+//      Knobler/ShelfOrdem.swift Knobler/ShelfThumbnailDragView.swift \
+//      tools/sondaarraste/main.swift \
 //      -o /tmp/sondaarraste && /tmp/sondaarraste <arquivo> <x> <y> [rótulo]
 //
 //  <x> <y> são coordenadas de TELA no referencial do CGEvent (origem no topo

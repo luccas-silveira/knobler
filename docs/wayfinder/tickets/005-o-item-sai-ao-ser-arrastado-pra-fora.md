@@ -52,4 +52,11 @@ devolve `.delete` e o item fica — lado seguro do erro.
 Pilha nunca sai: só a capa vai pro pasteboard, e remover a entrada inteira
 levaria arquivos que ninguém arrastou. Isso é o 006.
 
+Duas suposições que o gate não prova, e que o 009 confirma na tela:
+
+- `ShelfDropDelegate.performDrop` dispara para um arraste que começa dentro da
+  própria janela. O aperto de mão inteiro depende disso. Se não disparar, o
+  arraste interno apaga o item — exatamente o que o 001 avisou.
+- `performDrop` roda antes de `draggingSession(_:endedAt:_:)`.
+
 Sem prova visual: a prateleira não renderiza offscreen, e a prova é o 009.

@@ -179,5 +179,19 @@ enum ShelfOrdemCheck {
         check(!sai(true, false, true, true),
               "pilha não sai: só a capa foi arrastada, e a saída da pilha é o 006")
         check(!sai(true, false, false, false), "com a chave de Ajustes desligada, nada sai")
+
+        // o aperto de mão que separa arraste interno de externo
+        ShelfArrasteInterno.pendente = false
+        check(!ShelfArrasteInterno.consumir(), "sem marca, o arraste conta como externo")
+        ShelfArrasteInterno.pendente = true
+        check(ShelfArrasteInterno.consumir(), "com a marca do performDrop, conta como interno")
+        check(!ShelfArrasteInterno.consumir(),
+              "e consumir zera: o arraste seguinte não herda a marca")
+        // um arquivo vindo do Finder liga a marca e não tem sessão pra consumir;
+        // `startDrag` limpa antes de começar, senão a saída nunca aconteceria
+        ShelfArrasteInterno.pendente = true
+        ShelfArrasteInterno.pendente = false          // o que o startDrag faz
+        check(!ShelfArrasteInterno.consumir(),
+              "marca órfã de um drop de fora não contamina o próximo arraste")
     }
 }

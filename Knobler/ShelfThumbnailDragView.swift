@@ -41,27 +41,6 @@ struct ShelfThumbnailDragView: NSViewRepresentable {
     }
 }
 
-/// Sinal de que o arraste em curso foi solto DENTRO da prateleira.
-///
-/// `ShelfDropDelegate.performDrop` liga isto e o fim da sessão consome. É um
-/// aperto de mão e não geometria porque o painel do notch tem 700pt de largura
-/// e vai do topo da tela até o Dock: um Finder no meio da tela cairia dentro do
-/// frame e passaria por drop interno. Os dois pontos rodam na main thread, e
-/// `performDrop` vem antes do fim da sessão.
-///
-/// Vive neste arquivo, e não no `Shelf.swift`, pra `tools/sondaarraste/`
-/// continuar compilando só a miniatura.
-enum ShelfArrasteInterno {
-    static var pendente = false
-
-    /// Lê e zera de uma vez: um arraste que terminou fora não pode herdar a
-    /// marca de um anterior.
-    static func consumir() -> Bool {
-        defer { pendente = false }
-        return pendente
-    }
-}
-
 // não é `final` para a sonda de arraste (`tools/sondaarraste/`) poder herdar e
 // instrumentar os callbacks sem que o app carregue a instrumentação junto
 class DragThumbView: NSView, NSDraggingSource {
@@ -146,6 +125,12 @@ class DragThumbView: NSView, NSDraggingSource {
         let dragItem = NSDraggingItem(pasteboardWriter: item)
         let dragImage = NSImage(contentsOf: url) ?? NSWorkspace.shared.icon(forFile: url.path)
         dragItem.setDraggingFrame(bounds, contents: dragImage)
+        // limpa a marca de um arraste anterior que nunca foi consumida: um drop
+        // vindo do Finder liga `pendente` no `performDrop` e não tem sessão de
+        // arraste pra consumir. Sem isto, o primeiro arquivo arrastado PRA
+        // DENTRO deixaria a marca armada e o próximo arraste pra fora passaria
+        // por interno — a saída nunca aconteceria.
+        ShelfArrasteInterno.pendente = false
         beginDraggingSession(with: [dragItem], event: event, source: self)
     }
 
