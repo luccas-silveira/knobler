@@ -25,7 +25,11 @@ struct ShelfEntry: Equatable, Identifiable {
 
     /// Identidade derivada do conteúdo, NÃO persistida — a grade já era
     /// `id: \.self` sobre a URL, então identidade por conteúdo é o que já valia.
-    var id: String { urls.map(\.path).joined(separator: "\n") }
+    ///
+    /// É a lista de caminhos, e não os caminhos juntados por um separador:
+    /// nome de arquivo aceita quebra de linha, e um arquivo chamado "a\nb"
+    /// colidiria com a pilha de "a" e "b".
+    var id: [String] { urls.map(\.path) }
 }
 
 enum ShelfOrdem {
@@ -79,7 +83,12 @@ enum ShelfOrdem {
         if let novo = salvo as? [[String]] { cru = novo }
         else if let legado = salvo as? [String] { cru = legado.reversed().map { [$0] } }
         else { cru = [] }                       // chave ausente ou lixo
-        let vivos = cru.map { $0.filter(existe) }.filter { !$0.isEmpty }
+        // O mesmo invariante do `inserir`: um arquivo aparece uma vez só. Aqui
+        // ele é necessário porque a chave também é escrita à mão, por
+        // `defaults write`, na receita de captura da prateleira.
+        var vistos = Set<String>()
+        let vivos = cru.map { $0.filter { existe($0) && vistos.insert($0).inserted } }
+                       .filter { !$0.isEmpty }
         return Array(vivos.map { ShelfEntry($0.map(URL.init(fileURLWithPath:))) }
                           .prefix(capacidade))
     }

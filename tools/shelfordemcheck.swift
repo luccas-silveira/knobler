@@ -116,6 +116,11 @@ enum ShelfOrdemCheck {
         let esvaziou = ShelfOrdem.inserir([x], em: [ShelfEntry([x])], capacidade: 8)
         check(forma(esvaziou) == [["/tmp/x"]], "entrada que esvazia some em vez de ficar vazia")
 
+        // nome de arquivo aceita quebra de linha: a identidade não pode juntar
+        // os caminhos num string só, senão "a\nb" colide com a pilha de a e b
+        check(ShelfEntry([u("/tmp/a\nb")]).id != ShelfEntry([u("/tmp/a"), u("/tmp/b")]).id,
+              "arquivo com quebra de linha no nome não colide com a pilha equivalente")
+
         let noDrop = ShelfOrdem.inserir([p, p, q], em: [], capacidade: 8)
         check(forma(noDrop) == [["/tmp/p", "/tmp/q"]], "repetido dentro do próprio drop entra uma vez")
     }
@@ -152,6 +157,11 @@ enum ShelfOrdemCheck {
         check(ShelfOrdem.decodificar(["a", ["b"]] as [Any], capacidade: 8, existe: tudoExiste)
                 .isEmpty,
               "lixo misto dá prateleira vazia em vez de crash")
+
+        check(forma(ShelfOrdem.decodificar([["/tmp/a", "/tmp/b"], ["/tmp/a"]],
+                                           capacidade: 8, existe: tudoExiste))
+                == [["/tmp/a", "/tmp/b"]],
+              "repetido escrito à mão na chave entra uma vez só na leitura")
 
         let demais = (0..<30).map { ["/tmp/\($0)"] }
         check(ShelfOrdem.decodificar(demais, capacidade: 8, existe: tudoExiste).count == 8,

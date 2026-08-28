@@ -57,7 +57,14 @@ A peça que quase passou batido: **`didSet` não roda em atribuição dentro do
 `init`**. Sem uma gravação explícita ali, a migração ficaria só em memória e o
 array plano seria relido e reinvertido a cada lançamento.
 
-`tools/shelfordemcheck.swift` cresceu pra 29 asserções: as regras de ordem do
+A identidade da entrada é a **lista** de caminhos, não os caminhos juntados por
+um separador: nome de arquivo aceita quebra de linha, e um arquivo chamado
+`a\nb` colidiria com a pilha de `a` e `b` — duas entradas com o mesmo id, e o ✕
+apagando as duas. A `decodificar` também aplica o dedupe, porque a chave é
+escrita à mão por `defaults write` na receita de captura e essa é a única
+escritora que pode violar o invariante.
+
+`tools/shelfordemcheck.swift` cresceu pra 31 asserções: as regras de ordem do
 003 na forma nova, capacidade contando vagas, dedupe entre entradas, round-trip
 da persistência, migração do formato plano, filtro de arquivo que sumiu e lixo
 no UserDefaults. **Ele falha contra o código de antes** — compilado contra o
@@ -67,6 +74,11 @@ o tipo não existia.
 **Correção ao enunciado:** o ticket diz que `tools/shelfdropcheck.swift` lê o
 modelo. Não lê — ele só exercita `ShelfDrop`, `LinkBrowser` e os conversores, e
 não precisou de uma linha.
+
+A verificação manual da migração (gravar um array plano na máquina do usuário,
+subir a build Debug e conferir) **não foi feita** — ela mexe na máquina dele e
+pede autorização. Quem prova a inversão é a asserção do gate que leva
+`/tmp/velho, /tmp/meio, /tmp/novo` a `novo, meio, velho`.
 
 `./tools/check.sh` fecha em **39 checks verdes**, `./tools/snapshot.sh` regenera
 e o build Debug do app passa. **Nada disso prova a tela**: a prateleira não
