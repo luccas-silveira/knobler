@@ -97,6 +97,19 @@ Knobler que estiver rodando (senão são dois notches na mesma tela), escrever
 em passos pequenos, e o clique no ícone da faixa encolhe o card, então o
 ponteiro tem que subir logo depois ou o card recolhe antes do `screencapture`.
 
+O `shelfItems` é um **array de arrays** de caminho: cada entrada da prateleira
+é um grupo, e um grupo com dois ou mais arquivos é uma pilha.
+
+```bash
+defaults write com.zoi.knobler shelfItems \
+  '(("/tmp/Relatório.pdf"),("/tmp/foto.png"),("/tmp/a.png","/tmp/b.png"))'
+```
+
+A terceira entrada acima é uma pilha, e escrever aqui é hoje o único jeito de
+materializar uma. Um array plano de caminhos ainda funciona — o app o migra —
+mas ele entra **invertido**, porque o formato plano é anterior à regra de "o
+mais novo na esquerda".
+
 Confira o resultado por `GET /status` (`notches[].focus == "shelf"`), não pelo
 palpite. Restaure `defaults` e relance o app do usuário no fim. Um card
 transitório (Ask, notificação) pode tomar o notch no meio e estragar a captura —

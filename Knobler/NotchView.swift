@@ -355,13 +355,13 @@ struct NotchView: View {
         .modifier(CarimboDeEventos(vm: vm,
                                    faixa: media.state?.title,
                                    tocando: media.state?.isPlaying,
-                                   itensShelf: shelf.items.count,
+                                   itensShelf: shelf.arquivos.count,
                                    itensHistorico: history.items.count,
                                    notaVazia: note.text.isEmpty))
         .modifier(AberturaDoCard(vm: vm,
                                  altura: currentSize.height,
                                  hasMusic: hasMusic,
-                                 hasShelf: !shelf.items.isEmpty,
+                                 hasShelf: !shelf.entradas.isEmpty,
                                  hasHistory: !history.items.isEmpty,
                                  hasMensagens: !messages.threads.isEmpty,
                                  hasNota: noteVisible,
@@ -1050,7 +1050,8 @@ struct NotchView: View {
                     .offset(x: 6, y: -6)
             }
         case .shelf:
-            contagem(shelf.items.count)
+            // o badge conta VAGAS, que é o que casa com a capacidade da prateleira
+            contagem(shelf.entradas.count)
         case .historico:
             contagem(history.items.count)
         case .nota:

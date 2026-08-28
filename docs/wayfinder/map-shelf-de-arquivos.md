@@ -90,16 +90,28 @@ Decisões que dependem do mecanismo e caem junto com ele:
   deixaria sem prova nenhuma. As três regras vivem em `Knobler/ShelfOrdem.swift`
   e `tools/shelfordemcheck.swift` as cobre. O re-arraste compara por `path`
   porque a pasta volta do UserDefaults sem a barra final do Finder, e por URL
-  crua duplicaria depois de um restart. Custo aceito: quem já tinha itens
-  guardados vê a ordem trocada no primeiro lançamento. **Nada disso prova a tela
+  crua duplicaria depois de um restart. O custo que este ticket tinha aceitado —
+  ver a prateleira com a idade trocada no primeiro lançamento — **deixou de
+  existir**: o 004 migra invertendo, e o 003 nunca chegou a sair numa release.
+  **Nada disso prova a tela
   — que o mais novo apareça à esquerda no app rodando é do 009.**
+
+- [004 — O modelo de pilha e a persistência](tickets/004-modelo-de-pilha-e-persistencia.md)
+  — **a entrada é uma struct com uma lista de arquivos, e a persistência ficou
+  na mesma chave `shelfItems`, agora array de arrays no plist.** Struct e não
+  enum de dois casos: o enum obrigaria um `switch` em cada consumidor só pra
+  chegar nos arquivos, e "tem mais de um" já é o discriminante. Não é JSON de
+  propósito — a receita de captura da prateleira popula a chave com
+  `defaults write`, e um blob dentro dela pioraria a receita. **A migração
+  inverte o array antigo**, e com isso o custo que o 003 tinha aceitado deixou
+  de existir. O dedupe agora vale entre entradas: re-soltar um arquivo que está
+  dentro de uma pilha tira ele de lá. `tools/shelfordemcheck.swift` cobre tudo
+  em 29 asserções e não compila contra o modelo anterior. Zero UI: nada no app
+  ainda constrói entrada com mais de um arquivo, e é isso que torna a adaptação
+  dos call sites idêntica ao comportamento de antes.
 
 ## Ainda não especificado
 
-- **Persistência das pilhas.** Hoje `shelfItems` é um array de caminhos no
-  UserDefaults, e o ticket 004 vai trocar o formato. O que fazer com a
-  prateleira de quem já tem itens gravados — migrar ou descartar — ainda não
-  tem forma; o ticket 004 vai fechar isso e pode gerar filho.
 - **A saída é regra fixa ou preferência?** O 002 mediu que as quatro
   concorrentes fazem disso uma opção, com sair como padrão. Este mapa travou a
   saída como regra fixa, antes de saber disso. A decisão é do usuário e cabe no

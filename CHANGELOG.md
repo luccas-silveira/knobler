@@ -9,8 +9,11 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 ### Changed
 - A prateleira passou a mostrar o item mais novo na esquerda; o mais antigo é o
   que cai pela direita quando ela enche. Soltar de novo um arquivo que já está
-  lá puxa ele pra frente da fila em vez de ignorar o arraste. Quem já tinha
-  itens guardados vê a ordem trocada uma vez, no primeiro lançamento.
+  lá puxa ele pra frente da fila em vez de ignorar o arraste.
+- A prateleira passou a guardar entradas em vez de caminhos soltos, e uma
+  entrada sabe ser um arquivo só ou um conjunto — a base do empilhamento que
+  vem a seguir. Nada muda no que se vê: quem já tinha itens guardados continua
+  com eles, na ordem certa.
 
 ## [0.27.0] - 2026-08-28
 

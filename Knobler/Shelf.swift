@@ -13,8 +13,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 final class ShelfStore: ObservableObject {
-    @Published private(set) var items: [URL] = [] {
-        didSet { UserDefaults.standard.set(items.map(\.path), forKey: Self.storageKey) }
+    @Published private(set) var entradas: [ShelfEntry] = [] {
+        didSet { persistir() }
     }
     /// Conversão esperando confirmação. Um de cada vez: abrir outra descarta a
     /// anterior, senão duas pastas temporárias ficariam vivas sem dono na tela.
@@ -22,23 +22,38 @@ final class ShelfStore: ObservableObject {
     private static let capacity = 8
     private static let storageKey = "shelfItems"
 
+    private func persistir() {
+        UserDefaults.standard.set(ShelfOrdem.codificar(entradas), forKey: Self.storageKey)
+    }
+
     init() {
-        let paths = UserDefaults.standard.stringArray(forKey: Self.storageKey) ?? []
-        items = paths.map { URL(fileURLWithPath: $0) }
-            .filter { FileManager.default.fileExists(atPath: $0.path) }
+        let salvo = UserDefaults.standard.object(forKey: Self.storageKey)
+        entradas = ShelfOrdem.decodificar(salvo, capacidade: Self.capacity)
+        // `didSet` NÃO roda em atribuição dentro do init: sem esta chamada a
+        // migração ficaria só em memória, o array plano continuaria no disco e
+        // seria relido (e reinvertido) a cada lançamento.
+        if (salvo as? [String]) != nil { persistir() }
     }
 
-    func add(_ url: URL) {
-        // uma atribuição só: o didSet grava no UserDefaults a cada uma
-        items = ShelfOrdem.inserir(url, em: items, capacidade: Self.capacity)
+    /// Os arquivos de todas as entradas, achatados. Só pra quem opera em
+    /// arquivo (AirDrop); quem conta VAGA usa `entradas.count`.
+    var arquivos: [URL] { entradas.flatMap(\.urls) }
+
+    func add(_ url: URL) { add([url]) }
+
+    /// Uma atribuição só: o didSet grava no UserDefaults a cada uma.
+    func add(_ urls: [URL]) {
+        entradas = ShelfOrdem.inserir(urls, em: entradas, capacidade: Self.capacity)
     }
 
-    func remove(_ url: URL) {
-        items.removeAll { $0 == url }
+    /// Tira a entrada inteira. Remover um arquivo de dentro de uma pilha é
+    /// outra ação, e ela ainda não existe.
+    func remover(_ entrada: ShelfEntry) {
+        entradas.removeAll { $0.id == entrada.id }
     }
 
     func clear() {
-        items.removeAll()
+        entradas.removeAll()
     }
 
     /// Abre o preview de uma conversão. Substitui o que estiver aberto.
@@ -193,8 +208,8 @@ struct ShelfRowView: View {
 
     private var grade: some View {
         HStack(spacing: 14) {
-            ForEach(shelf.items, id: \.self) { url in
-                shelfItem(url)
+            ForEach(shelf.entradas) { entrada in
+                shelfItem(entrada)
             }
             Spacer(minLength: 0)
             Button("Limpar") { shelf.clear() }
@@ -204,8 +219,11 @@ struct ShelfRowView: View {
         }
     }
 
-    private func shelfItem(_ url: URL) -> some View {
-        VStack(spacing: 3) {
+    /// Antes do empilhamento toda entrada tem um arquivo só, então a linha
+    /// desenha a capa e o menu opera sobre ela.
+    private func shelfItem(_ entrada: ShelfEntry) -> some View {
+        let url = entrada.capa
+        return VStack(spacing: 3) {
             // miniatura é uma view AppKit = fonte de drag (ver ShelfThumbnailDragView)
             ShelfThumbnailDragView(url: url)
                 .frame(width: 30, height: 30)
@@ -217,7 +235,7 @@ struct ShelfRowView: View {
         }
         .overlay(alignment: .topTrailing) {
             Button {
-                shelf.remove(url)
+                shelf.remover(entrada)
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 11))
@@ -254,12 +272,13 @@ struct ShelfRowView: View {
                 }
             }
             Menu("Compartilhar") {
-                Button("Enviar por AirDrop") { enviar([url]) }
-                Button("Compartilhar…") { Sharing.share([url]) }
-                if shelf.items.count > 1 {
+                Button("Enviar por AirDrop") { enviar(entrada.urls) }
+                Button("Compartilhar…") { Sharing.share(entrada.urls) }
+                // "tudo" conta ARQUIVOS, não vagas: é o que vai no envio.
+                if shelf.arquivos.count > 1 {
                     Divider()
-                    Button("Enviar tudo por AirDrop (\(shelf.items.count))") {
-                        enviar(shelf.items)
+                    Button("Enviar tudo por AirDrop (\(shelf.arquivos.count))") {
+                        enviar(shelf.arquivos)
                     }
                 }
             }
@@ -267,7 +286,7 @@ struct ShelfRowView: View {
             Button("Mostrar no Finder") {
                 NSWorkspace.shared.activateFileViewerSelecting([url])
             }
-            Button("Remover do shelf") { shelf.remove(url) }
+            Button("Remover do shelf") { shelf.remover(entrada) }
         }
         .transition(.blurReplace)
     }
