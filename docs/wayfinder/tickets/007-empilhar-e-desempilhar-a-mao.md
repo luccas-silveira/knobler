@@ -19,6 +19,12 @@ outra, dentro do mesmo painel, precisa de um alvo de drop em cada miniatura —
 e o monitor precisa saber diferenciar "saiu do painel" de "parou em cima de um
 vizinho", senão o 005 remove o item que na verdade só mudou de lugar.
 
+**Isso deixou de ser suspeita e virou medida.** O 001 mediu um alvo de soltura
+dentro do próprio app: devolve `copy`, igual ao Finder, e o contexto de
+`sourceOperationMaskFor` não separa os dois
+([medicao-001](../medicao-001-o-que-os-destinos-devolvem.md)). O sinal que
+distingue é responsabilidade do 005, que já carrega isso escrito.
+
 O que entra:
 
 1. Soltar item sobre item cria pilha; soltar item sobre pilha entra na pilha.

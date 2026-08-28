@@ -2,8 +2,8 @@
 
 Map: [Shelf de arquivos — empilhamento, ordem e saída](../map-shelf-de-arquivos.md)
 Type: `wayfinder:measure`
-Status: aberto
-Assignee: —
+Status: fechado (2026-08-28)
+Assignee: sessão
 Blocked by: —
 
 ## Pergunta
@@ -38,3 +38,33 @@ quebrou sozinha numa shelf comercial madura — ver [pesquisa-002](../pesquisa-0
 
 A medição precisa de mão humana pra fazer os arrastes; o agente prepara a build
 instrumentada e entrega a lista do que arrastar pra onde.
+
+## Resolução
+
+[medicao-001-o-que-os-destinos-devolvem.md](../medicao-001-o-que-os-destinos-devolvem.md).
+
+Nove arrastes sintéticos dirigidos por `tools/sondaarraste/`, que compila o
+arquivo real da miniatura. **A operação separa aceitar de recusar em todos os
+casos medidos:** sete destinos aceitaram e os sete devolveram `copy` (Finder,
+Chrome, VS Code/Electron, Mail); dois recusaram e os dois devolveram `none`
+(Lixeira e soltura sem destino). Zero divergência — nenhum `copy` sem o arquivo
+chegar, nenhum `none` tendo aceitado. A regra do 005 tem base pra funcionar.
+
+**O achado que muda o desenho:** um alvo de soltura **dentro do próprio app**
+devolve `copy`, igual ao Finder, e o contexto pedido em `sourceOperationMaskFor`
+não separa os dois — o AppKit pergunta pelos dois contextos antes de saber onde
+a soltura vai cair. Escrita ingenuamente, a remoção do 005 apagaria o item que o
+007 acabou de empilhar dentro da própria prateleira. O 005 precisa de outro
+sinal: o ponto de soltura contra o quadro da janela do notch, ou uma marca posta
+pelo alvo interno.
+
+**A Lixeira recusa** com só `.copy` anunciado — arrastar da shelf pro lixo não é
+um gesto que funcione hoje, e fazê-lo funcionar exigiria `.delete`.
+
+Não medido: Slack (não instalado — a classe Electron saiu do VS Code), e nenhum
+destino que aceite devolvendo `none` foi encontrado, o que não prova que não
+exista.
+
+## Verificação
+
+A receita está na seção `## Verificação` do documento de medição.

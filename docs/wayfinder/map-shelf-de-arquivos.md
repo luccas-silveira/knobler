@@ -60,6 +60,16 @@ Decisões que dependem do mecanismo e caem junto com ele:
 
 ## Decisões até aqui
 
+- [001 — O que os destinos devolvem quando aceitam o arraste](tickets/001-o-que-os-destinos-devolvem.md)
+  — **a operação separa aceitar de recusar: 7 aceites, 7 `copy`; 2 recusas, 2
+  `none`, zero divergência** em nove arrastes sintéticos (Finder, Chrome, VS
+  Code/Electron, Mail, Lixeira, soltura no vazio). A regra do 005 tem base. Mas
+  **o arraste que termina dentro do próprio app também devolve `copy`**, e o
+  contexto de `sourceOperationMaskFor` não separa os dois — a remoção precisa de
+  outro sinal, senão apaga o item que o 007 acabou de empilhar. A Lixeira recusa
+  com só `.copy` anunciado. Detalhe e método em
+  [medicao-001](medicao-001-o-que-os-destinos-devolvem.md).
+
 - [002 — O que as outras shelfs fazem que os usuários gostam](tickets/002-o-que-as-outras-shelfs-fazem.md)
   — **as quatro ferramentas fazem da saída uma opção, não uma regra.** Yoink
   (`values.autoRemoveAfterDrag`), Dropover (opção nova na 5.2.5), Dropzone (lock

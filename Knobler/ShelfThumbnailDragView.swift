@@ -29,7 +29,9 @@ struct ShelfThumbnailDragView: NSViewRepresentable {
     }
 }
 
-final class DragThumbView: NSView, NSDraggingSource {
+// não é `final` para a sonda de arraste (`tools/sondaarraste/`) poder herdar e
+// instrumentar os callbacks sem que o app carregue a instrumentação junto
+class DragThumbView: NSView, NSDraggingSource {
     var url: URL {
         didSet { loadThumbnail() }
     }
