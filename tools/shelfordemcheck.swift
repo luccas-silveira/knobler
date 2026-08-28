@@ -223,5 +223,15 @@ enum ShelfOrdemCheck {
         ShelfArrasteInterno.pendente = false          // o que o startDrag faz
         check(!ShelfArrasteInterno.consumir(),
               "marca órfã de um drop de fora não contamina o próximo arraste")
+
+        // ticket 007 — o drop do painel ignora o arraste que saiu da prateleira
+        ShelfArrasteInterno.origemInterna = false
+        check(!ShelfArrasteInterno.origemInterna, "drop vindo de fora não tem origem interna")
+        ShelfArrasteInterno.origemInterna = true      // o que o startDrag faz
+        check(ShelfArrasteInterno.origemInterna,
+              "arraste que saiu da miniatura não vira entrada nova no painel")
+        ShelfArrasteInterno.origemInterna = false     // o que o fim da sessão faz
+        check(!ShelfArrasteInterno.origemInterna,
+              "e o fim da sessão desliga: o próximo drop de fora entra normal")
     }
 }

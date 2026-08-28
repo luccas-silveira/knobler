@@ -143,6 +143,7 @@ class DragThumbView: NSView, NSDraggingSource {
         // DENTRO deixaria a marca armada e o próximo arraste pra fora passaria
         // por interno — a saída nunca aconteceria.
         ShelfArrasteInterno.pendente = false
+        ShelfArrasteInterno.origemInterna = true
         beginDraggingSession(with: dragItems, event: event, source: self)
     }
 
@@ -182,6 +183,7 @@ class DragThumbView: NSView, NSDraggingSource {
         // Aqui a geometria é legítima — o alvo é a miniatura de 30x30 sob o
         // cursor, não o painel de 700pt que cobre meia tela e por isso não
         // serve de sinal (ver `ShelfArrasteInterno`).
+        ShelfArrasteInterno.origemInterna = false
         let alvo = ShelfDragMonitor.shared.view(at: screenPoint)
         let sobreIrma = alvo != nil && alvo !== self
         if let alvo, alvo !== self { onSoltouSobre?(alvo.urls) }

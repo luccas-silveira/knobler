@@ -135,7 +135,9 @@ Decisões que dependem do mecanismo e caem junto com ele:
   duas coisas. O alvo é `ShelfDragMonitor.view(at:)`, e **aqui a geometria vale**
   ao contrário do que o 005 rejeitou: o retângulo é a miniatura de 30x30, não o
   painel de 700pt. `empilhar` junta na entrada apontada sem tirá-la do lugar;
-  `desempilhar` devolve os arquivos à linha e o excesso cai pelo fim. Que isso
+  `desempilhar` devolve os arquivos à linha e o excesso cai pelo fim. O painel
+  ignora o arraste que saiu da própria prateleira (`origemInterna`), senão o
+  `add` assíncrono dele desfaria a pilha logo depois de ela se formar. Que isso
   aconteça na tela é do 009.
 
 ## Ainda não especificado

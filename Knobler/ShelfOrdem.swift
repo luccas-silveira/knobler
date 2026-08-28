@@ -160,6 +160,20 @@ enum ShelfOrdem {
 enum ShelfArrasteInterno {
     static var pendente = false
 
+    /// O arraste em curso SAIU de uma miniatura da prateleira.
+    ///
+    /// `startDrag` liga, o fim da sessão desliga. Serve pro `performDrop` do
+    /// painel não tratar como drop de fora o arraste que só mudou de lugar
+    /// dentro da prateleira: ele aceita o mesmo `public.file-url`, e o `add`
+    /// dele chega DEPOIS (o `loadItem` é assíncrono), desfazendo a pilha que o
+    /// fim da sessão acabou de formar — o arquivo voltaria solto pra frente da
+    /// fila pelo dedupe do 004.
+    ///
+    /// A distinção é por ORIGEM e não por "esse caminho já está na prateleira":
+    /// re-soltar do Finder um arquivo que já está lá tem que continuar puxando
+    /// ele pra frente da fila, que é regra do 003.
+    static var origemInterna = false
+
     /// Lê e zera de uma vez: um arraste que terminou fora não pode herdar a
     /// marca de um anterior.
     static func consumir() -> Bool {

@@ -60,6 +60,15 @@ que o 005 rejeitou: o retângulo consultado é a miniatura de 30x30 sob o cursor
 não o painel de 700pt que cobre da barra de menu ao Dock. Soltar sobre uma
 vizinha também conta como `dentroDoNotch`, então a saída não dispara.
 
+Com o alvo de drop fora do caminho, sobrou o do painel: ele aceita o mesmo
+`public.file-url` que a miniatura põe no pasteboard, e o `add` dele chega
+**depois** (o `loadItem` é assíncrono), desfazendo a pilha que o fim da sessão
+acabou de formar. `ShelfArrasteInterno.origemInterna`, ligada no `startDrag` e
+desligada no fim da sessão, faz o painel ignorar esse arraste. A distinção é por
+ORIGEM e não por "esse caminho já está na prateleira": re-soltar do Finder um
+arquivo que já está lá tem que continuar puxando ele pra frente da fila, que é
+regra do 003.
+
 Desempilhar é um item no menu de contexto, que só aparece quando a entrada é
 pilha.
 

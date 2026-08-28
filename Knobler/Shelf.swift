@@ -156,7 +156,11 @@ struct ShelfDropDelegate: DropDelegate {
         let arquivos = providers.filter {
             $0.registeredTypeIdentifiers.contains(UTType.fileURL.identifier)
         }
-        ShelfArquivos.juntos(arquivos) { [weak shelf] urls in shelf?.add(urls) }
+        // arraste que saiu da própria prateleira não vira entrada nova: quem
+        // resolve esse caso é o fim da sessão de arraste (ticket 007)
+        if !ShelfArrasteInterno.origemInterna {
+            ShelfArquivos.juntos(arquivos) { [weak shelf] urls in shelf?.add(urls) }
+        }
         for provider in providers where !arquivos.contains(provider) {
             carregar(provider)
         }
