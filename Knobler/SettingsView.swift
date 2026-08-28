@@ -365,6 +365,13 @@ struct NotchSettingsPane: View {
                         + "Nada se perde: fica no histórico.",
                     isOn: $settings.silenciarComMicrofone)
             }
+            Section("Prateleira") {
+                SettingToggle(
+                    title: "Arrastar pra fora tira da prateleira",
+                    subtitle: "O item some da prateleira quando o destino aceita. "
+                        + "O arquivo original não é tocado.",
+                    isOn: $settings.shelfSaiAoArrastar)
+            }
             Section("Capturas de tela") {
                 SettingToggle(
                     title: "Capturas vão pro shelf",

@@ -99,6 +99,12 @@ final class AppSettings: ObservableObject {
     @Published var screenshotsToShelf: Bool {
         didSet { UserDefaults.standard.set(screenshotsToShelf, forKey: "screenshotsToShelf") }
     }
+    /// Arrastar um item da prateleira pra fora e o destino aceitar tira o item
+    /// da prateleira (o arquivo original não é tocado). Ligado de fábrica, como
+    /// nas quatro concorrentes medidas no 002.
+    @Published var shelfSaiAoArrastar: Bool {
+        didSet { UserDefaults.standard.set(shelfSaiAoArrastar, forKey: "shelfSaiAoArrastar") }
+    }
     /// Esconde o preview flutuante nativo do print (o shelf já mostra).
     @Published var hideScreenshotPreview: Bool {
         didSet { UserDefaults.standard.set(hideScreenshotPreview, forKey: "hideScreenshotPreview") }
@@ -281,6 +287,7 @@ final class AppSettings: ObservableObject {
         formatEndpoint = defaults.string(forKey: "formatEndpoint") ?? "http://localhost:11434/v1/chat/completions"
         formatModel = defaults.string(forKey: "formatModel") ?? "gemma3:4b"
         screenshotsToShelf = flag("screenshotsToShelf")
+        shelfSaiAoArrastar = flag("shelfSaiAoArrastar")
         hideScreenshotPreview = flag("hideScreenshotPreview")
         annotationArmed = defaults.bool(forKey: "annotationArmed")
         annotationActivationMode = AnnotationActivationMode(

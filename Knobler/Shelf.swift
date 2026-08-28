@@ -96,6 +96,10 @@ struct ShelfDropDelegate: DropDelegate {
     func performDrop(info: DropInfo) -> Bool {
         let providers = info.itemProviders(for: [.fileURL, .url, .plainText])
         guard !providers.isEmpty else { return false }
+        // marca o arraste que terminou aqui dentro, pro 005 não confundir
+        // empilhamento com saída — o `loadItem` abaixo é assíncrono, então isto
+        // precisa ser síncrono e antes dele
+        ShelfArrasteInterno.pendente = true
         for provider in providers {
             carregar(provider)
         }
@@ -225,8 +229,15 @@ struct ShelfRowView: View {
         let url = entrada.capa
         return VStack(spacing: 3) {
             // miniatura é uma view AppKit = fonte de drag (ver ShelfThumbnailDragView)
-            ShelfThumbnailDragView(url: url)
-                .frame(width: 30, height: 30)
+            ShelfThumbnailDragView(url: url) { aceitou, dentroDoNotch in
+                if ShelfOrdem.saiAoArrastar(
+                    aceitou: aceitou, dentroDoNotch: dentroDoNotch,
+                    isPilha: entrada.isPilha,
+                    habilitado: AppSettings.shared.shelfSaiAoArrastar) {
+                    shelf.remover(entrada)
+                }
+            }
+            .frame(width: 30, height: 30)
             Text(url.lastPathComponent)
                 .font(.caption2)
                 .foregroundStyle(.white.opacity(0.7))

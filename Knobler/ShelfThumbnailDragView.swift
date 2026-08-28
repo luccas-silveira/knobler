@@ -21,11 +21,44 @@ import UniformTypeIdentifiers
 
 struct ShelfThumbnailDragView: NSViewRepresentable {
     let url: URL
+    /// Fim do arraste: `aceitou` = o destino levou, `dentroDoNotch` = terminou
+    /// na própria prateleira. Quem decide o que fazer é o `Shelf.swift`, que tem
+    /// a entrada e o Ajustes na mão — aqui só saem os fatos (ticket 005).
+    var onArrasteTerminou: ((_ aceitou: Bool, _ dentroDoNotch: Bool) -> Void)?
 
-    func makeNSView(context: Context) -> NSView { DragThumbView(url: url) }
+    func makeNSView(context: Context) -> NSView {
+        let view = DragThumbView(url: url)
+        view.onArrasteTerminou = onArrasteTerminou
+        return view
+    }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        (nsView as? DragThumbView)?.url = url
+        guard let view = nsView as? DragThumbView else { return }
+        view.url = url
+        // reatribuir é obrigatório: o SwiftUI recicla a mesma NSView pra outra
+        // entrada, e o closure antigo removeria a entrada errada
+        view.onArrasteTerminou = onArrasteTerminou
+    }
+}
+
+/// Sinal de que o arraste em curso foi solto DENTRO da prateleira.
+///
+/// `ShelfDropDelegate.performDrop` liga isto e o fim da sessão consome. É um
+/// aperto de mão e não geometria porque o painel do notch tem 700pt de largura
+/// e vai do topo da tela até o Dock: um Finder no meio da tela cairia dentro do
+/// frame e passaria por drop interno. Os dois pontos rodam na main thread, e
+/// `performDrop` vem antes do fim da sessão.
+///
+/// Vive neste arquivo, e não no `Shelf.swift`, pra `tools/sondaarraste/`
+/// continuar compilando só a miniatura.
+enum ShelfArrasteInterno {
+    static var pendente = false
+
+    /// Lê e zera de uma vez: um arraste que terminou fora não pode herdar a
+    /// marca de um anterior.
+    static func consumir() -> Bool {
+        defer { pendente = false }
+        return pendente
     }
 }
 
@@ -37,6 +70,8 @@ class DragThumbView: NSView, NSDraggingSource {
     }
 
     private let imageView = NSImageView()
+
+    var onArrasteTerminou: ((Bool, Bool) -> Void)?
 
     init(url: URL) {
         self.url = url
@@ -119,6 +154,16 @@ class DragThumbView: NSView, NSDraggingSource {
         sourceOperationMaskFor context: NSDraggingContext
     ) -> NSDragOperation {
         .copy
+    }
+
+    /// `contains` e não `==`: `NSDragOperation` é OptionSet, e um destino pode
+    /// devolver `[.copy, .generic]`.
+    func draggingSession(
+        _ session: NSDraggingSession,
+        endedAt screenPoint: NSPoint,
+        operation: NSDragOperation
+    ) {
+        onArrasteTerminou?(operation.contains(.copy), ShelfArrasteInterno.consumir())
     }
 }
 

@@ -1,6 +1,6 @@
 //
 //  shelfordemcheck.swift
-//  Gate do modelo e da ordem da prateleira (tickets 003 e 004).
+//  Gate do modelo e da ordem da prateleira (tickets 003, 004 e 005).
 //
 //  Cobre as três regras de ordem (o novo entra na frente, o repetido sobe em
 //  vez de duplicar, o excesso sai pelo fim), o dedupe entre entradas, e o
@@ -166,5 +166,18 @@ enum ShelfOrdemCheck {
         let demais = (0..<30).map { ["/tmp/\($0)"] }
         check(ShelfOrdem.decodificar(demais, capacidade: 8, existe: tudoExiste).count == 8,
               "a leitura também corta na capacidade (um defaults write à mão pode escrever 30)")
+
+        // ticket 005 — quando o item sai da prateleira ao ser arrastado
+        func sai(_ aceitou: Bool, _ dentro: Bool, _ pilha: Bool, _ on: Bool) -> Bool {
+            ShelfOrdem.saiAoArrastar(aceitou: aceitou, dentroDoNotch: dentro,
+                                     isPilha: pilha, habilitado: on)
+        }
+        check(sai(true, false, false, true), "aceite fora do notch tira o item solto")
+        check(!sai(false, false, false, true), "recusa (soltar no vazio) mantém o item")
+        check(!sai(true, true, false, true),
+              "aceite DENTRO do notch é empilhamento, não saída: o item fica")
+        check(!sai(true, false, true, true),
+              "pilha não sai: só a capa foi arrastada, e a saída da pilha é o 006")
+        check(!sai(true, false, false, false), "com a chave de Ajustes desligada, nada sai")
     }
 }

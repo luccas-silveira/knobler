@@ -92,4 +92,23 @@ enum ShelfOrdem {
         return Array(vivos.map { ShelfEntry($0.map(URL.init(fileURLWithPath:))) }
                           .prefix(capacidade))
     }
+
+    /// A entrada sai da prateleira depois de um arraste? (ticket 005)
+    ///
+    /// `aceitou` é o `operation` de volta em `draggingSession(_:endedAt:_:)`
+    /// contendo `.copy` — a medição 001 viu 7 aceites em `.copy` e 2 recusas em
+    /// `.none`, sem divergência. A Lixeira devolve `.delete` e o item fica: é o
+    /// lado seguro do erro.
+    ///
+    /// `dentroDoNotch` marca o arraste que terminou na própria prateleira (o
+    /// empilhamento do 007), que também devolve `.copy` — sem essa separação a
+    /// saída apagaria o item que acabou de ser empilhado.
+    ///
+    /// Pilha nunca sai: só a capa vai pro pasteboard, e tirar a entrada inteira
+    /// levaria junto arquivos que ninguém arrastou. A saída da pilha é o 006.
+    static func saiAoArrastar(aceitou: Bool, dentroDoNotch: Bool,
+                              isPilha: Bool, habilitado: Bool) -> Bool {
+        habilitado && aceitou && !dentroDoNotch && !isPilha
+    }
+
 }

@@ -6,6 +6,12 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- Arrastar um item da prateleira pra fora e o destino aceitar tira o item da
+  prateleira — o arquivo original não é tocado. Soltar no vazio, ou num destino
+  que recusa, mantém o item. Tem chave em Ajustes › Prateleira, ligada de
+  fábrica. Pilha ainda não sai: só a capa é arrastada.
+
 ### Changed
 - A prateleira passou a mostrar o item mais novo na esquerda; o mais antigo é o
   que cai pela direita quando ela enche. Soltar de novo um arquivo que já está

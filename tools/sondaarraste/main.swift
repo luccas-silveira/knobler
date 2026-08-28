@@ -40,7 +40,7 @@ final class ThumbSondado: DragThumbView {
         return super.draggingSession(session, sourceOperationMaskFor: context)
     }
 
-    func draggingSession(
+    override func draggingSession(
         _ session: NSDraggingSession,
         endedAt screenPoint: NSPoint,
         operation: NSDragOperation

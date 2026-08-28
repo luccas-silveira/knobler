@@ -2,8 +2,8 @@
 
 Map: [Shelf de arquivos — empilhamento, ordem e saída](../map-shelf-de-arquivos.md)
 Type: `wayfinder:task`
-Status: aberto
-Assignee: —
+Status: fechado
+Assignee: claude
 Blocked by: 001, 002
 
 ## Pergunta
@@ -30,3 +30,26 @@ saída como regra fixa antes de saber disso. Pergunte antes de escrever: regra
 fixa, ou chave em Ajustes com sair ligado por padrão?
 
 A remoção da **pilha** inteira não é aqui — é no 006, que já tem o modelo.
+
+## Resposta
+
+**Chave em Ajustes › Prateleira, ligada de fábrica** — decisão do usuário, como
+o 002 recomendou. `AppSettings.shelfSaiAoArrastar`.
+
+A regra vive em `ShelfOrdem.saiAoArrastar(aceitou:dentroDoNotch:isPilha:habilitado:)`,
+coberta por cinco asserções no `shelfordemcheck`. Sai quando os quatro batem.
+
+O sinal que separa o arraste interno do externo **não é geometria**: o painel do
+notch tem 700pt de largura e vai do topo da tela até o Dock, então um Finder no
+meio da tela cairia dentro do frame. É um aperto de mão — `ShelfDropDelegate.performDrop`
+liga `ShelfArrasteInterno.pendente` sincronamente, e `draggingSession(_:endedAt:_:)`
+consome. O enum mora em `ShelfThumbnailDragView.swift` pra `tools/sondaarraste/`
+seguir compilando só a miniatura.
+
+`operation.contains(.copy)`, não `==`: `NSDragOperation` é OptionSet. A Lixeira
+devolve `.delete` e o item fica — lado seguro do erro.
+
+Pilha nunca sai: só a capa vai pro pasteboard, e remover a entrada inteira
+levaria arquivos que ninguém arrastou. Isso é o 006.
+
+Sem prova visual: a prateleira não renderiza offscreen, e a prova é o 009.
