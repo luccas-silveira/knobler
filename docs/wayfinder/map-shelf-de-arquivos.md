@@ -110,13 +110,16 @@ Decisões que dependem do mecanismo e caem junto com ele:
   ainda constrói entrada com mais de um arquivo, e é isso que torna a adaptação
   dos call sites idêntica ao comportamento de antes.
 
+- [005 — O item sai da shelf ao ser arrastado pra fora](tickets/005-o-item-sai-ao-ser-arrastado-pra-fora.md)
+  — **a saída é uma chave em Ajustes › Prateleira, ligada de fábrica**, e não a
+  regra fixa que este mapa tinha travado: decisão do usuário, apoiada no 002. O
+  sinal que separa o arraste interno do externo é um aperto de mão
+  (`ShelfArrasteInterno`), não geometria — o painel do notch tem 700pt de
+  largura e vai do topo da tela até o Dock, então um destino no meio da tela
+  cairia dentro do frame. Pilha não sai; isso é o 006.
+
 ## Ainda não especificado
 
-- **A saída é regra fixa ou preferência?** O 002 mediu que as quatro
-  concorrentes fazem disso uma opção, com sair como padrão. Este mapa travou a
-  saída como regra fixa, antes de saber disso. A decisão é do usuário e cabe no
-  ticket 005, que já a carrega escrita; vira ticket próprio só se ele quiser a
-  chave em Ajustes.
 - **O backlog do 002.** O que a pesquisa levantou fora das três decisões deste
   mapa está no fim de [pesquisa-002](pesquisa-002-shelfs-do-macos.md) e ainda
   não foi lido pra virar coisa nenhuma.
