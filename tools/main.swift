@@ -120,6 +120,18 @@ func fakeShelfFiles() -> [URL] {
     }
 }
 
+/// Arquivos de uma pilha, com prefixo comum e nome longo: é o caso que a grade
+/// da pilha aberta trunca no meio.
+func fakePilhaFiles(_ n: Int) -> [URL] {
+    let dir = FileManager.default.temporaryDirectory
+    return (1...n).map { i in
+        let url = dir.appendingPathComponent(
+            String(format: "Captura de tela 2026-08-28 as 14.%02d.png", i))
+        try? "x".data(using: .utf8)?.write(to: url)
+        return url
+    }
+}
+
 /// PNG de verdade (o `fakeShelfFiles` escreve "x", que o ImageIO não abre) —
 /// o preview de conversão precisa de um arquivo que converta pra valer.
 func fakePNGFile(_ size: CGSize = CGSize(width: 480, height: 300)) -> URL {
@@ -261,6 +273,22 @@ let scenarios: [Scenario] = [
     },
     Scenario(name: "foco-shelf", realNotch: true) { vm, _, _ in
         fakeShelfFiles().forEach { currentShelf.add($0) }
+        vm.expanded = true
+        vm.secoes = [.shelf, .musica]
+        vm.focus = .shelf
+    },
+    // a pilha aberta: cabe numa página, sem o botão "Mais"
+    Scenario(name: "foco-shelf-pilha", realNotch: true, frameHeight: 340) { vm, _, _ in
+        currentShelf.add(fakePilhaFiles(7))
+        currentShelf.abrirPilha(currentShelf.entradas[0])
+        vm.expanded = true
+        vm.secoes = [.shelf, .musica]
+        vm.focus = .shelf
+    },
+    // pilha que não cabe: a décima célula vira "Mais" e a grade pagina
+    Scenario(name: "foco-shelf-pilha-cheia", realNotch: true, frameHeight: 340) { vm, _, _ in
+        currentShelf.add(fakePilhaFiles(20))
+        currentShelf.abrirPilha(currentShelf.entradas[0])
         vm.expanded = true
         vm.secoes = [.shelf, .musica]
         vm.focus = .shelf

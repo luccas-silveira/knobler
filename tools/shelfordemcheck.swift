@@ -198,6 +198,69 @@ enum ShelfOrdemCheck {
         check(ShelfOrdem.desempilhar(vinte, em: [vinte], capacidade: 8).count == 8,
               "pilha maior que a prateleira: o excesso cai pelo fim (regra do 003)")
 
+        // ticket 008 — tirar um arquivo de dentro da pilha, e a pilha aberta
+        let tres = ShelfEntry([u("/tmp/x"), u("/tmp/y"), u("/tmp/z")])
+        let comPilha = [ShelfEntry([u("/tmp/solto")]), tres]
+
+        check(forma(ShelfOrdem.remover(u("/tmp/y"), de: tres, em: comPilha))
+                == [["/tmp/solto"], ["/tmp/x", "/tmp/z"]],
+              "tirar do meio da pilha preserva a posição da entrada na linha")
+
+        let doisSobram = ShelfOrdem.remover(u("/tmp/y"), de: tres, em: comPilha)
+        let umSobra = ShelfOrdem.remover(u("/tmp/x"), de: doisSobram[1], em: doisSobram)
+        check(umSobra[1].isPilha == false, "pilha que sobra com um deixa de ser pilha")
+
+        check(forma(ShelfOrdem.remover(u("/tmp/solto"), de: comPilha[0], em: comPilha))
+                == [["/tmp/x", "/tmp/y", "/tmp/z"]],
+              "entrada que esvazia some da linha")
+
+        check(forma(ShelfOrdem.remover(u("/tmp/nada"), de: tres, em: comPilha))
+                == forma(comPilha),
+              "url que não está na entrada devolve tudo intocado")
+
+        check(forma(ShelfOrdem.remover(u("/tmp/x"), de: ShelfEntry([u("/tmp/fora")]),
+                                       em: comPilha)) == forma(comPilha),
+              "alvo que não está na prateleira devolve tudo intocado")
+
+        // a pilha aberta segue a troca de identidade que tirar um arquivo causa
+        check(ShelfOrdem.pilhaAberta(tres, em: doisSobram)?.urls.count == 2,
+              "a pilha aberta segue a entrada mesmo com a identidade trocada")
+        check(ShelfOrdem.pilhaAberta(tres, em: ShelfOrdem.remover(u("/tmp/x"), de: tres,
+                                                                 em: comPilha)) != nil,
+              "tirar a CAPA não fecha a pilha: o resto dela continua lá")
+        check(ShelfOrdem.pilhaAberta(tres, em: umSobra) == nil,
+              "quando sobra um arquivo só, a pilha aberta fecha")
+        check(ShelfOrdem.pilhaAberta(tres, em: [comPilha[0]]) == nil,
+              "entrada que sumiu da prateleira fecha a pilha aberta")
+        check(ShelfOrdem.pilhaAberta(nil, em: comPilha) == nil, "nil continua nil")
+
+        // e as duas juntas: é a asserção que amarra o ticket
+        var abertas: ShelfEntry? = tres
+        var linhaViva = comPilha
+        linhaViva = ShelfOrdem.remover(u("/tmp/z"), de: abertas!, em: linhaViva)
+        abertas = ShelfOrdem.pilhaAberta(abertas, em: linhaViva)
+        check(abertas?.urls.count == 2, "abriu com 3, tirou 1, segue aberta com 2")
+        linhaViva = ShelfOrdem.remover(u("/tmp/y"), de: abertas!, em: linhaViva)
+        abertas = ShelfOrdem.pilhaAberta(abertas, em: linhaViva)
+        check(abertas == nil, "tirou mais um, sobrou um: a pilha fecha sozinha")
+
+        // paginação da grade
+        let vinteURLs = (0..<20).map { u("/tmp/g\($0)") }
+        let dez = Array(vinteURLs.prefix(10))
+        check(ShelfOrdem.pagina(de: dez, porPagina: 10, indice: 0).count == 10,
+              "o que cabe na página inteira não abre espaço pro botão Mais")
+        check(ShelfOrdem.paginas(de: dez, porPagina: 10) == 1, "e é uma página só")
+        check(ShelfOrdem.pagina(de: vinteURLs, porPagina: 10, indice: 0).count == 9,
+              "com sobra, a última célula vira Mais e a página mostra nove")
+        check(ShelfOrdem.paginas(de: vinteURLs, porPagina: 10) == 3, "20 em nove dá três páginas")
+        check(ShelfOrdem.pagina(de: vinteURLs, porPagina: 10, indice: 2).count == 2,
+              "a última página traz o resto")
+        let varridos = (0..<3).flatMap { ShelfOrdem.pagina(de: vinteURLs, porPagina: 10, indice: $0) }
+        check(varridos.map(\.path) == vinteURLs.map(\.path),
+              "varrer as páginas devolve a pilha inteira, na ordem e sem repetir")
+        check(ShelfOrdem.pagina(de: vinteURLs, porPagina: 10, indice: 9).isEmpty,
+              "índice além do fim devolve vazio em vez de estourar")
+
         // ticket 005 — quando o item sai da prateleira ao ser arrastado
         func sai(_ aceitou: Bool, _ dentro: Bool, _ on: Bool) -> Bool {
             ShelfOrdem.saiAoArrastar(aceitou: aceitou, dentroDoNotch: dentro, habilitado: on)

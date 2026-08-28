@@ -140,15 +140,30 @@ Decisões que dependem do mecanismo e caem junto com ele:
   `add` assíncrono dele desfaria a pilha logo depois de ela se formar. Que isso
   aconteça na tela é do 009.
 
+- [008 — A pilha expandida](tickets/008-a-pilha-expandida.md)
+  — **clicar numa pilha abre ela em grade no card inteiro**, cinco por linha e
+  dez por página, com "Mais" quando não cabe. A largura útil do card é **386** e
+  não 430 (a `NotchView` tira 44 de padding), o que derrubou a célula de 78 pra
+  66. O estado mora no store e não na view porque o `currentSize` precisa lê-lo
+  pra calcular a altura. A âncora da pilha aberta é a **interseção de arquivos**,
+  não o id nem a capa: o id muda quando um arquivo sai, e ancorar na capa
+  fecharia uma pilha de cinco quando alguém arrastasse a capa pra fora. A
+  reconciliação vive no `didSet` de `entradas`, o único lugar por onde todos os
+  caminhos passam. O clique vem do `upMonitor` que já existia, e `dragging`
+  passou a ser zerado no fim da sessão de arraste — senão o primeiro clique
+  depois de um arraste era engolido. Vinte asserções novas; a tela é do 009.
+
 ## Ainda não especificado
 
 - **O backlog do 002.** O que a pesquisa levantou fora das três decisões deste
   mapa está no fim de [pesquisa-002](pesquisa-002-shelfs-do-macos.md) e ainda
   não foi lido pra virar coisa nenhuma.
-- **Conversão e AirDrop dentro de uma pilha.** O menu de contexto de hoje
-  ("Converter", "Enviar tudo por AirDrop") assume item solto. O que ele faz
-  sobre uma pilha só fica nítido depois do 004. O AirDrop já opera sobre
-  `entrada.urls`; "Converter" e "Mostrar no Finder" ainda assumem a capa.
+- **Conversão e AirDrop dentro de uma pilha.** O AirDrop da linha fechada já
+  opera sobre `entrada.urls`; "Converter" e "Mostrar no Finder" ainda assumem a
+  capa. Dentro da grade da pilha aberta a célula ainda não tem menu de contexto
+  nenhum.
+- **A capacidade 8 não cabe na linha fechada.** Achado do 008: oito entradas
+  pedem 562pt numa largura útil de 386. Pergunta pro 009.
 
 ## Fora de escopo
 

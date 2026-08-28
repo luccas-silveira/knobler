@@ -95,6 +95,62 @@ enum ShelfOrdem {
         return Array(novas.prefix(capacidade))
     }
 
+    /// Tira UM arquivo de dentro de uma entrada, sem tirá-la do lugar
+    /// (ticket 008).
+    ///
+    /// Nada de capacidade aqui: nenhum arquivo entra. As consequências caem
+    /// sozinhas do modelo — a entrada que fica com um arquivo deixa de ser
+    /// pilha porque `isPilha` é computado, e a que esvazia some.
+    ///
+    /// Comparação por `path`, mesma razão do `inserir`. Alvo ausente, ou url
+    /// que não está nele, devolve tudo intocado.
+    static func remover(_ url: URL, de alvo: ShelfEntry,
+                        em entradas: [ShelfEntry]) -> [ShelfEntry] {
+        entradas.compactMap { entrada -> ShelfEntry? in
+            guard entrada.id == alvo.id else { return entrada }
+            let sobrou = entrada.urls.filter { $0.path != url.path }
+            return sobrou.isEmpty ? nil : ShelfEntry(sobrou)
+        }
+    }
+
+    /// A pilha aberta depois de a prateleira mudar (ticket 008).
+    ///
+    /// `ShelfEntry.id` vem do conteúdo, então tirar um arquivo troca a
+    /// identidade da entrada: guardar o id não ancora nada. O que ancora é a
+    /// interseção — a entrada que ainda contém algum dos arquivos que estavam
+    /// abertos é a mesma pilha. Por `capa` não daria: arrastar a capa pra fora
+    /// fecharia uma pilha de cinco que continua existindo.
+    ///
+    /// Devolve `nil` quando a entrada sumiu ou deixou de ser pilha — é o que
+    /// fecha a grade sozinha quando sobra um arquivo só.
+    static func pilhaAberta(_ aberta: ShelfEntry?,
+                            em entradas: [ShelfEntry]) -> ShelfEntry? {
+        guard let aberta else { return nil }
+        let abertos = Set(aberta.urls.map(\.path))
+        let achada = entradas.first { $0.urls.contains { abertos.contains($0.path) } }
+        return achada?.isPilha == true ? achada : nil
+    }
+
+    /// A fatia visível da pilha aberta (ticket 008).
+    ///
+    /// Molde: `AnnotationDeckView`. Quando não cabe tudo, a última célula da
+    /// página é o botão "Mais", então a página mostra `porPagina - 1` arquivos.
+    /// Índice além do fim devolve vazio em vez de estourar — a lista encolhe
+    /// enquanto alguém olha pra ela.
+    static func pagina(de urls: [URL], porPagina: Int, indice: Int) -> [URL] {
+        guard urls.count > porPagina else { return indice == 0 ? urls : [] }
+        let porPagina = porPagina - 1
+        let inicio = indice * porPagina
+        guard inicio < urls.count else { return [] }
+        return Array(urls[inicio..<min(inicio + porPagina, urls.count)])
+    }
+
+    /// Quantas páginas a pilha tem. Uma, quando cabe tudo.
+    static func paginas(de urls: [URL], porPagina: Int) -> Int {
+        guard urls.count > porPagina else { return 1 }
+        return Int(ceil(Double(urls.count) / Double(porPagina - 1)))
+    }
+
     /// O que vai pro UserDefaults: array de arrays de caminho, que o plist
     /// suporta nativamente. Não é JSON de propósito — a receita de captura da
     /// prateleira nos docs popula a chave com `defaults write`, e um blob JSON

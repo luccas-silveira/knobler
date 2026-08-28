@@ -113,13 +113,18 @@ struct NotchView: View {
         focus == .link && linkAberto ? linkCardWidth : padrao
     }
 
-    /// A prateleira é a única seção com duas alturas: a grade de itens é uma
-    /// linha, o preview de conversão empilha presets e botões.
+    /// A prateleira é a seção com mais alturas: a linha de itens, o preview de
+    /// conversão (presets e botões) e a pilha aberta em grade.
     static let shelfPreviewHeight: CGFloat = 112
+    /// Derivada e não literal: a grade da pilha muda de tamanho junto com a
+    /// célula, e o número solto aqui sairia de sincronia calado.
+    static let shelfPilhaHeight: CGFloat =
+        18 + 8 + ShelfPilhaView.alturaCelula * 2 + 8
     /// Espelho fixado e desligado é ícone + botão: os 202 da câmera deixariam
     /// meio card vazio.
     static let espelhoDesligadoHeight: CGFloat = 96
     static func alturaDaSecao(_ s: NotchSection, preview: Bool = false,
+                              pilhaAberta: Bool = false,
                               espelhoLigado: Bool = true,
                               linkAberto: Bool = true,
                               eventoProximo: Bool = false) -> CGFloat {
@@ -128,7 +133,12 @@ struct NotchView: View {
         // a linha do próximo evento do calendário só existe quando há evento
         case .pomodoro: return eventoProximo ? 150 : 128
         case .atividade: return 60
-        case .shelf: return preview ? shelfPreviewHeight : 76
+        // a ordem não é livre: os dois estados podem estar ligados ao mesmo
+        // tempo (converter a partir de dentro da pilha aberta), e o
+        // `ShelfRowView.body` testa `preview` primeiro. Inverter aqui daria
+        // altura de pilha com conteúdo de preview desenhado.
+        case .shelf: return preview ? shelfPreviewHeight
+                                    : (pilhaAberta ? shelfPilhaHeight : 76)
         case .espelho: return espelhoLigado ? 202 : espelhoDesligadoHeight
         case .mensagens: return 272
         case .historico: return HistoryListView.listHeight + 12
@@ -401,6 +411,7 @@ struct NotchView: View {
             // lá lê como saída e fecha o card.
             let corpo = vm.focus.map {
                 Self.alturaDaSecao($0, preview: shelf.preview != nil,
+                                   pilhaAberta: shelf.pilhaAberta != nil,
                                    espelhoLigado: vm.mirrorOn,
                                    linkAberto: linkAberto,
                                    eventoProximo: vm.calendarAviso != nil)

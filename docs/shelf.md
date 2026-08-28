@@ -41,6 +41,24 @@ Mostrar no Finder
 Remover do shelf
 ```
 
+### Pilhas
+
+Soltar vários arquivos de uma vez cria **uma** entrada, não várias — senão um
+drop de vinte fotos comeria a prateleira inteira. A miniatura de uma pilha tem
+duas folhas atrás e o número de arquivos no canto. Arrastar uma pilha pra fora
+leva os N arquivos juntos.
+
+Arrastar um item **em cima de outro**, dentro da prateleira, junta os dois numa
+pilha, na posição do item de baixo.
+
+**Clicar numa pilha abre ela em grade**, no card inteiro: dez arquivos por
+página, com "Mais" na última célula quando não cabe tudo. Dentro da grade cada
+arquivo é um item normal — arraste um pra fora, ou clique no ✕, e só ele sai da
+pilha. Quando sobra um arquivo só, a pilha deixa de ser pilha e a grade fecha
+sozinha. O ‹ do canto volta pra prateleira; **Desempilhar** devolve todos os
+arquivos à linha de uma vez (o excesso cai pelo fim, se a pilha for maior que a
+prateleira).
+
 ### Converter
 
 Os destinos dependem do tipo do arquivo:

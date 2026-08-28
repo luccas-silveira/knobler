@@ -29,12 +29,16 @@ struct ShelfThumbnailDragView: NSViewRepresentable {
     /// O arraste terminou em cima de OUTRA miniatura: os arquivos da entrada
     /// alvo vêm aqui (ticket 007).
     var onSoltouSobre: ((_ alvo: [URL]) -> Void)?
+    /// Clique na miniatura, sem arraste. Vem do monitor de mouse e não de um
+    /// `.onTapGesture`, pelo mesmo motivo do arraste (ticket 008).
+    var onClique: (() -> Void)?
     var onArrasteTerminou: ((_ aceitou: Bool, _ dentroDoNotch: Bool) -> Void)?
 
     func makeNSView(context: Context) -> NSView {
         let view = DragThumbView(urls: urls)
         view.onArrasteTerminou = onArrasteTerminou
         view.onSoltouSobre = onSoltouSobre
+        view.onClique = onClique
         return view
     }
 
@@ -45,6 +49,7 @@ struct ShelfThumbnailDragView: NSViewRepresentable {
         // entrada, e o closure antigo removeria a entrada errada
         view.onArrasteTerminou = onArrasteTerminou
         view.onSoltouSobre = onSoltouSobre
+        view.onClique = onClique
     }
 }
 
@@ -62,6 +67,7 @@ class DragThumbView: NSView, NSDraggingSource {
 
     var onArrasteTerminou: ((Bool, Bool) -> Void)?
     var onSoltouSobre: (([URL]) -> Void)?
+    var onClique: (() -> Void)?
 
     init(urls: [URL]) {
         self.urls = urls
@@ -184,6 +190,10 @@ class DragThumbView: NSView, NSDraggingSource {
         // cursor, não o painel de 700pt que cobre meia tela e por isso não
         // serve de sinal (ver `ShelfArrasteInterno`).
         ShelfArrasteInterno.origemInterna = false
+        // o mouseUp de um arraste pode nunca chegar ao monitor: o
+        // `beginDraggingSession` assume o fluxo de eventos. Sem zerar aqui, o
+        // `dragging` fica ligado e engole o PRÓXIMO clique.
+        ShelfDragMonitor.shared.arrasteTerminou()
         let alvo = ShelfDragMonitor.shared.view(at: screenPoint)
         let sobreIrma = alvo != nil && alvo !== self
         if let alvo, alvo !== self { onSoltouSobre?(alvo.urls) }
@@ -208,6 +218,13 @@ final class ShelfDragMonitor {
     private static let threshold: CGFloat = 3
 
     func register(_ view: DragThumbView) { views.add(view) }
+
+    /// Fim da sessão de arraste: solta o estado que o `mouseUp` soltaria se
+    /// tivesse chegado.
+    func arrasteTerminou() {
+        pending = nil
+        dragging = false
+    }
     func unregister(_ view: DragThumbView) { views.remove(view) }
 
     func start() {
@@ -236,9 +253,19 @@ final class ShelfDragMonitor {
 
         upMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseUp) {
             [weak self] event in
-            self?.pending = nil
-            self?.dragging = false
-            return event
+            guard let self else { return event }
+            let alvo = self.pending
+            let arrastou = self.dragging
+            self.pending = nil
+            self.dragging = false
+            // clique = soltou sem ter passado do limiar, na mesma miniatura em
+            // que apertou. A checagem de janela barra um clique numa janela de
+            // Ajustes que esteja por cima da geometria do card.
+            if !arrastou, let alvo, event.window === alvo.window,
+               self.view(at: NSEvent.mouseLocation) === alvo {
+                alvo.onClique?()
+            }
+            return event // não consome: o clique segue pro SwiftUI (o ✕)
         }
     }
 

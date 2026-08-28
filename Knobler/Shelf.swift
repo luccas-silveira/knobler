@@ -14,8 +14,20 @@ import UniformTypeIdentifiers
 
 final class ShelfStore: ObservableObject {
     @Published private(set) var entradas: [ShelfEntry] = [] {
-        didSet { persistir() }
+        didSet {
+            persistir()
+            // A pilha aberta some por caminhos que não são ação dela: remover,
+            // clear, a saída ao arrastar, e até um `add` (o arquivo re-arrastado
+            // do Finder sai da pilha pelo dedupe do 004). Todos passam por aqui;
+            // espalhar a reconciliação por mutador deixaria o próximo caminho
+            // novo de fora.
+            pilhaAberta = ShelfOrdem.pilhaAberta(pilhaAberta, em: entradas)
+        }
     }
+    /// A pilha que está aberta em grade, tomando o card (ticket 008). Volátil:
+    /// não entra no `shelfItems`, porque o notch não deve reabrir amanhã na
+    /// pilha que alguém olhou hoje.
+    @Published var pilhaAberta: ShelfEntry?
     /// Conversão esperando confirmação. Um de cada vez: abrir outra descarta a
     /// anterior, senão duas pastas temporárias ficariam vivas sem dono na tela.
     @Published var preview: ShelfPreview?
@@ -44,6 +56,19 @@ final class ShelfStore: ObservableObject {
     /// Uma atribuição só: o didSet grava no UserDefaults a cada uma.
     func add(_ urls: [URL]) {
         entradas = ShelfOrdem.inserir(urls, em: entradas, capacidade: Self.capacity)
+    }
+
+    /// Abre a pilha em grade. Item solto não abre nada.
+    func abrirPilha(_ alvo: ShelfEntry) {
+        guard alvo.isPilha, entradas.contains(where: { $0.id == alvo.id }) else { return }
+        pilhaAberta = alvo
+    }
+
+    /// Tira UM arquivo de dentro de uma entrada (ticket 008). É o mesmo caminho
+    /// do ✕ da célula e do arraste de um arquivo pra fora da pilha aberta; o
+    /// `didSet` fecha a grade sozinho quando a pilha deixa de existir.
+    func removerArquivo(_ url: URL, de alvo: ShelfEntry) {
+        entradas = ShelfOrdem.remover(url, de: alvo, em: entradas)
     }
 
     /// Junta arquivos numa entrada que já está na linha (ticket 007).
@@ -254,6 +279,8 @@ struct ShelfRowView: View {
     var body: some View {
         if let preview = shelf.preview {
             ShelfPreviewView(preview: preview, shelf: shelf)
+        } else if let pilha = shelf.pilhaAberta {
+            ShelfPilhaView(pilha: pilha, shelf: shelf)
         } else {
             grade
         }
@@ -282,7 +309,9 @@ struct ShelfRowView: View {
                 urls: entrada.urls,
                 // soltou esta entrada em cima de outra: as duas viram uma pilha,
                 // na posição da entrada de baixo (ticket 007)
-                onSoltouSobre: { alvo in shelf.empilhar(entrada.urls, em: ShelfEntry(alvo)) }
+                onSoltouSobre: { alvo in shelf.empilhar(entrada.urls, em: ShelfEntry(alvo)) },
+                // clicar numa pilha abre a grade; item solto não abre nada
+                onClique: entrada.isPilha ? { shelf.abrirPilha(entrada) } : nil
             ) { aceitou, dentroDoNotch in
                 if ShelfOrdem.saiAoArrastar(
                     aceitou: aceitou, dentroDoNotch: dentroDoNotch,
@@ -388,4 +417,152 @@ struct ShelfRowView: View {
         }
     }
 
+}
+
+/// A pilha aberta: os arquivos de uma entrada em grade, tomando o card inteiro
+/// (ticket 008).
+///
+/// Sem `ScrollView` — é vala conhecida do projeto (a área sai preta no harness
+/// de snapshot) e o usuário o pôs fora de escopo. O que não cabe na página vai
+/// pra próxima, pelo mesmo mecanismo do `AnnotationDeckView`.
+struct ShelfPilhaView: View {
+    let pilha: ShelfEntry
+    @ObservedObject var shelf: ShelfStore
+    /// Página visível. Zera quando a pilha encolhe: com 12 arquivos na página 2,
+    /// tirar 3 deixaria a grade vazia olhando pra um índice que não existe mais.
+    @State private var pagina = 0
+
+    static let colunas = 5
+    static let linhas = 2
+    static let porPagina = colunas * linhas
+
+    /// Célula de 66 e não de 78: a largura útil do card é 386 (os 430 menos os
+    /// 44 de padding que a `NotchView` aplica), então `5 × 78` estouraria.
+    /// `5 × 66 + 4 × 10 = 370`, com 16 de folga.
+    static let celula: CGFloat = 66
+    static let miniatura: CGFloat = 48
+    /// Altura fixa do rótulo, duas linhas: sem ela a métrica da fonte pode
+    /// passar do previsto e o conteúdo cresce além da constante que a moldura
+    /// do card usa. Duas linhas porque uma só, em 66pt, engole o nome inteiro
+    /// de uma captura de tela e sobra "Capt…01.png".
+    static let rotulo: CGFloat = 24
+    /// A altura da célula é a miniatura mais o rótulo — NÃO a largura dela.
+    static let alturaCelula: CGFloat = miniatura + 3 + rotulo
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            cabecalho
+            // grade fixa em HStacks: o LazyVGrid mede maior do que desenha e
+            // empurra a primeira fileira pra fora do card (ver AnnotationDeckView)
+            ForEach(0..<Self.linhas, id: \.self) { linha in
+                HStack(spacing: 10) {
+                    ForEach(0..<Self.colunas, id: \.self) { coluna in
+                        celula(linha * Self.colunas + coluna)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onChange(of: pilha.urls.count) { _, _ in pagina = 0 }
+    }
+
+    private var cabecalho: some View {
+        HStack(spacing: 6) {
+            Button {
+                shelf.pilhaAberta = nil
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.75))
+            }
+            .buttonStyle(.plain)
+            Text("\(pilha.urls.count) arquivos")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.75))
+            Spacer(minLength: 0)
+            Button("Desempilhar") { shelf.desempilhar(pilha) }
+                .buttonStyle(.plain)
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.45))
+        }
+        .frame(height: 18)
+    }
+
+    /// A fatia visível, com a última célula virando "Mais" quando sobra.
+    private var visiveis: [URL] {
+        ShelfOrdem.pagina(de: pilha.urls, porPagina: Self.porPagina, indice: pagina)
+    }
+
+    private var temMais: Bool { pilha.urls.count > Self.porPagina }
+
+    @ViewBuilder
+    private func celula(_ i: Int) -> some View {
+        let urls = visiveis
+        if i < urls.count {
+            arquivo(urls[i])
+        } else if temMais, i == Self.porPagina - 1 {
+            mais
+        } else {
+            Color.clear.frame(width: Self.celula, height: Self.alturaCelula)
+        }
+    }
+
+    private func arquivo(_ url: URL) -> some View {
+        VStack(spacing: 3) {
+            ShelfThumbnailDragView(urls: [url]) { aceitou, dentroDoNotch in
+                if ShelfOrdem.saiAoArrastar(
+                    aceitou: aceitou, dentroDoNotch: dentroDoNotch,
+                    habilitado: AppSettings.shared.shelfSaiAoArrastar) {
+                    shelf.removerArquivo(url, de: pilha)
+                }
+            }
+            .frame(width: Self.miniatura, height: Self.miniatura)
+            .overlay(alignment: .topTrailing) {
+                // dentro dos 66 da célula, ao contrário do ✕ da linha fechada:
+                // aqui a grade controla o espaço e não precisa vazar pra fora
+                Button {
+                    shelf.removerArquivo(url, de: pilha)
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.6), .black.opacity(0.6))
+                }
+                .buttonStyle(.plain)
+            }
+            // trunca no MEIO: numa pilha os nomes costumam compartilhar o
+            // prefixo ("captura-01", "captura-02") e cortar o fim esconderia
+            // justamente o que diferencia um do outro
+            Text(url.lastPathComponent)
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.7))
+                .lineLimit(2)
+                .truncationMode(.middle)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(width: Self.celula, height: Self.rotulo, alignment: .top)
+        }
+        .frame(width: Self.celula)
+    }
+
+    private var mais: some View {
+        Button {
+            pagina = (pagina + 1) % ShelfOrdem.paginas(de: pilha.urls,
+                                                       porPagina: Self.porPagina)
+        } label: {
+            VStack(spacing: 3) {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .frame(width: Self.miniatura, height: Self.miniatura)
+                    .background(RoundedRectangle(cornerRadius: 6)
+                        .fill(.white.opacity(0.08)))
+                Text("Mais")
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.5))
+                    .frame(width: Self.celula, height: Self.rotulo, alignment: .top)
+            }
+        }
+        .buttonStyle(.plain)
+        .frame(width: Self.celula)
+    }
 }

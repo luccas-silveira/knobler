@@ -17,6 +17,9 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   arquivos juntos.
 - Arrastar um item da prateleira em cima de outro junta os dois numa pilha, na
   posição do item de baixo.
+- Clicar numa pilha abre ela em grade, tomando o card: dez arquivos por página,
+  e dali dá pra arrastar um arquivo pra fora ou remover um no ✕ sem desmanchar
+  a pilha. Sobrando um arquivo só, ela deixa de ser pilha e a grade fecha.
 - Pilha tem "Desempilhar" no menu de contexto: os arquivos voltam a ser itens
   soltos, na posição onde a pilha estava. Se a pilha for maior que a prateleira,
   o excesso cai pelo fim, como sempre.
