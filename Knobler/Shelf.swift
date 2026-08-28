@@ -176,7 +176,7 @@ struct ShelfDropDelegate: DropDelegate {
     /// o identificador **exato**.
     /// Só os providers que NÃO são arquivo chegam aqui: os de arquivo saem
     /// agrupados pelo `ShelfArquivos.juntos` (ticket 006).
-    func carregar(_ provider: NSItemProvider) {
+    private func carregar(_ provider: NSItemProvider) {
         let tipos = provider.registeredTypeIdentifiers
         if tipos.contains(UTType.url.identifier) {
             provider.loadItem(forTypeIdentifier: UTType.url.identifier) { item, _ in
@@ -268,13 +268,18 @@ struct ShelfRowView: View {
         }
     }
 
-    /// Antes do empilhamento toda entrada tem um arquivo só, então a linha
-    /// desenha a capa e o menu opera sobre ela.
+    /// A linha desenha a capa da entrada, e o menu opera sobre ela — só
+    /// "Compartilhar" e "Desempilhar" enxergam a pilha inteira.
     private func shelfItem(_ entrada: ShelfEntry) -> some View {
         let url = entrada.capa
         return VStack(spacing: 3) {
             // miniatura é uma view AppKit = fonte de drag (ver ShelfThumbnailDragView)
-            ShelfThumbnailDragView(urls: entrada.urls) { aceitou, dentroDoNotch in
+            ShelfThumbnailDragView(
+                urls: entrada.urls,
+                // soltou esta entrada em cima de outra: as duas viram uma pilha,
+                // na posição da entrada de baixo (ticket 007)
+                onSoltouSobre: { alvo in shelf.empilhar(entrada.urls, em: ShelfEntry(alvo)) }
+            ) { aceitou, dentroDoNotch in
                 if ShelfOrdem.saiAoArrastar(
                     aceitou: aceitou, dentroDoNotch: dentroDoNotch,
                     habilitado: AppSettings.shared.shelfSaiAoArrastar) {
@@ -282,15 +287,6 @@ struct ShelfRowView: View {
                 }
             }
             .frame(width: 30, height: 30)
-            .onDrop(of: [.fileURL, .url, .plainText], isTargeted: nil) { providers in
-                // O alvo interno suprime o do painel: sem ligar a marca aqui
-                // também, `consumir()` devolveria falso e a regra do 005
-                // apagaria o item que acabou de ser empilhado. É idempotente,
-                // então ligar nos dois lugares não custa nada.
-                ShelfArrasteInterno.pendente = true
-                soltou(providers, sobre: entrada)
-                return true
-            }
             .background(alignment: .bottomTrailing) { folhasDaPilha(entrada) }
             .overlay(alignment: .bottomTrailing) { contagemDaPilha(entrada) }
             Text(entrada.isPilha ? "\(entrada.urls.count) arquivos" : url.lastPathComponent)
@@ -358,41 +354,6 @@ struct ShelfRowView: View {
             Button("Remover do shelf") { shelf.remover(entrada) }
         }
         .transition(.blurReplace)
-    }
-
-    /// Um drop que caiu EM CIMA de uma miniatura (ticket 007).
-    ///
-    /// A miniatura cobre o painel, então este alvo recebe também o que vinha de
-    /// fora — e aí o drop tem que se comportar como o do painel, senão um
-    /// arquivo do Finder que mira mal vira pilha em vez de entrada nova. O que
-    /// separa os dois é a origem: arquivo que JÁ está na prateleira é
-    /// empilhamento; qualquer outro é entrada nova.
-    ///
-    /// A separação por identificador exato (e não por conformidade) é a mesma
-    /// do painel, e pelo mesmo motivo: um link do Chrome anuncia
-    /// `com.apple.pasteboard.promised-file-url`, conforma a `public.file-url` e
-    /// sumiria calado no caminho de arquivo.
-    private func soltou(_ providers: [NSItemProvider], sobre entrada: ShelfEntry) {
-        let arquivos = providers.filter {
-            $0.registeredTypeIdentifiers.contains(UTType.fileURL.identifier)
-        }
-        // link e texto seguem o caminho do painel — reusa o delegate em vez de
-        // repetir a triagem de tipos. Sem `vm` (harness de snapshot) não há pra
-        // onde abrir um link, e eles são ignorados.
-        if let vm {
-            let painel = ShelfDropDelegate(shelf: shelf, vm: vm)
-            for provider in providers where !arquivos.contains(provider) {
-                painel.carregar(provider)
-            }
-        }
-        ShelfArquivos.juntos(arquivos) { urls in
-            let jaEstao = Set(shelf.arquivos.map(\.path))
-            if urls.allSatisfy({ jaEstao.contains($0.path) }) {
-                shelf.empilhar(urls, em: entrada)
-            } else {
-                shelf.add(urls)
-            }
-        }
     }
 
     /// Duas folhas atrás da miniatura: o que diz "é pilha" sem ler número.

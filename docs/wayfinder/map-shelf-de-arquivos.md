@@ -127,15 +127,16 @@ Decisões que dependem do mecanismo e caem junto com ele:
   isso cai no 009.
 
 - [007 — Empilhar e desempilhar à mão](tickets/007-empilhar-e-desempilhar-a-mao.md)
-  — **parcial: itens 2 e 3 fechados, o item 1 escrito e não provado.**
-  `empilhar` junta na entrada alvo sem tirá-la do lugar (é o usuário que aponta
-  onde a pilha se forma, ao contrário do `inserir`); `desempilhar` devolve os
-  arquivos à linha e o excesso cai pelo fim. O alvo de drop da miniatura cobre o
-  do painel, então ele separa os casos pela ORIGEM: arquivo que já está na
-  prateleira é empilhamento, o resto é entrada nova. O que continua sem prova é
-  se o arraste AppKit de uma miniatura chega ao `.onDrop` da miniatura irmã, e
-  se chega antes do fim da sessão — se inverter, a pilha recém-formada some pela
-  regra do 005. **Pergunta pro 009.**
+  — **o empilhamento à mão é decidido no fim da sessão de arraste, não por um
+  alvo de drop do SwiftUI na miniatura vizinha.** Um arraste AppKit iniciado
+  dentro do `NSHostingView` não tem garantia de alcançar esse alvo nem de rodar
+  antes do fim da sessão, e a inversão apagaria a pilha recém-formada pela regra
+  do 005; do jeito que ficou não há ordem pra inverter — o mesmo método decide as
+  duas coisas. O alvo é `ShelfDragMonitor.view(at:)`, e **aqui a geometria vale**
+  ao contrário do que o 005 rejeitou: o retângulo é a miniatura de 30x30, não o
+  painel de 700pt. `empilhar` junta na entrada apontada sem tirá-la do lugar;
+  `desempilhar` devolve os arquivos à linha e o excesso cai pelo fim. Que isso
+  aconteça na tela é do 009.
 
 ## Ainda não especificado
 

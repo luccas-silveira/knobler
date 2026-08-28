@@ -26,11 +26,15 @@ struct ShelfThumbnailDragView: NSViewRepresentable {
     /// Fim do arraste: `aceitou` = o destino levou, `dentroDoNotch` = terminou
     /// na própria prateleira. Quem decide o que fazer é o `Shelf.swift`, que tem
     /// a entrada e o Ajustes na mão — aqui só saem os fatos (ticket 005).
+    /// O arraste terminou em cima de OUTRA miniatura: os arquivos da entrada
+    /// alvo vêm aqui (ticket 007).
+    var onSoltouSobre: ((_ alvo: [URL]) -> Void)?
     var onArrasteTerminou: ((_ aceitou: Bool, _ dentroDoNotch: Bool) -> Void)?
 
     func makeNSView(context: Context) -> NSView {
         let view = DragThumbView(urls: urls)
         view.onArrasteTerminou = onArrasteTerminou
+        view.onSoltouSobre = onSoltouSobre
         return view
     }
 
@@ -40,6 +44,7 @@ struct ShelfThumbnailDragView: NSViewRepresentable {
         // reatribuir é obrigatório: o SwiftUI recicla a mesma NSView pra outra
         // entrada, e o closure antigo removeria a entrada errada
         view.onArrasteTerminou = onArrasteTerminou
+        view.onSoltouSobre = onSoltouSobre
     }
 }
 
@@ -56,6 +61,7 @@ class DragThumbView: NSView, NSDraggingSource {
     private let imageView = NSImageView()
 
     var onArrasteTerminou: ((Bool, Bool) -> Void)?
+    var onSoltouSobre: (([URL]) -> Void)?
 
     init(urls: [URL]) {
         self.urls = urls
@@ -167,7 +173,20 @@ class DragThumbView: NSView, NSDraggingSource {
         endedAt screenPoint: NSPoint,
         operation: NSDragOperation
     ) {
-        onArrasteTerminou?(operation.contains(.copy), ShelfArrasteInterno.consumir())
+        // O empilhamento à mão é resolvido AQUI, no fim da sessão de arraste, e
+        // não por um alvo de drop do SwiftUI na miniatura vizinha: um arraste
+        // AppKit iniciado dentro do NSHostingView não tem garantia de alcançar
+        // esse alvo, nem de que ele rode antes deste método. Se a ordem
+        // invertesse, a regra do 005 apagaria a pilha recém-formada.
+        //
+        // Aqui a geometria é legítima — o alvo é a miniatura de 30x30 sob o
+        // cursor, não o painel de 700pt que cobre meia tela e por isso não
+        // serve de sinal (ver `ShelfArrasteInterno`).
+        let alvo = ShelfDragMonitor.shared.view(at: screenPoint)
+        let sobreIrma = alvo != nil && alvo !== self
+        if let alvo, alvo !== self { onSoltouSobre?(alvo.urls) }
+        onArrasteTerminou?(operation.contains(.copy),
+                           ShelfArrasteInterno.consumir() || sobreIrma)
     }
 }
 
@@ -221,7 +240,9 @@ final class ShelfDragMonitor {
         }
     }
 
-    private func view(at screenPoint: NSPoint) -> DragThumbView? {
+    /// A miniatura sob um ponto da tela. Serve tanto pra começar o arraste
+    /// quanto pra saber, no fim dele, se ele parou sobre uma vizinha.
+    func view(at screenPoint: NSPoint) -> DragThumbView? {
         for view in views.allObjects where view.currentScreenFrame?.contains(screenPoint) == true {
             return view
         }

@@ -2,7 +2,7 @@
 
 Map: [Shelf de arquivos — empilhamento, ordem e saída](../map-shelf-de-arquivos.md)
 Type: `wayfinder:task`
-Status: aberto
+Status: fechado
 Assignee: claude
 Blocked by: 004
 
@@ -34,38 +34,35 @@ O que entra:
 
 Reordenar itens arrastando dentro da linha não está pedido e fica de fora.
 
-## Estado
-
-**Itens 2 e 3 fechados; o item 1 está escrito mas não provado.**
+## Resposta
 
 O modelo entrou em `ShelfOrdem`: `empilhar(_:em:entradas:)` junta arquivos na
-entrada alvo **sem tirá-la do lugar** — diferente do `inserir`, que sempre cria
-entrada nova na frente, porque aqui o usuário apontou onde a pilha se forma. O
-dedupe entre entradas do 004 continua valendo, e soltar a entrada sobre ela
-mesma não muda nada. `desempilhar(_:em:capacidade:)` devolve os arquivos à linha
-na posição da pilha; uma pilha de 20 numa prateleira de 8 perde o excesso pelo
+entrada alvo **sem tirá-la do lugar** — diferente do `inserir`, que sempre abre
+entrada nova na frente, porque aqui é o usuário que aponta onde a pilha se
+forma. O dedupe entre entradas do 004 continua valendo, então a entrada de
+origem perde os arquivos e some sozinha; soltar a entrada sobre ela mesma não
+muda nada. `desempilhar(_:em:capacidade:)` devolve os arquivos à linha na
+posição da pilha, e uma pilha de 20 numa prateleira de 8 perde o excesso pelo
 fim, que é a regra do 003. Nove asserções novas no `shelfordemcheck`.
 
-Na UI: "Desempilhar" no menu de contexto da pilha, e um `.onDrop` por miniatura.
+**O ponto que o ticket dava como difícil se resolveu tirando o SwiftUI do
+caminho.** O empilhamento à mão é decidido em `draggingSession(_:endedAt:_:)`,
+no fim da sessão de arraste, e não por um alvo de drop na miniatura vizinha: um
+arraste AppKit iniciado dentro do `NSHostingView` não tem garantia de alcançar
+esse alvo, nem de que ele rode antes do fim da sessão — e se a ordem invertesse,
+a regra do 005 apagaria a pilha recém-formada. Do jeito que ficou não existe
+ordem pra inverter: o mesmo método que decide a saída decide o empilhamento,
+com um `if` antes do outro.
 
-O alvo da miniatura cobre o do painel, então ele recebe **também** o que vem de
-fora. A origem é o que separa os dois casos: arquivo que já está na prateleira é
-empilhamento, qualquer outro é entrada nova — sem isso, um arquivo do Finder que
-mira mal viraria pilha em vez de entrada, contradizendo o 006. Link e texto
-reusam o `carregar` do delegate do painel, e a triagem é por identificador
-exato, não por conformidade, pelo mesmo motivo do painel: um link do Chrome
-conforma a `public.file-url` e sumiria calado no caminho de arquivo.
+O alvo é `ShelfDragMonitor.view(at:)`, que já existia pra achar a miniatura sob
+o cursor no começo do arraste. **Aqui a geometria é legítima**, ao contrário do
+que o 005 rejeitou: o retângulo consultado é a miniatura de 30x30 sob o cursor,
+não o painel de 700pt que cobre da barra de menu ao Dock. Soltar sobre uma
+vizinha também conta como `dentroDoNotch`, então a saída não dispara.
 
-**O que falta provar, e é o item 1 inteiro:** um arraste que começa numa
-miniatura é uma sessão `beginDraggingSession` do AppKit dentro do
-`NSHostingView`. Não está provado que ela chega a um `.onDrop` do SwiftUI numa
-miniatura irmã, nem que esse `.onDrop` roda **antes** de
-`draggingSession(_:endedAt:)`. Se a ordem inverter, `ShelfArrasteInterno.consumir()`
-devolve falso, a regra do 005 dispara e a pilha recém-formada some da prateleira
-— os arquivos originais ficam intactos, mas a entrada não. A marca é ligada nos
-dois lugares (painel e miniatura), o que é idempotente, mas só ajuda se o alvo
-interno de fato rodar.
+Desempilhar é um item no menu de contexto, que só aparece quando a entrada é
+pilha.
 
-Nada disso renderiza offscreen. **A pergunta pro 009, na tela: o alvo interno
-dispara, e antes do fim da sessão de arraste?** O caminho de medida existe — o
-build Debug e a `SondaDoArraste` da medição 001.
+Não verificado: **nada disso renderiza offscreen.** Que a pilha se forme ao
+soltar uma miniatura sobre a outra na tela é do 009, junto das folhas e do badge
+que o 006 deixou na mesma situação.

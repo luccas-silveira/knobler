@@ -15,6 +15,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   encher as oito vagas e empurrar pra fora o que já estava lá. A miniatura mostra
   que é pilha e quantos arquivos tem, e arrastar a pilha pra fora leva os N
   arquivos juntos.
+- Arrastar um item da prateleira em cima de outro junta os dois numa pilha, na
+  posição do item de baixo.
 - Pilha tem "Desempilhar" no menu de contexto: os arquivos voltam a ser itens
   soltos, na posição onde a pilha estava. Se a pilha for maior que a prateleira,
   o excesso cai pelo fim, como sempre.
