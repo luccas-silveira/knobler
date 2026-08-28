@@ -100,10 +100,42 @@ struct ShelfDropDelegate: DropDelegate {
         // empilhamento com saída — o `loadItem` abaixo é assíncrono, então isto
         // precisa ser síncrono e antes dele
         ShelfArrasteInterno.pendente = true
-        for provider in providers {
+        // Os arquivos do MESMO drop viram uma entrada só (ticket 006): os
+        // demais tipos (link, texto) continuam cada um por si.
+        let arquivos = providers.filter {
+            $0.registeredTypeIdentifiers.contains(UTType.fileURL.identifier)
+        }
+        carregarJuntos(arquivos)
+        for provider in providers where !arquivos.contains(provider) {
             carregar(provider)
         }
         return true
+    }
+
+    /// Espera TODOS os providers de arquivo do drop e chama `add` uma vez só.
+    ///
+    /// Cada callback escreve no próprio índice, na main — a ordem do drop é a
+    /// ordem da pilha, e `capa` (o que a miniatura mostra e o menu opera) fica
+    /// determinística. Sem lock porque só a main toca o buffer.
+    ///
+    /// ponytail: um provider que nunca chama de volta segura o drop inteiro em
+    /// vez de perder um arquivo só. Sem timeout até isso aparecer na prática.
+    private func carregarJuntos(_ providers: [NSItemProvider]) {
+        guard !providers.isEmpty else { return }
+        var recebidos = [URL?](repeating: nil, count: providers.count)
+        var faltam = providers.count
+        for (i, provider) in providers.enumerated() {
+            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier) { item, _ in
+                let url = Self.url(from: item)
+                DispatchQueue.main.async { [weak shelf] in
+                    if let url, url.isFileURL { recebidos[i] = url }
+                    faltam -= 1
+                    guard faltam == 0 else { return }
+                    let urls = recebidos.compactMap { $0 }
+                    if !urls.isEmpty { shelf?.add(urls) }
+                }
+            }
+        }
     }
 
     /// Decide o caminho pelo que ESTE provider registra, não por qual lista
@@ -229,16 +261,17 @@ struct ShelfRowView: View {
         let url = entrada.capa
         return VStack(spacing: 3) {
             // miniatura é uma view AppKit = fonte de drag (ver ShelfThumbnailDragView)
-            ShelfThumbnailDragView(url: url) { aceitou, dentroDoNotch in
+            ShelfThumbnailDragView(urls: entrada.urls) { aceitou, dentroDoNotch in
                 if ShelfOrdem.saiAoArrastar(
                     aceitou: aceitou, dentroDoNotch: dentroDoNotch,
-                    isPilha: entrada.isPilha,
                     habilitado: AppSettings.shared.shelfSaiAoArrastar) {
                     shelf.remover(entrada)
                 }
             }
             .frame(width: 30, height: 30)
-            Text(url.lastPathComponent)
+            .background(alignment: .bottomTrailing) { folhasDaPilha(entrada) }
+            .overlay(alignment: .bottomTrailing) { contagemDaPilha(entrada) }
+            Text(entrada.isPilha ? "\(entrada.urls.count) arquivos" : url.lastPathComponent)
                 .font(.caption2)
                 .foregroundStyle(.white.opacity(0.7))
                 .lineLimit(1)
@@ -300,6 +333,34 @@ struct ShelfRowView: View {
             Button("Remover do shelf") { shelf.remover(entrada) }
         }
         .transition(.blurReplace)
+    }
+
+    /// Duas folhas atrás da miniatura: o que diz "é pilha" sem ler número.
+    @ViewBuilder
+    private func folhasDaPilha(_ entrada: ShelfEntry) -> some View {
+        if entrada.isPilha {
+            ZStack {
+                ForEach([4.0, 2.0], id: \.self) { desvio in
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(.white.opacity(0.18))
+                        .frame(width: 30, height: 30)
+                        .offset(x: desvio, y: desvio)
+                }
+            }
+        }
+    }
+
+    /// Quantos arquivos a pilha tem.
+    @ViewBuilder
+    private func contagemDaPilha(_ entrada: ShelfEntry) -> some View {
+        if entrada.isPilha {
+            Text("\(entrada.urls.count)")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 3)
+                .background(Capsule().fill(.black.opacity(0.75)))
+                .offset(x: 8, y: 4)
+        }
     }
 
 }

@@ -168,17 +168,16 @@ enum ShelfOrdemCheck {
               "a leitura também corta na capacidade (um defaults write à mão pode escrever 30)")
 
         // ticket 005 — quando o item sai da prateleira ao ser arrastado
-        func sai(_ aceitou: Bool, _ dentro: Bool, _ pilha: Bool, _ on: Bool) -> Bool {
-            ShelfOrdem.saiAoArrastar(aceitou: aceitou, dentroDoNotch: dentro,
-                                     isPilha: pilha, habilitado: on)
+        func sai(_ aceitou: Bool, _ dentro: Bool, _ on: Bool) -> Bool {
+            ShelfOrdem.saiAoArrastar(aceitou: aceitou, dentroDoNotch: dentro, habilitado: on)
         }
-        check(sai(true, false, false, true), "aceite fora do notch tira o item solto")
-        check(!sai(false, false, false, true), "recusa (soltar no vazio) mantém o item")
-        check(!sai(true, true, false, true),
+        check(sai(true, false, true), "aceite fora do notch tira o item solto")
+        check(!sai(false, false, true), "recusa (soltar no vazio) mantém o item")
+        check(!sai(true, true, true),
               "aceite DENTRO do notch é empilhamento, não saída: o item fica")
-        check(!sai(true, false, true, true),
-              "pilha não sai: só a capa foi arrastada, e a saída da pilha é o 006")
-        check(!sai(true, false, false, false), "com a chave de Ajustes desligada, nada sai")
+        check(sai(true, false, true),
+              "pilha sai igual: o arraste leva os N arquivos juntos (ticket 006)")
+        check(!sai(true, false, false), "com a chave de Ajustes desligada, nada sai")
 
         // o aperto de mão que separa arraste interno de externo
         ShelfArrasteInterno.pendente = false

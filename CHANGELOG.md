@@ -10,7 +10,11 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 - Arrastar um item da prateleira pra fora e o destino aceitar tira o item da
   prateleira — o arquivo original não é tocado. Soltar no vazio, ou num destino
   que recusa, mantém o item. Tem chave em Ajustes › Prateleira, ligada de
-  fábrica. Pilha ainda não sai: só a capa é arrastada.
+  fábrica.
+- Soltar vários arquivos de uma vez cria **uma** pilha na prateleira em vez de
+  encher as oito vagas e empurrar pra fora o que já estava lá. A miniatura mostra
+  que é pilha e quantos arquivos tem, e arrastar a pilha pra fora leva os N
+  arquivos juntos.
 
 ### Changed
 - A prateleira passou a mostrar o item mais novo na esquerda; o mais antigo é o

@@ -20,21 +20,23 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ShelfThumbnailDragView: NSViewRepresentable {
-    let url: URL
+    /// Os arquivos da entrada. A miniatura desenha o [0]; o arraste leva todos
+    /// (ticket 006).
+    let urls: [URL]
     /// Fim do arraste: `aceitou` = o destino levou, `dentroDoNotch` = terminou
     /// na própria prateleira. Quem decide o que fazer é o `Shelf.swift`, que tem
     /// a entrada e o Ajustes na mão — aqui só saem os fatos (ticket 005).
     var onArrasteTerminou: ((_ aceitou: Bool, _ dentroDoNotch: Bool) -> Void)?
 
     func makeNSView(context: Context) -> NSView {
-        let view = DragThumbView(url: url)
+        let view = DragThumbView(urls: urls)
         view.onArrasteTerminou = onArrasteTerminou
         return view
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
         guard let view = nsView as? DragThumbView else { return }
-        view.url = url
+        view.urls = urls
         // reatribuir é obrigatório: o SwiftUI recicla a mesma NSView pra outra
         // entrada, e o closure antigo removeria a entrada errada
         view.onArrasteTerminou = onArrasteTerminou
@@ -44,16 +46,19 @@ struct ShelfThumbnailDragView: NSViewRepresentable {
 // não é `final` para a sonda de arraste (`tools/sondaarraste/`) poder herdar e
 // instrumentar os callbacks sem que o app carregue a instrumentação junto
 class DragThumbView: NSView, NSDraggingSource {
-    var url: URL {
-        didSet { loadThumbnail() }
+    var urls: [URL] {
+        didSet { if urls.first != oldValue.first { loadThumbnail() } }
     }
+
+    /// A capa: o que a miniatura mostra.
+    var url: URL { urls[0] }
 
     private let imageView = NSImageView()
 
     var onArrasteTerminou: ((Bool, Bool) -> Void)?
 
-    init(url: URL) {
-        self.url = url
+    init(urls: [URL]) {
+        self.urls = urls
         super.init(frame: .zero)
         imageView.imageScaling = .scaleProportionallyUpOrDown
         imageView.translatesAutoresizingMaskIntoConstraints = false
@@ -109,29 +114,43 @@ class DragThumbView: NSView, NSDraggingSource {
     /// Inicia a sessão de drag AppKit. Chamado pelo monitor, não por mouseDragged
     /// (que não dispara neste contexto).
     func startDrag(with event: NSEvent) {
-        let item = NSPasteboardItem()
-        let type = UTType(filenameExtension: url.pathExtension)
+        // Pilha: um NSPasteboardItem por arquivo — um item só não carrega N
+        // file-urls. O caminho de um arquivo fica idêntico ao de sempre, com o
+        // combo bytes+url que o Electron precisa.
+        let itens: [NSPasteboardItem] = urls.count == 1
+            ? [Self.itemDeArquivo(url)]
+            : urls.map { u in
+                let i = NSPasteboardItem()
+                i.setString(u.absoluteString, forType: .fileURL)
+                return i
+            }
 
-        if let type, type.conforms(to: .image), let data = try? Data(contentsOf: url) {
-            // imagem: bytes PNG + file-url NO MESMO item — combo que browsers/
-            // Electron aceitam (imagem) e o Finder também (arquivo). Os bytes
-            // primeiro, pra o alvo preferir a imagem à URL textual.
-            item.setData(data, forType: NSPasteboard.PasteboardType(type.identifier))
-            item.setString(url.absoluteString, forType: .fileURL)
-        } else {
-            item.setString(url.absoluteString, forType: .fileURL)
-        }
-
-        let dragItem = NSDraggingItem(pasteboardWriter: item)
         let dragImage = NSImage(contentsOf: url) ?? NSWorkspace.shared.icon(forFile: url.path)
-        dragItem.setDraggingFrame(bounds, contents: dragImage)
+        let dragItems = itens.map { item -> NSDraggingItem in
+            let d = NSDraggingItem(pasteboardWriter: item)
+            d.setDraggingFrame(bounds, contents: dragImage)
+            return d
+        }
         // limpa a marca de um arraste anterior que nunca foi consumida: um drop
         // vindo do Finder liga `pendente` no `performDrop` e não tem sessão de
         // arraste pra consumir. Sem isto, o primeiro arquivo arrastado PRA
         // DENTRO deixaria a marca armada e o próximo arraste pra fora passaria
         // por interno — a saída nunca aconteceria.
         ShelfArrasteInterno.pendente = false
-        beginDraggingSession(with: [dragItem], event: event, source: self)
+        beginDraggingSession(with: dragItems, event: event, source: self)
+    }
+
+    /// O item de pasteboard de um arquivo: bytes da imagem + file-url no MESMO
+    /// item — combo que browsers/Electron aceitam (imagem) e o Finder também
+    /// (arquivo). Os bytes primeiro, pra o alvo preferir a imagem à URL textual.
+    private static func itemDeArquivo(_ url: URL) -> NSPasteboardItem {
+        let item = NSPasteboardItem()
+        let type = UTType(filenameExtension: url.pathExtension)
+        if let type, type.conforms(to: .image), let data = try? Data(contentsOf: url) {
+            item.setData(data, forType: NSPasteboard.PasteboardType(type.identifier))
+        }
+        item.setString(url.absoluteString, forType: .fileURL)
+        return item
     }
 
     func draggingSession(

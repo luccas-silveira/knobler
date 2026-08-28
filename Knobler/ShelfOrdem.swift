@@ -104,11 +104,11 @@ enum ShelfOrdem {
     /// empilhamento do 007), que também devolve `.copy` — sem essa separação a
     /// saída apagaria o item que acabou de ser empilhado.
     ///
-    /// Pilha nunca sai: só a capa vai pro pasteboard, e tirar a entrada inteira
-    /// levaria junto arquivos que ninguém arrastou. A saída da pilha é o 006.
+    /// Pilha sai igual a item solto (ticket 006): o arraste leva os N arquivos
+    /// juntos pro pasteboard, então tirar a entrada inteira não abandona nada.
     static func saiAoArrastar(aceitou: Bool, dentroDoNotch: Bool,
-                              isPilha: Bool, habilitado: Bool) -> Bool {
-        habilitado && aceitou && !dentroDoNotch && !isPilha
+                              habilitado: Bool) -> Bool {
+        habilitado && aceitou && !dentroDoNotch
     }
 
 }

@@ -125,7 +125,7 @@ final class Delegate: NSObject, NSApplicationDelegate {
         janela.title = "sonda"
         janela.level = .floating
 
-        thumb = ThumbSondado(url: arquivo)
+        thumb = ThumbSondado(urls: [arquivo])
         thumb.frame = NSRect(x: 30, y: 30, width: 60, height: 60)
         janela.contentView?.addSubview(thumb)
 

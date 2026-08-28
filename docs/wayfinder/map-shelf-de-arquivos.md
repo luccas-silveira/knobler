@@ -116,7 +116,15 @@ Decisões que dependem do mecanismo e caem junto com ele:
   sinal que separa o arraste interno do externo é um aperto de mão
   (`ShelfArrasteInterno`), não geometria — o painel do notch tem 700pt de
   largura e vai do topo da tela até o Dock, então um destino no meio da tela
-  cairia dentro do frame. Pilha não sai; isso é o 006.
+  cairia dentro do frame. Pilha não saía; o 006 tirou essa trava.
+
+- [006 — Um drop de vários vira uma pilha](tickets/006-um-drop-de-varios-vira-uma-pilha.md)
+  — **os providers de arquivo do mesmo drop são esperados juntos e viram uma
+  entrada só**, com cada callback escrevendo no próprio índice pra capa não sair
+  sorteada. A saída da pilha veio no mesmo commit que o pasteboard de N itens —
+  separar as duas é perda de dado. O caminho de um arquivo ficou intocado. As
+  folhas e o badge da pilha **não têm gate**: a shelf não renderiza offscreen, e
+  isso cai no 009.
 
 ## Ainda não especificado
 
@@ -125,7 +133,8 @@ Decisões que dependem do mecanismo e caem junto com ele:
   não foi lido pra virar coisa nenhuma.
 - **Conversão e AirDrop dentro de uma pilha.** O menu de contexto de hoje
   ("Converter", "Enviar tudo por AirDrop") assume item solto. O que ele faz
-  sobre uma pilha só fica nítido depois do 004.
+  sobre uma pilha só fica nítido depois do 004. O AirDrop já opera sobre
+  `entrada.urls`; "Converter" e "Mostrar no Finder" ainda assumem a capa.
 
 ## Fora de escopo
 
