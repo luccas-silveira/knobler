@@ -126,6 +126,17 @@ Decisões que dependem do mecanismo e caem junto com ele:
   folhas e o badge da pilha **não têm gate**: a shelf não renderiza offscreen, e
   isso cai no 009.
 
+- [007 — Empilhar e desempilhar à mão](tickets/007-empilhar-e-desempilhar-a-mao.md)
+  — **parcial: itens 2 e 3 fechados, o item 1 escrito e não provado.**
+  `empilhar` junta na entrada alvo sem tirá-la do lugar (é o usuário que aponta
+  onde a pilha se forma, ao contrário do `inserir`); `desempilhar` devolve os
+  arquivos à linha e o excesso cai pelo fim. O alvo de drop da miniatura cobre o
+  do painel, então ele separa os casos pela ORIGEM: arquivo que já está na
+  prateleira é empilhamento, o resto é entrada nova. O que continua sem prova é
+  se o arraste AppKit de uma miniatura chega ao `.onDrop` da miniatura irmã, e
+  se chega antes do fim da sessão — se inverter, a pilha recém-formada some pela
+  regra do 005. **Pergunta pro 009.**
+
 ## Ainda não especificado
 
 - **O backlog do 002.** O que a pesquisa levantou fora das três decisões deste

@@ -167,6 +167,37 @@ enum ShelfOrdemCheck {
         check(ShelfOrdem.decodificar(demais, capacidade: 8, existe: tudoExiste).count == 8,
               "a leitura também corta na capacidade (um defaults write à mão pode escrever 30)")
 
+        // ticket 007 — empilhar e desempilhar à mão
+        let linha = [ShelfEntry([u("/tmp/a")]), ShelfEntry([u("/tmp/b")]),
+                     ShelfEntry([u("/tmp/c")])]
+        let sobreB = ShelfOrdem.empilhar([u("/tmp/a")], em: linha[1], entradas: linha)
+        check(forma(sobreB) == [["/tmp/b", "/tmp/a"], ["/tmp/c"]],
+              "soltar A sobre B junta os dois na posição de B, e a entrada de A some")
+
+        let naPilha = ShelfOrdem.empilhar([u("/tmp/c")], em: sobreB[0], entradas: sobreB)
+        check(forma(naPilha) == [["/tmp/b", "/tmp/a", "/tmp/c"]],
+              "item solto sobre pilha entra no fim da pilha")
+
+        check(forma(ShelfOrdem.empilhar([u("/tmp/b")], em: linha[1], entradas: linha))
+                == forma(linha),
+              "soltar a entrada sobre ela mesma não muda nada")
+
+        check(forma(ShelfOrdem.empilhar([u("/tmp/a")], em: ShelfEntry([u("/tmp/z")]),
+                                        entradas: linha)) == forma(linha),
+              "alvo que não está mais na prateleira devolve tudo intocado")
+
+        check(forma(ShelfOrdem.desempilhar(naPilha[0], em: naPilha, capacidade: 8))
+                == [["/tmp/b"], ["/tmp/a"], ["/tmp/c"]],
+              "desempilhar devolve os arquivos à linha, na posição da pilha")
+
+        check(forma(ShelfOrdem.desempilhar(linha[0], em: linha, capacidade: 8))
+                == forma(linha),
+              "desempilhar item solto não faz nada")
+
+        let vinte = ShelfEntry((0..<20).map { u("/tmp/p\($0)") })
+        check(ShelfOrdem.desempilhar(vinte, em: [vinte], capacidade: 8).count == 8,
+              "pilha maior que a prateleira: o excesso cai pelo fim (regra do 003)")
+
         // ticket 005 — quando o item sai da prateleira ao ser arrastado
         func sai(_ aceitou: Bool, _ dentro: Bool, _ on: Bool) -> Bool {
             ShelfOrdem.saiAoArrastar(aceitou: aceitou, dentroDoNotch: dentro, habilitado: on)

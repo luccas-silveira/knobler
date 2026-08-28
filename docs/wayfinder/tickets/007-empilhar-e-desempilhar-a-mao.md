@@ -33,3 +33,39 @@ O que entra:
    conta como saída.
 
 Reordenar itens arrastando dentro da linha não está pedido e fica de fora.
+
+## Estado
+
+**Itens 2 e 3 fechados; o item 1 está escrito mas não provado.**
+
+O modelo entrou em `ShelfOrdem`: `empilhar(_:em:entradas:)` junta arquivos na
+entrada alvo **sem tirá-la do lugar** — diferente do `inserir`, que sempre cria
+entrada nova na frente, porque aqui o usuário apontou onde a pilha se forma. O
+dedupe entre entradas do 004 continua valendo, e soltar a entrada sobre ela
+mesma não muda nada. `desempilhar(_:em:capacidade:)` devolve os arquivos à linha
+na posição da pilha; uma pilha de 20 numa prateleira de 8 perde o excesso pelo
+fim, que é a regra do 003. Nove asserções novas no `shelfordemcheck`.
+
+Na UI: "Desempilhar" no menu de contexto da pilha, e um `.onDrop` por miniatura.
+
+O alvo da miniatura cobre o do painel, então ele recebe **também** o que vem de
+fora. A origem é o que separa os dois casos: arquivo que já está na prateleira é
+empilhamento, qualquer outro é entrada nova — sem isso, um arquivo do Finder que
+mira mal viraria pilha em vez de entrada, contradizendo o 006. Link e texto
+reusam o `carregar` do delegate do painel, e a triagem é por identificador
+exato, não por conformidade, pelo mesmo motivo do painel: um link do Chrome
+conforma a `public.file-url` e sumiria calado no caminho de arquivo.
+
+**O que falta provar, e é o item 1 inteiro:** um arraste que começa numa
+miniatura é uma sessão `beginDraggingSession` do AppKit dentro do
+`NSHostingView`. Não está provado que ela chega a um `.onDrop` do SwiftUI numa
+miniatura irmã, nem que esse `.onDrop` roda **antes** de
+`draggingSession(_:endedAt:)`. Se a ordem inverter, `ShelfArrasteInterno.consumir()`
+devolve falso, a regra do 005 dispara e a pilha recém-formada some da prateleira
+— os arquivos originais ficam intactos, mas a entrada não. A marca é ligada nos
+dois lugares (painel e miniatura), o que é idempotente, mas só ajuda se o alvo
+interno de fato rodar.
+
+Nada disso renderiza offscreen. **A pergunta pro 009, na tela: o alvo interno
+dispara, e antes do fim da sessão de arraste?** O caminho de medida existe — o
+build Debug e a `SondaDoArraste` da medição 001.

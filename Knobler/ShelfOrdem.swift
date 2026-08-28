@@ -58,6 +58,43 @@ enum ShelfOrdem {
         return Array(([ShelfEntry(entrando)] + restantes).prefix(capacidade))
     }
 
+    /// Junta `novos` na entrada `alvo`, sem tirá-la do lugar (ticket 007).
+    ///
+    /// Diferente do `inserir`, que sempre cria entrada nova na frente: aqui o
+    /// usuário apontou onde a pilha se forma, então a posição do alvo é a
+    /// resposta. Os arquivos entram no fim da pilha, e o mesmo dedupe do
+    /// `inserir` vale — arquivo que vem de outra entrada sai de lá, entrada que
+    /// esvazia some. Soltar a entrada sobre ela mesma não muda nada.
+    ///
+    /// Alvo que não está mais na prateleira devolve tudo intocado.
+    static func empilhar(_ novos: [URL], em alvo: ShelfEntry,
+                         entradas: [ShelfEntry]) -> [ShelfEntry] {
+        guard entradas.contains(where: { $0.id == alvo.id }) else { return entradas }
+        var vistos = Set(alvo.urls.map(\.path))
+        let entrando = novos.filter { vistos.insert($0.path).inserted }
+        guard !entrando.isEmpty else { return entradas }
+        let juntos = ShelfEntry(alvo.urls + entrando)
+        return entradas.compactMap { entrada -> ShelfEntry? in
+            if entrada.id == alvo.id { return juntos }
+            let sobrou = entrada.urls.filter { !vistos.contains($0.path) }
+            return sobrou.isEmpty ? nil : ShelfEntry(sobrou)
+        }
+    }
+
+    /// Abre a pilha na linha: os N arquivos viram N itens soltos no lugar dela
+    /// (ticket 007).
+    ///
+    /// Uma pilha de 20 numa prateleira de 8 não cabe: o excesso cai pelo fim,
+    /// que é a mesma regra do 003. Entrada que não é pilha devolve tudo intocado.
+    static func desempilhar(_ alvo: ShelfEntry, em entradas: [ShelfEntry],
+                            capacidade: Int) -> [ShelfEntry] {
+        guard alvo.isPilha, let i = entradas.firstIndex(where: { $0.id == alvo.id })
+        else { return entradas }
+        var novas = entradas
+        novas.replaceSubrange(i...i, with: alvo.urls.map { ShelfEntry([$0]) })
+        return Array(novas.prefix(capacidade))
+    }
+
     /// O que vai pro UserDefaults: array de arrays de caminho, que o plist
     /// suporta nativamente. Não é JSON de propósito — a receita de captura da
     /// prateleira nos docs popula a chave com `defaults write`, e um blob JSON

@@ -46,6 +46,16 @@ final class ShelfStore: ObservableObject {
         entradas = ShelfOrdem.inserir(urls, em: entradas, capacidade: Self.capacity)
     }
 
+    /// Junta arquivos numa entrada que já está na linha (ticket 007).
+    func empilhar(_ urls: [URL], em alvo: ShelfEntry) {
+        entradas = ShelfOrdem.empilhar(urls, em: alvo, entradas: entradas)
+    }
+
+    /// Abre a pilha: os arquivos voltam a ser itens soltos (ticket 007).
+    func desempilhar(_ alvo: ShelfEntry) {
+        entradas = ShelfOrdem.desempilhar(alvo, em: entradas, capacidade: Self.capacity)
+    }
+
     /// Tira a entrada inteira. Remover um arquivo de dentro de uma pilha é
     /// outra ação, e ela ainda não existe.
     func remover(_ entrada: ShelfEntry) {
@@ -80,6 +90,47 @@ final class ShelfStore: ObservableObject {
     }
 }
 
+/// Espera TODOS os providers de arquivo de um drop e entrega as URLs de uma vez
+/// (tickets 006 e 007).
+///
+/// Cada callback escreve no próprio índice, na main — a ordem do drop é a ordem
+/// da pilha, e `capa` (o que a miniatura mostra e o menu de contexto opera) fica
+/// determinística em vez de sorteada pela ordem de chegada. Sem lock porque só a
+/// main toca o buffer.
+///
+/// ponytail: um provider que nunca chama de volta segura o drop inteiro em vez
+/// de perder um arquivo só. Sem timeout até isso aparecer na prática.
+enum ShelfArquivos {
+    static func juntos(_ providers: [NSItemProvider],
+                       pronto: @escaping ([URL]) -> Void) {
+        guard !providers.isEmpty else { return }
+        var recebidos = [URL?](repeating: nil, count: providers.count)
+        var faltam = providers.count
+        for (i, provider) in providers.enumerated() {
+            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier) { item, _ in
+                let url = ShelfArquivos.url(from: item)
+                DispatchQueue.main.async {
+                    if let url, url.isFileURL { recebidos[i] = url }
+                    faltam -= 1
+                    guard faltam == 0 else { return }
+                    let urls = recebidos.compactMap { $0 }
+                    if !urls.isEmpty { pronto(urls) }
+                }
+            }
+        }
+    }
+
+    fileprivate static func url(from item: NSSecureCoding?) -> URL? {
+        if let url = item as? URL { return url }
+        if let data = item as? Data {
+            return URL(dataRepresentation: data, relativeTo: nil)
+                ?? String(data: data, encoding: .utf8).flatMap(URL.init(string:))
+        }
+        if let texto = item as? String { return URL(string: texto) }
+        return nil
+    }
+}
+
 /// Aproximou um arquivo do notch → expande na hora; soltou → entra na prateleira.
 struct ShelfDropDelegate: DropDelegate {
     let shelf: ShelfStore
@@ -105,7 +156,7 @@ struct ShelfDropDelegate: DropDelegate {
         let arquivos = providers.filter {
             $0.registeredTypeIdentifiers.contains(UTType.fileURL.identifier)
         }
-        carregarJuntos(arquivos)
+        ShelfArquivos.juntos(arquivos) { [weak shelf] urls in shelf?.add(urls) }
         for provider in providers where !arquivos.contains(provider) {
             carregar(provider)
         }
@@ -114,30 +165,6 @@ struct ShelfDropDelegate: DropDelegate {
 
     /// Espera TODOS os providers de arquivo do drop e chama `add` uma vez só.
     ///
-    /// Cada callback escreve no próprio índice, na main — a ordem do drop é a
-    /// ordem da pilha, e `capa` (o que a miniatura mostra e o menu opera) fica
-    /// determinística. Sem lock porque só a main toca o buffer.
-    ///
-    /// ponytail: um provider que nunca chama de volta segura o drop inteiro em
-    /// vez de perder um arquivo só. Sem timeout até isso aparecer na prática.
-    private func carregarJuntos(_ providers: [NSItemProvider]) {
-        guard !providers.isEmpty else { return }
-        var recebidos = [URL?](repeating: nil, count: providers.count)
-        var faltam = providers.count
-        for (i, provider) in providers.enumerated() {
-            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier) { item, _ in
-                let url = Self.url(from: item)
-                DispatchQueue.main.async { [weak shelf] in
-                    if let url, url.isFileURL { recebidos[i] = url }
-                    faltam -= 1
-                    guard faltam == 0 else { return }
-                    let urls = recebidos.compactMap { $0 }
-                    if !urls.isEmpty { shelf?.add(urls) }
-                }
-            }
-        }
-    }
-
     /// Decide o caminho pelo que ESTE provider registra, não por qual lista
     /// veio cheia.
     ///
@@ -147,18 +174,13 @@ struct ShelfDropDelegate: DropDelegate {
     /// link junto, mandava pro caminho de arquivo e o `loadItem` devolvia nada —
     /// o notch abria e o link sumia sem erro. Por isso a comparação aqui é com
     /// o identificador **exato**.
-    private func carregar(_ provider: NSItemProvider) {
+    /// Só os providers que NÃO são arquivo chegam aqui: os de arquivo saem
+    /// agrupados pelo `ShelfArquivos.juntos` (ticket 006).
+    func carregar(_ provider: NSItemProvider) {
         let tipos = provider.registeredTypeIdentifiers
-        if tipos.contains(UTType.fileURL.identifier) {
-            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier) { item, _ in
-                guard let url = Self.url(from: item), url.isFileURL else { return }
-                DispatchQueue.main.async { [weak shelf] in shelf?.add(url) }
-            }
-            return
-        }
         if tipos.contains(UTType.url.identifier) {
             provider.loadItem(forTypeIdentifier: UTType.url.identifier) { item, _ in
-                guard let url = Self.url(from: item), LinkBrowser.isWebLink(url) else { return }
+                guard let url = ShelfArquivos.url(from: item), LinkBrowser.isWebLink(url) else { return }
                 abrir(url)
             }
             return
@@ -179,15 +201,6 @@ struct ShelfDropDelegate: DropDelegate {
     }
 
     /// O provider entrega `Data`, `URL` ou `NSURL` conforme a origem do arraste.
-    private static func url(from item: NSSecureCoding?) -> URL? {
-        if let url = item as? URL { return url }
-        if let data = item as? Data {
-            return URL(dataRepresentation: data, relativeTo: nil)
-                ?? String(data: data, encoding: .utf8).flatMap(URL.init(string:))
-        }
-        if let texto = item as? String { return URL(string: texto) }
-        return nil
-    }
 
     private static func texto(from item: NSSecureCoding?) -> String? {
         if let texto = item as? String { return texto }
@@ -269,6 +282,15 @@ struct ShelfRowView: View {
                 }
             }
             .frame(width: 30, height: 30)
+            .onDrop(of: [.fileURL, .url, .plainText], isTargeted: nil) { providers in
+                // O alvo interno suprime o do painel: sem ligar a marca aqui
+                // também, `consumir()` devolveria falso e a regra do 005
+                // apagaria o item que acabou de ser empilhado. É idempotente,
+                // então ligar nos dois lugares não custa nada.
+                ShelfArrasteInterno.pendente = true
+                soltou(providers, sobre: entrada)
+                return true
+            }
             .background(alignment: .bottomTrailing) { folhasDaPilha(entrada) }
             .overlay(alignment: .bottomTrailing) { contagemDaPilha(entrada) }
             Text(entrada.isPilha ? "\(entrada.urls.count) arquivos" : url.lastPathComponent)
@@ -330,9 +352,47 @@ struct ShelfRowView: View {
             Button("Mostrar no Finder") {
                 NSWorkspace.shared.activateFileViewerSelecting([url])
             }
+            if entrada.isPilha {
+                Button("Desempilhar") { shelf.desempilhar(entrada) }
+            }
             Button("Remover do shelf") { shelf.remover(entrada) }
         }
         .transition(.blurReplace)
+    }
+
+    /// Um drop que caiu EM CIMA de uma miniatura (ticket 007).
+    ///
+    /// A miniatura cobre o painel, então este alvo recebe também o que vinha de
+    /// fora — e aí o drop tem que se comportar como o do painel, senão um
+    /// arquivo do Finder que mira mal vira pilha em vez de entrada nova. O que
+    /// separa os dois é a origem: arquivo que JÁ está na prateleira é
+    /// empilhamento; qualquer outro é entrada nova.
+    ///
+    /// A separação por identificador exato (e não por conformidade) é a mesma
+    /// do painel, e pelo mesmo motivo: um link do Chrome anuncia
+    /// `com.apple.pasteboard.promised-file-url`, conforma a `public.file-url` e
+    /// sumiria calado no caminho de arquivo.
+    private func soltou(_ providers: [NSItemProvider], sobre entrada: ShelfEntry) {
+        let arquivos = providers.filter {
+            $0.registeredTypeIdentifiers.contains(UTType.fileURL.identifier)
+        }
+        // link e texto seguem o caminho do painel — reusa o delegate em vez de
+        // repetir a triagem de tipos. Sem `vm` (harness de snapshot) não há pra
+        // onde abrir um link, e eles são ignorados.
+        if let vm {
+            let painel = ShelfDropDelegate(shelf: shelf, vm: vm)
+            for provider in providers where !arquivos.contains(provider) {
+                painel.carregar(provider)
+            }
+        }
+        ShelfArquivos.juntos(arquivos) { urls in
+            let jaEstao = Set(shelf.arquivos.map(\.path))
+            if urls.allSatisfy({ jaEstao.contains($0.path) }) {
+                shelf.empilhar(urls, em: entrada)
+            } else {
+                shelf.add(urls)
+            }
+        }
     }
 
     /// Duas folhas atrás da miniatura: o que diz "é pilha" sem ler número.
