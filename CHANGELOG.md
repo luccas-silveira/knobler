@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-09-11
+
 ### Added
 - Arrastar um item da prateleira pra fora e o destino aceitar tira o item da
   prateleira — o arquivo original não é tocado. Soltar no vazio, ou num destino
