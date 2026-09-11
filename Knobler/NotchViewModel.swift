@@ -30,20 +30,36 @@ final class NotchViewModel: ObservableObject {
     /// snapshot, que instancia o VM solto.
     var displayID: CGDirectDisplayID?
 
-    @Published var expanded = false {
-        // recolher o notch desliga o espelho — a câmera nunca fica ligada escondida
-        didSet {
-            if !expanded {
-                mirrorOn = false
-                // escolha manual vale até fechar; a próxima abertura volta ao automático
-                focusLocked = false
-                // pedido de foco que ninguém consumiu morre aqui: vivo, ele
-                // vazaria pra abertura seguinte e abriria numa seção que o
-                // usuário não pediu — já travada, matando a promoção do card.
-                focoPendente = nil
-            }
-        }
+    @Published private(set) var expanded = false
+    private var opening = NotchOpening()
+    private var openingWork: DispatchWorkItem?
+    var questionIsActive: () -> Bool = { false }
+    @Published var availableSize = CGSize(width: 900, height: 900)
+    private(set) var presentation: NotchPresentation?
+    private var sectionInputs = NotchSectionInputs()
+    private var receivedSections = false
+
+    func updateSections(_ inputs: NotchSectionInputs) {
+        let membershipChanged = inputs.note != sectionInputs.note
+            || inputs.messages != sectionInputs.messages || inputs.link != sectionInputs.link
+        sectionInputs = inputs
+        receivedSections = true
+        if expanded && (secoes.isEmpty || membershipChanged) { reconcileSections() }
     }
+
+    private func reconcileSections() {
+        if sectionInputs.annotation { focoPendente = .anotacao }
+        recalcularSecoes(estadoDasSecoes(hasMusic: sectionInputs.music, hasShelf: sectionInputs.shelf,
+            hasHistory: sectionInputs.history, hasMensagens: sectionInputs.messages,
+            hasNota: sectionInputs.note, hasLink: sectionInputs.link), travadaNaNota: typingNote)
+    }
+
+
+    func publishPresentation(_ value: NotchPresentation) {
+        presentation = value
+        publicarAltura(value.size.height)
+    }
+
     @Published var mirrorOn = false {
         didSet { if mirrorOn != oldValue { marcarEvento(.espelho) } }
     }
@@ -260,7 +276,7 @@ final class NotchViewModel: ObservableObject {
         // `recalcularSecoes` no meio-tempo veria `travadaNaNota` ainda true e
         // puxaria o foco de volta. Vale pro clique na faixa e pro swipe.
         // Sair da seção não encerra a nota: `active` e `text` seguem intactos.
-        if focus == .nota, section != .nota { QuickNote.shared.editing = false }
+        if focus == .nota, section != .nota, typingNote { QuickNote.shared.editing = false }
         focoPendente = nil
         focus = section
         focusLocked = true
@@ -286,10 +302,7 @@ final class NotchViewModel: ObservableObject {
         var charging: Bool = false
     }
 
-    enum Mode: Equatable {
-        case closed, music, notification, hud, dictation, question, pomodoro, airpods, message
-        case update
-    }
+    typealias Mode = NotchMode
 
     /// Digitando na nota rápida nesta tela — o compromisso mais forte que o
     /// usuário faz com o notch, e por isso ganha de notificação e HUD.
@@ -298,98 +311,69 @@ final class NotchViewModel: ObservableObject {
     /// Sem isto a página fecharia assim que o mouse saísse pra ler.
     var linkAberto: Bool { LinkPreview.shared.hosted(by: displayID) }
 
-    /// Prioridade dos modos próprios: mensagem > ditado > nota (digitando) >
-    /// notificação > HUD > update > AirPods(card) > música (hover) > pomodoro
-    /// > fechado. Ask é derivado pelo NotchView a partir do AskStore
-    /// compartilhado.
-    var mode: Mode {
-        if incoming != nil { return .message }
-        if dictation != nil { return .dictation }
-        // nota com o teclado nos dedos vence notificação e HUD: quando o campo
-        // sai da árvore, o `.onDisappear` zera o foco, `keyboardAllowed` cai e o
-        // painel larga a chave — as teclas seguintes vão pro app da frente sem
-        // sinal nenhum. Ditado e mensagem ainda passam na frente (ditado é
-        // pedido pelo usuário; mensagem tem campo de resposta próprio).
-        if typingNote { return .music }
-        if activeNotification != nil { return .notification }
-        if hud != nil { return .hud }
-        // update nunca interrompe ditado, notificação ou HUD — só espera
-        if updateCard, update != nil { return .update }
-        if airpodsCard { return .airpods }
-        if expanded { return .music }
-        if pomodoro != nil { return .pomodoro }
-        return .closed
+    func contentState(question: Bool? = nil) -> NotchContentState {
+        NotchContentState(question: question ?? questionIsActive(), incoming: incoming != nil,
+                          reply: incoming?.allowReply == true, dictation: dictation != nil,
+                          typingNote: typingNote, notification: activeNotification != nil,
+                          hud: hud != nil, update: updateCard && update != nil,
+                          airpods: airpodsCard, expanded: expanded, pomodoro: pomodoro != nil,
+                          focus: focus)
     }
 
-    /// Mouse sobre o notch agora — o peek de captura usa isto pra não fechar
-    /// o card enquanto o usuário está com o cursor em cima.
-    var isHovering: Bool { hovering }
-
-    // ponytail: delays fixos anti-flicker; virar preferência se incomodar
-    private let openDelay: TimeInterval = 0.18
-    private let closeDelay: TimeInterval = 0.30
-    /// Digitando na nota o card ainda fecha com o mouse fora, só que devagar:
-    /// tempo de voltar com o ponteiro sem perder o campo de vista.
-    private let closeDelayDigitando: TimeInterval = 3.0
-    /// Quanto o card espera antes de encolher depois que o mouse sai.
-    var atrasoDeFechar: TimeInterval { typingNote ? closeDelayDigitando : closeDelay }
-    /// Janela pós-fechar em que enter é ignorado: o frame encolhendo debaixo
-    /// do mouse dispara enter de novo e reabre em loop sem isso.
-    private let reopenCooldown: TimeInterval = 0.45
-    private var lastCollapseAt = Date.distantPast
+    var mode: Mode { contentState().mode }
+    var isHovering: Bool { opening.hovering }
+    var atrasoDeFechar: TimeInterval { typingNote ? NotchOpening.typingDelay : NotchOpening.closeDelay }
     private let notificationDuration: TimeInterval = 5.0
     /// O alerta do sistema vive ~30s; o card espelhado acompanha.
     private let actionableDuration: TimeInterval = 30.0
     private let hudDuration: TimeInterval = 1.5
-    private var pendingWork: DispatchWorkItem?
     private var queue: [NotchNotification] = []
     private var dismissWork: DispatchWorkItem?
     private var hudWork: DispatchWorkItem?
 
-    private var hovering = false
-
-    /// Encolhe o card depois que o mouse saiu e o atraso venceu.
-    ///
-    /// `editing` cai AQUI, junto: `mode` devolve `.music` enquanto `typingNote`
-    /// for true (a nota com teclado nos dedos vence notificação e HUD), então
-    /// zerar só o `expanded` deixaria o card desenhado — e o `onDisappear` do
-    /// campo, que zeraria `editing`, nunca correria porque a view continua na
-    /// árvore. Card segurando a digitação, digitação segurando o card.
     func fecharPorHoverOut() {
-        // o link aberto congela o card: a página é navegável e o mouse sai dela
-        // o tempo todo. A nota não congela mais — só ganha um atraso maior.
         guard !linkAberto else { return }
-        if typingNote { QuickNote.shared.editing = false }
-        if expanded { lastCollapseAt = Date() }
-        expanded = false
+        setExpandedDirect(false)
     }
 
     func setHover(_ inside: Bool) {
-        hovering = inside
-        pendingWork?.cancel()
-
-        guard inside else {
-            let work = DispatchWorkItem { [weak self] in self?.fecharPorHoverOut() }
-            pendingWork = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + atrasoDeFechar, execute: work)
-            return
-        }
-
-        guard !expanded else { return }
-        guard Date().timeIntervalSince(lastCollapseAt) >= reopenCooldown else { return }
-
+        openingWork?.cancel()
+        opening.hover(inside, typing: typingNote, now: ProcessInfo.processInfo.systemUptime)
+        guard let request = opening.pending else { return }
         let work = DispatchWorkItem { [weak self] in
-            guard let self, self.hovering else { return }
-            self.expanded = true
+            guard let self,
+                  let value = self.opening.fire(request, now: ProcessInfo.processInfo.systemUptime,
+                                                linkOpen: self.linkAberto) else { return }
+            self.applyExpanded(value)
         }
-        pendingWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + openDelay, execute: work)
+        openingWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + max(0, request.deadline - ProcessInfo.processInfo.systemUptime),
+                                      execute: work)
     }
 
-    /// Abre/fecha por gesto (swipe): imediato, sem os delays do hover.
+    /// Gesto, drop e pedidos externos atravessam o mesmo caminho que o hover.
     func setExpandedDirect(_ value: Bool) {
-        pendingWork?.cancel()
+        openingWork?.cancel()
+        opening.setExpanded(value, now: ProcessInfo.processInfo.systemUptime)
+        applyExpanded(value)
+    }
+
+    private func applyExpanded(_ value: Bool) {
+        precondition(Thread.isMainThread, "Apresentação deve mudar na main thread")
+        if value && !expanded && receivedSections { reconcileSections() }
+        if !value {
+            if typingNote { QuickNote.shared.editing = false }
+            mirrorOn = false
+            focusLocked = false
+            focoPendente = nil
+        }
         expanded = value
+    }
+
+    func suspendPresentation() {
+        openingWork?.cancel()
+        opening.suspend()
+        if typingNote { QuickNote.shared.editing = false }
     }
 
     // MARK: - Mensagens LAN

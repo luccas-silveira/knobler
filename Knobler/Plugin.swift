@@ -579,7 +579,7 @@ extension ScheduleEngine: PluginServico {
 /// empresta os efeitos (card, som, e o registro do wake, que exige AppKit).
 func montarLembretes(_ deps: PluginDeps) -> ReminderScheduler {
     let efeitos = deps.lembretes
-    let s = ReminderScheduler()
+    let s = ReminderScheduler(snoozeKey: "reminderSnooze")
     s.itemsProvider = efeitos.itens
     s.onFire = { r in
         efeitos.disparou(r)
@@ -602,7 +602,7 @@ func montarLembretes(_ deps: PluginDeps) -> ReminderScheduler {
 /// guarda o scheduler e repassa pro `DescansoController` (via `efeitos`, sem
 /// conhecer o tipo — AppKit) tanto o pedido de bloqueio quanto o fim dele.
 final class DescansoServico: PluginServico {
-    let scheduler = ScheduleEngine<ScreenBreak>()
+    let scheduler = ScheduleEngine<ScreenBreak>(snoozeKey: "screenBreakSnooze")
     private let efeitos: DescansoEfeitos
 
     init(efeitos: DescansoEfeitos) { self.efeitos = efeitos }

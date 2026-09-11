@@ -40,6 +40,7 @@ enum ShelfOrdemCheck {
         ordem()
         pilhas()
         persistencia()
+        reimportacaoAberta()
 
         if falhas > 0 {
             print("shelfordemcheck: \(falhas) falha(s)")
@@ -123,6 +124,25 @@ enum ShelfOrdemCheck {
 
         let noDrop = ShelfOrdem.inserir([p, p, q], em: [], capacidade: 8)
         check(forma(noDrop) == [["/tmp/p", "/tmp/q"]], "repetido dentro do próprio drop entra uma vez")
+    }
+
+    static func reimportacaoAberta() {
+        let a = u("/tmp/a"), b = u("/tmp/b"), c = u("/tmp/c"), d = u("/tmp/d")
+        let aberta = ShelfEntry([a, b, c, d])
+        for novos in [[a], [a, b], [a, u("/tmp/novo")]] {
+            let entradas = ShelfOrdem.inserir(novos, em: [aberta], capacidade: 8)
+            assert(ShelfOrdem.pilhaAberta(aberta, em: entradas) == entradas.last,
+                   "reimportar deve manter a pilha remanescente aberta")
+        }
+        let outra = ShelfEntry([u("/tmp/fora")])
+        for linha in [[outra, aberta], [aberta, outra]] {
+            let movidas = ShelfOrdem.empilhar([a, b], em: outra, entradas: linha)
+            assert(ShelfOrdem.pilhaAberta(aberta, em: movidas)?.urls == [c, d])
+        }
+        let sobraSolta = ShelfOrdem.inserir([a, b, c], em: [aberta], capacidade: 8)
+        assert(ShelfOrdem.pilhaAberta(aberta, em: sobraSolta) == nil)
+        let dissolvida = ShelfOrdem.desempilhar(aberta, em: [aberta], capacidade: 8)
+        assert(ShelfOrdem.pilhaAberta(aberta, em: dissolvida) == nil)
     }
 
     static func persistencia() {

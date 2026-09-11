@@ -6,8 +6,8 @@ const { createHub } = require('../src/hub');
 const { createRateLimiter } = require('../src/ratelimit');
 const { createServer } = require('../src/server');
 
-function boot() {
-  const db = openDB(':memory:');
+function boot(path = ':memory:') {
+  const db = openDB(path);
   const hub = createHub();
   const rateLimiter = createRateLimiter({ ratePerMin: 20, burst: 5 });
   const srv = createServer({ db, hub, rateLimiter });
@@ -198,4 +198,64 @@ test('API de perfis exige deviceSecret válido', async () => {
   const r = await fetch(base + '/profiles', { headers: { Authorization: 'Bearer errado' } });
   assert.strictEqual(r.status, 401);
   await new Promise(r2 => srv.stop(r2));
+});
+
+test('rotação e exclusão pela API persistem após reiniciar banco já com perfis', async () => {
+  const { mkdtempSync, rmSync } = require('node:fs');
+  const { join } = require('node:path');
+  const dir = mkdtempSync(join(require('node:os').tmpdir(), 'knobler-server-'));
+  const path = join(dir, 'relay.db');
+  let app = await boot(path);
+  async function restart() {
+    await new Promise(r => app.srv.stop(r)); app.db.close();
+    app = await boot(path);
+  }
+  try {
+    const reg = (await post(app.base, '/register')).json;
+    const headers = { Authorization: `Bearer ${reg.deviceSecret}` };
+    const list = await fetch(app.base + '/profiles', { headers }).then(r => r.json());
+    const route = `/profiles/${list[0].profileId}`;
+    const rotated = await post(app.base, route + '/rotate', { headers });
+    assert.strictEqual(rotated.status, 200);
+    for (let i = 0; i < 2; i++) {
+      assert.strictEqual((await post(app.base, `/w/${reg.publishToken}`)).status, 404);
+      assert.strictEqual((await post(app.base, `/w/${rotated.json.publishToken}`)).status, 202);
+      await restart();
+    }
+    assert.strictEqual((await fetch(app.base + route, { method: 'DELETE', headers })).status, 200);
+    await restart();
+    assert.deepStrictEqual(await fetch(app.base + '/profiles', { headers }).then(r => r.json()), []);
+    assert.strictEqual((await post(app.base, `/w/${reg.publishToken}`)).status, 404);
+    assert.strictEqual((await post(app.base, `/w/${rotated.json.publishToken}`)).status, 404);
+  } finally {
+    await new Promise(r => app.srv.stop(r)); app.db.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('mapping exige objeto e tipos válidos; rejeição preserva mapa e null limpa', async () => {
+  const { srv, db, base } = await boot();
+  try {
+    const reg = (await post(base, '/register')).json;
+    const headers = { Authorization: `Bearer ${reg.deviceSecret}`, 'Content-Type': 'application/json' };
+    const [profile] = await fetch(base + '/profiles', { headers }).then(r => r.json());
+    const route = base + `/profiles/${profile.profileId}`;
+    const mapping = JSON.stringify({ title: '{{title}}', sound: true });
+    const put = mapping => fetch(route, { method: 'PUT', headers, body: JSON.stringify({ mapping }) });
+    assert.strictEqual((await put(mapping)).status, 200);
+    for (const invalid of ['null', '[]', '42', 'true', '"text"', '{', {},
+      ...['title', 'body', 'url', 'id', 'iconTemplate'].flatMap(key =>
+        [null, 42, [], {}].map(value => JSON.stringify({ [key]: value }))), '{"sound":"false"}']) {
+      assert.strictEqual((await put(invalid)).status, 400, `aceitou ${JSON.stringify(invalid)}`);
+      assert.strictEqual((await fetch(route, { headers }).then(r => r.json())).mapping, mapping);
+    }
+    assert.strictEqual((await post(base, `/w/${reg.publishToken}`, { body: '{"title":"Teste"}' })).status, 202);
+    // Simula um mapping inválido aceito por uma versão anterior do relay.
+    db.updateProfile({ profileId: profile.profileId, deviceId: reg.deviceId, mapping: 'null' });
+    assert.strictEqual((await post(base, `/w/${reg.publishToken}`)).status, 400);
+    assert.strictEqual((await put(null)).status, 200);
+    assert.strictEqual((await post(base, `/w/${reg.publishToken}`)).json.delivered, 'captured');
+  } finally {
+    await new Promise(r => srv.stop(r)); db.close();
+  }
 });

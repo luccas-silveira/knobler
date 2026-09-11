@@ -80,7 +80,9 @@ struct ShelfPreviewView: View {
     }
 
     private var resumo: String {
-        if preview.failed { return "não deu pra converter" }
+        if preview.failed {
+            return preview.output == nil ? "não deu pra converter" : "não deu pra salvar · tente novamente"
+        }
         var linha = "\(ShelfPreview.formatBytes(preview.sourceBytes)) → "
             + ShelfPreview.formatBytes(preview.outputBytes)
         if let size = preview.outputPixelSize {

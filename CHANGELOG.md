@@ -25,6 +25,11 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   o excesso cai pelo fim, como sempre.
 
 ### Changed
+- Abertura e layout do knob reimplementados com controle por tela, callbacks
+  canceláveis por geração e uma decisão compartilhada para modo, teclado e
+  geometria. A moldura mantém identidade estável e as animações existentes;
+  o host comporta o card largo de links. O detector visual registra ocorrências
+  sem reconstruir a interface.
 - A prateleira passou a mostrar o item mais novo na esquerda; o mais antigo é o
   que cai pela direita quando ela enche. Soltar de novo um arquivo que já está
   lá puxa ele pra frente da fila em vez de ignorar o arraste.
@@ -32,6 +37,23 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
   entrada sabe ser um arquivo só ou um conjunto — a base do empilhamento que
   vem a seguir. Nada muda no que se vê: quem já tinha itens guardados continua
   com eles, na ordem certa.
+
+### Fixed
+- Tokens revogados e perfis excluídos não voltam após reiniciar o relay. A
+  migração de dispositivos legados acontece uma única vez, junto da criação
+  da tabela de perfis, em transação.
+- Apagar perfil preserva o token local quando há falha de rede ou HTTP e
+  apresenta um aviso para tentar novamente.
+- Falha ao salvar uma conversão mantém o preview e os resultados pendentes;
+  nova tentativa salva somente o que faltou, inclusive em PDFs com várias páginas.
+- Mappings de webhook exigem objeto com campos dos tipos esperados. Mapas
+  inválidos antigos retornam HTTP 400, em vez de erro interno; `null` continua
+  permitindo limpar o mapping.
+- Reimportar arquivos de uma pilha aberta mantém a grade da pilha remanescente.
+- Descanso e Lembretes usam chaves distintas para adiamentos: a limpeza de
+  um serviço não apaga o que o outro precisa restaurar após reiniciar.
+- Fechar por gesto durante edição da nota libera a edição da tela dona e
+  aplica o intervalo contra reabertura por hover, preservando o rascunho.
 
 ## [0.27.0] - 2026-08-28
 

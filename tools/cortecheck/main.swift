@@ -372,7 +372,7 @@ let transicoes: [Transicao] = [
               montar: { c in
                   atividadeFalsa(c)
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .link,
               passos: [(0, { $0.vm.focar(.atividade) })]),
@@ -380,7 +380,7 @@ let transicoes: [Transicao] = [
               montar: { c in
                   atividadeFalsa(c)
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .atividade,
               passos: [(0, { $0.vm.focar(.link) })]),
@@ -388,7 +388,7 @@ let transicoes: [Transicao] = [
               montar: { c in
                   atividadeFalsa(c)
                   c.vm.mirrorOn = true
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .espelho,
               passos: [(0, { $0.vm.focar(.atividade) })]),
@@ -396,21 +396,21 @@ let transicoes: [Transicao] = [
               montar: { c in
                   atividadeFalsa(c)
                   c.vm.mirrorOn = true
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .atividade,
               passos: [(0, { $0.vm.focar(.espelho) })]),
     Transicao(nome: "link-fecha", familia: "lista3-link",
               montar: { c in
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .link,
               passos: [(0, { _ in LinkPreview.shared.fechar() })]),
     Transicao(nome: "link-abre", familia: "lista3-link",
               montar: { c in
                   atividadeFalsa(c)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .atividade,
               // dois passos porque é assim no app: a seção `.link` só entra na
@@ -421,14 +421,14 @@ let transicoes: [Transicao] = [
     Transicao(nome: "espelho-desliga", familia: "lista3-espelho",
               montar: { c in
                   c.vm.mirrorOn = true
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .espelho,
               passos: [(0, { $0.vm.mirrorOn = false })]),
     Transicao(nome: "espelho-liga", familia: "lista3-espelho",
               montar: { c in
                   c.vm.mirrorOn = true
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .espelho,
               passos: [(0, { $0.vm.mirrorOn = false }), (0.20, { $0.vm.mirrorOn = true })]),
@@ -436,14 +436,14 @@ let transicoes: [Transicao] = [
               montar: { c in
                   pomodoroFalso(c)
                   c.vm.calendarAviso = CalendarAviso(titulo: "Retrospectiva", faltam: 720)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .pomodoro,
               passos: [(0, { $0.vm.calendarAviso = nil })]),
     Transicao(nome: "pomodoro-evento-entra", familia: "lista3-calendario",
               montar: { c in
                   pomodoroFalso(c)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .pomodoro,
               passos: [(0, { $0.vm.calendarAviso = CalendarAviso(titulo: "Retrospectiva",
@@ -451,7 +451,7 @@ let transicoes: [Transicao] = [
     Transicao(nome: "shelf-preview-abre", familia: "lista3-shelf",
               montar: { c in
                   c.shelf.add(arquivoPNGFalso())
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .shelf,
               passos: [(0, { c in c.shelf.startPreview(arquivoPNGFalso(), to: .image(.jpeg)) })]),
@@ -498,7 +498,7 @@ let transicoes: [Transicao] = [
               montar: { c in
                   atividadeFalsa(c)
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .link,
               passos: [(0, { c in
@@ -508,7 +508,7 @@ let transicoes: [Transicao] = [
               montar: { c in
                   atividadeFalsa(c)
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .atividade,
               passos: [(0, { c in
@@ -518,7 +518,7 @@ let transicoes: [Transicao] = [
               montar: { c in
                   atividadeFalsa(c)
                   c.vm.mirrorOn = true
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .espelho,
               passos: [(0, { c in
@@ -528,7 +528,7 @@ let transicoes: [Transicao] = [
               montar: { c in
                   atividadeFalsa(c)
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .atividade,
               passos: [(0, { c in
@@ -538,7 +538,7 @@ let transicoes: [Transicao] = [
               montar: { c in
                   atividadeFalsa(c)
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .link,
               passos: [(0, { c in
@@ -548,7 +548,7 @@ let transicoes: [Transicao] = [
               montar: { c in
                   atividadeFalsa(c)
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .atividade,
               passos: [(0, { $0.vm.setExpandedDirect(false) }),
@@ -562,7 +562,7 @@ let transicoes: [Transicao] = [
               montar: { c in
                   atividadeFalsa(c)
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .atividade,
               passos: [(0, { $0.vm.setExpandedDirect(false) }),
@@ -574,7 +574,7 @@ let transicoes: [Transicao] = [
               montar: { c in
                   atividadeFalsa(c)
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .link,
               passos: [(0, { c in
@@ -584,7 +584,7 @@ let transicoes: [Transicao] = [
     Transicao(nome: "fecha-card-e-fecha-link", familia: "mesma-runloop",
               montar: { c in
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .link,
               passos: [(0, { c in
@@ -594,7 +594,7 @@ let transicoes: [Transicao] = [
     Transicao(nome: "abre-card-e-abre-link", familia: "mesma-runloop",
               montar: { c in
                   atividadeFalsa(c)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .atividade,
               passos: [(0, { $0.vm.setExpandedDirect(false) }),
@@ -605,7 +605,7 @@ let transicoes: [Transicao] = [
     Transicao(nome: "hud-com-card-aberto", familia: "mesma-runloop",
               montar: { c in
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .link,
               passos: [(0, { $0.vm.showHUD(.init(level: 0.6, muted: false)) })]),
@@ -615,7 +615,7 @@ let transicoes: [Transicao] = [
     Transicao(nome: "notificacao-durante-abertura", familia: "chegada-assincrona",
               montar: { c in
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .link,
               passos: [(0, { $0.vm.setExpandedDirect(false) }),
@@ -628,7 +628,7 @@ let transicoes: [Transicao] = [
     Transicao(nome: "hud-durante-abertura", familia: "chegada-assincrona",
               montar: { c in
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .link,
               passos: [(0, { $0.vm.setExpandedDirect(false) }),
@@ -637,7 +637,7 @@ let transicoes: [Transicao] = [
     Transicao(nome: "pomodoro-durante-abertura", familia: "chegada-assincrona",
               montar: { c in
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .link,
               passos: [(0, { $0.vm.setExpandedDirect(false) }),
@@ -646,7 +646,7 @@ let transicoes: [Transicao] = [
     Transicao(nome: "mensagem-durante-abertura", familia: "chegada-assincrona",
               montar: { c in
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .link,
               passos: [(0, { $0.vm.setExpandedDirect(false) }),
@@ -658,7 +658,7 @@ let transicoes: [Transicao] = [
     Transicao(nome: "link-durante-abertura", familia: "chegada-assincrona",
               montar: { c in
                   atividadeFalsa(c)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .atividade,
               passos: [(0, { $0.vm.setExpandedDirect(false) }),
@@ -667,7 +667,7 @@ let transicoes: [Transicao] = [
     Transicao(nome: "espelho-durante-abertura", familia: "chegada-assincrona",
               montar: { c in
                   c.vm.mirrorOn = true
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .espelho,
               passos: [(0, { $0.vm.setExpandedDirect(false) }),
@@ -680,7 +680,7 @@ let transicoes: [Transicao] = [
     Transicao(nome: "screenshot-durante-abertura", familia: "chegada-assincrona",
               montar: { c in
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .link,
               passos: [(0, { $0.vm.setExpandedDirect(false) }),
@@ -694,7 +694,7 @@ let transicoes: [Transicao] = [
     Transicao(nome: "hover-abre-e-gesto-fecha", familia: "hover-vs-gesto",
               montar: { c in
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .link,
               passos: [(0, { $0.vm.setExpandedDirect(false) }),
@@ -709,7 +709,7 @@ let transicoes: [Transicao] = [
     Transicao(nome: "hover-fecha-e-gesto-reabre", familia: "hover-vs-gesto",
               montar: { c in
                   c.vm.mirrorOn = true
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .espelho,
               passos: [(0, { $0.vm.setHover(false) }),
@@ -718,7 +718,7 @@ let transicoes: [Transicao] = [
               montar: { c in
                   atividadeFalsa(c)
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .atividade,
               passos: [(0, { $0.vm.setExpandedDirect(false) }),
@@ -732,14 +732,14 @@ let transicoes: [Transicao] = [
     // janela. Ver os limites na medição 003.1: este worktree NÃO tem
     // observador de troca de Space nem de sono.
     Transicao(nome: "ambiente-orderout-volta-fechado", familia: "ambiente",
-              montar: { c in c.vm.expanded = false },
+              montar: { c in c.vm.setExpandedDirect(false) },
               passos: [(0, { c in evento(c, "orderOut", { $0.orderOut(nil as Any?) }) }),
                        (0.30, { c in evento(c, "orderFrontRegardless", { $0.orderFrontRegardless() }) })]),
 
     Transicao(nome: "ambiente-orderout-volta-aberto", familia: "ambiente",
               montar: { c in
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .link,
               passos: [(0, { c in evento(c, "orderOut", { $0.orderOut(nil as Any?) }) }),
@@ -748,7 +748,7 @@ let transicoes: [Transicao] = [
     Transicao(nome: "ambiente-orderout-durante-morph", familia: "ambiente",
               montar: { c in
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .link,
               passos: [(0, { $0.vm.setExpandedDirect(false) }),
@@ -762,7 +762,7 @@ let transicoes: [Transicao] = [
     Transicao(nome: "ambiente-espaco-simulado", familia: "ambiente",
               montar: { c in
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .link,
               passos: [(0, { c in evento(c, "orderOut", { $0.orderOut(nil as Any?) }) }),
@@ -772,13 +772,13 @@ let transicoes: [Transicao] = [
     // seguido de orderFrontRegardless no mesmo giro. É o que
     // `didChangeScreenParametersNotification` dispara com a tela igual.
     Transicao(nome: "ambiente-placewindows-parado", familia: "ambiente",
-              montar: { c in c.vm.expanded = false },
+              montar: { c in c.vm.setExpandedDirect(false) },
               passos: [(0, { c in placeWindowsFalso(c) })]),
 
     Transicao(nome: "ambiente-placewindows-durante-morph", familia: "ambiente",
               montar: { c in
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .link,
               passos: [(0, { $0.vm.setExpandedDirect(false) }),
@@ -790,7 +790,7 @@ let transicoes: [Transicao] = [
     Transicao(nome: "ambiente-setframe-move-origem", familia: "ambiente",
               montar: { c in
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .link,
               passos: [(0, { c in
@@ -810,7 +810,7 @@ let transicoes: [Transicao] = [
     Transicao(nome: "ambiente-setframe-muda-tamanho", familia: "ambiente",
               montar: { c in
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .link,
               passos: [(0, { c in
@@ -836,7 +836,7 @@ let transicoes: [Transicao] = [
     // de janelas do sistema antes.
     Transicao(nome: "real-ajustes-parado", familia: "real",
               montar: { c in
-                  c.vm.expanded = false
+                  c.vm.setExpandedDirect(false)
                   assinarAjustes(c)
               },
               passos: (0..<12).map { i -> (TimeInterval, Acao) in
@@ -848,7 +848,7 @@ let transicoes: [Transicao] = [
     Transicao(nome: "real-ajustes-durante-morph", familia: "real",
               montar: { c in
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
                   assinarAjustes(c)
               },
               foco: .link,
@@ -865,7 +865,7 @@ let transicoes: [Transicao] = [
     Transicao(nome: "real-ajustes-rajada", familia: "real",
               montar: { c in
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
                   assinarAjustes(c)
               },
               foco: .link,
@@ -878,7 +878,7 @@ let transicoes: [Transicao] = [
     // de janelas disser. Aqui a costura força o ramo do `orderOut` (entrou em
     // tela cheia) e depois o solta (saiu), com o mesmo atraso das duas vezes.
     Transicao(nome: "real-espaco-entra-telacheia", familia: "real",
-              montar: { c in c.vm.expanded = false },
+              montar: { c in c.vm.setExpandedDirect(false) },
               passos: [(0, { _ in telaCheiaForcada = true }),
                        (0.35, { c in applyVisibilityReal(c) }),
                        (0.90, { _ in telaCheiaForcada = false }),
@@ -890,7 +890,7 @@ let transicoes: [Transicao] = [
     Transicao(nome: "real-espaco-durante-morph", familia: "real",
               montar: { c in
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .link,
               passos: [(0, { $0.vm.setExpandedDirect(false) }),
@@ -907,7 +907,7 @@ let transicoes: [Transicao] = [
     Transicao(nome: "real-placewindows-applyvisibility", familia: "real",
               montar: { c in
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .link,
               passos: [(0, { $0.vm.setExpandedDirect(false) }),
@@ -920,7 +920,7 @@ let transicoes: [Transicao] = [
     // se `fullscreenDisplays()` chega a ser chamado.
     Transicao(nome: "real-telacheia-liga-desliga", familia: "real",
               montar: { c in
-                  c.vm.expanded = false
+                  c.vm.setExpandedDirect(false)
                   assinarAjustes(c)
               },
               passos: (0..<4).map { i -> (TimeInterval, Acao) in
@@ -935,7 +935,7 @@ let transicoes: [Transicao] = [
     Transicao(nome: "real-fullscreendisplays-varredura", familia: "real",
               montar: { c in
                   LinkPreview.shared.abrir(linkDeTeste, on: 1)
-                  c.vm.expanded = true
+                  c.vm.setExpandedDirect(true)
               },
               foco: .link,
               passos: [(0, { $0.vm.setExpandedDirect(false) })]
@@ -1288,7 +1288,7 @@ let controle = Transicao(
     nome: "controle-positivo-mode", familia: "controle",
     montar: { c in
         LinkPreview.shared.abrir(linkDeTeste, on: 1)
-        c.vm.expanded = true
+        c.vm.setExpandedDirect(true)
     },
     foco: .link,
     // Quatro trocas de `mode`, não uma: com um par só o número de alturas
@@ -1311,7 +1311,7 @@ guard qd.temCorte else {
 // que aparecer em toda foto. É o que separa "o notch sumiu por um quadro" de
 // "o `cacheDisplay` devolveu buffer em branco" quando o card fecha.
 let rf = rodar(Transicao(nome: "controle-fechado-parado", familia: "controle",
-                         montar: { c in c.vm.expanded = false },
+                         montar: { c in c.vm.setExpandedDirect(false) },
                          passos: [(0, { _ in })]),
                conferirCamada: true)
 print("controle do fechado parado: alturas \(rf.alturas)")
@@ -1337,7 +1337,7 @@ print(String(format: "controle da camada (2ª câmera): cacheDisplay=%.1f pt, ca
 // `.padding(.top,)` no envelope do harness.
 let desvio: CGFloat = 60
 let rdv = rodar(Transicao(nome: "controle-do-desvio-view-real", familia: "controle",
-                          montar: { c in c.vm.expanded = false },
+                          montar: { c in c.vm.setExpandedDirect(false) },
                           passos: [(0, { _ in })]),
                 deslocamento: desvio)
 print(String(format: "controle do desvio na view real: lacuna_topo_max=%.1f pt "
@@ -1377,7 +1377,7 @@ let passosDoOrderOut: [(TimeInterval, Acao)] = [
     (0.30, { c in evento(c, "orderFrontRegardless", { $0.orderFrontRegardless() }) }),
 ]
 let rao = rodar(Transicao(nome: "controle-ambiente-orderout-parado", familia: "controle",
-                          montar: { c in c.vm.expanded = false },
+                          montar: { c in c.vm.setExpandedDirect(false) },
                           passos: [(0, { c in evento(c, "orderOut", { $0.orderOut(nil as Any?) }) })]))
 print("controle do ambiente (orderOut parado): alturas \(rao.alturas)")
 guard rao.alturas.allSatisfy({ $0 == 32 }), rao.quadrosComCorte == 0 else {
@@ -1391,7 +1391,7 @@ guard rao.alturas.allSatisfy({ $0 == 32 }), rao.quadrosComCorte == 0 else {
 // enxergando ATRAVESSANDO o evento — se o orderOut cegasse a medida, o zero da
 // família seria zero de instrumento.
 let rad = rodar(Transicao(nome: "controle-ambiente-desvio", familia: "controle",
-                          montar: { c in c.vm.expanded = false },
+                          montar: { c in c.vm.setExpandedDirect(false) },
                           passos: passosDoOrderOut),
                 deslocamento: desvio)
 print(String(format: "controle do desvio atravessando o orderOut: lacuna_topo_max=%.1f pt "

@@ -94,12 +94,13 @@ final class ShelfPreview: ObservableObject {
 
     // MARK: - Desfecho
 
-    /// Move os arquivos pro lado do original e devolve o primeiro. O original
+    /// Move os arquivos pro lado do original e devolve os salvos. O original
     /// continua onde estava.
     @discardableResult
     func salvar() -> [URL] {
-        guard !written.isEmpty else { return [] }
+        guard !running, !written.isEmpty else { return [] }
         var saved: [URL] = []
+        var remaining: [URL] = []
         for url in written {
             let destination = FileConverter.uniqueURL(
                 directory: source.deletingLastPathComponent(),
@@ -109,11 +110,17 @@ final class ShelfPreview: ObservableObject {
                 try FileManager.default.moveItem(at: url, to: destination)
                 saved.append(destination)
             } catch {
+                remaining.append(url)
                 NSLog("knobler: preview não conseguiu salvar \(url.lastPathComponent): \(error)")
             }
         }
-        written = []
-        descartar()
+        written = remaining
+        failed = !remaining.isEmpty
+        output = remaining.first
+        outputBytes = output.flatMap(Self.bytes(of:))
+        outputPixelSize = output.flatMap(Self.pixelSize(of:))
+        extraPages = max(0, remaining.count - 1)
+        if remaining.isEmpty { descartar() }
         return saved
     }
 

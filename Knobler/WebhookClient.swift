@@ -38,8 +38,21 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private let log = Logger(subsystem: "com.zoi.knobler", category: "webhook")
     private let queue = DispatchQueue(label: "com.zoi.knobler.webhook")
 
+    private let sessionConfiguration: URLSessionConfiguration
+    private let loadDeviceSecret: () -> String?
+    private let deleteProfileToken: (String) -> Void
+
+    init(sessionConfiguration: URLSessionConfiguration = .default,
+         loadDeviceSecret: @escaping () -> String? = { WebhookKeychainStore.load(.deviceSecret) },
+         deleteProfileToken: @escaping (String) -> Void = WebhookKeychainStore.deleteProfileToken) {
+        self.sessionConfiguration = sessionConfiguration
+        self.loadDeviceSecret = loadDeviceSecret
+        self.deleteProfileToken = deleteProfileToken
+        super.init()
+    }
+
     private lazy var session: URLSession = {
-        let c = URLSessionConfiguration.default          // NUNCA .background
+        let c = sessionConfiguration          // NUNCA .background
         c.waitsForConnectivity = true; c.timeoutIntervalForRequest = 30
         let dq = OperationQueue(); dq.maxConcurrentOperationCount = 1
         return URLSession(configuration: c, delegate: self, delegateQueue: dq)
@@ -323,7 +336,7 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     /// Request autenticado ao relay (Bearer deviceSecret). Retorna o corpo cru ou nil.
     private func authed(_ path: String, method: String = "GET", body: Data? = nil) async -> Data? {
-        guard let secret = WebhookKeychainStore.load(.deviceSecret) else { return nil }
+        guard let secret = loadDeviceSecret() else { return nil }
         var req = URLRequest(url: base.appendingPathComponent(path))
         req.httpMethod = method
         req.setValue("Bearer \(secret)", forHTTPHeaderField: "Authorization")
@@ -331,7 +344,10 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             req.httpBody = body
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
-        return try? await session.data(for: req).0
+        guard let (data, response) = try? await session.data(for: req),
+              let http = response as? HTTPURLResponse,
+              (200..<300).contains(http.statusCode) else { return nil }
+        return data
     }
 
     /// nil = falha (rede/auth/parse) — diferente de "zero perfis", pra UI não
@@ -381,9 +397,11 @@ final class WebhookClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         _ = await authed("profiles/\(id)", method: "PUT", body: try? JSONSerialization.data(withJSONObject: b))
     }
 
-    func deleteProfile(_ id: String) async {
-        _ = await authed("profiles/\(id)", method: "DELETE")
-        WebhookKeychainStore.deleteProfileToken(id)
+    @discardableResult
+    func deleteProfile(_ id: String) async -> Bool {
+        guard await authed("profiles/\(id)", method: "DELETE") != nil else { return false }
+        deleteProfileToken(id)
+        return true
     }
 
     /// Rotaciona o token do perfil e guarda o novo no Keychain.

@@ -9,13 +9,15 @@
 //  xcrun swiftc -parse-as-library -swift-version 5 \
 //    Knobler/FileConverter.swift Knobler/ImageConverter.swift \
 //    Knobler/DocumentConverter.swift Knobler/VideoConverter.swift \
-//    Knobler/ShelfPreview.swift tools/conversionpreviewcheck.swift \
+//    Knobler/ShelfPreview.swift Knobler/ShelfStore.swift Knobler/ShelfOrdem.swift \
+//    tools/conversionpreviewcheck.swift \
 //    -o /tmp/conversionpreviewcheck && /tmp/conversionpreviewcheck
 //
 
 import AVFoundation
 import AppKit
 import ImageIO
+import PDFKit
 import UniformTypeIdentifiers
 
 private var falhas = 0
@@ -69,12 +71,69 @@ enum ConversionPreviewCheck {
         destino()
         print("== ciclo de vida do temporário ==")
         cicloDeVida()
+        falhaAoSalvar()
 
         if falhas > 0 {
             print("❌ \(falhas) falha(s)")
             exit(1)
         }
         print("✅ conversionpreviewcheck ok")
+    }
+
+    @MainActor
+    static func falhaAoSalvar() {
+        let fm = FileManager.default
+        let raiz = fm.temporaryDirectory.appendingPathComponent("preview-falha-\(UUID().uuidString)")
+        let pasta = raiz.appendingPathComponent("origem")
+        let movida = raiz.appendingPathComponent("movida")
+        try! fm.createDirectory(at: pasta, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: raiz) }
+        let origem = pasta.appendingPathComponent("foto.png")
+        assert(escreverPNG(CGSize(width: 40, height: 20), em: origem))
+        let suite = "conversionpreviewcheck.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let shelf = ShelfStore(defaults: defaults)
+        shelf.startPreview(origem, to: .image(.jpeg))
+        let preview = shelf.preview!
+        defer { preview.descartar() }
+        assert(esperar(ate: { !preview.running }))
+        let temporario = preview.output!
+        try! fm.moveItem(at: pasta, to: movida)
+        shelf.confirmPreview()
+        assert(shelf.preview === preview && shelf.arquivos.isEmpty)
+        assert(preview.failed && preview.output == temporario && fm.fileExists(atPath: temporario.path),
+               "falha ao salvar deve manter resultado para nova tentativa")
+        try! fm.moveItem(at: movida, to: pasta)
+        shelf.confirmPreview()
+        assert(shelf.preview == nil && shelf.arquivos.count == 1 && !preview.failed)
+
+        let pdf = PDFDocument()
+        for _ in 0..<3 { pdf.insert(PDFPage(image: NSImage(contentsOf: origem)!)!, at: pdf.pageCount) }
+        let documento = pasta.appendingPathComponent("paginas.pdf")
+        assert(pdf.write(to: documento))
+        let paginas = ShelfPreview(source: documento, target: .pngPages)
+        defer { paginas.descartar() }
+        assert(esperar(ate: { !paginas.running }))
+        let primeira = paginas.output!
+        let reserva = raiz.appendingPathComponent("reserva.png")
+        // Falha real de I/O em uma página, enquanto as outras duas podem ser movidas.
+        try! fm.moveItem(at: primeira, to: reserva)
+        shelf.preview = paginas
+        shelf.confirmPreview()
+        assert(shelf.preview === paginas)
+        let salvas = try! fm.contentsOfDirectory(at: pasta, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "png" && $0.lastPathComponent.hasPrefix("paginas-p") }
+        assert(salvas.count == 2 && paginas.failed && paginas.output == primeira)
+        assert(paginas.extraPages == 0)
+        assert(salvas.allSatisfy { fm.fileExists(atPath: $0.path) })
+        try! fm.moveItem(at: reserva, to: primeira)
+        shelf.confirmPreview()
+        assert(shelf.preview == nil && !paginas.failed)
+        let finais = try! fm.contentsOfDirectory(at: pasta, includingPropertiesForKeys: nil)
+            .filter { $0.lastPathComponent.hasPrefix("paginas-p") }
+        assert(finais.count == 3, "nova tentativa não duplica páginas salvas")
+        assert(!fm.fileExists(atPath: primeira.deletingLastPathComponent().path))
     }
 
     // MARK: - Presets

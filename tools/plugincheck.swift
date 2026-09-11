@@ -34,6 +34,7 @@ struct PluginCheck {
         testCardMudoNasNaoConvertidas()
         testLembretesNascemEParam()
         testDescansoNasceEPara()
+        testDescansoPreservaAdiamento()
         testMensagensNascemEParam()
         testWebhooksNascemEParam()
         testDitadoNasceEPara()
@@ -43,6 +44,41 @@ struct PluginCheck {
         testPreviewLinkNasceEPara()
         testConversaoNasceEParaEGateiaTargets()
         print("✅ plugincheck ok")
+    }
+
+    static func testDescansoPreservaAdiamento() {
+        let now = Date()
+        let r = Reminder(title: "Teste", schedule: .oneShot(now - 60))
+        var deps = PluginDeps(instalado: { _ in true })
+        deps.lembretes.itens = { [r] }
+        let lembretes = montarLembretes(deps)
+        defer { lembretes.stop() }
+        let key = lembretes.snoozeKey
+        let anterior = UserDefaults.standard.data(forKey: key)
+        defer { UserDefaults.standard.set(anterior, forKey: key) }
+        lembretes.snooze(r, minutes: 30, now: now)
+        let descansoAnterior = UserDefaults.standard.data(forKey: "screenBreakSnooze")
+        defer { UserDefaults.standard.set(descansoAnterior, forKey: "screenBreakSnooze") }
+        let descanso = montarDescanso(deps)
+        defer { descanso.parar() }
+        descanso.scheduler.tick(now: now + 60)
+        let restaurado = ReminderScheduler(snoozeKey: key)
+        restaurado.itemsProvider = { [r] }
+        var disparos = 0
+        restaurado.onFire = { _ in disparos += 1 }
+        restaurado.tick(now: now + 60)
+        restaurado.tick(now: now + 1800)
+        assert(disparos == 1, "Descanso apagou o adiamento antes do reinício")
+        assert(descanso.scheduler.snoozeKey != key)
+        // Limpeza na ordem inversa também não pode apagar os dados do Descanso.
+        let b = ScreenBreak(schedule: .interval(minutes: 60))
+        descanso.scheduler.snooze(b, minutes: 30, now: now)
+        lembretes.tick(now: now + 60)
+        let novoDescanso = ScheduleEngine<ScreenBreak>(snoozeKey: descanso.scheduler.snoozeKey)
+        novoDescanso.itemsProvider = { [b] }
+        novoDescanso.onFire = { _ in disparos += 1 }
+        novoDescanso.tick(now: now + 1800)
+        assert(disparos == 2)
     }
 
     /// `UserDefaults` de brinquedo, isolado do domínio do app.

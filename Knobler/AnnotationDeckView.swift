@@ -32,7 +32,7 @@ struct AnnotationDeckView: View {
     @State private var offset = 0
 
     /// Altura da seção: duas fileiras de botão + o respiro entre elas.
-    static let alturaDoBotao: CGFloat = 50
+    static let alturaDoBotao = NotchMetrics.annotationButtonHeight
     static let alturaDaGrade: CGFloat = alturaDoBotao * 2 + 6
     private static let colunas = 4
     private static let porPagina = 8

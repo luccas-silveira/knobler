@@ -113,3 +113,22 @@ Manter o serviço de pé (pm2, banco, backup, limites) está em
 
 Nenhuma permissão especial (usa rede normal, sem entitlement de sistema).
 Os segredos de pareamento ficam no Keychain, nunca em UserDefaults ou log.
+
+## Revogação e falhas de perfis
+
+A migração de dispositivos legados só ocorre quando a tabela `profiles` é
+criada, na mesma transação. A tabela existente, mesmo vazia, impede nova
+importação: rotacionar ou excluir um perfil permanece válido após reiniciar.
+Perfis que uma versão antiga já recriou não são apagados automaticamente;
+revogue esses perfis, se existirem, após atualizar o relay.
+
+No app, a exclusão local do token só acontece após resposta HTTP 2xx do DELETE.
+Falha de rede, autenticação ou outro status mantém o segredo no Keychain e
+mostra um aviso. Os demais requests autenticados também rejeitam status de erro.
+
+`mapping` continua sendo uma string JSON: deve conter um objeto cujos campos
+`title`, `body`, `url`, `id` e `iconTemplate`, quando presentes, sejam strings;
+`sound`, quando presente, deve ser booleano. O valor JSON `null` limpa o mapa;
+a **string** `"null"` é inválida. A API rejeita mapas inválidos com HTTP 400 sem
+alterar o anterior. Um mapa inválido já salvo por versão antiga também resulta
+em HTTP 400 ao receber webhook, até ser corrigido ou limpo.

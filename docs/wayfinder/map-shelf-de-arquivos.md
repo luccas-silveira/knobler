@@ -19,7 +19,7 @@ conversão de arquivos ou no preview de link que a shelf hospeda hoje.
 
 ## Notas
 
-Domínio: `Knobler/Shelf.swift` (store, capacidade 8, drop delegate, a linha de
+Domínio: `Knobler/ShelfStore.swift` (store e capacidade 8), `Knobler/Shelf.swift` (drop delegate, a linha de
 itens), `Knobler/ShelfThumbnailDragView.swift` (a miniatura AppKit e o monitor
 de mouse que inicia o arraste), `Knobler/ShelfDrop.swift`, `tools/shelfdropcheck.swift`.
 

@@ -29,6 +29,18 @@ function json(res, status, obj) {
   res.end(body);
 }
 
+// Mesma validação na escrita e na leitura de mapas salvos por versões antigas.
+function parseMapping(mapping) {
+  try {
+    if (typeof mapping !== 'string') throw new Error();
+    const m = JSON.parse(mapping);
+    if (!m || typeof m !== 'object' || Array.isArray(m)
+        || ['title', 'body', 'url', 'id', 'iconTemplate'].some(k => k in m && typeof m[k] !== 'string')
+        || ('sound' in m && typeof m.sound !== 'boolean')) throw new Error();
+    return m;
+  } catch { throw new ValidationError('mapping inválido'); }
+}
+
 /** Segredo truncado pra log: nunca logar o valor cru. */
 function redact(s) { return s && s.length > 8 ? `${s.slice(0, 4)}…${s.slice(-4)}` : '****'; }
 
@@ -106,7 +118,7 @@ function createServer({ db, hub, rateLimiter }) {
         // sem mapping = captura-only: guarda o payload e não empurra nada
         if (!prof.mapping) return json(res, 202, { ok: true, delivered: 'captured' });
 
-        const m = JSON.parse(prof.mapping);
+        const m = parseMapping(prof.mapping);
         const title = clean(render(m.title || '', payload), 200) || prof.name;   // fallback: nome do perfil
         const iconRendered = m.iconTemplate ? render(m.iconTemplate, payload) : (prof.icon || '');
         const isURL = /^https?:\/\//i.test(iconRendered);
@@ -158,7 +170,7 @@ function createServer({ db, hub, rateLimiter }) {
           const b = JSON.parse(await readBody(req) || '{}');
           // valida o mapping antes de salvar: mapping malformado no banco = 500 em todo /w/ do perfil
           if (b.mapping !== undefined && b.mapping !== null) {
-            try { JSON.parse(b.mapping); } catch { return json(res, 400, { ok: false, error: 'mapping inválido' }); }
+            parseMapping(b.mapping);
           }
           db.updateProfile({ profileId: id, deviceId: dev.device_id, name: b.name, mapping: b.mapping, icon: b.icon });
           return json(res, 200, { ok: true });

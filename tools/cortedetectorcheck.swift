@@ -1,13 +1,7 @@
 // Gate do "knob cortado ao meio" (mapa docs/wayfinder/map-corte-do-knob.md).
 //
-// Trava as três metades da 006: o invariante da lacuna de topo, a prova gravada
-// e a cura disparada SÓ pela violação medida. Falha contra o código de antes do
-// conserto porque Knobler/CorteDoKnob.swift não existia lá — a compilação nem
-// começa.
-//
-// A fiação na NotchView (a sonda e o `.id` da cura) é conferida por grep na
-// linha do tools/check.sh: o detector sozinho compila e passa mesmo se alguém
-// arrancar o `.background(SensorDeCorte(...))` num refactor.
+// Trava o invariante, as provas e a limitação de frequência do diagnóstico
+// passivo. tools/check.sh também impede a volta da reconstrução por `.id`.
 //
 //   xcrun swiftc -parse-as-library -swift-version 5 \
 //     Knobler/CorteDoKnob.swift tools/cortedetectorcheck.swift \
@@ -58,72 +52,19 @@ enum Gate {
                "moldura no topo disparou o vigia")
         exigir(vigia.avaliar(moldura: moldura(topo: 1.5), contexto: contexto(), agora: agora) == false,
                "desvio dentro da tolerância disparou o vigia")
-        exigir(vigia.geracao == 0 && vigia.violacoes == 0 && vigia.curas == 0,
-               "o caminho normal mexeu no estado do vigia")
+        exigir(vigia.violacoes == 0, "o caminho normal contou violação")
         exigir(contextosMontados == 0,
                "o contexto foi montado sem violação (o @autoclosure não segurou)")
 
-        // 2. A violação: mede, grava a prova e cura.
+        // Violações só registram evidência; nenhum efeito reconstrói o card.
         let cortado = moldura(topo: 60, altura: 240)
-        exigir(vigia.avaliar(moldura: cortado, contexto: contexto(), agora: agora),
-               "lacuna de 60 pt não acusou")
-        exigir(contextosMontados == 1, "o contexto não foi montado na violação")
-        exigir(vigia.violacoes == 1 && vigia.curas == 1 && vigia.geracao == 1,
-               "a violação não curou: violações=\(vigia.violacoes) curas=\(vigia.curas) geração=\(vigia.geracao)")
+        exigir(vigia.avaliar(moldura: cortado, contexto: contexto(), agora: agora), "não detectou")
         guard let prova = vigia.ultimaProva else { exigir(false, "sem prova"); return }
-        exigir(abs(prova.lacunaPt - 60) < 0.001, "lacuna gravada = \(prova.lacunaPt), esperado 60")
-        exigir(prova.curou, "a prova não registrou que curou")
-
-        // 3. A prova tem o que a 006 pediu: geometria, mode, foco, o que
-        //    animava, o que acabou de acontecer — e onde.
-        let json = prova.json
-        for campo in ["data", "lacuna_pt", "moldura", "altura_esperada", "mode", "foco",
-                      "ultimo_evento", "animando", "display", "notch_real", "violacao",
-                      "violacoes_suprimidas", "curou"] {
-            exigir(json[campo] != nil, "a prova não tem o campo \(campo)")
-        }
-        let linha = prova.linha
-        exigir(linha.hasPrefix("{") && linha.contains("\"mode\":\"music\"")
-                && !linha.contains("\n"),
-               "a linha da prova não é um JSON de uma linha: \(linha)")
-
-        // 4. A janela de 2 s: a segunda violação conta, NÃO grava e NÃO cura —
-        //    durante um morph a sonda dispara a cada passada de layout, e 120
-        //    provas do mesmo instante dizem o que 1 diz.
-        exigir(vigia.avaliar(moldura: cortado, contexto: contexto(), agora: agora.addingTimeInterval(0.5)),
-               "a segunda violação não acusou")
-        exigir(vigia.violacoes == 2 && vigia.curas == 1 && vigia.geracao == 1,
-               "curou dentro da espera de \(vigia.esperaEntreCuras) s")
-        exigir(vigia.ultimaProva?.violacao == 1,
-               "gravou prova dentro da janela (deveria só contar como suprimida)")
-        // passada a janela, grava de novo — com a suprimida contada — e cura
-        exigir(vigia.avaliar(moldura: cortado, contexto: contexto(),
-                             agora: agora.addingTimeInterval(vigia.esperaEntreCuras + 0.1)),
-               "a terceira violação não acusou")
-        exigir(vigia.curas == 2 && vigia.geracao == 2, "não curou depois da espera")
-        exigir(vigia.ultimaProva?.suprimidas == 1,
-               "a prova não contou a violação suprimida: \(vigia.ultimaProva?.suprimidas ?? -1)")
-
-        // 4b. O TETO de curas. Passado ele o vigia continua gravando e para de
-        //     reconstruir: cada cura reinicia a câmera do espelho e os avatares,
-        //     e um invariante que virasse falso por refactor curaria pra sempre.
-        var t = vigia.esperaEntreCuras + 0.1
-        while vigia.curas < vigia.maximoDeCuras {
-            t += vigia.esperaEntreCuras + 0.1
-            vigia.avaliar(moldura: cortado, contexto: contexto(), agora: agora.addingTimeInterval(t))
-            exigir(t < 100, "o teto de curas nunca foi alcançado")
-        }
-        exigir(vigia.geracao == vigia.maximoDeCuras,
-               "geração \(vigia.geracao) ≠ teto \(vigia.maximoDeCuras)")
-        let violacoesNoTeto = vigia.violacoes
-        t += vigia.esperaEntreCuras + 0.1
-        exigir(vigia.avaliar(moldura: cortado, contexto: contexto(), agora: agora.addingTimeInterval(t)),
-               "a violação depois do teto não acusou")
-        exigir(vigia.curas == vigia.maximoDeCuras && vigia.geracao == vigia.maximoDeCuras,
-               "curou além do teto de \(vigia.maximoDeCuras)")
-        exigir(vigia.violacoes == violacoesNoTeto + 1, "parou de contar violação depois do teto")
-        exigir(vigia.ultimaProva?.violacao == vigia.violacoes && vigia.ultimaProva?.curou == false,
-               "parou de gravar a prova depois do teto — é o sinal diagnóstico")
+        exigir(!prova.curou && vigia.violacoes == 1, "diagnóstico não é passivo")
+        vigia.avaliar(moldura: cortado, contexto: contexto(), agora: agora.addingTimeInterval(0.1))
+        exigir(vigia.ultimaProva?.violacao == 1, "registro sem limitação de frequência")
+        vigia.avaliar(moldura: cortado, contexto: contexto(), agora: agora.addingTimeInterval(3))
+        exigir(vigia.ultimaProva?.suprimidas == 1 && vigia.ultimaProva?.curou == false, "perdeu evidência")
 
         // 5. A prova persiste, e o arquivo não cresce sem fim.
         for i in 0..<60 {
@@ -161,6 +102,6 @@ enum Gate {
                "o caminho normal contou violação no laço de custo")
         exigir(ns < 1_000_000, "o invariante custa \(ns) ns por medida — mais de 1 ms")
 
-        print("cortedetectorcheck ok — invariante, prova e cura travados")
+        print("cortedetectorcheck ok — invariante e diagnóstico passivo")
     }
 }

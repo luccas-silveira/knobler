@@ -61,12 +61,14 @@ swift_check() {
 }
 
 echo "== self-checks Swift =="
+swift_check presentationcheck Knobler/NotchSectionOrder.swift Knobler/NotchPresentation.swift tools/presentationcheck.swift
 swift_check askcheck          Knobler/AskModels.swift Knobler/AskFeature.swift tools/askcheck.swift
 swift_check updatercheck      Knobler/Updater.swift tools/updatercheck.swift
 swift_check agentrequestcheck Knobler/AgentRequestModels.swift Knobler/AgentRequestStore.swift tools/agentrequestcheck.swift
 swift_check airpodscheck      Knobler/AirPodsBattery.swift tools/airpods_selfcheck.swift
 swift_check wirecheck         Knobler/Wire.swift tools/wirecheck/main.swift
-swift_check webhookcheck      Knobler/WebhookKeychainStore.swift tools/webhookcheck.swift
+swift_check webhookcheck      Knobler/WebhookKeychainStore.swift Knobler/WebhookClient.swift \
+  Knobler/NotchNotification.swift tools/webhookcheck.swift
 swift_check templatecheck     Knobler/WebhookTemplate.swift tools/templatecheck.swift
 swift_check presetcheck       Knobler/WebhookTemplate.swift Knobler/WebhookPresets.swift tools/presetcheck.swift
 swift_check assistentecheck   Knobler/WebhookAssistant.swift tools/assistentecheck.swift
@@ -87,10 +89,9 @@ CONVERSAO="Knobler/FileConverter.swift Knobler/ImageConverter.swift Knobler/Docu
 swift_check imageconvertercheck    $CONVERSAO tools/imageconvertercheck.swift
 swift_check documentconvertercheck $CONVERSAO tools/documentconvertercheck.swift
 swift_check sharingcheck          Knobler/Sharing.swift Knobler/NotificationRules.swift tools/sharingcheck.swift
-# o preview arrasta os quatro conversores: ele é justamente o ponto onde os
-# presets de todos eles se encontram.
+# Confirmação passa pelo ShelfStore real, incluindo falha e sucesso parcial.
 swift_check conversionpreviewcheck $CONVERSAO Knobler/ShelfPreview.swift \
-  tools/conversionpreviewcheck.swift
+  Knobler/ShelfStore.swift Knobler/ShelfOrdem.swift tools/conversionpreviewcheck.swift
 # arrasta o FileConverter junto: o nome único do arquivo materializado sai de lá.
 swift_check shelfdropcheck        $CONVERSAO Knobler/ShelfDrop.swift \
   Knobler/LinkBrowser.swift tools/shelfdropcheck.swift
@@ -98,14 +99,11 @@ swift_check shelfdropcheck        $CONVERSAO Knobler/ShelfDrop.swift \
 swift_check shelfordemcheck       Knobler/ShelfOrdem.swift tools/shelfordemcheck.swift
 swift_check historycheck          Knobler/NotchNotification.swift Knobler/NotificationHistory.swift Knobler/NotchGesture.swift tools/historycheck.swift
 swift_check sectionordercheck    Knobler/NotchSectionOrder.swift tools/sectionordercheck.swift
-# Knob cortado ao meio (mapa docs/wayfinder/map-corte-do-knob.md): invariante da
-# lacuna de topo, prova e cura. O grep é a METADE do gate — o detector compila e
-# passa sozinho mesmo se um refactor arrancar a sonda ou o `.id` da cura da
-# NotchView, que é justamente como este trabalho sumiria da CI sem dar erro.
+# Diagnóstico passivo: a integração não pode sumir nem voltar a reconstruir a raiz.
 run cortedetectorcheck bash -c '
-for p in "SensorDeCorte(vigia: vigia" "id(vigia.geracao)" "coordinateSpace(name: CorteDoKnob.espacoRaiz)"; do
-  grep -qF "$p" Knobler/NotchView.swift || { echo "sumiu da NotchView: $p"; exit 1; }
-done
+grep -qF "SensorDeCorte(vigia: vigia" Knobler/NotchView.swift || exit 1
+! grep -qF "id(vigia.geracao)" Knobler/NotchView.swift || exit 1
+grep -qF "NotchHostingView(" Knobler/KnoblerApp.swift || exit 1
 xcrun swiftc -parse-as-library -swift-version 5 \
   Knobler/CorteDoKnob.swift tools/cortedetectorcheck.swift \
   -o /tmp/cortedetectorcheck && /tmp/cortedetectorcheck'
@@ -138,7 +136,7 @@ swift_check novidadescheck        Knobler/Updater.swift Knobler/NovidadesCatalog
 swift_check avisoscheck           Knobler/Updater.swift Knobler/DevAvisos.swift tools/avisoscheck.swift
 # "tique não carimba": o VM inteiro sobe isolado, e por isso arrasta os tipos
 # que ele cita (Pomodoro, AirPods, notificação, Wire, Updater).
-swift_check eventoscheck          Knobler/NotchViewModel.swift Knobler/NotchSectionOrder.swift \
+swift_check eventoscheck          Knobler/NotchViewModel.swift Knobler/NotchPresentation.swift Knobler/NotchSectionOrder.swift \
   Knobler/Pomodoro.swift Knobler/AirPodsBattery.swift Knobler/NotchNotification.swift \
   Knobler/NotificationHistory.swift Knobler/QuickNote.swift Knobler/Wire.swift \
   Knobler/LinkPreview.swift Knobler/LinkBrowser.swift \

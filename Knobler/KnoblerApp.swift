@@ -942,14 +942,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // no NotchGesture, que é testável sem NSEvent — é ele que sabe somar a
         // folga de hover e aguentar a altura ainda não publicada
         let expanded = vm.mode == .music
-        let inZone = NotchGesture.naZonaHorizontal(mouseX: mouse.x,
-                                                   screenMidX: screen.frame.midX,
-                                                   expanded: expanded)
-            && NotchGesture.inZone(mouseY: mouse.y,
-                                   screenMaxY: screen.frame.maxY,
-                                   expanded: expanded,
-                                   alturaAtual: vm.alturaAtual,
-                                   notchHeight: vm.notchSize.height)
+        let area = vm.presentation?.interactionSize
+            ?? CGSize(width: NotchGesture.larguraFechada, height: vm.notchSize.height + NotchGesture.folgaDoNotch)
+        let inZone = abs(mouse.x - screen.frame.midX) <= area.width / 2
+            && mouse.y >= screen.frame.maxY - area.height
         guard inZone else {
             // um gesto que entra arrastando na zona precisa saber que o evento
             // anterior estava fora — é o que o faz contar como gesto novo
@@ -1017,9 +1013,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 // `focar`, que todo caminho de troca de seção atravessa. Sair
                 // da seção não encerra a nota: `active` e `text` seguem
                 // intactos, e o ícone continua na faixa pra voltar.
-                withAnimation(.easeOut(duration: 0.22)) {
-                    vm.focarVizinho(avancando: scrollAccumX < 0)
-                }
+                vm.focarVizinho(avancando: scrollAccumX < 0)
             } else if media.state != nil {
                 if scrollAccumX < 0 { media.nextTrack() } else { media.previousTrack() }
             }
@@ -1073,8 +1067,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func applyVisibility() {
         let cheias = AppSettings.shared.ocultarEmTelaCheia ? Self.fullscreenDisplays() : []
         for (id, notch) in notches {
-            if cheias.contains(id) { notch.window.orderOut(nil) }
-            else { notch.window.orderFrontRegardless() }
+            if cheias.contains(id) {
+                notch.viewModel.suspendPresentation()
+                notch.window.allowsKeyboard = false
+                if notch.window.isKeyWindow { notch.window.resignKey() }
+                notch.window.orderOut(nil)
+            } else {
+                notch.window.allowsKeyboard = notch.viewModel.presentation?.keyboard ?? false
+                notch.window.orderFrontRegardless()
+            }
         }
     }
 
@@ -1147,6 +1148,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             } else {
                 let viewModel = NotchViewModel()
                 viewModel.displayID = id
+                viewModel.questionIsActive = { [weak askStore, weak agentRequestStore] in
+                    askStore?.state.active != nil || agentRequestStore?.state.active != nil
+                }
                 viewModel.restaurarFocoSalvo()
                 let panel = NotchWindow(
                     contentRect: .zero,
@@ -1154,7 +1158,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     backing: .buffered,
                     defer: false
                 )
-                panel.contentView = NSHostingView(
+                let host = NotchHostingView(
                     rootView: NotchView(
                         vm: viewModel, askStore: askStore, agentRequestStore: agentRequestStore,
                         media: media, levels: audioLevels, shelf: shelf,
@@ -1165,6 +1169,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                         .environmentObject(lanMessagingParaInjetar)
                         .environmentObject(messageStoreParaInjetar)
                         .environmentObject(AppSettings.shared))
+                host.diagnosticContext = { [weak viewModel] in
+                    ContextoDoCorte(mode: "host:\(viewModel?.mode ?? .closed)",
+                        foco: viewModel?.focus?.rawValue, alturaEsperada: Double(viewModel?.alturaAtual ?? 0),
+                        ultimoEvento: nil, animando: false, displayID: id,
+                        notchReal: viewModel?.hasRealNotch ?? false)
+                }
+                panel.contentView = host
                 notch = ScreenNotch(window: panel, viewModel: viewModel)
                 notches[id] = notch
 
@@ -1244,15 +1255,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             notch.viewModel.hasRealNotch = screen.safeAreaInsets.top > 0
             notch.viewModel.activity = currentActivity
 
-            // altura do topo da tela até o topo do Dock, pro card poder crescer
-            // o quanto precisar; a área transparente não intercepta cliques
-            let size = NSSize(width: 700, height: screen.frame.maxY - screen.visibleFrame.minY)
-            let frame = NSRect(
-                x: screen.frame.midX - size.width / 2,
-                y: screen.frame.maxY - size.height,
-                width: size.width,
-                height: size.height
-            )
+            let frame = NotchPresentation.hostFrame(screen: screen.frame, visible: screen.visibleFrame)
+            notch.viewModel.availableSize = frame.size
             notch.window.setFrame(frame, display: true)
         }
 
@@ -1262,6 +1266,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             // senão ela fica `active` (com o tique no menu) hospedada num
             // display que não existe mais, invisível e sem jeito de fechar
             if QuickNote.shared.hosted(by: id) { QuickNote.shared.active = false }
+            notch.viewModel.suspendPresentation()
+            notch.window.allowsKeyboard = false
             notch.window.orderOut(nil)
             notches.removeValue(forKey: id)
         }

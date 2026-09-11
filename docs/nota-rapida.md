@@ -64,6 +64,10 @@ painel `nonactivating`, então o teclado continua indo pro app ativo assim que
 você clica fora do campo — só enquanto o campo está focado é que as teclas vão
 pra nota.
 
+Fechar o card por gesto encerra a edição apenas na tela dona da nota, mantendo
+o texto e a nota ativos. O hover aguarda o mesmo intervalo de recolhimento do
+fechamento automático; abrir explicitamente por gesto continua imediato.
+
 ## Desligar copia e apaga
 
 Não existe timer nem prazo configurável. Desligar o interruptor no menu

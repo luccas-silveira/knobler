@@ -182,9 +182,9 @@ final class ScheduleEngine<Item: Scheduled> {
         didSet { UserDefaults.standard.set(try? JSONEncoder().encode(snoozed), forKey: snoozeKey) }
     }
     /// Chave do adiamento no UserDefaults (injetável pro self-check não sujar o app).
-    var snoozeKey = "reminderSnooze"
+    let snoozeKey: String
 
-    init(snoozeKey: String = "reminderSnooze") {
+    init(snoozeKey: String) {
         self.snoozeKey = snoozeKey
         if let d = UserDefaults.standard.data(forKey: snoozeKey),
            let s = try? JSONDecoder().decode([UUID: Date].self, from: d) {
@@ -322,7 +322,7 @@ enum RemindersSelfCheck {
 
         // --- scheduler: diária 09:00, "nunca atrasado" ---
         do {
-            let sched = ReminderScheduler()
+            let sched = ReminderScheduler(snoozeKey: "reminderSnooze")
             var fired: [String] = []
             let r = Reminder(title: "D", schedule: daily)
             sched.itemsProvider = { [r] }
@@ -390,7 +390,7 @@ enum RemindersSelfCheck {
         }
         // --- scheduler: desligado não dispara ---
         do {
-            let sched = ReminderScheduler()
+            let sched = ReminderScheduler(snoozeKey: "reminderSnooze")
             var fired = 0
             let r = Reminder(title: "off", schedule: daily, enabled: false)
             sched.itemsProvider = { [r] }
@@ -400,7 +400,7 @@ enum RemindersSelfCheck {
         }
         // --- scheduler: intervalo 60min re-ancora e nunca atrasa ---
         do {
-            let sched = ReminderScheduler()
+            let sched = ReminderScheduler(snoozeKey: "reminderSnooze")
             var fired: [String] = []
             let r = Reminder(title: "I", schedule: .interval(minutes: 60))
             sched.itemsProvider = { [r] }

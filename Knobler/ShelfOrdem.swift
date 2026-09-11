@@ -127,7 +127,11 @@ enum ShelfOrdem {
                             em entradas: [ShelfEntry]) -> ShelfEntry? {
         guard let aberta else { return nil }
         let abertos = Set(aberta.urls.map(\.path))
-        let achada = entradas.first { $0.urls.contains { abertos.contains($0.path) } }
+        // Reimportar cria uma entrada na frente; a sobra continua atrás dela.
+        // Empilhar em outra entrada acrescenta arquivos de fora: prefira a sobra
+        // composta só pelos arquivos originais, mesmo quando ela vira item solto.
+        let achada = entradas.last { !$0.urls.isEmpty && $0.urls.allSatisfy { abertos.contains($0.path) } }
+            ?? entradas.first { $0.urls.contains { abertos.contains($0.path) } }
         return achada?.isPilha == true ? achada : nil
     }
 

@@ -8,42 +8,52 @@ function openDB(path) {
   const db = new Database(path, { timeout: 5000 });
   db.pragma('journal_mode = WAL');
   db.pragma('synchronous = NORMAL');
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS devices (
-      device_id        TEXT PRIMARY KEY,
-      device_secret_h  TEXT NOT NULL,
-      publish_token_h  TEXT NOT NULL,
-      created_at       INTEGER NOT NULL,
-      last_seen_at     INTEGER
-    );
-    CREATE INDEX IF NOT EXISTS idx_dev_pub ON devices(publish_token_h);
-    CREATE INDEX IF NOT EXISTS idx_dev_sec ON devices(device_secret_h);
-    CREATE TABLE IF NOT EXISTS queued (
-      id         INTEGER PRIMARY KEY AUTOINCREMENT,
-      device_id  TEXT NOT NULL,
-      payload    TEXT NOT NULL,
-      dedupe_id  TEXT,
-      created_at INTEGER NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_q_dev ON queued(device_id, created_at);
-    CREATE TABLE IF NOT EXISTS profiles (
-      profile_id      TEXT PRIMARY KEY,
-      device_id       TEXT NOT NULL,
-      publish_token_h TEXT NOT NULL,
-      name            TEXT NOT NULL,
-      mapping         TEXT,
-      icon            TEXT,
-      last_payload    TEXT,
-      created_at      INTEGER NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_prof_pub ON profiles(publish_token_h);
-    CREATE INDEX IF NOT EXISTS idx_prof_dev ON profiles(device_id);
-  `);
+  db.transaction(() => {
+    // A existência da tabela marca a migração antiga, inclusive se todos os
+    // perfis foram apagados. Ausência de token nunca significa banco legado.
+    const migrate = !db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'profiles'").get();
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS devices (
+        device_id        TEXT PRIMARY KEY,
+        device_secret_h  TEXT NOT NULL,
+        publish_token_h  TEXT NOT NULL,
+        created_at       INTEGER NOT NULL,
+        last_seen_at     INTEGER
+      );
+      CREATE INDEX IF NOT EXISTS idx_dev_pub ON devices(publish_token_h);
+      CREATE INDEX IF NOT EXISTS idx_dev_sec ON devices(device_secret_h);
+      CREATE TABLE IF NOT EXISTS queued (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        device_id  TEXT NOT NULL,
+        payload    TEXT NOT NULL,
+        dedupe_id  TEXT,
+        created_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_q_dev ON queued(device_id, created_at);
+      CREATE TABLE IF NOT EXISTS profiles (
+        profile_id      TEXT PRIMARY KEY,
+        device_id       TEXT NOT NULL,
+        publish_token_h TEXT NOT NULL,
+        name            TEXT NOT NULL,
+        mapping         TEXT,
+        icon            TEXT,
+        last_payload    TEXT,
+        created_at      INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_prof_pub ON profiles(publish_token_h);
+      CREATE INDEX IF NOT EXISTS idx_prof_dev ON profiles(device_id);
+    `);
 
-  // colunas aditivas (007): bancos antigos não têm — ALTER solta, ignora "duplicate column"
-  for (const col of ['last_payload_at INTEGER', 'payload_count INTEGER NOT NULL DEFAULT 0']) {
-    try { db.exec(`ALTER TABLE profiles ADD COLUMN ${col}`); } catch { /* já existe */ }
-  }
+    // colunas aditivas (007): bancos antigos não têm — ALTER solta, ignora "duplicate column"
+    for (const col of ['last_payload_at INTEGER', 'payload_count INTEGER NOT NULL DEFAULT 0']) {
+      try { db.exec(`ALTER TABLE profiles ADD COLUMN ${col}`); } catch { /* já existe */ }
+    }
+
+    if (migrate) {
+      db.prepare(`INSERT INTO profiles (profile_id, device_id, publish_token_h, name, created_at)
+        SELECT 'mig-' || device_id, device_id, publish_token_h, 'Padrão', ? FROM devices`).run(Date.now());
+    }
+  })();
 
   const stmts = {
     create: db.prepare(`INSERT INTO devices (device_id, device_secret_h, publish_token_h, created_at)
@@ -73,20 +83,7 @@ function openDB(path) {
     profPayload: db.prepare(`UPDATE profiles SET last_payload = @payload, last_payload_at = @now,
                              payload_count = COALESCE(payload_count, 0) + 1 WHERE profile_id = @profileId`),
     profRotate: db.prepare('UPDATE profiles SET publish_token_h = @publishTokenHash WHERE profile_id = @profileId AND device_id = @deviceId'),
-    // migração: devices cujo token ainda não tem perfil
-    migSelect: db.prepare(`SELECT device_id, publish_token_h FROM devices d
-                           WHERE NOT EXISTS (SELECT 1 FROM profiles p WHERE p.publish_token_h = d.publish_token_h)`),
   };
-
-  // migra tokens antigos (device→perfil Padrão) na subida; idempotente
-  // ponytail: duplica migrateProfiles de propósito (o método existe pro teste chamar com `now` fixo)
-  // guarda-chuva: uma exceção aqui não pode abortar o openDB (relay não subiria) — degrada e segue.
-  try {
-    const migSelect = db.prepare(`SELECT device_id, publish_token_h FROM devices d WHERE NOT EXISTS (SELECT 1 FROM profiles p WHERE p.publish_token_h = d.publish_token_h)`);
-    const migIns = stmts.profCreate;
-    const tx = db.transaction(() => { for (const d of migSelect.all()) migIns.run({ profileId: 'mig-'+d.publish_token_h.slice(0,16), deviceId: d.device_id, publishTokenHash: d.publish_token_h, name: 'Padrão', now: Date.now() }); });
-    tx();
-  } catch (e) { console.error('migração de perfis falhou (seguindo):', e); }
 
   return {
     _db: db,
@@ -136,15 +133,6 @@ function openDB(path) {
       if (icon !== undefined)    { sets.push('icon = @icon');       vals.icon = icon; }
       if (!sets.length) return;
       db.prepare(`UPDATE profiles SET ${sets.join(', ')} WHERE profile_id = @profileId AND device_id = @deviceId`).run(vals);
-    },
-    migrateProfiles: ({ now }) => {
-      const tx = db.transaction(() => {
-        for (const d of stmts.migSelect.all()) {
-          stmts.profCreate.run({ profileId: 'mig-' + d.publish_token_h.slice(0, 16),
-            deviceId: d.device_id, publishTokenHash: d.publish_token_h, name: 'Padrão', now });
-        }
-      });
-      tx();
     },
 
     close: () => db.close(),

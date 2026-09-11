@@ -2,23 +2,9 @@
 //  CorteDoKnob.swift
 //  Knobler
 //
-//  O knob às vezes aparece cortado ao meio — só a metade de baixo, na posição
-//  certa —, e um ciclo de expandir/recolher conserta. Três varreduras cobriram
-//  51 combinações distintas (estado da interface, ambiente simulado e o código
-//  real do usuário; os totais 35 → 43 → 51 são cumulativos, não somáveis) e
-//  não acharam a causa; a decisão da 005 foi detectar, gravar a
-//  prova e se curar, com o conserto disparado SÓ pela violação medida.
-//
-//  O invariante é a LACUNA DE TOPO: a distância entre o topo da moldura
-//  desenhada e o topo onde ela deveria estar. Por construção ela é zero — a
-//  raiz da NotchView é um VStack alinhado ao topo e a moldura é o primeiro
-//  filho. "Moldura menor que o conteúdo" está provada cega (medição 003):
-//  forma e conteúdo dividem o mesmo ZStack sob o mesmo `.mask(shape)`.
-//
-//  A ALTURA fica de fora do invariante de propósito: ela anima (mola do
-//  morph), então a altura desenhada diverge legitimamente de `currentSize`
-//  durante toda transição. Ela entra na prova como contexto, nunca como gate.
-//
+//  Registro passivo de desvios da moldura e do host em relação ao topo.
+//  A apresentação tem identidade estável: nenhuma prova reconstrói views.
+//  Altura animada entra apenas como contexto, nunca como violação.
 
 import SwiftUI
 import os
@@ -146,43 +132,18 @@ final class RegistroDeProvas: @unchecked Sendable {
     }
 }
 
-/// A detecção em execução. Uma por `NotchView` — ou seja, uma por display.
+/// Diagnóstico passivo por monitor. Nunca altera identidade, foco ou conteúdo.
 @MainActor
 final class VigiaDoCorte: ObservableObject {
-    /// Muda só quando a cura corre; a `NotchView` a usa como `.id` da moldura.
-    @Published private(set) var geracao = 0
-
     private(set) var violacoes = 0
-    private(set) var curas = 0
     private(set) var ultimaProva: ProvaDoCorte?
-
-    /// Espera mínima entre duas curas — e a mesma janela vale pra gravação da
-    /// prova. A cura reconstrói a subárvore, o que gera geometria nova, que
-    /// volta pro vigia; e o `onChange` da sonda dispara uma vez por passada de
-    /// layout, então um defeito presente durante um morph produziria 60–120
-    /// provas por segundo do mesmo instante. Uma delas diz o que 120 dizem.
-    let esperaEntreCuras: TimeInterval = 2
-    private var ultimaCura: Date?
+    let intervaloDeRegistro: TimeInterval = 2
     private var ultimaGravacao: Date?
     private var suprimidas = 0
-
-    /// Teto de curas por sessão. O invariante vale "por construção" — raiz
-    /// ancorada no topo —, mas um `.padding(.top)` ou um `Spacer` acima num
-    /// refactor futuro tornaria `minY` legitimamente ≠ 0, e aí a cura
-    /// reconstruiria o card pra sempre: a `MirrorPreviewView` reinicia a
-    /// AVCaptureSession (com a luz da câmera), o `RemoteAvatarLoader` refaz a
-    /// rede, o scroll volta ao topo. Passado o teto, o vigia continua GRAVANDO
-    /// e para de curar — o log dizendo que o defeito sobreviveu a 5 curas é o
-    /// sinal diagnóstico.
-    let maximoDeCuras = 5
-
     private let registro: RegistroDeProvas
 
     init(registro: RegistroDeProvas = .shared) { self.registro = registro }
 
-    /// Chamada a cada mudança de geometria da moldura. O caminho normal é uma
-    /// subtração e uma comparação — o contexto e a prova só existem na
-    /// violação, por isso o `@autoclosure`.
     @discardableResult
     func avaliar(moldura: CGRect,
                  contexto: @autoclosure () -> ContextoDoCorte,
@@ -190,32 +151,17 @@ final class VigiaDoCorte: ObservableObject {
         let lacuna = CorteDoKnob.lacunaDeTopo(molduraMinY: moldura.minY)
         guard CorteDoKnob.viola(lacuna: lacuna) else { return false }
         violacoes += 1
-        // A CURA, e só aqui: refazer a subárvore da moldura é o que o ciclo
-        // manual de expandir/recolher faz pro usuário. O gatilho é a violação
-        // medida — um refazimento sem defeito presente seria o remendo cego
-        // que a 005 rejeitou.
-        let curar = curas < maximoDeCuras
-            && agora.timeIntervalSince(ultimaCura ?? .distantPast) >= esperaEntreCuras
-        // grava sempre que cura (o evento importa) ou uma vez por janela
-        guard curar
-            || agora.timeIntervalSince(ultimaGravacao ?? .distantPast) >= esperaEntreCuras
-        else {
+        guard agora.timeIntervalSince(ultimaGravacao ?? .distantPast) >= intervaloDeRegistro else {
             suprimidas += 1
             return true
         }
         let prova = ProvaDoCorte(data: agora, lacunaPt: Double(lacuna),
-                                 moldura: moldura, contexto: contexto(),
-                                 violacao: violacoes, curou: curar,
-                                 suprimidas: suprimidas)
+                                 moldura: moldura, contexto: contexto(), violacao: violacoes,
+                                 curou: false, suprimidas: suprimidas)
         ultimaProva = prova
         ultimaGravacao = agora
         suprimidas = 0
         registro.gravar(prova)
-        if curar {
-            ultimaCura = agora
-            curas += 1
-            geracao += 1
-        }
         return true
     }
 }

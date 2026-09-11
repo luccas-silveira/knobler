@@ -44,6 +44,7 @@ struct EventosCheck {
         testAdotarLigaANotaNestaTela()
         testAtrasoDeFecharComANotaEmFoco()
         testFecharPorHoverOutSoltaADigitacao()
+        testFecharDiretoSoltaADigitacao()
         testPedidoDeFocoComOCardJaAberto()
         testPedidoDeFocoSemConteudoEspera()
         testFecharOCardApagaOPedido()
@@ -240,10 +241,10 @@ struct EventosCheck {
 
     static func testRecolherSoltaATrava() {
         let vm = NotchViewModel()
-        vm.expanded = true
+        vm.setExpandedDirect(true)
         vm.recalcularSecoes(comConteudo(.musica, .pomodoro), travadaNaNota: false)
         vm.focar(.pomodoro)
-        vm.expanded = false
+        vm.setExpandedDirect(false)
         assert(!vm.focusLocked, "recolher deveria soltar a trava")
         vm.recalcularSecoes(comConteudo(.musica, .pomodoro), travadaNaNota: false)
         assert(vm.focus == .musica, "próxima abertura deveria voltar ao automático")
@@ -386,7 +387,7 @@ struct EventosCheck {
     static func testFecharPorHoverOutSoltaADigitacao() {
         let vm = NotchViewModel()
         vm.displayID = 9
-        vm.expanded = true
+        vm.setExpandedDirect(true)
         let nota = QuickNote.shared
         nota.hostDisplayID = 9
         nota.active = true
@@ -397,6 +398,33 @@ struct EventosCheck {
         assert(!nota.editing, "a digitação continuou segurando o card")
         assert(vm.mode != .music, "modo continuou no card aberto: \(vm.mode)")
         // texto vazio: desligar aqui não encosta no clipboard da máquina
+        nota.active = false
+    }
+
+    static func testFecharDiretoSoltaADigitacao() {
+        let vm = NotchViewModel()
+        vm.displayID = 91
+        let nota = QuickNote.shared
+        nota.adotar(91)
+        nota.text = "Rascunho preservado"
+        nota.editing = true
+        vm.setExpandedDirect(true)
+        let outraTela = NotchViewModel()
+        outraTela.displayID = 92
+        outraTela.setExpandedDirect(false)
+        assert(nota.editing, "outra tela não pode encerrar a edição")
+        vm.setExpandedDirect(false)
+        assert(!vm.expanded && !nota.editing && vm.mode == .closed,
+               "fechar por gesto precisa liberar a edição e o modo")
+        assert(nota.active && nota.text == "Rascunho preservado" && nota.hostDisplayID == 91)
+        vm.setHover(true)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        assert(!vm.expanded, "hover durante recolhimento não pode reabrir")
+        vm.setHover(false)
+        vm.setExpandedDirect(true)
+        assert(vm.expanded, "reabertura explícita continua imediata")
+        vm.setExpandedDirect(false)
+        nota.text = ""
         nota.active = false
     }
 
@@ -434,7 +462,7 @@ struct EventosCheck {
     /// que nenhum pedido órfão vaze pra abertura seguinte.
     static func testPedidoDeFocoComOCardJaAberto() {
         let vm = NotchViewModel()
-        vm.expanded = true
+        vm.setExpandedDirect(true)
         vm.recalcularSecoes(comConteudo(.musica, .mensagens), travadaNaNota: false)
         assert(vm.focus == .musica, "pré-condição: o card abriu na música")
         vm.openThread(peerID: "p1")
@@ -463,7 +491,7 @@ struct EventosCheck {
     static func testFocoSobreviveAoRelaunch() {
         UserDefaults.standard.removeObject(forKey: NotchViewModel.focoSalvoKey)
         let antes = NotchViewModel()
-        antes.expanded = true
+        antes.setExpandedDirect(true)
         antes.recalcularSecoes(comConteudo(.musica, .mensagens), travadaNaNota: false)
         antes.focar(.mensagens)
         assert(UserDefaults.standard.string(forKey: NotchViewModel.focoSalvoKey) == "mensagens",
@@ -472,7 +500,7 @@ struct EventosCheck {
         // relaunch: a seção salva ainda não tem conteúdo, então o pedido espera
         let depois = NotchViewModel()
         depois.restaurarFocoSalvo()
-        depois.expanded = true
+        depois.setExpandedDirect(true)
         depois.recalcularSecoes(comConteudo(.musica), travadaNaNota: false)
         assert(depois.focus == .musica, "a restauração abriu o card numa seção vazia")
         assert(depois.focoPendente == .mensagens, "o foco salvo foi descartado cedo demais")
@@ -493,11 +521,11 @@ struct EventosCheck {
 
     static func testFecharOCardApagaOPedido() {
         let vm = NotchViewModel()
-        vm.expanded = true
+        vm.setExpandedDirect(true)
         vm.focoPendente = .mensagens
-        vm.expanded = false
+        vm.setExpandedDirect(false)
         assert(vm.focoPendente == nil, "pedido órfão sobreviveu ao fechar o card")
-        vm.expanded = true
+        vm.setExpandedDirect(true)
         vm.recalcularSecoes(comConteudo(.musica, .mensagens), travadaNaNota: false)
         assert(vm.focus == .musica, "o pedido velho roubou a abertura seguinte")
         assert(!vm.focusLocked, "o pedido velho travou o foco da sessão inteira")

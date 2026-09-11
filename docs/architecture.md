@@ -168,10 +168,33 @@ herda a espera por conteúdo e nunca abre o card numa seção vazia. Foco nil (s
 seção nenhuma) não apaga a chave. O `expanded` **não** é restaurado de propósito
 — o card abre por hover.
 
-A altura do card é derivada do foco (`NotchView.alturaDaSecao`, que o
-`currentSize` consome) e publicada em `NotchViewModel.alturaAtual`, que o
-monitor de scroll — fora do SwiftUI — usa pra delimitar a zona do gesto junto
-com `NotchGesture.folgaDeHover` e `larguraDoCard`.
+A apresentação passa por `NotchContentState` e `NotchPresentation`: modo,
+seção visível, teclado, dimensões e área de interação partem da mesma decisão.
+`NotchMetrics` concentra as medidas das seções. A view publica o resultado no
+VM; `alturaAtual` permanece como saída compatível da API, e os gestos consultam
+`presentation.interactionSize`, inclusive no link de 780 pt.
+
+`NotchOpening`, pertencente ao VM de cada tela, invalida callbacks anteriores
+por geração. Hover abre em 180 ms; saída fecha em 300 ms (3 s durante edição),
+com cooldown de 450 ms após recolher. Pedidos diretos passam pelo mesmo estado;
+ocultar/remover a janela cancela pedidos e libera a edição daquela tela.
+
+`NotchHostingView` mantém a raiz estável num painel transparente ancorado ao topo,
+com largura máxima de 900 pt e altura até o limite inferior útil da tela.
+Somente a moldura SwiftUI anima: `NotchShell` aplica seu tamanho antes do overlay
+e do recorte, de modo que conteúdo saindo não aumenta o contêiner. Mantém as
+molas de abertura (0,42/0,76) e fechamento (0,30/0,95), blur e transições pelo
+topo; Reduzir Movimento usa fade de 150 ms sem mola geométrica.
+
+O detector de corte é passivo: registra limites do host AppKit e da moldura
+SwiftUI sem reconstruir a árvore. Ver [diagnóstico visual](diagnostico-visual.md)
+para limites da evidência e coleta de uma ocorrência ativa.
+
+Validação: `tools/check.sh` inclui `presentationcheck` (relógio determinístico,
+prioridades, teclado, medidas e isolamento de telas). Executar também
+`tools/presentation-windowcheck.sh` para painéis reais com capturas do compositor;
+requer permissão de captura de tela e grava apenas artefatos sintéticos em uma
+pasta temporária. `tools/snapshot.sh` continua sendo a referência visual estática.
 
 ## Fluxo de AskUserQuestion
 

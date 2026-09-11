@@ -32,8 +32,7 @@ struct NotchView: View {
     var onKeyboardEligibilityChanged: ((Bool) -> Void)?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var agentRequestExpanded = false
-    /// Detecção do knob cortado ao meio: mede a lacuna de topo, grava a prova
-    /// e dispara a cura. Um por display, como a própria NotchView.
+    /// Diagnóstico passivo: registra desvios sem reconstruir a árvore.
     @StateObject private var vigia = VigiaDoCorte()
     /// Altura que o card do Ask reportou no último layout. 0 = ainda não mediu.
     @State private var askHeight: CGFloat = 0
@@ -43,124 +42,45 @@ struct NotchView: View {
     @State private var linkDigitado = ""
     @FocusState private var linkFocado: Bool
 
-    /// A prioridade Ask é derivada do store compartilhado; o VM fornece apenas
-    /// o modo dos demais subsistemas visuais.
-    private var mode: NotchViewModel.Mode {
-        askStore.state.active == nil && agentRequestStore.state.active == nil ? vm.mode : .question
+    private var presentation: NotchPresentation {
+        var layout = NotchPresentation.Layout()
+        layout.notch = vm.notchSize
+        layout.realNotch = vm.hasRealNotch
+        layout.available = vm.availableSize
+        layout.closedContent = closedHasContent
+        layout.sectionHeight = vm.focus.map {
+            NotchMetrics.alturaDaSecao($0, preview: shelf.preview != nil,
+                pilhaAberta: shelf.pilhaAberta != nil, espelhoLigado: vm.mirrorOn,
+                linkAberto: linkAberto, eventoProximo: vm.calendarAviso != nil)
+        } ?? 118
+        layout.sectionWidth = NotchMetrics.larguraDoCard(vm.focus, padrao: 430, linkAberto: linkAberto)
+        layout.notificationActions = vm.activeNotification?.actionTitles.isEmpty == false
+        layout.mediaHeight = vm.incoming?.mediaHeight ?? 0
+        layout.questionSize = questionSize
+        layout.contentID = "\(askStore.state.active?.id ?? "")/\(askStore.state.page)/\(agentRequestStore.state.active?.id ?? "")"
+        return NotchPresentation(content: vm.contentState(question: askStore.state.active != nil
+                                || agentRequestStore.state.active != nil), layout: layout)
     }
 
-    /// A nota mora numa tela só (a que estava sob o mouse quando ligou). Nas
-    /// outras ela simplesmente não existe: nada desenha, nada pede teclado.
-    private var noteVisible: Bool {
-        note.hosted(by: vm.displayID)
-    }
-
-    private var keyboardAllowed: Bool {
-        askStore.state.active != nil
-            || agentRequestStore.state.active != nil
-            || vm.incoming?.allowReply == true
-            || (vm.focus == .mensagens && vm.expanded)
-            // o campo da nota só existe na árvore quando ela é a seção em foco —
-            // pedir a janela-chave fora disso engoliria as teclas em silêncio.
-            // Não mede `noteVisible` de propósito: com a seção FIXADA o campo é
-            // desenhado antes de a nota ter dono, e o `adotar` do `noteSection`
-            // só corre depois — exigir hospedagem aqui deixaria o campo na tela
-            // sem teclado nenhum, que é pior que o silêncio que a guarda evita.
-            || (vm.expanded && vm.focus == .nota)
-            // a página do preview tem campo de busca, login e formulário: sem a
-            // janela-chave o site fica só de leitura
-            // sem página aberta a seção mostra a barra de endereço, que também
-            // precisa do teclado — por isso não mede `hosted`
-            || (vm.focus == .link && vm.expanded)
-    }
-
+    private var mode: NotchMode { presentation.mode }
+    private var currentSize: CGSize { presentation.size }
+    private var topInset: CGFloat { presentation.topInset }
+    private var noteVisible: Bool { note.hosted(by: vm.displayID) }
     private var linkAberto: Bool { linkPreview.hosted(by: vm.displayID) }
 
-    private func notifyKeyboardEligibility() {
-        onKeyboardEligibilityChanged?(keyboardAllowed)
-    }
-
-    /// Abrir tem leve overshoot (assinatura do Dynamic Island); fechar é seco.
-    /// Reduced Motion vira fade rápido.
-    private var morphAnimation: Animation {
-        if reduceMotion { return .easeOut(duration: 0.15) }
-        let opening = mode != .closed
-        return opening
-            ? .spring(response: 0.42, dampingFraction: 0.76)
-            : .spring(response: 0.30, dampingFraction: 0.95)
-    }
-
-    /// Altura do campo da nota. Mesma regra da `HistoryListView.listHeight`:
-    /// o `currentSize` soma ESTA constante, então layout e moldura mudam juntos.
-    static let noteEditorHeight: CGFloat = 120
-    /// Cada seção manda na própria altura. Antes isto era uma soma
-    /// combinatória no `currentSize` (`height += hasMusic || hasShelf ? 46 : 60`),
-    /// que já tinha causado moldura menor que o conteúdo.
-    /// O card do link é mais largo que o resto: uma página de site em 386 pt
-    /// não é leitura, é miniatura.
-    static let linkCardWidth: CGFloat = 780
-    /// Sobra depois das margens internas do card (as mesmas 44 do `.frame`).
-    static var linkContentWidth: CGFloat { linkCardWidth - 44 }
-    /// A página em 16:9, a proporção de tela que o site espera. A altura da
-    /// seção soma o cabeçalho de controles.
-    static var linkWebHeight: CGFloat { (linkContentWidth * 9 / 16).rounded() }
-    static let linkHeaderHeight: CGFloat = 24
-
-    /// Largura do card por seção em foco: só o link foge do padrão — e só
-    /// quando tem página. A barra de endereço sozinha não pede 780 pt.
-    static func larguraDoCard(_ focus: NotchSection?, padrao: CGFloat,
-                              linkAberto: Bool = true) -> CGFloat {
-        focus == .link && linkAberto ? linkCardWidth : padrao
-    }
-
-    /// A prateleira é a seção com mais alturas: a linha de itens, o preview de
-    /// conversão (presets e botões) e a pilha aberta em grade.
-    static let shelfPreviewHeight: CGFloat = 112
-    /// Derivada e não literal: a grade da pilha muda de tamanho junto com a
-    /// célula, e o número solto aqui sairia de sincronia calado.
-    static let shelfPilhaHeight: CGFloat =
-        18 + 8 + ShelfPilhaView.alturaCelula * 2 + 8
-    /// Espelho fixado e desligado é ícone + botão: os 202 da câmera deixariam
-    /// meio card vazio.
-    static let espelhoDesligadoHeight: CGFloat = 96
-    static func alturaDaSecao(_ s: NotchSection, preview: Bool = false,
-                              pilhaAberta: Bool = false,
-                              espelhoLigado: Bool = true,
-                              linkAberto: Bool = true,
-                              eventoProximo: Bool = false) -> CGFloat {
-        switch s {
-        case .musica: return 118
-        // a linha do próximo evento do calendário só existe quando há evento
-        case .pomodoro: return eventoProximo ? 150 : 128
-        case .atividade: return 60
-        // a ordem não é livre: os dois estados podem estar ligados ao mesmo
-        // tempo (converter a partir de dentro da pilha aberta), e o
-        // `ShelfRowView.body` testa `preview` primeiro. Inverter aqui daria
-        // altura de pilha com conteúdo de preview desenhado.
-        case .shelf: return preview ? shelfPreviewHeight
-                                    : (pilhaAberta ? shelfPilhaHeight : 76)
-        case .espelho: return espelhoLigado ? 202 : espelhoDesligadoHeight
-        case .mensagens: return 272
-        case .historico: return HistoryListView.listHeight + 12
-        case .nota: return Self.noteEditorHeight + 28  // +8 do padding da zona de escrita
-        case .link: return linkAberto ? linkWebHeight + linkHeaderHeight : espelhoDesligadoHeight
-        case .anotacao: return AnnotationDeckView.alturaDaGrade
+    private func publishPresentation(_ value: NotchPresentation) {
+        vm.publishPresentation(value)
+        if !value.keyboard || value.focus != .nota {
+            noteFocused = false
+            if noteVisible { note.editing = false }
         }
+        if !value.keyboard || value.focus != .link { linkFocado = false }
+        onKeyboardEligibilityChanged?(value.keyboard)
     }
-
-    private let expandedSize = CGSize(width: NotchGesture.larguraDoCard, height: 188)
-    private let notificationWidth: CGFloat = 380
-    // asinhas do estado fechado quando tem música tocando (capa + visualizer)
-    private let wingWidth: CGFloat = 44
-    private let hudWingWidth: CGFloat = 85
 
     var body: some View {
         VStack(spacing: 0) {
-            // a cura: o `.id` só muda quando o vigia mede uma violação da
-            // lacuna de topo, e trocá-lo reconstrói a subárvore da moldura —
-            // o mesmo efeito do ciclo manual de expandir/recolher
             interactiveNotch
-                .id(vigia.geracao)
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -207,97 +127,73 @@ struct NotchView: View {
     }
 
     private var notch: some View {
-        let compact = mode == .closed || mode == .hud
-            || mode == .dictation || mode == .pomodoro
-        // raios menores no compacto: as curvas de canto decepavam a capa/barras
-        let shape = NotchShape(
-            topCornerRadius: compact ? 6 : 14,
-            bottomCornerRadius: compact ? 12 : 30
-        )
-        return ZStack(alignment: .top) {
-            shape.fill(Color.black)
-
+        NotchShell(presentation: presentation, reduceMotion: reduceMotion) {
             switch mode {
             case .closed:
                 if closedHasContent {
                     closedWings
-                        .transition(.blurReplace)
+                        .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace))
                 }
             case .hud:
                 hudPill
-                    .transition(.blurReplace)
+                    .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace))
             case .dictation:
                 dictationPill
-                    .transition(.blurReplace)
+                    .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace))
             case .music:
                 expandedContent
                     // largura fixa: o texto não pode refluir enquanto a forma anima
-                    .frame(width: Self.larguraDoCard(vm.focus,
-                                                     padrao: expandedSize.width,
-                                                     linkAberto: linkAberto) - 44)
+                    .frame(width: currentSize.width - 44)
                     .padding(.top, topInset + 8)
                     .padding(.bottom, 14)
                     // o conteúdo cresce junto com a moldura, ancorado no topo
-                    .transition(.blurReplace.combined(
-                        with: .scale(0.94, anchor: .top)))
+                    .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace).combined(
+                        with: .scale(scale: 0.94, anchor: .top)))
             case .pomodoro:
                 pomodoroPill
-                    .transition(.blurReplace)
+                    .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace))
             case .notification:
                 notificationCard
-                    .frame(width: notificationWidth - 48,
+                    .frame(width: currentSize.width - 48,
                            height: vm.activeNotification?.actionTitles.isEmpty == false
                                ? 92 : 56, alignment: .top)
                     .padding(.top, topInset)
                     // notificação desce do notch, como no iPhone
-                    .transition(.blurReplace.combined(with: .move(edge: .top)))
+                    .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace).combined(with: .move(edge: .top)))
             case .message:
                 if let incoming = vm.incoming {
                     IncomingMessageView(vm: vm, incoming: incoming)
                         .frame(width: 360 - 40)
                         .padding(.top, topInset)
                         .padding(.bottom, 12)
-                        .transition(.blurReplace.combined(with: .move(edge: .top)))
+                        .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace).combined(with: .move(edge: .top)))
                 }
             case .question:
                 questionCard
                     // pergunta desce do notch, como as notificações
-                    .transition(.blurReplace.combined(with: .move(edge: .top)))
+                    .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace).combined(with: .move(edge: .top)))
             case .airpods:
                 airpodsConnectCard
                     .frame(width: 320 - 40)
                     .padding(.top, topInset)
                     .padding(.bottom, 12)
                     // desce do notch, como as notificações
-                    .transition(.blurReplace.combined(with: .move(edge: .top)))
+                    .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace).combined(with: .move(edge: .top)))
             case .update:
                 updateNotchCard
                     .frame(width: 380 - 40)
                     .padding(.top, topInset)
                     .padding(.bottom, 12)
                     // desce do notch, como as notificações
-                    .transition(.blurReplace.combined(with: .move(edge: .top)))
+                    .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace).combined(with: .move(edge: .top)))
             }
         }
-        // recorta o conteúdo com a própria forma do notch — fechando, a informação
-        // some junto com a moldura, em sincronia
-        .compositingGroup()
-        .mask(shape)
-        // aberto, o notch "flutua" sobre o wallpaper; fechado, some na moldura
-        .shadow(
-            color: .black.opacity(mode == .closed ? 0 : 0.35),
-            radius: 12, y: 5
-        )
-        .frame(width: currentSize.width, height: currentSize.height, alignment: .top)
         // mede a lacuna de topo da moldura desenhada; não desenha nada
         .background(SensorDeCorte(vigia: vigia, contexto: contextoDoCorte))
         // folga invisível de hover ao redor do card aberto: jitter na borda
         // não fecha; e o hit-test cobre o retângulo todo, não só o desenhado.
-        // A constante vem do NotchGesture porque a zona do scroll soma a MESMA
-        // folga — separar as duas deixaria uma tira que responde ao hover e
-        // não ao gesto.
-        .padding(.horizontal, mode == .music ? NotchGesture.folgaDeHover : 0)
-        .padding(.bottom, mode == .music ? NotchGesture.folgaDeHover : 0)
+        .padding(.horizontal, presentation.hoverPadding)
+        .padding(.bottom, presentation.hoverPadding)
         .contentShape(Rectangle())
     }
 
@@ -327,37 +223,14 @@ struct NotchView: View {
                 vm.setHover(inside)
             }
         }
-        .animation(morphAnimation, value: mode)
-        .animation(morphAnimation, value: wingsVisible)
-        // asa aparece/some com o pontinho da nota, não só com a música
-        .animation(morphAnimation, value: noteBadge)
-        .animation(morphAnimation, value: vm.micInUse)
-        .animation(morphAnimation, value: askStore.state.active?.id)
-        .animation(morphAnimation, value: agentRequestStore.state.active?.id)
-        .animation(morphAnimation, value: askStore.state.page)
         .onAppear {
             agentRequestExpanded = agentRequestInitiallyExpanded
-            notifyKeyboardEligibility()
+            publishPresentation(presentation)
         }
-        .onChange(of: askStore.state.active?.id) { _, _ in notifyKeyboardEligibility() }
-        .onChange(of: agentRequestStore.state.active?.id) { _, _ in
-            agentRequestExpanded = false
-            notifyKeyboardEligibility()
-        }
-        .onChange(of: vm.incoming?.allowReply) { _, _ in notifyKeyboardEligibility() }
-        .onChange(of: vm.focus) { _, _ in
-            notifyKeyboardEligibility()
-            ligarEspelhoSeEmFoco()
-        }
-        .onChange(of: vm.expanded) { _, _ in
-            notifyKeyboardEligibility()
-            ligarEspelhoSeEmFoco()
-        }
-        .onChange(of: note.active) { _, _ in notifyKeyboardEligibility() }
-        // o teclado segue o dono, não só o interruptor
-        .onChange(of: note.hostDisplayID) { _, _ in notifyKeyboardEligibility() }
-        // trocar de link com a seção já em foco não passa pelo `vm.focus`
-        .onChange(of: linkPreview.url) { _, _ in notifyKeyboardEligibility() }
+        .onChange(of: presentation) { _, value in publishPresentation(value) }
+        .onChange(of: agentRequestStore.state.active?.id) { _, _ in agentRequestExpanded = false }
+        .onChange(of: vm.focus) { _, _ in ligarEspelhoSeEmFoco() }
+        .onChange(of: vm.expanded) { _, _ in ligarEspelhoSeEmFoco() }
         // digitar segura as notificações; parar de digitar solta a fila
         .onChange(of: note.editing) { _, editing in
             if !editing { vm.resumePendingNotifications() }
@@ -368,113 +241,38 @@ struct NotchView: View {
                                    itensShelf: shelf.arquivos.count,
                                    itensHistorico: history.items.count,
                                    notaVazia: note.text.isEmpty))
-        .modifier(AberturaDoCard(vm: vm,
-                                 altura: currentSize.height,
-                                 hasMusic: hasMusic,
-                                 hasShelf: !shelf.entradas.isEmpty,
-                                 hasHistory: !history.items.isEmpty,
-                                 hasMensagens: !messages.threads.isEmpty,
-                                 hasNota: noteVisible,
-                                 hasLink: linkPreview.hosted(by: vm.displayID)))
+        .onChange(of: sectionInputs, initial: true) { _, inputs in vm.updateSections(inputs) }
+
     }
 
-    /// Faixa morta no topo dos cards: só existe onde tem câmera de verdade.
-    private var topInset: CGFloat {
-        vm.hasRealNotch ? vm.notchSize.height : 4
+    private var sectionInputs: NotchSectionInputs {
+        NotchSectionInputs(music: hasMusic, shelf: !shelf.entradas.isEmpty,
+            history: !history.items.isEmpty, messages: !messages.threads.isEmpty,
+            note: noteVisible, link: linkAberto, annotation: annotation.isActive || annotation.temTinta)
     }
 
-    private var currentSize: CGSize {
-        // notch real: asas ao redor da câmera; externo: o conteúdo dita o tamanho
-        switch mode {
-        case .closed:
-            let hasContent = closedHasContent
-            if vm.hasRealNotch {
-                return CGSize(
-                    width: vm.notchSize.width + (hasContent ? wingWidth * 2 : 0),
-                    height: vm.notchSize.height
-                )
-            }
-            // externo vazio não pode sumir: 160 mantém presença sem as asas
-            return CGSize(width: hasContent ? 200 : 160, height: vm.notchSize.height)
-        case .hud, .dictation, .pomodoro:
-            return CGSize(
-                width: vm.hasRealNotch ? vm.notchSize.width + hudWingWidth * 2 : 232,
-                height: vm.notchSize.height
-            )
-        case .music:
-            // Parcela por parcela, as MESMAS que o `expandedContent` desenha:
-            // `.padding(.top, topInset + 8)`, a seção em foco, o espaçamento de 8
-            // da VStack, a faixa do rodapé (mais o segundo espaçamento de 8) e
-            // `.padding(.bottom, 14)`. Divergir daqui é o modo de falha clássico
-            // deste arquivo: o conteúdo sai da moldura, a `.frame` centraliza e a
-            // metade de baixo do card cai fora do `.onHover` — mover o mouse pra
-            // lá lê como saída e fecha o card.
-            let corpo = vm.focus.map {
-                Self.alturaDaSecao($0, preview: shelf.preview != nil,
-                                   pilhaAberta: shelf.pilhaAberta != nil,
-                                   espelhoLigado: vm.mirrorOn,
-                                   linkAberto: linkAberto,
-                                   eventoProximo: vm.calendarAviso != nil)
-            } ?? 118
-            let faixa = Self.sectionStripHeight + 8
-            let chrome = topInset + 8 + 8 + 14
-            return CGSize(
-                width: Self.larguraDoCard(vm.focus, padrao: expandedSize.width,
-                                          linkAberto: linkAberto),
-                height: chrome + corpo + faixa)
-        case .notification:
-            let hasActions = vm.activeNotification?.actionTitles.isEmpty == false
-            return CGSize(width: notificationWidth,
-                          height: topInset + 56 + (hasActions ? 36 : 0))
-        case .message:
-            let tall = vm.incoming?.allowReply == true
-            // a imagem toma a largura toda do card; a altura vem do app (aspecto real)
-            let media = vm.incoming?.mediaHeight ?? 0
-            return CGSize(width: 360,
-                          height: topInset + (tall ? 108 : 72) + (media > 0 ? media + 6 : 0))
-        case .airpods:
-            return CGSize(width: 320, height: topInset + 64)
-        case .update:
-            // título + até 2 linhas de notas; sem folga morta embaixo
-            return CGSize(width: 380, height: topInset + 72)
-        case .question:
-            if let request = agentRequestStore.state.active, askStore.state.active == nil {
-                // expandido troca as 2 linhas do resumo (~34) pelo bloco rolável
-                // com resumo + detalhes (176 + padding)
-                let expandable = request.details?.isEmpty == false || request.summary.count > 110
-                let extra: CGFloat = agentRequestExpanded && expandable ? 156 : 0
-                return CGSize(width: 460, height: topInset + 116 + extra)
-            }
-            guard let ask = askStore.state.active else {
-                return CGSize(width: 460, height: topInset + 120)
-            }
-            let question = ask.questions[min(askStore.state.page, ask.questions.count - 1)]
-            let hasPreview = question.options.contains { $0.preview != nil }
-            // Estimativa só do primeiro frame, antes do card se medir:
-            // título+chip (46) + opções (48 cada) + rodapé com campo de texto (44)
-            var height = topInset + 46 + CGFloat(question.options.count) * 48 + 44
-            if question.multiSelect { height += 34 }  // botão Confirmar
-            if hasPreview { height = max(height, topInset + 200) }
-            // A altura real vem do próprio card (AlturaDoAskKey); os 18 são os
-            // paddings que o `questionCard` acrescenta em volta dele.
-            if askHeight > 0 { height = topInset + 6 + askHeight + 12 }
-            // ponytail: o card para de crescer na tela e o excedente vaza pra
-            // baixo, pra fora da borda da janela (a NotchView é ancorada no
-            // topo, `.frame(alignment: .top)`). Sem rolagem — só ocorre com
-            // pergunta e opções descomunais ao mesmo tempo; se aparecer de
-            // verdade, entra scroll.
-            // mesma medida que a janela usa (KnoblerApp.swift): do topo da
-            // tela até o topo do Dock, na tela ONDE ESTE notch desenha (não a
-            // `NSScreen.main`, que é a do foco de teclado — num multi-monitor de
-            // alturas diferentes o teto viria maior que a janela e cortaria).
-            // `visibleFrame.height` sozinho tiraria a menu bar duas vezes.
-            let numero = NSDeviceDescriptionKey("NSScreenNumber")
-            let tela = NSScreen.screens.first {
-                $0.deviceDescription[numero] as? CGDirectDisplayID == vm.displayID
-            }
-            let teto = tela.map { $0.frame.maxY - $0.visibleFrame.minY } ?? 900
-            return CGSize(width: hasPreview ? 540 : 460, height: min(height, teto))
+    private var questionSize: CGSize {
+        if let request = agentRequestStore.state.active, askStore.state.active == nil {
+            // expandido troca as 2 linhas do resumo (~34) pelo bloco rolável
+            // com resumo + detalhes (176 + padding)
+            let expandable = request.details?.isEmpty == false || request.summary.count > 110
+            let extra: CGFloat = agentRequestExpanded && expandable ? 156 : 0
+            return CGSize(width: 460, height: 116 + extra)
         }
+        guard let ask = askStore.state.active else {
+            return CGSize(width: 460, height: 120)
+        }
+        let question = ask.questions[min(askStore.state.page, ask.questions.count - 1)]
+        let hasPreview = question.options.contains { $0.preview != nil }
+        // Estimativa só do primeiro frame, antes do card se medir:
+        // título+chip (46) + opções (48 cada) + rodapé com campo de texto (44)
+        var height = 46 + CGFloat(question.options.count) * 48 + 44
+        if question.multiSelect { height += 34 }  // botão Confirmar
+        if hasPreview { height = max(height, 200) }
+        // A altura real vem do próprio card (AlturaDoAskKey); os 18 são os
+        // paddings que o `questionCard` acrescenta em volta dele.
+        if askHeight > 0 { height = 6 + askHeight + 12 }
+        return CGSize(width: hasPreview ? 540 : 460, height: height)
     }
 
     // MARK: - HUD de som (pílula inline)
@@ -794,7 +592,7 @@ struct NotchView: View {
             if wingsVisible {
                 miniArtwork
                     .id(media.state?.title)
-                    .transition(.blurReplace)
+                    .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace))
                     .padding(.leading, vm.hasRealNotch ? 12 : 14)
             }
             Spacer(minLength: 0)
@@ -808,18 +606,18 @@ struct NotchView: View {
                     Circle()
                         .fill(.white.opacity(0.6))
                         .frame(width: 4, height: 4)
-                        .transition(.blurReplace)
+                        .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace))
                 }
                 if vm.micInUse {
                     Image(systemName: "mic.fill")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(.orange)
-                        .transition(.blurReplace)
+                        .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace))
                 }
                 if let activity = vm.activity {
                     ActivityRingView(progress: activity.progress)
                         .frame(width: 17, height: 17)
-                        .transition(.blurReplace)
+                        .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace))
                 } else if wingsVisible {
                     audioBars
                         .frame(width: IlhaVisualizador.area.width,
@@ -923,7 +721,7 @@ struct NotchView: View {
             // que o DESIGN.md proíbe.
             .background(ScrollerHider())
             .focused($noteFocused)
-            .frame(height: Self.noteEditorHeight)
+            .frame(height: NotchMetrics.noteEditorHeight)
             // Campo vazio é um retângulo preto com um cursor: o placeholder é o
             // único lugar onde cabe dizer que o texto morre no desligar.
             // Ink Tertiary (60%), não o Ink Faint (30%) que a DESIGN.md dá pra
@@ -957,7 +755,9 @@ struct NotchView: View {
                 note.adotar(vm.displayID)
                 noteFocused = true
             }
-            .onChange(of: noteFocused) { _, focused in note.editing = focused }
+            .onChange(of: noteFocused) { _, focused in
+                if noteVisible { note.editing = focused && presentation.keyboard && presentation.focus == .nota }
+            }
             // Esc precisa liberar o foco explicitamente: TextEditor não
             // garante isso por padrão, e a guarda de hover em
             // NotchViewModel.setHover depende de note.editing virar false.
@@ -969,8 +769,10 @@ struct NotchView: View {
             // preso em true trava TODO notch aberto pra sempre, sem saída
             // pelo lado do usuário.
             .onDisappear {
+                // A saída antiga pode terminar depois de uma reabertura.
+                guard mode != .music || vm.focus != .nota || !vm.expanded else { return }
                 noteFocused = false
-                note.editing = false
+                if noteVisible { note.editing = false }
             }
     }
 
@@ -1002,19 +804,11 @@ struct NotchView: View {
                 case .musica, .none: musicSection
                 }
             }
-            .transition(.blurReplace)
+            .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace))
             Spacer(minLength: 0)
             sectionStrip
         }
-        .animation(.easeOut(duration: 0.3), value: vm.focus)
     }
-
-    /// Altura da faixa do rodapé. Fixa e não intrínseca de propósito: o maior
-    /// desenho lá dentro é o anel de progresso da atividade (14) mais o padding
-    /// de 4 de cada lado do alvo de clique, e o `currentSize` soma ESTA
-    /// constante. Deixar a faixa medir sozinha era o caminho pra moldura e
-    /// conteúdo divergirem de novo.
-    static let sectionStripHeight: CGFloat = 22
 
     /// Rodapé do card: as seções que não estão em foco, cada uma com um sinal
     /// vivo mínimo. Você perde o detalhe, não o glance.
@@ -1022,7 +816,7 @@ struct NotchView: View {
         HStack(spacing: 10) {
             ForEach(vm.secoes, id: \.self) { s in
                 Button {
-                    withAnimation(.easeOut(duration: 0.22)) { vm.focar(s) }
+                    vm.focar(s)
                 } label: {
                     ZStack {
                         Image(systemName: s.simbolo)
@@ -1038,7 +832,7 @@ struct NotchView: View {
                 .accessibilityLabel(s.titulo)
             }
         }
-        .frame(height: Self.sectionStripHeight)
+        .frame(height: NotchMetrics.sectionStripHeight)
     }
 
     /// O sinal de cada ícone: anel pra progresso, ponto pra "está rolando",
@@ -1331,7 +1125,7 @@ struct NotchView: View {
                 HStack(spacing: 12) {
                     artworkView
                         .id(state.title + state.artist)
-                        .transition(.blurReplace)
+                        .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace))
                     VStack(alignment: .leading, spacing: 2) {
                         Text(state.title)
                             .font(.headline.weight(.bold))
@@ -1863,62 +1657,6 @@ private struct RemoteAvatarView: View {
     private func reload() {
         guard iconEmoji == nil else { return }   // emoji fixo: renderiza local, não baixa nada
         if AppSettings.shared.loadRemoteImages { loader.load(iconURL) }
-    }
-}
-
-/// Congela a ordem das seções na abertura do card e publica a altura pra quem
-/// vive fora do SwiftUI (o monitor de scroll). Mesmo motivo do `CarimboDeEventos`
-/// pra ser um modificador à parte: mais `.onChange` inline estoura o
-/// type-checker do `interactiveNotch`.
-private struct AberturaDoCard: ViewModifier {
-    let vm: NotchViewModel
-    let altura: CGFloat
-    let hasMusic: Bool
-    let hasShelf: Bool
-    let hasHistory: Bool
-    let hasMensagens: Bool
-    let hasNota: Bool
-    let hasLink: Bool
-
-    func body(content: Content) -> some View {
-        content
-            // já aberto quando a view nasce (harness de snapshot, janela
-            // recriada por troca de monitor): sem isto a ordem ficaria vazia.
-            // Lista já montada não é recalculada — é como o harness captura
-            // cenários que não dá pra provocar offscreen.
-            .onAppear { if vm.expanded, vm.secoes.isEmpty { recalcular() } }
-            .onChange(of: vm.expanded) { _, aberto in
-                if aberto { recalcular() }
-            }
-            // ligar/desligar a nota com o card JÁ aberto não passa pelo
-            // `expanded`: sem isto a seção nova nunca entraria na ordem congelada
-            .onChange(of: hasNota) { _, _ in if vm.expanded { recalcular() } }
-            // idem pra Mensagens: a PRIMEIRA conversa nasce com o card já
-            // aberto (hover + mensagem LAN chegando), e sem isto `.mensagens`
-            // não estaria na ordem congelada quando o clique no card pede foco
-            .onChange(of: hasMensagens) { _, _ in if vm.expanded { recalcular() } }
-            // e pro link: arrastar uma URL abre o card e a seção nasce junto
-            .onChange(of: hasLink) { _, _ in if vm.expanded { recalcular() } }
-            // a altura inicial também precisa sair daqui: quem vive fora do
-            // SwiftUI (o monitor de scroll) leria 0 até o card mudar de tamanho
-            .onAppear { vm.publicarAltura(altura) }
-            .onChange(of: altura) { _, novo in vm.publicarAltura(novo) }
-    }
-
-    private func recalcular() {
-        // desenhando: o card abre direto no deck — é o painel de controle da
-        // anotação, e cair na música obrigaria dois cliques em toda ida.
-        if AnnotationController.shared.isActive || AnnotationController.shared.temTinta {
-            vm.focoPendente = .anotacao
-        }
-        vm.recalcularSecoes(
-            vm.estadoDasSecoes(hasMusic: hasMusic,
-                               hasShelf: hasShelf,
-                               hasHistory: hasHistory,
-                               hasMensagens: hasMensagens,
-                               hasNota: hasNota,
-                               hasLink: hasLink),
-            travadaNaNota: vm.typingNote)
     }
 }
 

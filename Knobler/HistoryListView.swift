@@ -12,7 +12,7 @@ struct HistoryListView: View {
     /// soma pra dimensionar o card — mudar aqui muda o card junto. Se ela virar
     /// duas, o card fica menor que a lista e as linhas de cima somem pra fora
     /// da tela (a `.frame` centraliza o que não cabe).
-    static let listHeight: CGFloat = 260
+    static let listHeight = NotchMetrics.historyHeight
 
     @ObservedObject var history: NotificationHistory
     /// Chamado depois de abrir a origem: o card ao vivo se recolhe no clique e

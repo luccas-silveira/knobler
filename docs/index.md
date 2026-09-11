@@ -64,6 +64,10 @@ contratos e explicações para entender decisões.
 ## Histórico e decisões
 
 - [Changelog](../CHANGELOG.md) — mudanças por release.
+- [Revisão de 08/09/2026](revisao-2026-09-08.md) — bugs pendentes, evidências,
+  critérios de correção e investigação do defeito visual do knob.
+- [Diagnóstico visual](diagnostico-visual.md) — medições do deslocamento e coleta
+  de uma ocorrência ativa, sem reiniciar o app.
 - [Handoff](../HANDOFF.md) — estado operacional da última sessão;
   [sessões anteriores](handoffs/2026-07.md) ficam arquivadas.
 - [Ideias](IDEIAS.md) — backlog do que ainda não virou feature.

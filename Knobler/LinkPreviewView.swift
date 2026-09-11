@@ -25,7 +25,7 @@ struct LinkPreviewView: View {
                     // além disso mediria depois do primeiro layout, com a página
                     // já desenhada no breakpoint errado.
                     .onAppear {
-                        preview.ajustarZoom(paraLargura: NotchView.linkContentWidth)
+                        preview.ajustarZoom(paraLargura: NotchMetrics.linkContentWidth)
                     }
                 if preview.carregando {
                     ProgressView(value: preview.progresso)

@@ -182,11 +182,28 @@ let scenarios: [Scenario] = [
     },
     // nota com texto e card fechado: a asa existe só por causa do pontinho —
     // sem música, sem atividade, sem mic. É o aviso de "tem rascunho aqui".
+    Scenario(name: "nota-editando", realNotch: true) { vm, _, _ in
+        vm.displayID = 1
+        QuickNote.shared.adotar(1)
+        QuickNote.shared.text = "Rascunho sintético preservado"
+        vm.setExpandedDirect(true)
+        vm.secoes = [.nota, .musica]
+        vm.focus = .nota
+    },
     Scenario(name: "closed-note", realNotch: true) { vm, _, _ in
         vm.displayID = 1
         QuickNote.shared.hostDisplayID = 1
         QuickNote.shared.active = true
         QuickNote.shared.text = "pedido 88213"
+    },
+    Scenario(name: "nota-fechada-por-gesto", realNotch: true) { vm, _, _ in
+        vm.displayID = 1
+        QuickNote.shared.adotar(1)
+        QuickNote.shared.text = "Rascunho preservado"
+        QuickNote.shared.editing = true
+        vm.setExpandedDirect(true)
+        vm.setExpandedDirect(false)
+        assert(vm.mode == .closed && !QuickNote.shared.editing)
     },
     Scenario(name: "hud-volume", realNotch: true) { vm, _, _ in
         vm.hud = .init(level: 0.6, muted: false)
@@ -208,11 +225,11 @@ let scenarios: [Scenario] = [
     },
     Scenario(name: "music-expanded", realNotch: true) { vm, media, _ in
         media.injectPreview(state: fakeState(), artwork: fakeArtwork())
-        vm.expanded = true
+        vm.setExpandedDirect(true)
     },
     Scenario(name: "music-expanded-paused", realNotch: true) { vm, media, _ in
         media.injectPreview(state: fakeState(playing: false), artwork: fakeArtwork())
-        vm.expanded = true
+        vm.setExpandedDirect(true)
     },
     // Card aberto: o eixo de variação é QUAL SEÇÃO está em foco. A faixa do
     // rodapé mostra as outras, e `secoes`/`focus` são montados à mão porque o
@@ -222,7 +239,7 @@ let scenarios: [Scenario] = [
     // no ImageRenderer offscreen) nem pra `espelho` (precisa de câmera real).
     Scenario(name: "foco-musica", realNotch: true) { vm, media, _ in
         media.injectPreview(state: fakeState(), artwork: fakeArtwork())
-        vm.expanded = true
+        vm.setExpandedDirect(true)
         vm.secoes = [.musica, .atividade, .shelf]
         vm.focus = .musica
     },
@@ -230,7 +247,7 @@ let scenarios: [Scenario] = [
         media.injectPreview(state: fakeState(), artwork: fakeArtwork())
         vm.activity = NotchActivity(id: "deploy", title: "Deploy", detail: "3 de 8",
                                     progress: 0.375, updatedAt: Date())
-        vm.expanded = true
+        vm.setExpandedDirect(true)
         vm.secoes = [.atividade, .musica]
         vm.focus = .atividade
     },
@@ -238,7 +255,7 @@ let scenarios: [Scenario] = [
         media.injectPreview(state: fakeState(), artwork: fakeArtwork())
         vm.pomodoro = PomodoroState(phase: .focus, runState: .running, remaining: 900,
                                     completedFocus: 1, cyclesUntilLong: 4)
-        vm.expanded = true
+        vm.setExpandedDirect(true)
         vm.secoes = [.pomodoro, .musica]
         vm.focus = .pomodoro
     },
@@ -250,7 +267,7 @@ let scenarios: [Scenario] = [
                                     completedFocus: 1, cyclesUntilLong: 4)
         vm.calendarAviso = CalendarAviso(titulo: "Retrospectiva do time de produto",
                                          faltam: 12 * 60)
-        vm.expanded = true
+        vm.setExpandedDirect(true)
         vm.secoes = [.pomodoro, .musica]
         vm.focus = .pomodoro
     },
@@ -261,19 +278,19 @@ let scenarios: [Scenario] = [
         media.injectPreview(state: fakeState(), artwork: fakeArtwork())
         vm.pomodoro = PomodoroState(phase: .focus, runState: .running, remaining: 900,
                                     completedFocus: 1, cyclesUntilLong: 4)
-        vm.expanded = true
+        vm.setExpandedDirect(true)
         vm.secoes = [.musica, .pomodoro]
         vm.focus = .musica
     },
     // o "streamdeck" da anotação: ferramentas, cores e ações no card
     Scenario(name: "foco-anotacao", realNotch: true) { vm, _, _ in
-        vm.expanded = true
+        vm.setExpandedDirect(true)
         vm.secoes = [.anotacao, .musica]
         vm.focus = .anotacao
     },
     Scenario(name: "foco-shelf", realNotch: true) { vm, _, _ in
         fakeShelfFiles().forEach { currentShelf.add($0) }
-        vm.expanded = true
+        vm.setExpandedDirect(true)
         vm.secoes = [.shelf, .musica]
         vm.focus = .shelf
     },
@@ -281,7 +298,7 @@ let scenarios: [Scenario] = [
     Scenario(name: "foco-shelf-pilha", realNotch: true, frameHeight: 340) { vm, _, _ in
         currentShelf.add(fakePilhaFiles(7))
         currentShelf.abrirPilha(currentShelf.entradas[0])
-        vm.expanded = true
+        vm.setExpandedDirect(true)
         vm.secoes = [.shelf, .musica]
         vm.focus = .shelf
     },
@@ -289,7 +306,7 @@ let scenarios: [Scenario] = [
     Scenario(name: "foco-shelf-pilha-cheia", realNotch: true, frameHeight: 340) { vm, _, _ in
         currentShelf.add(fakePilhaFiles(20))
         currentShelf.abrirPilha(currentShelf.entradas[0])
-        vm.expanded = true
+        vm.setExpandedDirect(true)
         vm.secoes = [.shelf, .musica]
         vm.focus = .shelf
     },
@@ -300,7 +317,22 @@ let scenarios: [Scenario] = [
         currentShelf.add(origem)
         currentShelf.startPreview(origem, to: .image(.jpeg))
         esperarPreview(currentShelf)
-        vm.expanded = true
+        vm.setExpandedDirect(true)
+        vm.secoes = [.shelf, .musica]
+        vm.focus = .shelf
+    },
+    Scenario(name: "shelf-preview-falha-salvar", realNotch: true) { vm, _, _ in
+        let fm = FileManager.default
+        let pasta = fm.temporaryDirectory.appendingPathComponent("snapshot-falha-\(UUID().uuidString)")
+        try! fm.createDirectory(at: pasta, withIntermediateDirectories: true)
+        let origem = pasta.appendingPathComponent("foto.png")
+        try! fm.copyItem(at: fakePNGFile(), to: origem)
+        currentShelf.startPreview(origem, to: .image(.jpeg))
+        esperarPreview(currentShelf)
+        try! fm.removeItem(at: pasta)
+        currentShelf.confirmPreview()
+        assert(currentShelf.preview?.failed == true)
+        vm.setExpandedDirect(true)
         vm.secoes = [.shelf, .musica]
         vm.focus = .shelf
     },
@@ -322,7 +354,7 @@ let scenarios: [Scenario] = [
         vm.activity = NotchActivity(
             id: "build", title: "Compilando Knobler", detail: "xcodebuild",
             progress: nil, updatedAt: Date())
-        vm.expanded = true
+        vm.setExpandedDirect(true)
     },
     Scenario(name: "notification", realNotch: true) { vm, _, _ in
         vm.activeNotification = NotchNotification(
@@ -339,7 +371,7 @@ let scenarios: [Scenario] = [
     // própria (chrome + a lista), e com 240 o PNG cortava a faixa do rodapé —
     // um gate que não mostra o rodapé não prova que o card coube.
     Scenario(name: "foco-historico-vazio", realNotch: true, frameHeight: 400) { vm, _, _ in
-        vm.expanded = true
+        vm.setExpandedDirect(true)
         vm.secoes = [.historico]
         vm.focar(.historico)
     },
@@ -477,15 +509,15 @@ let scenarios: [Scenario] = [
     // card expandido (hover): foco/pausado/espera + confirmar que a música some
     Scenario(name: "pomodoro-card-focus", realNotch: true) { vm, _, _ in
         vm.pomodoro = PomodoroState(phase: .focus, runState: .running, remaining: 23 * 60 + 14, completedFocus: 1, cyclesUntilLong: 4)
-        vm.expanded = true
+        vm.setExpandedDirect(true)
     },
     Scenario(name: "pomodoro-card-paused", realNotch: true) { vm, _, _ in
         vm.pomodoro = PomodoroState(phase: .focus, runState: .paused, remaining: 12 * 60 + 3, completedFocus: 1, cyclesUntilLong: 4)
-        vm.expanded = true
+        vm.setExpandedDirect(true)
     },
     Scenario(name: "pomodoro-card-waiting", realNotch: true) { vm, _, _ in
         vm.pomodoro = PomodoroState(phase: .shortBreak, runState: .waiting, remaining: 5 * 60, completedFocus: 1, cyclesUntilLong: 4)
-        vm.expanded = true
+        vm.setExpandedDirect(true)
     },
     // AirPods: card de conexão (transitório), faixa junto da música,
     // card dedicado sem música, e aviso de bateria baixa.
@@ -500,11 +532,11 @@ let scenarios: [Scenario] = [
     Scenario(name: "airpods-strip-music", realNotch: true) { vm, media, _ in
         media.injectPreview(state: fakeState(), artwork: fakeArtwork())
         vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 90, right: 89, case_: 31)
-        vm.expanded = true
+        vm.setExpandedDirect(true)
     },
     Scenario(name: "airpods-card-nomusic", realNotch: true) { vm, _, _ in
         vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 90, right: 89, case_: 31)
-        vm.expanded = true
+        vm.setExpandedDirect(true)
     },
     Scenario(name: "airpods-low", realNotch: false) { vm, _, _ in
         vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 8, right: 74, case_: nil)
@@ -536,6 +568,7 @@ NotificationHistory.shared.arquivo = nil
 for scenario in scenarios {
     // ShelfStore() relê o UserDefaults — sem o clear, os arquivos fake de um
     // cenário vazavam pros seguintes
+    currentShelf.cancelPreview()
     currentShelf = ShelfStore()
     currentShelf.clear()
     let vm = NotchViewModel()
@@ -697,9 +730,9 @@ for scenario in scenarios {
     print("ok \(path)")
 }
 // frameHeight maior que o padrão 240: a seção de Mensagens rende mais alta que
-// as demais (ver NotchView.alturaDaSecao) e cortava embaixo com o frame default.
+// as demais (ver NotchMetrics.alturaDaSecao) e cortava embaixo com o frame default.
 renderMessageScenario("messages-online", realNotch: true, frameHeight: 390) { vm, lan, _ in
-    vm.expanded = true
+    vm.setExpandedDirect(true)
     vm.secoes = [.mensagens]
     vm.focar(.mensagens)
     lan.injectPreview(peers: [

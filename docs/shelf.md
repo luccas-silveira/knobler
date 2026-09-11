@@ -59,6 +59,9 @@ sozinha. O ‹ do canto volta pra prateleira; **Desempilhar** devolve todos os
 arquivos à linha de uma vez (o excesso cai pelo fim, se a pilha for maior que a
 prateleira).
 
+Reimportar um ou vários arquivos de uma pilha aberta mantém a grade dos
+arquivos restantes. Ela fecha quando sobra um só ou a pilha é dissolvida.
+
 ### Converter
 
 Os destinos dependem do tipo do arquivo:
@@ -78,6 +81,13 @@ presets ao lado. Só **Salvar** move o arquivo pra junto do original, com nome
 livre (`foto-1.png` se `foto.png` já existir), e o põe na prateleira; o original
 nunca é tocado. **Descartar** apaga tudo e não deixa rastro no disco. Enquanto
 espera, o convertido vive numa pasta temporária.
+
+Se salvar falhar, o card mostra **não deu pra salvar · tente novamente** e
+mantém os resultados pendentes. Corrija o destino (por exemplo, restaure a
+pasta original que foi movida) e clique em **Salvar** outra vez. Num PDF com
+sucesso parcial, as páginas já gravadas ficam no destino; a nova tentativa
+move apenas as restantes. O card fecha depois que todas forem salvas, ou por
+**Descartar**. A primeira página salva em cada tentativa entra na prateleira.
 
 | Preset | Vale pra | O que muda |
 |---|---|---|

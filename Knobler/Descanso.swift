@@ -76,7 +76,7 @@ enum DescansoSelfCheck {
                == "A cada 2h · 10min de bloqueio")
 
         // conforma Scheduled → o ScheduleEngine consegue tickar ScreenBreak
-        let engine = ScheduleEngine<ScreenBreak>()
+        let engine = ScheduleEngine<ScreenBreak>(snoozeKey: "selfcheckScreenBreakSnooze")
         var fired: [String] = []
         let daily = ScreenBreak(label: "D",
                                 schedule: .calendar([DateComponents(hour: 9, minute: 0)]))

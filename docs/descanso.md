@@ -27,3 +27,10 @@ clique (evita fechar sem querer no automático).
 ## Permissões
 
 Nenhuma permissão especial.
+
+## Persistência da agenda
+
+O scheduler do Descanso usa `screenBreakSnooze`; Lembretes preserva a chave
+legada `reminderSnooze`. A chave é obrigatória e imutável em `ScheduleEngine`.
+A limpeza de itens removidos de um serviço não altera os adiamentos do outro.
+Adiamentos que versões anteriores já apagaram não podem ser recuperados.

@@ -106,16 +106,36 @@ test('storeLastPayload guarda o último', () => {
   db.close();
 });
 
-test('migração: device com publish_token_h vira perfil Padrão', () => {
-  const db = openDB(':memory:');
-  db.createDevice({ deviceId: 'd1', deviceSecretHash: 'a', publishTokenHash: 'phX', now: 1 });
-  db.migrateProfiles({ now: 5 });
-  const prof = db.findProfileByPublishTokenHash('phX');
-  assert.ok(prof, 'perfil padrão criado com o token do device');
-  assert.strictEqual(prof.mapping, null);       // captura-only
-  assert.strictEqual(prof.device_id, 'd1');
-  // idempotente: rodar de novo não duplica
-  db.migrateProfiles({ now: 6 });
-  assert.strictEqual(db.listProfiles('d1').length, 1);
-  db.close();
+// Banco realmente legado: a tabela de perfis ainda não existe.
+test('migração legado roda na abertura, uma vez, mesmo após rotação e exclusão', () => {
+  const { mkdtempSync, rmSync } = require('node:fs');
+  const { tmpdir } = require('node:os');
+  const { join } = require('node:path');
+  const Database = require('better-sqlite3');
+  const dir = mkdtempSync(join(tmpdir(), 'knobler-db-'));
+  let db;
+  try {
+    const path = join(dir, 'relay.db');
+    const legacy = new Database(path);
+    legacy.exec(`CREATE TABLE devices (device_id TEXT PRIMARY KEY, device_secret_h TEXT NOT NULL,
+      publish_token_h TEXT NOT NULL, created_at INTEGER NOT NULL, last_seen_at INTEGER);
+      INSERT INTO devices VALUES ('d1', 'sh', 'ph', 1, NULL)`);
+    legacy.close();
+    db = openDB(path);
+    const profile = db.findProfileByPublishTokenHash('ph');
+    assert.strictEqual(profile.name, 'Padrão');
+    assert.strictEqual(profile.mapping, null);
+    db.rotateProfileToken({ profileId: profile.profile_id, deviceId: 'd1', publishTokenHash: 'new' });
+    db.close(); db = openDB(path);
+    assert.strictEqual(db.findProfileByPublishTokenHash('ph'), undefined, 'token revogado ressuscitou');
+    assert.strictEqual(db.listProfiles('d1').length, 1);
+    db.deleteProfile({ profileId: profile.profile_id, deviceId: 'd1' });
+    for (let i = 0; i < 2; i++) {
+      db.close(); db = openDB(path);
+      assert.deepStrictEqual(db.listProfiles('d1'), [], 'perfil excluído ressuscitou');
+    }
+  } finally {
+    db?.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

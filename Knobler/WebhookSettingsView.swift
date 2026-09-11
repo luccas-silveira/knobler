@@ -17,6 +17,7 @@ struct WebhookSettingsView: View {
     @State private var editing: WebhookClient.WebhookProfile?
     @State private var rotating: WebhookClient.WebhookProfile?
     @State private var assistente: Assistente?
+    @State private var deletionFailed = false
     @State private var loaded = false    // já teve UM fetch com sucesso
     @State private var loadSeq = 0       // descarta resposta atrasada de reload antigo
 
@@ -75,6 +76,11 @@ struct WebhookSettingsView: View {
                     ForEach(profiles) { p in profileRow(p) }
                 }
             }
+        }
+        .alert("Não foi possível apagar o perfil", isPresented: $deletionFailed) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("A exclusão não foi confirmada pelo servidor. O link foi preservado; tente novamente.")
         }
         .formStyle(.grouped)
         .toggleStyle(.switch)
@@ -140,7 +146,10 @@ struct WebhookSettingsView: View {
                 Button("Gerar link novo…") { rotating = p }
                 Divider()
                 Button("Apagar perfil", role: .destructive) {
-                    Task { await client.deleteProfile(p.id); await recarregar() }
+                    Task {
+                        if await client.deleteProfile(p.id) { await recarregar() }
+                        else { deletionFailed = true }
+                    }
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
