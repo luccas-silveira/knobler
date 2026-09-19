@@ -2,7 +2,7 @@
 //  RemindersView.swift
 //  Knobler
 //
-//  Aba "Lembretes" na janela de Ajustes: lista (liga/desliga, editar, apagar) +
+//  Aba "Alertas programados" na janela de Ajustes: lista (liga/desliga, editar, apagar) +
 //  formulário de criar/editar. Edita AppSettings.shared.reminders direto.
 //
 
@@ -17,8 +17,8 @@ struct RemindersView: View {
     var body: some View {
         VStack(spacing: 0) {
             if settings.reminders.isEmpty {
-                ContentUnavailableView("Sem lembretes", systemImage: "bell.slash",
-                    description: Text("Toque em + para criar um lembrete programado."))
+                ContentUnavailableView("Sem alertas programados", systemImage: "bell.slash",
+                    description: Text("Toque em + para criar um alerta programado."))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List {
@@ -29,7 +29,7 @@ struct RemindersView: View {
             Divider()
             HStack {
                 Button { creating = true } label: {
-                    Label("Novo lembrete", systemImage: "plus")
+                    Label("Novo alerta", systemImage: "plus")
                 }
                 .buttonStyle(.borderless).padding(8)
                 Spacer()

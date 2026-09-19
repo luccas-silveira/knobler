@@ -6,6 +6,31 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Fixed
+- Desenho mantém a última ferramenta e cor escolhidas no card ou pelos atalhos
+  após reiniciar o app, usando as mesmas preferências dos Ajustes.
+- Corrigido encerramento do app ao cancelar a criação de um evento na Agenda.
+  Os campos também toleram a remoção do rascunho após salvar.
+
+### Added
+- Integração com Lembretes da Apple: pendências de hoje e atrasadas no notch,
+  criação rápida e janela para consultar, editar, concluir e organizar lembretes
+  e listas. Acesso EventKit solicitado por ação explícita; a Apple continua
+  responsável pela sincronização e pelos avisos.
+- Os lembretes próprios do Knobler passam a se chamar **Alertas programados**,
+  preservando dados, horários e adiamentos existentes.
+- Criação de eventos direto na Agenda do notch: título, datas e horários,
+  dia inteiro, calendário editável, local, link e observações. O formulário
+  mantém o notch aberto e preserva o rascunho durante a sessão em caso de
+  fechamento, interrupção ou erro. Salvar grava no calendário do macOS;
+  Cancelar descarta. Nenhuma nova permissão além do acesso de calendário.
+- Agenda no notch: eventos por dia com horários, calendário de origem, eventos
+  de dia inteiro e indicação de reunião em andamento. Navegue entre dias ou
+  volte a Hoje; a lista rola dentro do card e cada monitor mantém sua navegação.
+- Estados de agenda vazia e sem acesso, com atalho para Ajustes → Permissões.
+  A consulta diária funciona independentemente da contagem regressiva e não
+  grava eventos em disco. Revogar acesso limpa os dados exibidos.
+
 ## [0.28.0] - 2026-09-11
 
 ### Added

@@ -41,7 +41,8 @@ da própria feature, linkada abaixo.
     em si ficam na seção Anotação do card. Ver `docs/annotation.md`.
   - **Ditado** — ver `docs/dictation.md`.
   - **Pomodoro** — ver `docs/pomodoro.md`.
-  - **Lembretes** — ver `docs/reminders.md`.
+  - **Alertas programados** — ver `docs/reminders.md`.
+  - **Lembretes da Apple** ficam no notch e no menu → Lembretes…; acesso em Permissões.
   - **Descanso** — ver `docs/descanso.md`.
   - **Notificações externas** — ver `docs/webhooks.md`.
   - **Mensagens** — nome/foto exibidos aos outros; ver `docs/messages.md`.

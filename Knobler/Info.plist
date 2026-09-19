@@ -33,12 +33,14 @@
 		<string>_knobler._tcp</string>
 	</array>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>Knobler mostra a contagem regressiva do próximo evento no notch.</string>
+	<string>Knobler mostra sua agenda, cria eventos quando você salva e avisa sobre o próximo compromisso no notch.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Knobler mostra sua câmera no notch como espelho antes de reuniões.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Knobler troca mensagens com outros Macs na sua rede local.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Knobler grava sua voz enquanto você segura a tecla de ditado, para transcrever onde o cursor estiver.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Knobler consulta, cria e modifica seus lembretes e listas da Apple quando você solicita.</string>
 </dict>
 </plist>

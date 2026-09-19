@@ -27,7 +27,7 @@ enum PermissionStatus {
 }
 
 enum Permission: String, CaseIterable, Identifiable {
-    case acessibilidade, microfone, camera, calendario, bluetooth, redeLocal, arquivos,
+    case acessibilidade, microfone, camera, calendario, lembretes, bluetooth, redeLocal, arquivos,
          audioSistema
 
     var id: String { rawValue }
@@ -38,6 +38,7 @@ enum Permission: String, CaseIterable, Identifiable {
         case .microfone: return "Microfone"
         case .camera: return "Câmera"
         case .calendario: return "Calendários"
+        case .lembretes: return "Lembretes"
         case .bluetooth: return "Bluetooth"
         case .redeLocal: return "Rede local"
         case .arquivos: return "Arquivos e pastas"
@@ -55,7 +56,9 @@ enum Permission: String, CaseIterable, Identifiable {
         case .camera:
             return "Mostra o espelho no notch antes de reuniões."
         case .calendario:
-            return "Mostra a contagem regressiva do próximo evento na asinha do notch."
+            return "Mostra sua agenda, cria eventos quando você salva e avisa sobre o próximo compromisso no notch."
+        case .lembretes:
+            return "Consulta, cria e modifica seus lembretes e listas da Apple quando você solicita."
         case .bluetooth:
             return "Vê os AirPods conectarem e lê a bateria deles. Pedida na abertura, junto com a Acessibilidade — desligue \"AirPods no notch\" pra evitar."
         case .redeLocal:
@@ -76,6 +79,7 @@ enum Permission: String, CaseIterable, Identifiable {
         case .microfone: anchor = "Privacy_Microphone"
         case .camera: anchor = "Privacy_Camera"
         case .calendario: anchor = "Privacy_Calendars"
+        case .lembretes: anchor = "Privacy_Reminders"
         case .bluetooth: anchor = "Privacy_Bluetooth"
         case .redeLocal: anchor = "Privacy_LocalNetwork"
         case .arquivos: anchor = "Privacy_FilesAndFolders"
@@ -95,8 +99,8 @@ enum Permission: String, CaseIterable, Identifiable {
             return Self.capture(AVCaptureDevice.authorizationStatus(for: .audio))
         case .camera:
             return Self.capture(AVCaptureDevice.authorizationStatus(for: .video))
-        case .calendario:
-            switch EKEventStore.authorizationStatus(for: .event) {
+        case .calendario, .lembretes:
+            switch EKEventStore.authorizationStatus(for: self == .calendario ? .event : .reminder) {
             case .fullAccess: return .concedida
             case .notDetermined: return .naoPedida
             default: return .negada
@@ -180,7 +184,7 @@ enum Permission: String, CaseIterable, Identifiable {
     var canRequest: Bool {
         guard status == .naoPedida else { return false }
         switch self {
-        case .acessibilidade, .microfone, .camera, .calendario: return true
+        case .acessibilidade, .microfone, .camera, .calendario, .lembretes: return true
         // Bluetooth: quem pede é o BluetoothMonitor na abertura (IOBluetooth).
         // Rede local, Arquivos e Áudio do sistema: sem API de pedido — o balão
         // é efeito colateral do primeiro uso real do recurso.
@@ -204,6 +208,9 @@ enum Permission: String, CaseIterable, Identifiable {
             // O store precisa viver até o callback — a closure segura a referência.
             let store = EKEventStore()
             store.requestFullAccessToEvents { _, _ in _ = store; done() }
+        case .lembretes:
+            let store = EKEventStore()
+            store.requestFullAccessToReminders { _, _ in _ = store; done() }
         case .bluetooth, .redeLocal, .arquivos, .audioSistema:
             done()
         }

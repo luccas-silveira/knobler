@@ -14,6 +14,7 @@
 import AppKit
 
 @main
+@MainActor
 struct EventosCheck {
     static func main() {
         // hermético: a ordem-base sai do UserDefaults real da máquina, então
@@ -33,6 +34,9 @@ struct EventosCheck {
         testAtividadeTituloEDetalheCarimbam()
         testEspelhoSoCarimbaNaVirada()
         testMensagemCarimba()
+        testAgenda()
+        testAgendaCriacao()
+        testLembretesApple()
         testEstadoDasSecoes()
         testFocoInicialEhAPrimeira()
         testFocarTravaESobreviveAoRecalculo()
@@ -52,6 +56,7 @@ struct EventosCheck {
         testFocoVazioNaoApagaOSalvo()
         testPublicarAltura()
         testDesenhoNasceDesativado()
+        testPreferenciasDoDesenhoPersistem()
         // estes mexem na preferência salva; ficam por último pra não desarrumar
         // a ordem de fábrica que os testes acima assumem.
         testFocoInicialPulaFixadaVazia()
@@ -62,6 +67,153 @@ struct EventosCheck {
         testOrdemPersistidaSobreviveAoRoundTrip()
         testBaseQueChegaNoOrdenarNaoTemDuplicata()
         print("✅ eventoscheck ok")
+    }
+
+    static func testAgenda() {
+        let vm = NotchViewModel()
+        vm.onConsultarAgenda = { CalendarAgenda(dia: $0, autorizado: true) }
+        vm.agendaHoje()
+        let hoje = vm.agenda.dia
+        vm.navegarAgenda(1)
+        assert(Calendar.current.dateComponents([.day], from: hoje, to: vm.agenda.dia).day == 1)
+        vm.navegarAgenda(-2)
+        assert(Calendar.current.dateComponents([.day], from: hoje, to: vm.agenda.dia).day == -1)
+        vm.setExpandedDirect(true)
+        assert(vm.agendaDeslocamento == 0 && vm.agenda.dia == hoje)
+        vm.secoes = [.musica, .agenda]
+        vm.focar(.musica)
+        vm.atualizarAgenda()
+        assert(vm.focus == .musica && vm.eventos[.agenda] == nil && vm.focusLocked)
+        vm.focar(.agenda)
+        assert(!vm.agendaRolavel)
+        vm.agenda.eventos = [CalendarEvento(id: "teste", titulo: "Teste", calendario: "Teste",
+            inicio: hoje, fim: hoje.addingTimeInterval(3600), diaInteiro: false)]
+        assert(vm.agendaRolavel)
+        vm.setExpandedDirect(false)
+        assert(!vm.agendaRolavel)
+        vm.onConsultarAgenda = { CalendarAgenda(dia: $0, autorizado: false) }
+        vm.atualizarAgenda()
+        assert(!vm.agenda.autorizado && vm.agenda.eventos.isEmpty)
+        assert(vm.estadoDasSecoes(hasMusic: false, hasShelf: false, hasHistory: false,
+            hasMensagens: false, hasNota: false).contains { $0.section == .agenda && $0.hasContent })
+        let amanha = Calendar.current.date(byAdding: .day, value: 1, to: hoje)!
+        vm.atualizarAgenda(agora: amanha)
+        assert(vm.agenda.dia == amanha)
+        let outraTela = NotchViewModel()
+        outraTela.onConsultarAgenda = { CalendarAgenda(dia: $0, autorizado: true) }
+        outraTela.agendaHoje()
+        vm.navegarAgenda(2)
+        assert(outraTela.agenda.dia == hoje)
+    }
+
+    static func testLembretesApple() {
+        NotificationHistory.shared.arquivo = nil
+        let vm = NotchViewModel()
+        var updates = 0
+        vm.onAtualizarLembretes = { updates += 1 }
+        vm.setExpandedDirect(true)
+        vm.secoes = [.lembretesApple, .musica]
+        vm.focar(.lembretesApple)
+        vm.atualizarEdicaoLembretes(true)
+        assert(vm.editandoLembretes && vm.contentState().keyboard && vm.lembretesRolavel)
+        vm.fecharPorHoverOut()
+        vm.setHover(false)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.35))
+        assert(vm.expanded)
+        vm.enqueue(NotchNotification(appName: "Teste", title: "Aguardando", body: "Sintético"))
+        assert(vm.activeNotification == nil)
+        vm.showHUD(.init(level: 0.5))
+        assert(vm.hud == nil)
+        vm.setExpandedDirect(false)
+        assert(!vm.editandoLembretes && !vm.contentState().keyboard)
+        assert(vm.lembretesEditando && vm.activeNotification != nil)
+        vm.dismissActiveNotification()
+        vm.setExpandedDirect(true)
+        vm.focar(.lembretesApple)
+        assert(vm.editandoLembretes && updates == 2)
+        vm.atualizarEdicaoLembretes(false)
+        assert(!vm.contentState().keyboard)
+        assert(vm.estadoDasSecoes(hasMusic: false, hasShelf: false, hasHistory: false,
+            hasMensagens: false, hasNota: false).contains { $0.section == .lembretesApple && $0.hasContent })
+    }
+
+    static func testAgendaCriacao() {
+        NotificationHistory.shared.arquivo = nil
+        let vm = NotchViewModel()
+        let destino = CalendarDestino(id: "teste", nome: "Equipe", conta: "Local", padrao: true)
+        vm.onConsultarAgenda = { CalendarAgenda(dia: $0, autorizado: true) }
+        vm.onCalendariosAgenda = { [destino] }
+        vm.setExpandedDirect(true)
+        vm.secoes = [.agenda, .musica]
+        vm.focar(.agenda)
+        vm.novoEventoAgenda()
+        assert(vm.editandoAgenda && vm.contentState().keyboard && vm.agendaRolavel)
+        assert(vm.agendaRascunho?.calendarioID == destino.id)
+        vm.agendaRascunho?.titulo = "Rascunho sintético"
+        let rascunho = vm.agendaRascunho!
+        vm.atualizarAgenda()
+        vm.fecharPorHoverOut()
+        assert(vm.expanded && vm.agendaRascunho == rascunho)
+        vm.setHover(false)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.35))
+        assert(vm.expanded)
+        vm.enqueue(NotchNotification(appName: "Teste", title: "Aguardando", body: "Sintético"))
+        assert(vm.activeNotification == nil)
+        vm.showHUD(.init(level: 0.5))
+        assert(vm.hud == nil)
+        assert(vm.contentState(question: true).mode == .question)
+        vm.setExpandedDirect(false)
+        assert(vm.agendaRascunho == rascunho && !vm.contentState().keyboard)
+        assert(vm.activeNotification != nil)
+        vm.dismissActiveNotification()
+        vm.setExpandedDirect(true)
+        vm.focar(.musica)
+        assert(!vm.editandoAgenda && vm.agendaRascunho == rascunho)
+        vm.focar(.agenda)
+        var gravacoes = 0
+        var concluir: ((Result<Date, CalendarErro>) -> Void)?
+        vm.onSalvarAgenda = { _, done in gravacoes += 1; concluir = done }
+        vm.salvarEventoAgenda()
+        vm.salvarEventoAgenda()
+        vm.cancelarEventoAgenda()
+        assert(gravacoes == 1 && vm.agendaSalvando && vm.agendaRascunho == rascunho)
+        concluir?(.failure(.gravacao))
+        RunLoop.main.run(until: Date().addingTimeInterval(0.02))
+        assert(!vm.agendaSalvando && vm.agendaErro != nil && vm.agendaRascunho == rascunho)
+        vm.onCalendariosAgenda = { [] }
+        vm.atualizarAgenda()
+        vm.salvarEventoAgenda()
+        assert(gravacoes == 1 && vm.agendaRascunho?.calendarioID == destino.id)
+        vm.onCalendariosAgenda = { [destino] }
+        vm.onConsultarAgenda = { CalendarAgenda(dia: $0, autorizado: false) }
+        vm.atualizarAgenda()
+        vm.salvarEventoAgenda()
+        assert(gravacoes == 1 && vm.agendaErro == CalendarErro.permissao.localizedDescription)
+        vm.onConsultarAgenda = { CalendarAgenda(dia: $0, autorizado: true) }
+        vm.atualizarAgenda()
+        let outraTela = NotchViewModel()
+        assert(outraTela.agendaRascunho == nil)
+        vm.salvarEventoAgenda()
+        let amanha = Calendar.current.date(byAdding: .day, value: 1, to: Date())!
+        let camposSalvos = vm.agendaRascunhoBinding!
+        concluir?(.success(amanha))
+        RunLoop.main.run(until: Date().addingTimeInterval(0.02))
+        assert(gravacoes == 2 && vm.agendaRascunho == nil && vm.agendaConfirmacao == "Evento criado")
+        assert(camposSalvos.wrappedValue == rascunho)
+        camposSalvos.wrappedValue.titulo = "Escrita tardia"
+        assert(vm.agendaRascunho == nil)
+        assert(Calendar.current.isDate(vm.agenda.dia, inSameDayAs: amanha))
+        vm.salvarEventoAgenda()
+        assert(gravacoes == 2)
+        vm.novoEventoAgenda()
+        let camposCancelados = vm.agendaRascunhoBinding!
+        camposCancelados.wrappedValue.titulo = "Cancelar este evento"
+        assert(vm.agendaRascunho?.titulo == "Cancelar este evento")
+        vm.cancelarEventoAgenda()
+        _ = camposCancelados.wrappedValue.inicio
+        camposCancelados.wrappedValue.titulo = "Escrita tardia"
+        assert(vm.agendaRascunho == nil)
+        assert(vm.agendaRascunhoBinding == nil)
     }
 
     // MARK: - fixtures
@@ -529,6 +681,36 @@ struct EventosCheck {
         vm.recalcularSecoes(comConteudo(.musica, .mensagens), travadaNaNota: false)
         assert(vm.focus == .musica, "o pedido velho roubou a abertura seguinte")
         assert(!vm.focusLocked, "o pedido velho travou o foco da sessão inteira")
+    }
+
+    static func testPreferenciasDoDesenhoPersistem() {
+        let settings = AppSettings.shared
+        let ferramenta = settings.annotationDefaultTool
+        let cor = settings.annotationDefaultColor
+        let espessura = settings.annotationLineWidth
+        defer {
+            settings.annotationDefaultTool = ferramenta
+            settings.annotationDefaultColor = cor
+            settings.annotationLineWidth = espessura
+        }
+        let controller = AnnotationController()
+        for tool in AnnotationTool.allCases {
+            controller.select(tool: tool)
+            assert(UserDefaults.standard.string(forKey: "annotationDefaultTool") == tool.rawValue)
+            assert(AnnotationController().selectedTool == tool)
+        }
+        controller.setColor(NSColor(deviceRed: 0.25, green: 0.55, blue: 1, alpha: 1))
+        let hex = controller.selectedColor.hex
+        assert(UserDefaults.standard.string(forKey: "annotationDefaultColor") == hex)
+        // Recarrega o valor serializado como acontece no lançamento do app.
+        settings.annotationDefaultColor = AnnotationColor(hex: hex)!
+        assert(AnnotationController().selectedColor.hex == hex)
+        controller.setLineWidth(12)
+        assert(UserDefaults.standard.double(forKey: "annotationLineWidth") == 12)
+        assert(AnnotationController().lineWidth == 12)
+        controller.clear()
+        controller.stop()
+        assert(controller.selectedTool == .eraser && controller.selectedColor.hex == hex)
     }
 
     static func testPublicarAltura() {

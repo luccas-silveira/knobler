@@ -118,6 +118,8 @@ swift_check quicknotecheck        Knobler/QuickNote.swift Knobler/Plugin.swift K
   Knobler/NotchNotification.swift tools/quicknotecheck.swift
 swift_check permissioncheck       Knobler/Permissions.swift tools/permissioncheck.swift
 swift_check annotationcheck      Knobler/AnnotationModel.swift tools/annotationcheck.swift
+swift_check appleremindersuicheck Knobler/AppleReminders.swift Knobler/AppleRemindersStore.swift Knobler/AppleRemindersView.swift Knobler/AppleRemindersNotchView.swift tools/appleremindersuicheck.swift
+swift_check applereminderscheck Knobler/AppleReminders.swift Knobler/AppleRemindersStore.swift tools/applereminderscheck.swift
 swift_check calendariocheck       Knobler/CalendarAviso.swift tools/calendariocheck.swift
 # arrasta o Updater: a comparação de versão da página de novidades é o
 # isNewer/versionComponents dele, mesmo caminho do avisoscheck. E o mesmo
@@ -141,7 +143,7 @@ swift_check eventoscheck          Knobler/NotchViewModel.swift Knobler/NotchPres
   Knobler/NotificationHistory.swift Knobler/QuickNote.swift Knobler/Wire.swift \
   Knobler/LinkPreview.swift Knobler/LinkBrowser.swift \
   Knobler/Updater.swift \
-  Knobler/AnnotationModel.swift Knobler/CalendarAviso.swift \
+  Knobler/AnnotationModel.swift Knobler/AnnotationController.swift Knobler/CalendarAviso.swift \
   Knobler/AppSettings.swift Knobler/Descanso.swift Knobler/Mirror.swift \
   Knobler/Reminders.swift Knobler/Peer.swift Knobler/LANMessaging.swift \
   Knobler/MessageStore.swift Knobler/Permissions.swift Knobler/Plugin.swift \

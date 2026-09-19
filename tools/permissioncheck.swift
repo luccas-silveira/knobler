@@ -14,6 +14,8 @@ import Foundation
 @main
 enum PermissionCheck {
     static func main() {
+        assert(Permission.lembretes.settingsURL.absoluteString.hasSuffix("Privacy_Reminders"))
+        assert(Permission.lembretes.title == "Lembretes")
         let home = "/Users/alguem"
 
         // Translocação vence tudo: mesmo em quarentena, é ela que o usuário precisa resolver.

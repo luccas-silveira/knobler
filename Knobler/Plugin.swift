@@ -258,7 +258,7 @@ enum PluginRegistry {
                rotas: [], permissao: nil, pronta: true,
                nascer: montarPomodoro),
 
-        Plugin(id: .lembretes, nome: "Lembretes",
+        Plugin(id: .lembretes, nome: "Alertas programados",
                descricao: "Avisos na hora certa, direto no notch.",
                simbolo: "bell.badge.fill", secao: nil, painel: "lembretes",
                rotas: [], permissao: "calendario", pronta: true,

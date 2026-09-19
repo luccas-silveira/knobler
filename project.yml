@@ -45,7 +45,8 @@ targets:
         # sem a chave o TCC aborta o processo no primeiro pedido (só não aparece
         # em máquina que já concedeu antes).
         NSBluetoothAlwaysUsageDescription: Knobler detecta seus AirPods pra mostrar a bateria e o card de conexão no notch.
-        NSCalendarsFullAccessUsageDescription: Knobler mostra a contagem regressiva do próximo evento no notch.
+        NSRemindersFullAccessUsageDescription: Knobler consulta, cria e modifica seus lembretes e listas da Apple quando você solicita.
+        NSCalendarsFullAccessUsageDescription: Knobler mostra sua agenda, cria eventos quando você salva e avisa sobre o próximo compromisso no notch.
         NSCameraUsageDescription: Knobler mostra sua câmera no notch como espelho antes de reuniões.
         NSMicrophoneUsageDescription: Knobler grava sua voz enquanto você segura a tecla de ditado, para transcrever onde o cursor estiver.
         NSLocalNetworkUsageDescription: Knobler troca mensagens com outros Macs na sua rede local.

@@ -95,6 +95,118 @@ final class NotchViewModel: ObservableObject {
     /// Próximo evento do calendário. Sem `didSet`: não é mudança de seção, só
     /// alimenta a linha extra do card do Pomodoro e a pílula fechada.
     @Published var calendarAviso: CalendarAviso?
+    var onLembretesView: (() -> AnyView)?
+    var onAtualizarLembretes: (() -> Void)?
+    @Published var lembretesEditando = false
+    var editandoLembretes: Bool { expanded && focus == .lembretesApple && lembretesEditando }
+    var lembretesRolavel: Bool { mode == .music && focus == .lembretesApple }
+    func atualizarEdicaoLembretes(_ editing: Bool) {
+        lembretesEditando = editing
+        if !editing { resumePendingNotifications() }
+    }
+    @Published var agenda = CalendarAgenda()
+    private(set) var agendaDeslocamento = 0
+    var onConsultarAgenda: ((Date) -> CalendarAgenda)?
+    var onAgendaPermissions: (() -> Void)?
+    var onAgendaKeyboard: (() -> Void)?
+    var onCalendariosAgenda: (() -> [CalendarDestino])?
+    var onSalvarAgenda: ((CalendarRascunho, @escaping (Result<Date, CalendarErro>) -> Void) -> Void)?
+    @Published var agendaRascunho: CalendarRascunho?
+    var agendaRascunhoBinding: Binding<CalendarRascunho>? {
+        guard let rascunho = agendaRascunho else { return nil }
+        // Controles ainda podem ler/escrever enquanto o editor é desmontado.
+        return Binding(
+            get: { self.agendaRascunho ?? rascunho },
+            set: { if self.agendaRascunho != nil { self.agendaRascunho = $0 } }
+        )
+    }
+    @Published var agendaDestinos: [CalendarDestino] = []
+    @Published private(set) var agendaSalvando = false
+    @Published var agendaErro: String?
+    @Published private(set) var agendaConfirmacao: String?
+
+    var editandoAgenda: Bool { expanded && focus == .agenda && agendaRascunho != nil }
+    private var protegeEdicao: Bool { typingNote || editandoAgenda || editandoLembretes }
+
+    func novoEventoAgenda() {
+        guard agendaRascunho == nil else { return }
+        atualizarAgenda()
+        agendaDestinos = onCalendariosAgenda?() ?? []
+        var rascunho = CalendarRascunho.novo(no: agenda.dia)
+        rascunho.calendarioID = agendaDestinos.first(where: \.padrao)?.id ?? ""
+        agendaErro = nil
+        agendaConfirmacao = nil
+        agendaRascunho = rascunho
+        // Cancela um fechamento que já estava na fila antes do clique.
+        openingWork?.cancel()
+    }
+
+    func cancelarEventoAgenda() {
+        guard !agendaSalvando else { return }
+        agendaRascunho = nil
+        agendaErro = nil
+        resumePendingNotifications()
+    }
+
+    func salvarEventoAgenda() {
+        guard !agendaSalvando, let rascunho = agendaRascunho else { return }
+        agendaErro = nil
+        do {
+            try rascunho.validar(autorizado: agenda.autorizado, destinos: agendaDestinos)
+        } catch {
+            agendaErro = error.localizedDescription
+            return
+        }
+        guard let salvar = onSalvarAgenda else {
+            agendaErro = CalendarErro.gravacao.localizedDescription
+            return
+        }
+        agendaSalvando = true
+        salvar(rascunho) { [weak self] resultado in
+            DispatchQueue.main.async {
+                guard let self, self.agendaSalvando else { return }
+                self.agendaSalvando = false
+                switch resultado {
+                case .success(let inicio):
+                    self.agendaRascunho = nil
+                    self.agendaDeslocamento = Calendar.current.dateComponents([.day],
+                        from: Calendar.current.startOfDay(for: Date()),
+                        to: Calendar.current.startOfDay(for: inicio)).day ?? 0
+                    self.atualizarAgenda()
+                    self.agendaConfirmacao = "Evento criado"
+                    self.resumePendingNotifications()
+                case .failure(let erro):
+                    self.agendaErro = erro.localizedDescription
+                    self.atualizarAgenda()
+                }
+            }
+        }
+    }
+
+    var agendaRolavel: Bool {
+        mode == .music && focus == .agenda
+            && (agendaRascunho != nil || (agenda.autorizado && !agenda.eventos.isEmpty))
+    }
+
+    func atualizarAgenda(agora: Date = Date()) {
+        guard let consultar = onConsultarAgenda,
+              let dia = Calendar.current.date(byAdding: .day, value: agendaDeslocamento,
+                                               to: Calendar.current.startOfDay(for: agora)) else { return }
+        agenda = consultar(dia)
+        if agendaRascunho != nil { agendaDestinos = onCalendariosAgenda?() ?? [] }
+    }
+
+    func navegarAgenda(_ dias: Int) {
+        agendaConfirmacao = nil
+        agendaDeslocamento += dias
+        atualizarAgenda()
+    }
+
+    func agendaHoje() {
+        agendaConfirmacao = nil
+        agendaDeslocamento = 0
+        atualizarAgenda()
+    }
     /// AirPods conectados: bateria por componente (nil = desconectado). Alimenta
     /// a faixa junto da música e o card dedicado no hover.
     @Published var airpods: AirPodsBattery?
@@ -170,6 +282,9 @@ final class NotchViewModel: ObservableObject {
             // a anotação é uma PÁGINA fixa do card: as ferramentas moram aqui,
             // não no menu da barra, então a seção não pode depender de estado.
             .anotacao: true,
+            // A navegação e o acesso às permissões existem mesmo num dia vazio.
+            .agenda: true,
+            .lembretesApple: true,
         ]
         return NotchSection.allCases.map {
             NotchSectionState(section: $0,
@@ -194,6 +309,7 @@ final class NotchViewModel: ObservableObject {
         didSet {
             guard let focus, focus != oldValue else { return }
             UserDefaults.standard.set(focus.rawValue, forKey: Self.focoSalvoKey)
+            if oldValue == .agenda || oldValue == .lembretesApple { resumePendingNotifications() }
         }
     }
     static let focoSalvoKey = "notchFocus"
@@ -314,7 +430,7 @@ final class NotchViewModel: ObservableObject {
     func contentState(question: Bool? = nil) -> NotchContentState {
         NotchContentState(question: question ?? questionIsActive(), incoming: incoming != nil,
                           reply: incoming?.allowReply == true, dictation: dictation != nil,
-                          typingNote: typingNote, notification: activeNotification != nil,
+                          typingNote: typingNote, editingAgenda: editandoAgenda, editingReminders: editandoLembretes, notification: activeNotification != nil,
                           hud: hud != nil, update: updateCard && update != nil,
                           airpods: airpodsCard, expanded: expanded, pomodoro: pomodoro != nil,
                           focus: focus)
@@ -332,7 +448,7 @@ final class NotchViewModel: ObservableObject {
     private var hudWork: DispatchWorkItem?
 
     func fecharPorHoverOut() {
-        guard !linkAberto else { return }
+        guard !linkAberto && !editandoAgenda && !editandoLembretes else { return }
         setExpandedDirect(false)
     }
 
@@ -343,7 +459,7 @@ final class NotchViewModel: ObservableObject {
         let work = DispatchWorkItem { [weak self] in
             guard let self,
                   let value = self.opening.fire(request, now: ProcessInfo.processInfo.systemUptime,
-                                                linkOpen: self.linkAberto) else { return }
+                                                linkOpen: self.linkAberto || self.editandoAgenda || self.editandoLembretes) else { return }
             self.applyExpanded(value)
         }
         openingWork = work
@@ -360,6 +476,10 @@ final class NotchViewModel: ObservableObject {
 
     private func applyExpanded(_ value: Bool) {
         precondition(Thread.isMainThread, "Apresentação deve mudar na main thread")
+        if value && !expanded {
+            agendaHoje()
+            onAtualizarLembretes?()
+        }
         if value && !expanded && receivedSections { reconcileSections() }
         if !value {
             if typingNote { QuickNote.shared.editing = false }
@@ -368,6 +488,7 @@ final class NotchViewModel: ObservableObject {
             focoPendente = nil
         }
         expanded = value
+        if !value { resumePendingNotifications() }
     }
 
     func suspendPresentation() {
@@ -457,7 +578,7 @@ final class NotchViewModel: ObservableObject {
         // digitando: enfileira em vez de mostrar. Só esconder pelo `mode` não
         // bastaria — o auto-dismiss de 5s correria invisível e a notificação
         // morreria sem ninguém ver.
-        if activeNotification == nil, !typingNote {
+        if activeNotification == nil, !protegeEdicao {
             show(notification)
         } else {
             queue.append(notification)
@@ -467,7 +588,7 @@ final class NotchViewModel: ObservableObject {
     /// Fim da digitação: solta a notificação que esperou. Chamado pela view
     /// quando `QuickNote.editing` cai (Esc, clique fora, interruptor desligado).
     func resumePendingNotifications() {
-        guard activeNotification == nil, !typingNote, !queue.isEmpty else { return }
+        guard activeNotification == nil, !protegeEdicao, !queue.isEmpty else { return }
         show(queue.removeFirst())
     }
 
@@ -494,6 +615,7 @@ final class NotchViewModel: ObservableObject {
     }
 
     private func show(_ notification: NotchNotification) {
+        guard !protegeEdicao else { queue.insert(notification, at: 0); return }
         activeNotification = notification
         scheduleDismiss()
     }
@@ -522,7 +644,7 @@ final class NotchViewModel: ObservableObject {
         // HUD é transitório: enquanto a nota tem o teclado ele não aparece e
         // não espera fila — guardar um nível de volume de 3s atrás pra mostrar
         // depois seria pior que não mostrar.
-        guard !typingNote else { return }
+        guard !protegeEdicao else { return }
         hud = state
         hudWork?.cancel()
         let work = DispatchWorkItem { [weak self] in

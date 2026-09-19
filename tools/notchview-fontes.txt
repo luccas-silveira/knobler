@@ -16,6 +16,12 @@ Knobler/ColorPicker.swift
 Knobler/Pomodoro.swift
 Knobler/Plugin.swift
 Knobler/CalendarAviso.swift
+Knobler/AppleReminders.swift
+Knobler/AppleRemindersStore.swift
+Knobler/AppleRemindersView.swift
+Knobler/AppleRemindersNotchView.swift
+Knobler/AgendaView.swift
+Knobler/AgendaEditorView.swift
 Knobler/Ask.swift
 Knobler/AskModels.swift
 Knobler/AskFeature.swift

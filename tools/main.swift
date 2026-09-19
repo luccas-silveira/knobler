@@ -168,6 +168,56 @@ func esperarPreview(_ shelf: ShelfStore, _ segundos: TimeInterval = 5) {
     }
 }
 
+@MainActor
+func configurarEditorAgenda(_ vm: NotchViewModel) {
+    vm.onConsultarAgenda = { CalendarAgenda(dia: $0, autorizado: true) }
+    vm.onCalendariosAgenda = { [CalendarDestino(id: "sintetico", nome: "Trabalho", conta: "Local", padrao: true)] }
+    vm.setExpandedDirect(true)
+    vm.secoes = [.agenda, .musica]
+    vm.focar(.agenda)
+    vm.novoEventoAgenda()
+    vm.agendaRascunho?.titulo = "Revisão do projeto"
+    vm.agendaRascunho?.local = "Sala de reunião"
+    vm.agendaRascunho?.link = "https://meet.google.com/exemplo"
+    vm.agendaRascunho?.observacoes = "Alinhar os próximos passos com a equipe."
+}
+
+@MainActor
+func lembretesSinteticos() -> AppleRemindersStore {
+    let store = AppleRemindersStore(snapshot: true)
+    store.accounts = [AppleReminderAccount(id: "local", title: "Pessoal")]
+    store.lists = [AppleReminderList(id: "tarefas", title: "Tarefas", accountID: "local", writable: true)]
+    store.defaultListID = "tarefas"
+    store.items = [
+        AppleReminder(id: "atrasado", draft: AppleReminderDraft(title: "Revisar o planejamento da próxima entrega com a equipe de produto", notes: "Confirmar os detalhes antes da reunião.", listID: "tarefas", priority: 1, dueDate: Date().addingTimeInterval(-86400)), completed: false, writable: true),
+        AppleReminder(id: "hoje", draft: AppleReminderDraft(title: "Comprar ingredientes para o jantar", listID: "tarefas", dueDate: Date(), hasTime: true), completed: false, writable: true)
+    ]
+    return store
+}
+
+@MainActor
+func configurarLembretes(_ vm: NotchViewModel, estado: String) {
+    let store = lembretesSinteticos()
+    let ui = AppleRemindersUI(store: store)
+    if estado == "vazio" { store.items = [] }
+    if estado == "sem-permissao" { store.access = .denied }
+    if estado == "carregando" { store.loading = true; store.items = [] }
+    if estado == "criar" || estado == "erro" {
+        ui.newReminder()
+        ui.draft?.title = "Revisar o planejamento"
+        ui.draft?.dueDate = Date()
+    }
+    if estado == "erro" { ui.error = .message("Não foi possível salvar. Seu rascunho foi preservado.") }
+    vm.onLembretesView = { [weak vm] in
+        AnyView(AppleRemindersNotchView(store: store, ui: ui,
+            onEditingChanged: { [weak vm] in vm?.atualizarEdicaoLembretes($0) },
+            onKeyboard: { [weak vm] in vm?.onAgendaKeyboard?() }))
+    }
+    vm.setExpandedDirect(true)
+    vm.secoes = [.lembretesApple, .agenda, .musica]
+    vm.focar(.lembretesApple)
+}
+
 let scenarios: [Scenario] = [
     Scenario(name: "closed-idle", realNotch: true) { _, _, _ in },
     Scenario(name: "closed-music", realNotch: true) { _, media, _ in
@@ -374,6 +424,63 @@ let scenarios: [Scenario] = [
         vm.setExpandedDirect(true)
         vm.secoes = [.historico]
         vm.focar(.historico)
+    },
+    // Dados inteiramente sintéticos: nenhuma consulta ao calendário pessoal.
+    Scenario(name: "lembretes-hoje", realNotch: true, frameHeight: 460) { vm, _, _ in configurarLembretes(vm, estado: "hoje") },
+    Scenario(name: "lembretes-vazio", realNotch: true, frameHeight: 460) { vm, _, _ in configurarLembretes(vm, estado: "vazio") },
+    Scenario(name: "lembretes-sem-permissao", realNotch: false, frameHeight: 460) { vm, _, _ in configurarLembretes(vm, estado: "sem-permissao") },
+    Scenario(name: "lembretes-carregando", realNotch: true, frameHeight: 460) { vm, _, _ in configurarLembretes(vm, estado: "carregando") },
+    Scenario(name: "lembretes-criar", realNotch: true, frameHeight: 460) { vm, _, _ in configurarLembretes(vm, estado: "criar") },
+    Scenario(name: "lembretes-erro", realNotch: true, frameHeight: 460) { vm, _, _ in configurarLembretes(vm, estado: "erro") },
+    Scenario(name: "agenda-hoje", realNotch: true, frameHeight: 400) { vm, _, _ in
+        vm.setExpandedDirect(true)
+        vm.secoes = [.musica, .agenda, .anotacao]
+        vm.focar(.agenda)
+        let dia = Calendar.current.startOfDay(for: Date())
+        let agora = dia.addingTimeInterval(10 * 3600)
+        vm.agenda = CalendarAgenda(dia: dia, atualizadoEm: agora, autorizado: true, eventos: [
+            CalendarEvento(id: "dia", titulo: "Entrega do projeto", calendario: "Trabalho",
+                inicio: dia, fim: Calendar.current.date(byAdding: .day, value: 1, to: dia)!, diaInteiro: true),
+            CalendarEvento(id: "reuniao", titulo: "Revisão de design", calendario: "Equipe",
+                inicio: agora.addingTimeInterval(-1800), fim: agora.addingTimeInterval(1800), diaInteiro: false),
+            CalendarEvento(id: "planejamento", titulo: "Planejamento da próxima versão", calendario: "Trabalho",
+                inicio: agora.addingTimeInterval(7200), fim: agora.addingTimeInterval(10800), diaInteiro: false),
+            CalendarEvento(id: "fim", titulo: "Encerramento da semana", calendario: "Equipe",
+                inicio: agora.addingTimeInterval(21600), fim: agora.addingTimeInterval(25200), diaInteiro: false),
+        ])
+    },
+    Scenario(name: "agenda-vazia", realNotch: true, frameHeight: 400) { vm, _, _ in
+        vm.setExpandedDirect(true)
+        vm.secoes = [.agenda, .anotacao]
+        vm.focar(.agenda)
+        vm.agenda = CalendarAgenda(dia: Calendar.current.date(byAdding: .day, value: 1, to: Date())!,
+                                   autorizado: true)
+    },
+    Scenario(name: "agenda-sem-permissao", realNotch: false, frameHeight: 400) { vm, _, _ in
+        vm.setExpandedDirect(true)
+        vm.secoes = [.agenda, .anotacao]
+        vm.focar(.agenda)
+        vm.agenda = CalendarAgenda()
+    },
+    Scenario(name: "agenda-criar", realNotch: true, frameHeight: 560) { vm, _, _ in
+        configurarEditorAgenda(vm)
+    },
+    Scenario(name: "agenda-criar-dia-inteiro", realNotch: false, frameHeight: 540) { vm, _, _ in
+        configurarEditorAgenda(vm)
+        vm.agendaRascunho?.diaInteiro = true
+    },
+    Scenario(name: "agenda-criar-erro", realNotch: true, frameHeight: 560) { vm, _, _ in
+        configurarEditorAgenda(vm)
+        vm.agendaErro = CalendarErro.gravacao.localizedDescription
+    },
+    Scenario(name: "agenda-criar-sem-calendario", realNotch: true, frameHeight: 560) { vm, _, _ in
+        configurarEditorAgenda(vm)
+        vm.onCalendariosAgenda = { [] }
+        vm.atualizarAgenda()
+    },
+    Scenario(name: "agenda-criar-tela-baixa", realNotch: false, frameHeight: 420) { vm, _, _ in
+        configurarEditorAgenda(vm)
+        vm.availableSize.height = 400
     },
     Scenario(name: "dictation-recording", realNotch: true) { vm, _, _ in
         vm.dictation = .recording(level: 0.6)
@@ -619,6 +726,7 @@ for scenario in scenarios {
         }
     }
 
+    var agendaWindow: NotchWindow?
     // wallpaper claro atrás: revela a silhueta e as bordas da forma
     let view = ZStack(alignment: .top) {
         LinearGradient(
@@ -630,23 +738,73 @@ for scenario in scenarios {
             vm: vm, askStore: askStore, agentRequestStore: agentRequestStore,
             media: media, levels: SystemAudioLevels(), shelf: currentShelf,
             dropTargetsEnabled: false,
-            agentRequestInitiallyExpanded: scenario.agentRequestExpanded)
+            agentRequestInitiallyExpanded: scenario.agentRequestExpanded,
+            onKeyboardEligibilityChanged: { agendaWindow?.allowsKeyboard = $0 })
             // a NotchView lê o MessageStore do ambiente só pra saber se há
             // conversa; sem injetar, o SwiftUI derruba o harness
             .environmentObject(MessageStore(carregando: false))
     }
     .frame(width: 560, height: scenario.frameHeight)
 
-    let renderer = ImageRenderer(content: view)
-    renderer.scale = 2
-
-    guard let nsImage = renderer.nsImage,
-          let tiff = nsImage.tiffRepresentation,
-          let rep = NSBitmapImageRep(data: tiff),
-          let png = rep.representation(using: .png, properties: [:])
-    else {
-        print("FALHOU: \(scenario.name)")
-        exit(1)
+    let png: Data
+    if scenario.name.hasPrefix("agenda-") || scenario.name.hasPrefix("lembretes-") {
+        // ScrollView usa backing AppKit e sai preta no ImageRenderer. Uma
+        // janela sintética permite capturar a lista real, sem eventos pessoais.
+        _ = NSApplication.shared
+        let host = NSHostingView(rootView: view.transaction { $0.disablesAnimations = true; $0.animation = nil })
+        let window = NotchWindow(contentRect: NSRect(x: 100, y: 100, width: 560, height: scenario.frameHeight),
+                                 styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        agendaWindow = window
+        vm.onAgendaKeyboard = { [weak window] in window?.makeKey() }
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        window.orderFrontRegardless()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+        host.layoutSubtreeIfNeeded()
+        guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else {
+            fatalError("Não foi possível capturar a agenda")
+        }
+        host.cacheDisplay(in: host.bounds, to: rep)
+        guard let data = rep.representation(using: .png, properties: [:]) else {
+            fatalError("Não foi possível codificar a agenda")
+        }
+        png = data
+        if scenario.name == "agenda-criar" {
+            precondition(window.allowsKeyboard && window.isKeyWindow, "Editor precisa aceitar teclado")
+            guard let editor = window.firstResponder as? NSTextView else {
+                fatalError("Título não recebeu o foco de edição")
+            }
+            editor.selectAll(nil)
+            editor.insertText("Título digitado no teste", replacementRange: NSRange(location: NSNotFound, length: 0))
+            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+            precondition(vm.agendaRascunho?.titulo == "Título digitado no teste", "Digitação perdeu o binding")
+            let tab = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                context: nil, characters: "\t", charactersIgnoringModifiers: "\t", isARepeat: false, keyCode: 48)!
+            window.sendEvent(tab)
+            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+            precondition(window.firstResponder != nil && vm.expanded, "Tab não pode fechar o editor")
+            let escape = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                context: nil, characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53)!
+            window.sendEvent(escape)
+            RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+            precondition(!vm.expanded && vm.agendaRascunho?.titulo == "Título digitado no teste",
+                         "Escape deve recolher e preservar o rascunho")
+            print("agenda: teclado, Tab e Escape ok na janela nativa")
+        }
+        window.close()
+    } else {
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = 2
+        guard let nsImage = renderer.nsImage,
+              let tiff = nsImage.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff),
+              let data = rep.representation(using: .png, properties: [:]) else {
+            print("FALHOU: \(scenario.name)")
+            exit(1)
+        }
+        png = data
     }
     let path = "\(outputDir)/\(scenario.name).png"
     try? png.write(to: URL(fileURLWithPath: path))
@@ -755,6 +913,12 @@ renderMessageScenario("messages-incoming", realNotch: true) { vm, _, _ in
 // (painéis: geral, notch, desenho, ditado, pomodoro, lembretes, descanso, webhooks,
 // mensagens) e tirar o screenshot da janela real. mapping-editor.png sai de
 // dentro do painel "webhooks" clicando "…" → "Mapear campos…" num perfil.
+
+// lembretes-janela.png e lembretes-janela-editor.png também exigem captura
+// nativa da janela: cacheDisplay perde a composição dos controles AppKit,
+// produzindo botões brancos e símbolos incorretos. Usar AppleRemindersUI.show()
+// com AppleRemindersStore(snapshot: true), dados sintéticos e captura do ID da
+// janela pelo macOS; não consultar nem modificar lembretes pessoais.
 
 renderOverlay("descanso", label: "Almoço", hold: 0)
 renderOverlay("descanso-hold", label: "Almoço", hold: 0.6)

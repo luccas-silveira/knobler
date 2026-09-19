@@ -1,4 +1,4 @@
-# Lembretes
+# Alertas programados
 
 ![Painel de Ajustes de Lembretes](images/settings-lembretes.png)
 
@@ -11,7 +11,7 @@ pulado, nunca acumula/enfileira pra tocar tudo de uma vez ao acordar.
 
 ## Como usar
 
-- Criar, editar, pausar (sem apagar) ou remover: Ajustes → Lembretes.
+- Criar, editar, pausar (sem apagar) ou remover: Ajustes → Alertas programados.
 - Cada lembrete pode tocar um som e abrir uma URL ao clicar.
 - Quando o lembrete dispara, o card no notch traz **Adiar 5 min** e **30 min** —
   o disparo é empurrado sem abrir os Ajustes. Adiar vale uma vez só: o lembrete

@@ -53,6 +53,13 @@ struct NotchView: View {
                 pilhaAberta: shelf.pilhaAberta != nil, espelhoLigado: vm.mirrorOn,
                 linkAberto: linkAberto, eventoProximo: vm.calendarAviso != nil)
         } ?? 118
+        if vm.focus == .agenda {
+            layout.sectionHeight = NotchMetrics.alturaAgenda(editando: vm.agendaRascunho != nil,
+                disponivel: vm.availableSize.height, topo: vm.hasRealNotch ? vm.notchSize.height : 4)
+        }
+        if vm.focus == .lembretesApple {
+            layout.sectionHeight = min(330, max(0, vm.availableSize.height - vm.notchSize.height - 84))
+        }
         layout.sectionWidth = NotchMetrics.larguraDoCard(vm.focus, padrao: 430, linkAberto: linkAberto)
         layout.notificationActions = vm.activeNotification?.actionTitles.isEmpty == false
         layout.mediaHeight = vm.incoming?.mediaHeight ?? 0
@@ -801,6 +808,8 @@ struct NotchView: View {
                     if let p = vm.pomodoro { pomodoroSection(p) }
                     else { vazio("timer", "Pomodoro parado") }
                 case .anotacao: AnnotationDeckView(annotation: annotation)
+                case .agenda: AgendaView(vm: vm)
+                case .lembretesApple: vm.onLembretesView?()
                 case .musica, .none: musicSection
                 }
             }
@@ -888,7 +897,7 @@ struct NotchView: View {
                     .frame(width: 3, height: 3)
                     .offset(x: 6, y: -6)
             }
-        case .espelho, .mensagens:
+        case .espelho, .mensagens, .agenda, .lembretesApple:
             EmptyView()
         }
     }

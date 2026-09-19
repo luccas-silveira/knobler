@@ -8,6 +8,7 @@ enum PresentationCheck {
         var opening = NotchOpening()
         opening.hover(true, typing: false, now: 10)
         let old = opening.pending!
+        assert(NotchMetrics.alturaDaSecao(.agenda) == NotchMetrics.agendaHeight)
         assert(opening.fire(old, now: 10.1, linkOpen: false) == nil)
         opening.setExpanded(false, now: 10.15)
         assert(opening.fire(old, now: 11, linkOpen: false) == nil)
@@ -91,6 +92,16 @@ enum PresentationCheck {
             assert(a.fire(stale, now: now + 1, linkOpen: false) == nil)
             assert(!a.expanded && b.expanded)
         }
+        let editor = NotchContentState(editingAgenda: true, expanded: true, focus: .agenda)
+        assert(editor.mode == .music && editor.keyboard)
+        assert(!NotchContentState(expanded: true, focus: .agenda).keyboard)
+        let remindersEditor = NotchContentState(editingReminders: true, notification: true,
+            expanded: true, focus: .lembretesApple)
+        assert(remindersEditor.mode == .music && remindersEditor.keyboard)
+        assert(!NotchContentState(expanded: true, focus: .lembretesApple).keyboard)
+        assert(NotchMetrics.alturaDaSecao(.lembretesApple) == 330)
+        assert(NotchMetrics.alturaAgenda(editando: true, disponivel: 900, topo: 32) == 400)
+        assert(NotchMetrics.alturaAgenda(editando: true, disponivel: 400, topo: 4) == 312)
         print("presentationcheck ok")
     }
 }

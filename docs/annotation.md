@@ -64,7 +64,8 @@ configurado em Ajustes › Desenho; laser e holofote desaparecem automaticamente
 
 O painel **Desenho** guarda o que não cabe na grade do card: o modo do Control
 esquerdo, os **padrões do traço** (ferramenta, cor e espessura com que o desenho
-nasce a cada lançamento — o card muda o traço da sessão, o painel muda o padrão),
+nasce a cada lançamento — as escolhas no card, nos atalhos e no painel são
+salvas automaticamente, inclusive a borracha),
 o quadro de fundo, o auto-fade com o atraso, e a tabela de atalhos.
 
 O recurso depende da permissão de Acessibilidade porque o atalho é detectado

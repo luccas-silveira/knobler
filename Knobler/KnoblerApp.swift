@@ -88,6 +88,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// interceptor, e um aviso vindo de JSON não tem banner nenhum atrás.
     private var avisoActionURLs: [UUID: [String]] = [:]
     private let calendar = CalendarCountdown()
+    private let appleReminders = AppleRemindersStore()
+    private lazy var appleRemindersUI = AppleRemindersUI(store: appleReminders)
     /// Reunião com link de call acontecendo agora (vem do `CalendarCountdown`).
     private var emReuniao = false
     /// Instante em que o microfone acendeu; `nil` = apagado. Vira "chamada em
@@ -203,7 +205,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var scrollActed = false
     /// Gesto que COMEÇOU com uma lista rolável no card rola a lista, não age
     /// no notch. Sem isso, o mesmo puxão seguiria trocando a seção em foco.
-    private var scrollStartedInHistory = false
+    private var scrollStartedInList = false
     /// Timestamp e zona do último evento de scroll — é com eles que
     /// `NotchGesture.isGestureStart` reconhece começo de gesto sem `.began`
     /// (mouse de rodinha) ou de gesto que entrou arrastando na zona.
@@ -394,6 +396,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         calendar.onNextEvent = { [weak self] aviso in
             self?.notches.values.forEach { $0.viewModel.calendarAviso = aviso }
+        }
+        calendar.onAgendaChanged = { [weak self] in
+            self?.notches.values.forEach { $0.viewModel.atualizarAgenda() }
         }
         calendar.onMeeting = { [weak self] emReuniao in
             self?.emReuniao = emReuniao
@@ -974,18 +979,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             // nota ligada ou com o histórico vazio a seção não tem ScrollView
             // nenhuma, e entregar o eixo vertical a ela mataria o gesto — sem
             // abrir e sem fechar
-            scrollStartedInHistory = vm.focus == .historico
+            scrollStartedInList = (vm.focus == .historico
                 && !NotificationHistory.shared.items.isEmpty
-                && !QuickNote.shared.hosted(by: id)
+                && !QuickNote.shared.hosted(by: id)) || vm.agendaRolavel || vm.lembretesRolavel
             // a página do link rola sozinha: o vertical é dela, senão a primeira
             // rolada fecharia o card em cima do que o usuário foi ler
             scrollStartedInLink = vm.focus == .link && LinkPreview.shared.hosted(by: id)
         }
 
-        // histórico em foco: o vertical é da lista, pra ela rolar de verdade —
+        // Histórico ou agenda em foco: o vertical é da lista, incluindo inércia —
         // inclusive a inércia, que chega depois dos dedos saírem e por isso
         // não passa pelo reset acima
-        if scrollStartedInHistory || scrollStartedInLink,
+        if scrollStartedInList || scrollStartedInLink,
            abs(event.scrollingDeltaY) >= abs(event.scrollingDeltaX) {
             return event
         }
@@ -1212,6 +1217,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 viewModel.onPomodoroSettings = { [weak self] in
                     self?.showSettings(pane: .pomodoro)
                 }
+                viewModel.onAtualizarLembretes = { [weak self] in self?.appleReminders.refresh() }
+                viewModel.onLembretesView = { [weak self, weak viewModel, weak panel] in
+                    guard let self, let viewModel else { return AnyView(EmptyView()) }
+                    return AnyView(AppleRemindersNotchView(store: self.appleReminders, ui: self.appleRemindersUI,
+                        onEditingChanged: { [weak viewModel] in viewModel?.atualizarEdicaoLembretes($0) },
+                        onKeyboard: { [weak panel] in panel?.makeKey() }))
+                }
+                viewModel.onConsultarAgenda = { [weak self] dia in
+                    self?.calendar.agenda(no: dia) ?? CalendarAgenda(dia: dia)
+                }
+                viewModel.onAgendaKeyboard = { [weak panel] in panel?.makeKey() }
+                viewModel.onCalendariosAgenda = { [weak self] in
+                    self?.calendar.calendariosEditaveis() ?? []
+                }
+                viewModel.onSalvarAgenda = { [weak self] rascunho, concluir in
+                    DispatchQueue.main.async {
+                        guard let self else { concluir(.failure(.gravacao)); return }
+                        do { concluir(.success(try self.calendar.criarEvento(rascunho))) }
+                        catch { concluir(.failure(error as? CalendarErro ?? .gravacao)) }
+                    }
+                }
+                viewModel.onAgendaPermissions = { [weak self] in
+                    self?.showSettings(pane: .permissoes)
+                }
+                viewModel.atualizarAgenda()
 
                 // resposta rápida do card → envia, grava o outgoing e some em todas as telas
                 viewModel.onSendReply = { [weak self] peerID, text in
@@ -1426,6 +1456,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             nota.target = self
             nota.state = quickNote.active ? .on : .off
         }
+        let reminders = menu.addItem(withTitle: "Lembretes…",
+            action: #selector(openAppleReminders), keyEquivalent: "")
+        reminders.target = self
         let picker = menu.addItem(
             withTitle: "◉ Selecionar cor…", action: #selector(pickColor), keyEquivalent: "")
         picker.target = self
@@ -1624,6 +1657,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             // o painel Permissões liga o Bonjour pra sondar a Rede local
             .environmentObject(lanMessagingParaInjetar)
     }
+
+    @objc private func openAppleReminders() { appleRemindersUI.show() }
 
     @objc private func openSettings() { showSettings(pane: nil) }
 

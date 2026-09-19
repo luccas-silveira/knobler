@@ -259,6 +259,7 @@ final class AnnotationController: NSObject, ObservableObject {
 
     func select(tool: AnnotationTool) {
         selectedTool = tool
+        AppSettings.shared.annotationDefaultTool = tool
         states.values.forEach { $0.tool = tool }
     }
 
@@ -280,11 +281,13 @@ final class AnnotationController: NSObject, ObservableObject {
 
     func setColor(_ color: AnnotationColor) {
         selectedColor = color
+        AppSettings.shared.annotationDefaultColor = color
         states.values.forEach { $0.style.color = color }
     }
 
     func setLineWidth(_ width: Double) {
         lineWidth = width
+        AppSettings.shared.annotationLineWidth = width
         states.values.forEach { $0.style.lineWidth = width }
     }
 

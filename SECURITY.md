@@ -26,11 +26,16 @@ quando possível. Dê tempo razoável para triagem e correção antes de divulga
 
 ## Dados e permissões
 
-O app pode receber acesso a microfone, câmera, calendário, Bluetooth,
+O app pode receber acesso a microfone, câmera, calendário, Lembretes, Bluetooth,
 Acessibilidade, áudio do sistema e rede local. Cada permissão corresponde a uma
-feature; desligar a feature em Ajustes impede seu uso, mas a autorização do
-sistema deve ser revogada nos Ajustes do macOS quando necessário.
+feature. Recursos opcionais podem ser desligados nos Ajustes do Knobler;
+a autorização do sistema deve ser revogada nos Ajustes do macOS quando necessário.
+Lembretes da Apple é uma seção permanente: para impedir o acesso aos dados,
+revogue a permissão de Lembretes nos Ajustes do Sistema.
 
+- Lembretes da Apple são acessados por EventKit após autorização explícita.
+  Conteúdo e rascunhos ficam em memória; gravações vão diretamente às contas
+  configuradas no macOS, sem cópia no armazenamento do Knobler ou no relay.
 - Áudio do ditado é processado localmente por padrão; Deepgram é opt-in.
 - O formatter local envia o transcript para o endpoint configurado (Ollama ou
   LM Studio). Trate esse endpoint como capaz de ler o texto enviado.

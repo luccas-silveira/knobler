@@ -25,7 +25,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .desenho: return "Desenho"
         case .ditado: return "Ditado"
         case .pomodoro: return "Pomodoro"
-        case .lembretes: return "Lembretes"
+        case .lembretes: return "Alertas programados"
         case .descanso: return "Descanso"
         case .webhooks: return "Notificações externas"
         case .mensagens: return "Mensagens"
@@ -355,7 +355,7 @@ struct NotchSettingsPane: View {
                     title: "Silenciar durante reuniões",
                     subtitle: "Em evento com link de call, notificação de app, "
                         + "API e webhook vai direto pro histórico, sem virar card. "
-                        + "Lembretes e Pomodoro continuam aparecendo.",
+                        + "Alertas programados e Pomodoro continuam aparecendo.",
                     isOn: $settings.silenciarEmReuniao)
                     .disabled(!settings.calendarCountdown)
                 SettingToggle(
@@ -411,9 +411,8 @@ struct DesenhoSettingsPane: View {
             Section("Padrões do traço") {
                 Picker("Ferramenta", selection: Binding(
                     get: { settings.annotationDefaultTool },
-                    set: { settings.annotationDefaultTool = $0; annotation.select(tool: $0) })) {
-                        // borracha de fora: nascer apagando não é um padrão útil
-                        ForEach(AnnotationTool.allCases.filter { $0 != .eraser }, id: \.self) {
+                    set: { annotation.select(tool: $0) })) {
+                        ForEach(AnnotationTool.allCases, id: \.self) {
                             Label($0.title, systemImage: $0.symbol).tag($0)
                         }
                     }
@@ -423,14 +422,13 @@ struct DesenhoSettingsPane: View {
                     get: { Color(cor: settings.annotationDefaultColor) },
                     set: { nova in
                         let cor = AnnotationColor(nova)
-                        settings.annotationDefaultColor = cor
                         annotation.setColor(cor)
                     }), supportsOpacity: false)
                 HStack {
                     Text("Espessura")
                     Slider(value: Binding(
                         get: { settings.annotationLineWidth },
-                        set: { settings.annotationLineWidth = $0; annotation.setLineWidth($0) }),
+                        set: { annotation.setLineWidth($0) }),
                            in: 1...24, step: 1)
                     Text("\(Int(settings.annotationLineWidth)) pt")
                         .monospacedDigit()

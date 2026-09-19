@@ -32,11 +32,12 @@ contratos e explicações para entender decisões.
 - [HUDs](huds.md)
 - [Notificações](notifications.md)
 - [Avisos do desenvolvedor](avisos.md) — recados sobre o próprio Knobler
-- [Countdown de calendário](calendar-countdown.md)
+- [Agenda e countdown de calendário](calendar-countdown.md)
 - [Ditado](dictation.md)
 - [Pomodoro](pomodoro.md)
 - [Descanso](descanso.md)
-- [Lembretes](reminders.md)
+- [Lembretes da Apple](apple-reminders.md)
+- [Alertas programados](reminders.md)
 - [Nota rápida](nota-rapida.md)
 - [Shelf de capturas](shelf.md) — inclui conversão de arquivos e AirDrop
 - [Preview de link](link-preview.md) — arraste um link e a página abre no card

@@ -12,6 +12,8 @@ struct NotchContentState {
     var reply = false
     var dictation = false
     var typingNote = false
+    var editingAgenda = false
+    var editingReminders = false
     var notification = false
     var hud = false
     var update = false
@@ -24,7 +26,7 @@ struct NotchContentState {
         if question { return .question }
         if incoming { return .message }
         if dictation { return .dictation }
-        if typingNote { return .music }
+        if typingNote || editingAgenda || editingReminders { return .music }
         if notification { return .notification }
         if hud { return .hud }
         if update { return .update }
@@ -38,7 +40,7 @@ struct NotchContentState {
         switch mode {
         case .question: return true
         case .message: return reply
-        case .music: return expanded && [.nota, .mensagens, .link].contains(focus)
+        case .music: return expanded && ([.nota, .mensagens, .link].contains(focus) || editingAgenda || editingReminders)
         default: return false
         }
     }
@@ -169,6 +171,10 @@ struct NotchPresentation: Equatable {
 /// Medidas usadas tanto pelas seções quanto pelo contêiner; nunca estimadas duas vezes.
 enum NotchMetrics {
     static let historyHeight: CGFloat = 260
+    static let agendaHeight: CGFloat = 260
+    static func alturaAgenda(editando: Bool, disponivel: CGFloat, topo: CGFloat) -> CGFloat {
+        min(editando ? 400 : agendaHeight, max(0, disponivel - topo - 84))
+    }
     static let annotationButtonHeight: CGFloat = 50
     static let shelfCellHeight: CGFloat = 48 + 3 + 24
     static let sectionStripHeight: CGFloat = 22
@@ -224,6 +230,8 @@ enum NotchMetrics {
         case .nota: return Self.noteEditorHeight + 28  // +8 do padding da zona de escrita
         case .link: return linkAberto ? linkWebHeight + linkHeaderHeight : espelhoDesligadoHeight
         case .anotacao: return annotationButtonHeight * 2 + 6
+        case .agenda: return agendaHeight
+        case .lembretesApple: return 330
         }
     }
 

@@ -16,6 +16,7 @@ final class CalendarCountdown {
     /// Mesmo evento do `onActivity`, cru — o card do Pomodoro suprime a seção de
     /// atividade e precisa da informação por fora dela.
     var onNextEvent: ((CalendarAviso?) -> Void)?
+    var onAgendaChanged: (() -> Void)?
     /// true enquanto uma reunião com link de call está a ≤2min de começar —
     /// borda de subida abre o espelho, de descida fecha (reunião começou).
     var onMirrorMoment: ((Bool) -> Void)?
@@ -25,8 +26,9 @@ final class CalendarCountdown {
 
     private let store = EKEventStore()
     private var timer: Timer?
-    /// Repolla o status enquanto a permissão não vem (ver `start()`).
-    private var aguardando: Timer?
+    private var observer: NSObjectProtocol?
+    private var ultimoAcesso = false
+    private var ultimaConsulta = Date.distantPast
     private let leadTime: TimeInterval = 15 * 60
     private let mirrorLead: TimeInterval = 2 * 60
     private let lingerAfterStart: TimeInterval = 60
@@ -62,39 +64,88 @@ final class CalendarCountdown {
         return callHosts.contains { haystack.contains($0) }
     }
 
-    /// **Não pede permissão.** Pedir aqui punha o balão do Calendário na tela no
-    /// launch, por cima da janela de boas-vindas — e contra a regra do app, que
-    /// é pedir no primeiro uso. Quem pede é o painel Permissões
-    /// (`Permission.request`); aqui só esperamos a concessão chegar.
+    /// Não pede permissão no lançamento. O status é leve; eventos só são
+    /// consultados a cada 30 s, numa mudança do store ou na navegação da agenda.
     func start() {
-        guard EKEventStore.authorizationStatus(for: .event) != .fullAccess else {
-            beginPolling()
-            return
-        }
-        // Mesmo molde dos consumidores de Acessibilidade: repolla o status e se
-        // liga sozinho quando o usuário concede, sem relaunch. Sem callback, que
-        // o EventKit só dá a quem pede.
-        aguardando = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] t in
-            guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else { return }
-            t.invalidate()
-            self?.aguardando = nil
-            self?.beginPolling()
-        }
-    }
-
-    private func beginPolling() {
-        NotificationCenter.default.addObserver(
-            self, selector: #selector(tick),
-            name: .EKEventStoreChanged, object: store
-        )
-        timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
-            self?.tick()
+        guard timer == nil else { return }
+        observer = NotificationCenter.default.addObserver(
+            forName: .EKEventStoreChanged, object: store, queue: .main
+        ) { [weak self] _ in self?.tick() }
+        timer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            let acesso = EKEventStore.authorizationStatus(for: .event) == .fullAccess
+            if acesso != self.ultimoAcesso || Date().timeIntervalSince(self.ultimaConsulta) >= 30 {
+                self.tick()
+            }
         }
         tick()
     }
 
-    @objc private func tick() {
-        guard AppSettings.shared.calendarCountdown else {
+    deinit {
+        timer?.invalidate()
+        if let observer { NotificationCenter.default.removeObserver(observer) }
+    }
+
+    func agenda(no dia: Date, agora: Date = Date()) -> CalendarAgenda {
+        let autorizado = EKEventStore.authorizationStatus(for: .event) == .fullAccess
+        var resultado = CalendarAgenda(dia: Calendar.current.startOfDay(for: dia),
+                                        atualizadoEm: agora, autorizado: autorizado)
+        guard autorizado,
+              let intervalo = Calendar.current.dateInterval(of: .day, for: dia) else { return resultado }
+        let predicate = store.predicateForEvents(withStart: intervalo.start,
+                                                 end: intervalo.end, calendars: nil)
+        let eventos = store.events(matching: predicate).filter { $0.status != .canceled }.map {
+            CalendarEvento(id: "\($0.calendarItemIdentifier)/\($0.startDate.timeIntervalSinceReferenceDate)",
+                           titulo: $0.title?.isEmpty == false ? $0.title : "Evento",
+                           calendario: $0.calendar.title, inicio: $0.startDate,
+                           fim: $0.endDate, diaInteiro: $0.isAllDay)
+        }
+        resultado.eventos = CalendarAgenda.eventosDoDia(eventos, dia: dia)
+        return resultado
+    }
+
+    func calendariosEditaveis() -> [CalendarDestino] {
+        guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else { return [] }
+        let padrao = store.defaultCalendarForNewEvents?.calendarIdentifier
+        return store.calendars(for: .event).filter(\.allowsContentModifications).map {
+            CalendarDestino(id: $0.calendarIdentifier, nome: $0.title,
+                            conta: $0.source.title, padrao: $0.calendarIdentifier == padrao)
+        }.sorted { $0.rotulo.localizedStandardCompare($1.rotulo) == .orderedAscending }
+    }
+
+    /// A única escrita no calendário: chamada exclusivamente pelo botão Salvar.
+    func criarEvento(_ rascunho: CalendarRascunho) throws -> Date {
+        try rascunho.validar(
+            autorizado: EKEventStore.authorizationStatus(for: .event) == .fullAccess,
+            destinos: calendariosEditaveis())
+        guard let destino = store.calendar(withIdentifier: rascunho.calendarioID),
+              destino.allowsContentModifications else { throw CalendarErro.calendario }
+        let intervalo = try rascunho.intervalo()
+        let evento = EKEvent(eventStore: store)
+        evento.calendar = destino
+        evento.title = rascunho.titulo.trimmingCharacters(in: .whitespacesAndNewlines)
+        evento.startDate = intervalo.start
+        evento.endDate = intervalo.end
+        evento.isAllDay = rascunho.diaInteiro
+        evento.timeZone = rascunho.diaInteiro ? nil : TimeZone.current
+        evento.location = rascunho.local.trimmingCharacters(in: .whitespacesAndNewlines)
+        evento.url = rascunho.url
+        evento.notes = rascunho.observacoes
+        do {
+            try store.save(evento, span: .thisEvent, commit: true)
+        } catch {
+            throw CalendarErro.gravacao
+        }
+        tick()
+        return intervalo.start
+    }
+
+    private func tick() {
+        ultimaConsulta = Date()
+        ultimoAcesso = EKEventStore.authorizationStatus(for: .event) == .fullAccess
+        // A consulta voluntária da agenda independe do alerta automático.
+        onAgendaChanged?()
+        guard ultimoAcesso && AppSettings.shared.calendarCountdown else {
             onActivity?(nil)
             onNextEvent?(nil)
             onMirrorMoment?(false)

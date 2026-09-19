@@ -74,6 +74,15 @@ components:
     backgroundColor: "{colors.fill}"
   thumbnail:
     rounded: "{rounded.inner-md}"
+  agenda-row:
+    textColor: "rgba(255,255,255,0.9)"
+    rounded: "{rounded.inner-lg}"
+    padding: "10px 8px"
+  agenda-row-current:
+    backgroundColor: "{colors.fill-subtle}"
+    textColor: "rgba(255,255,255,0.9)"
+    rounded: "{rounded.inner-lg}"
+    padding: "10px 8px"
 ---
 
 # Design System: Knobler
@@ -246,6 +255,45 @@ Cada peça interna é discreta e táctil: fills de branco translúcido, cantos d
 - **Estado:** aparece nas "asinhas" do notch fechado quando há música na
   sessão — tocando (barras animadas) ou pausada (capa escurecida, barras em
   pontinhos).
+
+### Agenda (lista diária nativa)
+
+Consulta compacta sobre a superfície do notch, sem uma identidade própria.
+Valores abaixo são pontos do SwiftUI; os tokens portáveis usam px na escala 1:1.
+Fonte: `Knobler/AgendaView.swift` e `NotchMetrics.agendaHeight`.
+
+- **Estrutura:** conteúdo com altura de 260pt; cabeçalho fixo e lista com
+  rolagem interna, separados por 12pt. Trocar de dia reinicia a posição da lista.
+- **Cabeçalho:** título em SF Pro 15pt semibold e data em 11pt regular.
+  Hoje e setas usam 11pt, controles de 28pt de altura; setas têm 28pt de largura
+  e nomes acessíveis em pt-BR. Hoje usa canto de 6pt e branco a 16% no dia atual,
+  8% nos demais dias. O estilo dos botões é nativo `.plain`.
+- **Linhas:** horário em coluna de 68pt, intervalo de 12pt até o conteúdo,
+  padding e cantos conforme `agenda-row`. Horários usam 11pt medium com
+  `monospacedDigit()`; título em 13pt medium, até duas linhas; calendário em
+  11pt regular, uma linha. Texto principal branco a 90%; data, fim e calendário
+  a 65%. O nome completo do evento permanece no tooltip e a linha combina
+  seus elementos para acessibilidade.
+- **Em andamento:** `agenda-row-current` acrescenta fundo sutil, título
+  semibold e texto de estado em 10pt medium. O estado não depende só do fundo;
+  linhas são informativas, sem aparência de botão nem hover próprio.
+- **Vazio e permissão:** preservam o cabeçalho e centralizam a mensagem no
+  espaço restante. SF Symbols de calendário em 22pt, mensagem em 13pt.
+  Sem permissão, apoio em 11pt e ação “Abrir permissões” em 12pt medium,
+  padding 7pt × 12pt, canto de 8pt e branco a 16%, abrindo o fluxo existente.
+
+**Editor de eventos:** o botão “Novo evento” abre o formulário na própria Agenda.
+SF Pro em 15pt semibold no título e 12pt nos campos; controles nativos em modo
+escuro, com campos arredondados, checkbox, datas e menu de calendário.
+O ritmo vertical é de 12pt, com 4pt entre rótulo e campo. A altura chega a
+400pt, limitada pelo espaço disponível da tela; só os campos rolam, mantendo
+título, mensagens de erro/permissão e ações visíveis. “Dia inteiro” oculta as
+horas. O foco começa no título e o teclado pertence ao notch somente durante
+a edição ativa. Escape recolhe preservando o rascunho; Cancelar descarta.
+Salvar desabilita os campos e ações durante a gravação; falhas preservam o
+preenchimento e mostram texto com SF Symbol, sem depender de cor. Sem permissão
+ou calendário disponível, Salvar fica desabilitado. Fonte:
+`Knobler/AgendaEditorView.swift`, `AgendaView.swift` e `NotchMetrics.alturaAgenda`.
 
 ## 6. Do's and Don'ts
 
