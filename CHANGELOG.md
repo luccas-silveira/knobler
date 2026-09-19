@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-09-19
+
 ### Fixed
 - Desenho mantém a última ferramenta e cor escolhidas no card ou pelos atalhos
   após reiniciar o app, usando as mesmas preferências dos Ajustes.
