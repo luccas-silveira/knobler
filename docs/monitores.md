@@ -50,6 +50,9 @@ são importadas. Não há novas rotas HTTP nem comunicação de rede nesta peça
 Desativar a peça preserva ajustes, cancela trabalho pendente, remove observadores
 e atalhos e desfaz o escurecimento aplicado pelo Knobler. Os controles de teclado
 voltam ao comportamento anterior.
+Se a restauração falhar, os ajustes oferecem **Tentar novamente**,
+inclusive com a peça desativada. Ao sair, o Knobler aguarda as escritas em curso
+e a restauração; uma falha cancela a saída e abre os ajustes para repetir a tentativa.
 
 ## Backend e créditos
 
@@ -66,6 +69,9 @@ janela de preferências, updater e login helper do MonitorControl não são usad
 Os self-checks e snapshots usam dados sintéticos: não ajustam telas físicas.
 Os seis cenários visuais cobrem tela interna, DDC completo, software apenas,
 múltiplas telas, contraste expandido e erro de comunicação.
+`./tools/check.sh` inclui conversões e calibração, roteamento, invalidação,
+fila real com transporte simulado (agrupamento, falha e repetição, sincronização,
+cancelamento e restauração) e captura de teclas com HUD oculto.
 
 **Validação física pendente:** não foi executada nesta implementação, em Intel
 nem em Apple Silicon. Build e simulações não comprovam a compatibilidade de

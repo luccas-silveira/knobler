@@ -66,6 +66,9 @@ swift_check askcheck          Knobler/AskModels.swift Knobler/AskFeature.swift t
 swift_check updatercheck      Knobler/Updater.swift tools/updatercheck.swift
 swift_check agentrequestcheck Knobler/AgentRequestModels.swift Knobler/AgentRequestStore.swift tools/agentrequestcheck.swift
 swift_check airpodscheck      Knobler/AirPodsBattery.swift tools/airpods_selfcheck.swift
+swift_check monitorescheck    Knobler/MonitoresModel.swift tools/monitorescheck.swift
+swift_check monitoresservicecheck Knobler/MonitoresModel.swift Knobler/Monitores.swift tools/monitoresservicecheck.swift
+swift_check volumehudcheck    Knobler/VolumeHUD.swift tools/volumehudcheck.swift
 swift_check wirecheck         Knobler/Wire.swift tools/wirecheck/main.swift
 swift_check webhookcheck      Knobler/WebhookKeychainStore.swift Knobler/WebhookClient.swift \
   Knobler/NotchNotification.swift tools/webhookcheck.swift

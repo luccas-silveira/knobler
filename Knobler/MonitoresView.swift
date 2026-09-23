@@ -51,7 +51,8 @@ struct MonitoresView: View {
                             Image(systemName: display.muted ? "speaker.slash.fill" : "speaker.wave.2.fill")
                         }
                         .buttonStyle(.plain)
-                        .disabled(!display.preferences.enableMute)
+                        .disabled(display.busy || !display.preferences.enableMute || !display.muteSupported)
+                        .help(display.muteSupported ? "Alternar mudo" : "Este monitor não oferece controle de mudo.")
                         .accessibilityLabel(display.muted ? "Reativar som" : "Silenciar monitor")
                     }
                 } else {
@@ -97,6 +98,7 @@ struct MonitoresView: View {
                 vm.monitoresArrastando = editing
                 if !editing && !vm.isHovering { vm.setHover(false) }
             })
+            .disabled(display.busy)
             .accessibilityLabel("\(title) de \(display.name)")
             .accessibilityValue("\(Int((value * 100).rounded())) por cento")
         }
@@ -112,6 +114,12 @@ struct MonitoresSettingsPane: View {
 
     var body: some View {
         Form {
+            if let error = service.restorationError {
+                Section("Restaurar brilho") {
+                    Text(error).foregroundStyle(.orange)
+                    Button("Tentar novamente") { service.retryRestoration() }
+                }
+            }
             if let display = selected {
                 Picker("Monitor", selection: Binding(get: { display.id }, set: { selection.displayID = $0 })) {
                     ForEach(service.displays) { Text($0.name).tag($0.id) }
@@ -186,7 +194,18 @@ struct MonitoresSettingsPane: View {
         let base = binding(key, display)
         return DisclosureGroup("Calibração de \(title.lowercased())") {
             TextField("Mínimo", value: base.minimum, format: .number)
-            TextField("Máximo", value: base.maximum, format: .number)
+            Toggle("Detectar máximo do monitor", isOn: Binding(get: { base.wrappedValue.usesHardwareMaximum }, set: {
+                var value = base.wrappedValue
+                value.automaticMaximum = $0
+                base.wrappedValue = value
+            }))
+            TextField("Máximo", value: Binding(get: { base.wrappedValue.maximum }, set: {
+                var value = base.wrappedValue
+                value.maximum = $0
+                value.automaticMaximum = false
+                base.wrappedValue = value
+            }), format: .number)
+            .disabled(base.wrappedValue.usesHardwareMaximum)
             Stepper("Curva: \(base.wrappedValue.curve)", value: base.curve, in: 0...10)
             Toggle("Inverter", isOn: base.inverted)
             TextField("Remapeamento DDC (hexadecimal)", text: base.remap)

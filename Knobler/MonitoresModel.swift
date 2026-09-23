@@ -8,6 +8,16 @@ enum MonitorSoftwareMethod: String, Codable, CaseIterable { case gamma, overlay 
 struct MonitorCalibration: Codable, Equatable {
     var minimum: Double = 0
     var maximum: Double = 100
+    var automaticMaximum: Bool? = true
+    // Preferências anteriores não distinguiam máximo explícito de autodetecção.
+    var usesHardwareMaximum: Bool { automaticMaximum ?? (maximum == 100) }
+    func detectingMaximum(_ hardwareMaximum: Double) -> MonitorCalibration {
+        var result = self
+        if usesHardwareMaximum && hardwareMaximum > minimum && hardwareMaximum <= 65535 {
+            result.maximum = hardwareMaximum
+        }
+        return result
+    }
     var curve: Int = 5
     var inverted = false
     var remap = ""
@@ -100,6 +110,12 @@ final class MonitorWorkGate {
 }
 
 enum MonitorRouting {
+    static func cursorTarget(_ displays: [MonitorState], frames: [(UInt32, CGRect)], point: CGPoint) -> UInt32? {
+        guard let (id, _) = frames.first(where: { $0.1.contains(point) }),
+              displays.contains(where: { $0.id == id && $0.preferences.keyboardEnabled && !$0.busy }) else { return nil }
+        return id
+    }
+
     static func audioTarget(_ displays: [MonitorState], uid: String?) -> UInt32? {
         guard let uid, !uid.isEmpty else { return nil }
         let matches = displays.filter { $0.preferences.keyboardEnabled && $0.volume != nil && $0.preferences.audioDeviceUID == uid }

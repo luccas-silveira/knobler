@@ -23,10 +23,17 @@ final class Monitores: ObservableObject {
     private var appleIDs = Set<UInt32>()
     // Injeção restrita aos self-checks: exercita a fila real sem APIs de tela ou persistência.
     private var testWrite: ((UInt32, MonitorCommand, Double, () -> Bool) -> Bool)?
+    private var testRestore: (() -> Bool)?
+    private var testAppleRead: ((UInt32) -> Double?)?
+    private var testScreens: (() -> [MonitorState])?
     init() {}
-    init(testDisplays: [MonitorState], write: @escaping (UInt32, MonitorCommand, Double, () -> Bool) -> Bool) {
+    init(testDisplays: [MonitorState], screens: (() -> [MonitorState])? = nil, appleRead: ((UInt32) -> Double?)? = nil, restore: (() -> Bool)? = nil, write: @escaping (UInt32, MonitorCommand, Double, () -> Bool) -> Bool) {
         displays = testDisplays
         testWrite = write
+        testRestore = restore
+        testScreens = screens
+        testAppleRead = appleRead
+        if appleRead != nil { appleIDs = Set(testDisplays.map(\.id)) }
         running = true
     }
     static let shortcutNames: [(title: String, name: KeyboardShortcuts.Name)] = [
@@ -59,7 +66,7 @@ final class Monitores: ObservableObject {
         }
         observers.append((center, token))
     }
-    private func suspend() {
+    func suspend() {
         sleeping = true
         clearWork()
     }
@@ -78,17 +85,17 @@ final class Monitores: ObservableObject {
         }
     }
     // Executada apenas na fila de transportes; a tabela original vive até a confirmação.
-    private func restoreRetained() {
+    @discardableResult private func restoreRetained() -> Bool {
         for (id, backend) in restoring where backend.restoreSoftware() { restoring[id] = nil }
-        let failed = !restoring.isEmpty
+        let failed = !(testRestore?() ?? restoring.isEmpty)
         DispatchQueue.main.async {
             self.restorationError = failed ? "Não foi possível restaurar o brilho original. Tente restaurar novamente." : nil
         }
+        return !failed
     }
     func retryRestoration() {
         queue.async {
-            self.restoreRetained()
-            let restored = self.restoring.isEmpty
+            let restored = self.restoreRetained()
             DispatchQueue.main.async { if restored && self.running { self.refresh() } }
         }
     }
@@ -103,15 +110,18 @@ final class Monitores: ObservableObject {
     }
     /// Encerra apenas depois de restaurar gamma e fechar as sobreposições.
     /// O callback assíncrono mantém AppKit livre para concluir operações já iniciadas.
-    func stop(completion: @escaping () -> Void) {
+    func stop(completion: @escaping (Bool) -> Void) {
         stop()
-        queue.async { DispatchQueue.main.async(execute: completion) }
+        queue.async {
+            let restored = self.restoreRetained()
+            DispatchQueue.main.async { completion(restored) }
+        }
     }
     func refresh() {
         guard running, !sleeping else { return }
         clearWork()
         let generation = epoch
-        let screens = NSScreen.screens.compactMap { screen -> MonitorState? in
+        let screens = testScreens?() ?? NSScreen.screens.compactMap { screen -> MonitorState? in
             guard let id = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? UInt32 else { return nil }
             let uuid = CGDisplayCreateUUIDFromDisplayID(id).takeRetainedValue()
             let identity = CFUUIDCreateString(nil, uuid) as String
@@ -131,6 +141,7 @@ final class Monitores: ObservableObject {
             for var state in screens {
                 guard self.gate.accepts(ticket, key: "discovery") else { return }
                 if self.restoring[state.id] != nil {
+                    state.busy = false
                     state.error = "Restaure o brilho original antes de continuar."
                     let blocked = state
                     DispatchQueue.main.async {
@@ -159,9 +170,9 @@ final class Monitores: ObservableObject {
                 }
                 for (command, maximum) in result.maxima where command != .mute {
                     switch command {
-                    case .brightness: if state.preferences.brightnessCalibration.maximum == 100 { state.preferences.brightnessCalibration.maximum = maximum }
-                    case .contrast: if state.preferences.contrastCalibration.maximum == 100 { state.preferences.contrastCalibration.maximum = maximum }
-                    case .volume: if state.preferences.volumeCalibration.maximum == 100 { state.preferences.volumeCalibration.maximum = maximum }
+                    case .brightness: state.preferences.brightnessCalibration = state.preferences.brightnessCalibration.detectingMaximum(maximum)
+                    case .contrast: state.preferences.contrastCalibration = state.preferences.contrastCalibration.detectingMaximum(maximum)
+                    case .volume: state.preferences.volumeCalibration = state.preferences.volumeCalibration.detectingMaximum(maximum)
                     case .mute: break
                     }
                 }
@@ -266,9 +277,42 @@ final class Monitores: ObservableObject {
         guard running, !sleeping else { return false }
         let id: UInt32?
         if command == .brightness || command == .contrast {
-            id = NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) }?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? UInt32
+            let frames = NSScreen.screens.compactMap { screen -> (UInt32, CGRect)? in
+                guard let id = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? UInt32 else { return nil }
+                return (id, screen.frame)
+            }
+            id = MonitorRouting.cursorTarget(displays, frames: frames, point: NSEvent.mouseLocation)
         } else { id = MonitorRouting.audioTarget(displays, uid: Self.activeAudioUID()) }
-        guard let id, let state = displays.first(where: { $0.id == id }), state.preferences.keyboardEnabled, !state.busy else { return false }
+        guard let id else { return false }
+        return handleKey(command, increase: increase, fine: fine, displayID: id)
+    }
+    @discardableResult func handleKey(_ command: MonitorCommand, increase: Bool, fine: Bool, displayID id: UInt32) -> Bool {
+        guard running, !sleeping, let state = displays.first(where: { $0.id == id }), state.preferences.keyboardEnabled, !state.busy else { return false }
+        // Uma leitura pontual acompanha brilho automático/externo sem polling quando a sincronização está desligada.
+        if command == .brightness, appleIDs.contains(id), state.preferences.mode != .software,
+           pending[id]?[.brightness] == nil {
+            let generation = epoch
+            queue.async {
+                let observed = self.testAppleRead?(id) ?? self.backends[id]?.appleBrightness()
+                DispatchQueue.main.async {
+                    guard generation == self.epoch, self.running, !self.sleeping,
+                          let index = self.displays.firstIndex(where: { $0.id == id }) else { return }
+                    if self.pending[id]?[.brightness] == nil {
+                        guard let observed else {
+                            self.displays[index].error = "Não foi possível ler o brilho do monitor. Tente novamente."
+                            return
+                        }
+                        self.applyAppleBrightness(observed, displayID: id)
+                    }
+                    self.applyKey(command, increase: increase, fine: fine, displayID: id)
+                }
+            }
+            return true
+        }
+        return applyKey(command, increase: increase, fine: fine, displayID: id)
+    }
+    @discardableResult private func applyKey(_ command: MonitorCommand, increase: Bool, fine: Bool, displayID id: UInt32) -> Bool {
+        guard let state = displays.first(where: { $0.id == id }) else { return false }
         if command == .brightness && state.preferences.mode == .hardware && !state.hardwareBrightness { return false }
         if command == .mute {
             guard state.preferences.enableMute, state.muteSupported else { return false }
@@ -287,29 +331,33 @@ final class Monitores: ObservableObject {
         // DisplayServices não publica notificações; só observamos quando a sincronização está em uso.
         appleTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.observeAppleBrightness() }
     }
-    private func observeAppleBrightness() {
+    func observeAppleBrightness() {
         guard !appleReadPending else { return }
         appleReadPending = true
         let generation = epoch
         let participating = displays.filter { $0.preferences.synchronize && $0.preferences.mode != .software && pending[$0.id]?[.brightness] == nil }
         queue.async {
             let observed = participating.compactMap { state -> (UInt32, Double)? in
-                guard let value = self.backends[state.id]?.appleBrightness() else { return nil }
+                guard let value = self.testAppleRead?(state.id) ?? self.backends[state.id]?.appleBrightness() else { return nil }
                 return (state.id, value)
             }
             DispatchQueue.main.async {
                 guard generation == self.epoch else { return }
                 self.appleReadPending = false
                 for (id, value) in observed {
-                    guard let index = self.displays.firstIndex(where: { $0.id == id }), self.pending[id]?[.brightness] == nil else { continue }
-                    let delta = value - self.displays[index].brightness
-                    guard abs(delta) > 0.005 else { continue }
-                    self.displays[index].brightness = value
-                    for (target, level) in MonitorRouting.relativeTargets(self.displays, source: id, delta: delta) {
-                        self.set(.brightness, value: level, displayID: target, synchronize: false)
-                    }
+                    guard self.pending[id]?[.brightness] == nil else { continue }
+                    self.applyAppleBrightness(value, displayID: id)
                 }
             }
+        }
+    }
+    private func applyAppleBrightness(_ value: Double, displayID id: UInt32) {
+        guard let index = displays.firstIndex(where: { $0.id == id }) else { return }
+        let delta = value - displays[index].brightness
+        displays[index].brightness = value
+        guard abs(delta) > 0.005 else { return }
+        for (target, level) in MonitorRouting.relativeTargets(displays, source: id, delta: delta) {
+            set(.brightness, value: level, displayID: target, synchronize: false)
         }
     }
     private static func audioString(_ id: AudioObjectID, selector: AudioObjectPropertySelector) -> String? {

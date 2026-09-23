@@ -218,7 +218,38 @@ func configurarLembretes(_ vm: NotchViewModel, estado: String) {
     vm.focar(.lembretesApple)
 }
 
+@MainActor
+func configurarMonitores(_ vm: NotchViewModel, estado: String) {
+    let interna = MonitorState(id: 1, persistentID: "snapshot-interna", name: "Tela integrada",
+        brightness: 0.65, hardwareBrightness: true)
+    var externa = MonitorState(id: 2, persistentID: "snapshot-externa", name: "Monitor externo",
+        brightness: 0.72, contrast: 0.5, volume: 0.35, muteSupported: true, hardwareBrightness: true)
+    externa.preferences.enableMute = true
+    if estado == "software" {
+        externa.contrast = nil
+        externa.volume = nil
+        externa.hardwareBrightness = false
+        externa.software = true
+        externa.brightness = 0.3
+    }
+    if estado == "erro" { externa.error = "Não foi possível ajustar o brilho deste monitor." }
+    Monitores.shared.displays = estado == "interna" ? [interna] : estado == "multiplas" ? [interna, externa] : [externa]
+    vm.monitoresDisponiveis = true
+    vm.displayID = 1
+    vm.setExpandedDirect(true)
+    vm.monitoresSelecionado = estado == "interna" ? 1 : 2
+    vm.monitoresContraste = estado == "contraste"
+    vm.secoes = [.monitores, .musica]
+    vm.focar(.monitores)
+}
+
 let scenarios: [Scenario] = [
+    Scenario(name: "monitores-interna", realNotch: true, frameHeight: 360) { vm, _, _ in configurarMonitores(vm, estado: "interna") },
+    Scenario(name: "monitores-ddc", realNotch: true, frameHeight: 360) { vm, _, _ in configurarMonitores(vm, estado: "ddc") },
+    Scenario(name: "monitores-software", realNotch: false, frameHeight: 360) { vm, _, _ in configurarMonitores(vm, estado: "software") },
+    Scenario(name: "monitores-multiplas", realNotch: true, frameHeight: 360) { vm, _, _ in configurarMonitores(vm, estado: "multiplas") },
+    Scenario(name: "monitores-contraste", realNotch: true, frameHeight: 400) { vm, _, _ in configurarMonitores(vm, estado: "contraste") },
+    Scenario(name: "monitores-erro", realNotch: true, frameHeight: 400) { vm, _, _ in configurarMonitores(vm, estado: "erro") },
     Scenario(name: "closed-idle", realNotch: true) { _, _, _ in },
     Scenario(name: "closed-music", realNotch: true) { _, media, _ in
         media.injectPreview(state: fakeState(), artwork: fakeArtwork())
@@ -729,6 +760,7 @@ for scenario in scenarios {
     // mesma razão: a nota também é singleton, e o pontinho dela apareceria em
     // todo notch fechado depois do cenário que a liga
     QuickNote.shared.active = false
+    Monitores.shared.displays = []
     // anéis desenhados já no nível final: o ImageRenderer não roda a entrada
     BatteryRingView.animaEntrada = false
     scenario.configure(vm, media, askStore)
@@ -775,7 +807,7 @@ for scenario in scenarios {
     .frame(width: 560, height: scenario.frameHeight)
 
     let png: Data
-    if scenario.name.hasPrefix("agenda-") || scenario.name.hasPrefix("lembretes-") {
+    if scenario.name.hasPrefix("agenda-") || scenario.name.hasPrefix("lembretes-") || scenario.name.hasPrefix("monitores-") {
         // ScrollView usa backing AppKit e sai preta no ImageRenderer. Uma
         // janela sintética permite capturar a lista real, sem eventos pessoais.
         _ = NSApplication.shared

@@ -1667,14 +1667,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // Sem a peça Descanso instalada não há serviço, logo não há veto — nunca
     // há overlay em curso pra travar o quit (005/comportamento esperado).
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        (descansoServico?.isActive ?? false) ? .terminateCancel : .terminateNow
+        guard !(descansoServico?.isActive ?? false) else { return .terminateCancel }
+        // A restauração usa a fila dos monitores; o processo precisa sobreviver até ela terminar.
+        Monitores.shared.stop { restored in
+            sender.reply(toApplicationShouldTerminate: restored)
+            if !restored { self.showSettings(pane: .monitores) }
+        }
+        return .terminateLater
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         // a nota morre com o app; desligar aqui é o que joga o texto no
         // clipboard antes (o didSet de `active`) em vez de sumir com ele
         QuickNote.shared.active = false
-        Monitores.shared.stop()
+        // Monitores já restaurou o escurecimento em applicationShouldTerminate.
         // devolve o OSD nativo — sem o Knobler o usuário fica sem HUD nenhum
         OSDSuppressor.restore()
         // devolve o preview do print (senão ficaria sem preview E sem shelf)

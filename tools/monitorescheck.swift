@@ -37,6 +37,16 @@ import Foundation
         assert(!gate.accepts(latest, key: "brightness"))
         var one = MonitorState(id: 1, persistentID: "one", name: "Um", brightness: 0.3, volume: 0.5)
         var two = MonitorState(id: 2, persistentID: "two", name: "Dois", brightness: 0.7, volume: 0.2)
+        let frames: [(UInt32, CGRect)] = [(1, CGRect(x: -1920, y: 0, width: 1920, height: 1080)),
+                                          (2, CGRect(x: 0, y: -200, width: 1440, height: 900))]
+        assert(MonitorRouting.cursorTarget([one, two], frames: frames, point: CGPoint(x: -100, y: 500)) == 1)
+        assert(MonitorRouting.cursorTarget([one, two], frames: frames, point: CGPoint(x: 0, y: 500)) == 2)
+        assert(MonitorRouting.cursorTarget([one, two], frames: frames, point: CGPoint(x: 100, y: -100)) == 2)
+        assert(MonitorRouting.cursorTarget([one, two], frames: frames, point: CGPoint(x: 2000, y: 500)) == nil)
+        assert(MonitorRouting.cursorTarget([one, two], frames: [], point: .zero) == nil)
+        one.preferences.keyboardEnabled = false
+        assert(MonitorRouting.cursorTarget([one, two], frames: frames, point: CGPoint(x: -100, y: 500)) == nil)
+        one.preferences.keyboardEnabled = true
         one.preferences.audioDeviceUID = "speakers"
         assert(MonitorRouting.audioTarget([one, two], uid: "speakers") == 1)
         two.preferences.audioDeviceUID = "speakers"
@@ -50,6 +60,14 @@ import Foundation
         var remapped = MonitorPreferences()
         remapped.volumeCalibration.remap = "62,63"
         assert(remapped.calibration(.mute).codes(default: 0x8D) == [0x8D])
+        var maximum = MonitorCalibration()
+        assert(maximum.detectingMaximum(255).maximum == 255)
+        maximum.automaticMaximum = false
+        assert(maximum.detectingMaximum(255).maximum == 100, "Máximo explícito 100 não é sentinela")
+        let restoredMaximum = try! JSONDecoder().decode(MonitorCalibration.self, from: JSONEncoder().encode(maximum))
+        assert(restoredMaximum.detectingMaximum(255).maximum == 100)
+        let legacy = Data(#"{"minimum":0,"maximum":80,"curve":5,"inverted":false,"remap":""}"#.utf8)
+        assert(try! JSONDecoder().decode(MonitorCalibration.self, from: legacy).detectingMaximum(255).maximum == 80)
         let data = try! JSONEncoder().encode(one.preferences)
         assert(try! JSONDecoder().decode(MonitorPreferences.self, from: data) == one.preferences)
         print("Monitores: calibração, roteamento, sincronização relativa e invalidação OK")

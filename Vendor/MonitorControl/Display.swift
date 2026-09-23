@@ -53,8 +53,7 @@ final class MonitorDisplay {
                 guard valid() else { break }
                 if command == .mute && !p.enableMute { continue }
                 if let (raw, maximum) = read(command, preferences: p), maximum > 0 || (command == .mute && (raw == 1 || raw == 2)) {
-                    var calibration = p.calibration(command)
-                    if calibration.maximum == 100 { calibration.maximum = Double(maximum) }
+                    let calibration = p.calibration(command).detectingMaximum(Double(maximum))
                     values[command] = command == .mute ? (raw == 1 ? 1 : 0) : calibration.decode(raw)
                     maxima[command] = Double(maximum)
                     if command == .brightness { hardwareBrightness = true }
@@ -71,7 +70,9 @@ final class MonitorDisplay {
     func appleBrightness() -> Double? {
         guard apple else { return nil }
         var value: Float = 0
-        return DisplayServicesGetBrightness(id, &value) == 0 ? Double(value) : nil
+        guard DisplayServicesGetBrightness(id, &value) == 0 else { return nil }
+        values[.brightness] = Double(value)
+        return Double(value)
     }
     private func write(_ command: MonitorCommand, raw: UInt16, preferences p: MonitorPreferences, valid: () -> Bool) -> Bool {
         guard valid(), let codes = p.calibration(command).codes(default: code(command)) else { return false }
@@ -97,6 +98,7 @@ final class MonitorDisplay {
     // Passos de Display.setSmoothBrightness do upstream; canceláveis entre cada escrita.
     func setSmooth(_ command: MonitorCommand, value: Double, preferences p: MonitorPreferences, valid: () -> Bool) -> Bool {
         guard command == .brightness else { return set(command, value: value, preferences: p, valid: valid) }
+        if apple && p.mode != .software && appleBrightness() == nil { return false }
         var current = values[.brightness] ?? value
         while abs(current - value) >= 0.01 {
             guard valid() else { return false }

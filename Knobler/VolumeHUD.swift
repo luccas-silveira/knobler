@@ -176,7 +176,7 @@ final class VolumeHUDController {
         CGEvent.tapEnable(tap: eventTap, enable: true)
     }
 
-    private func handle(_ cgEvent: CGEvent) -> Unmanaged<CGEvent>? {
+    func handle(_ cgEvent: CGEvent) -> Unmanaged<CGEvent>? {
         if cgEvent.type == .tapDisabledByTimeout || cgEvent.type == .tapDisabledByUserInput {
             if let eventTap { CGEvent.tapEnable(tap: eventTap, enable: true) }
             return Unmanaged.passRetained(cgEvent)
@@ -230,6 +230,12 @@ final class VolumeHUDController {
                 monitorKeys.insert(keyCode)
                 return nil
             }
+        }
+
+        // Com a peça ativa, uma tela excluída ou indisponível devolve a tecla ao macOS.
+        // O fallback antigo sempre escolhe a tela interna, que pode ser outro destino.
+        if Monitores.shared.running, Self.brightnessKeyCodes.contains(keyCode) {
+            return Unmanaged.passRetained(cgEvent)
         }
 
         let isVolume = Self.volumeKeyCodes.contains(keyCode)
