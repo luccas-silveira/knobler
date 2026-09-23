@@ -31,6 +31,13 @@ enum PresentationCheck {
         opening.suspend()
         assert(!opening.hovering)
         assert(opening.fire(beforeSuspend, now: 17, linkOpen: false) == nil)
+        do {
+            var o = NotchOpening()
+            o.hover(true, typing: false, now: 20, openDelay: 1)
+            assert(o.pending?.deadline == 21)
+            o.hover(true, typing: false, now: 22, openOnHover: false)
+            assert(o.pending == nil && o.hovering)
+        }
 
         var state = NotchContentState(question: true, incoming: true, reply: true,
             dictation: true, typingNote: true, notification: true, hud: true,

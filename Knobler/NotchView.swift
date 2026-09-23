@@ -251,6 +251,12 @@ struct NotchView: View {
                 notch
             }
         }
+        // modo clique: o hover só registra a presença, quem abre é o toque
+        .simultaneousGesture(TapGesture().onEnded {
+            if settings.notchAbrirComClique, mode == .closed || mode == .pomodoro {
+                vm.setExpandedDirect(true)
+            }
+        })
         .onHover { inside in
             // card de AirPods segurado solta em qualquer saída, mesmo se outro
             // modo (HUD, notificação) estiver por cima nessa hora

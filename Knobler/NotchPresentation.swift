@@ -86,14 +86,15 @@ struct NotchOpening {
         expanded = value
     }
 
-    mutating func hover(_ inside: Bool, typing: Bool, now: TimeInterval) {
+    mutating func hover(_ inside: Bool, typing: Bool, now: TimeInterval,
+                        openDelay: TimeInterval = Self.openDelay, openOnHover: Bool = true) {
         cancel()
         hovering = inside
         if inside {
-            guard !expanded, now - collapsedAt >= Self.cooldown else { return }
+            guard openOnHover, !expanded, now - collapsedAt >= Self.cooldown else { return }
         }
         pending = Pending(generation: generation,
-                          deadline: now + (inside ? Self.openDelay : (typing ? Self.typingDelay : Self.closeDelay)),
+                          deadline: now + (inside ? openDelay : (typing ? Self.typingDelay : Self.closeDelay)),
                           expanded: inside)
     }
 

@@ -25,6 +25,14 @@ final class AppSettings: ObservableObject {
     @Published var agentesClaudeUso: Bool {
         didSet { UserDefaults.standard.set(agentesClaudeUso, forKey: "agentesClaudeUso") }
     }
+    /// Card abre só com clique no notch, não ao passar o mouse.
+    @Published var notchAbrirComClique: Bool {
+        didSet { UserDefaults.standard.set(notchAbrirComClique, forKey: "notchAbrirComClique") }
+    }
+    /// Segundos com o cursor parado no notch até o card abrir (modo hover).
+    @Published var notchAtrasoHover: Double {
+        didSet { UserDefaults.standard.set(notchAtrasoHover, forKey: "notchAtrasoHover") }
+    }
     @Published var volumeHUD: Bool {
         didSet { UserDefaults.standard.set(volumeHUD, forKey: "volumeHUD") }
     }
@@ -285,6 +293,8 @@ final class AppSettings: ObservableObject {
         func flag(_ key: String) -> Bool { defaults.object(forKey: key) as? Bool ?? true }
         notchNotifications = flag("notchNotifications")
         volumeHUD = flag("volumeHUD")
+        notchAbrirComClique = defaults.bool(forKey: "notchAbrirComClique")
+        notchAtrasoHover = defaults.object(forKey: "notchAtrasoHover") as? Double ?? NotchOpening.openDelay
         brightnessHUD = flag("brightnessHUD")
         batteryAlerts = flag("batteryAlerts")
         liveAudioVisualizer = flag("liveAudioVisualizer")

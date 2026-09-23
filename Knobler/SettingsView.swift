@@ -278,6 +278,23 @@ struct NotchSettingsPane: View {
 
     var body: some View {
         Form {
+            Section("Abrir o card") {
+                Picker("Abrir com", selection: $settings.notchAbrirComClique) {
+                    Text("Passar o mouse").tag(false)
+                    Text("Clicar").tag(true)
+                }
+                .pickerStyle(.segmented)
+                if !settings.notchAbrirComClique {
+                    LabeledContent("Atraso") {
+                        HStack {
+                            Slider(value: $settings.notchAtrasoHover, in: 0.1...1, step: 0.05)
+                            Text(settings.notchAtrasoHover, format: .number.precision(.fractionLength(2)))
+                                .monospacedDigit()
+                            Text("s")
+                        }
+                    }
+                }
+            }
             Section("Ordem das seções do card") {
                 Text("O olho esconde a seção do card. O alfinete mantém a seção no card mesmo sem conteúdo.")
                     .font(.caption)

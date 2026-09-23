@@ -486,7 +486,9 @@ final class NotchViewModel: ObservableObject {
         // trocar de seção pode encolher o card e deixar o cursor do lado de
         // fora sem ele ter saído: a saída logo depois ganha o prazo longo, e
         // voltar o mouse pro card cancela o fechamento
-        opening.hover(inside, typing: typingNote || now - focoTrocadoEm < 1, now: now)
+        let settings = AppSettings.shared
+        opening.hover(inside, typing: typingNote || now - focoTrocadoEm < 1, now: now,
+                      openDelay: settings.notchAtrasoHover, openOnHover: !settings.notchAbrirComClique)
         guard let request = opening.pending else { return }
         let work = DispatchWorkItem { [weak self] in
             guard let self,
