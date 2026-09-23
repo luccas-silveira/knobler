@@ -104,7 +104,7 @@ final class Monitores: ObservableObject {
         running = false
         sleeping = false
         observers.forEach { $0.0.removeObserver($0.1) }; observers.removeAll()
-        KeyboardShortcuts.removeAllHandlers()
+        Self.shortcutNames.forEach { KeyboardShortcuts.removeHandlers(for: $0.name) }
         clearWork()
         displays = []
     }

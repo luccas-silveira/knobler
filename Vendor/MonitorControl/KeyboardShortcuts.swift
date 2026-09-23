@@ -173,6 +173,16 @@ enum KeyboardShortcuts {
     self.eventHandler = nil
   }
 
+  /// Knobler: remove só os handlers de um nome. `removeAllHandlers` derrubava
+  /// o atalho de outras peças quando os Monitores paravam.
+  static func removeHandlers(for name: Name) {
+    self.keyDownHandlers[name] = nil
+    self.keyUpHandlers[name] = nil
+    if let shortcut = getShortcut(for: name) {
+      self.unregisterIfUnused(shortcut)
+    }
+  }
+
   static func setShortcut(_ shortcut: Shortcut?, for name: Name) {
     guard let shortcut else {
       self.userDefaultsRemove(name: name)

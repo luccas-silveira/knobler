@@ -49,6 +49,8 @@
   `monitores.` no domínio Knobler, sem importar valores do aplicativo original.
   `KeyboardShortcuts.swift` preserva registro Carbon e gravador; textos pt-BR,
   navegação por teclado e remoção do handler ao desativar foram adaptados.
+  2026-09-23 — `removeHandlers(for:)` adicionado pelo Knobler; Monitores deixou
+  de usar `removeAllHandlers`.
 - **Bindings:** frameworks privados Apple `DisplayServices` e `CoreDisplay`,
   além de IOKit/CoreGraphics/CoreAudio. Não se inclui updater, login helper,
   preferências ou capturador de teclas de mídia upstream.

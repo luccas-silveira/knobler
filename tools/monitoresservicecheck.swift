@@ -17,7 +17,9 @@ enum KeyboardShortcuts {
     struct Name { init(_ value: String) {} }
     static func enable(_ name: Name) {}
     static func onKeyDown(for name: Name, action: @escaping () -> Void) {}
-    static func removeAllHandlers() {}
+    static var removidosTodos = 0, removidosPorNome = 0
+    static func removeAllHandlers() { removidosTodos += 1 }
+    static func removeHandlers(for name: Name) { removidosPorNome += 1 }
 }
 
 @main struct MonitorServiceChecks {
@@ -58,6 +60,10 @@ enum KeyboardShortcuts {
         assert(writes[0].0 == 1 && writes[2].0 == 1 && writes[0].1 == writes[2].1)
         assert(writes[1].0 == 2 && writes[3].0 == 2 && writes[1].1 == writes[3].1)
         lock.unlock()
+        // Parar os Monitores não pode derrubar atalho de outra peça (⌃⇧T do Texto da tela).
+        service.stop()
+        assert(KeyboardShortcuts.removidosTodos == 0, "stop() apagou os atalhos de todo mundo")
+        assert(KeyboardShortcuts.removidosPorNome == Monitores.shortcutNames.count)
         service.set(.brightness, value: 0.9, displayID: 1)
         var stopped: Bool?
         service.stop { stopped = $0 }
