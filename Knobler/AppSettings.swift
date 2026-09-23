@@ -210,6 +210,11 @@ final class AppSettings: ObservableObject {
         }
     }
 
+    /// Atalhos do Quick Actions, em ordem. Independente da barra.
+    @Published var acoesRapidas: [NotchSection] {
+        didSet { UserDefaults.standard.set(acoesRapidas.map(\.rawValue), forKey: "acoesRapidas") }
+    }
+
     /// Seção com evento recente passa na frente da ordem salva.
     @Published var promoverSecoesRecentes: Bool {
         didSet { UserDefaults.standard.set(promoverSecoesRecentes, forKey: "promoverSecoesRecentes") }
@@ -338,8 +343,20 @@ final class AppSettings: ObservableObject {
             salva: defaults.stringArray(forKey: "notchSectionOrder") ?? [])
         notchSectionsFixadas = NotchSectionOrder.sanearFixadas(
             salvas: defaults.stringArray(forKey: "notchSectionsFixadas") ?? [])
-        notchSectionsOcultas = NotchSectionOrder.sanearFixadas(
+        var ocultas = NotchSectionOrder.sanearFixadas(
             salvas: defaults.stringArray(forKey: "notchSectionsOcultas") ?? [])
+        acoesRapidas = NotchSectionOrder.sanearAtalhos(
+            salvos: defaults.stringArray(forKey: "acoesRapidas") ?? [])
+        // a Cor nasce fora da barra (é pra ser usada pelo Quick Actions). Uma vez só:
+        // se o usuário reexibir, o próximo launch não a esconde de novo.
+        if !defaults.bool(forKey: "corOcultaDeFabrica") {
+            ocultas.insert(.cor)
+            // didSet não roda dentro do init: grava à mão, senão o próximo
+            // launch leria a flag ligada e a Cor de volta na barra.
+            defaults.set(ocultas.map(\.rawValue).sorted(), forKey: "notchSectionsOcultas")
+            defaults.set(true, forKey: "corOcultaDeFabrica")
+        }
+        notchSectionsOcultas = ocultas
         promoverSecoesRecentes = flag("promoverSecoesRecentes")              // default true
 
         if let data = defaults.data(forKey: "reminders"),

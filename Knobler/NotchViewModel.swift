@@ -106,6 +106,7 @@ final class NotchViewModel: ObservableObject {
     @Published var monitoresArrastando = false
     @Published var monitoresContraste = false
     var onMonitoresSettings: ((UInt32) -> Void)?
+    var onAbrirAjustesDoNotch: (() -> Void)?
     var onLembretesView: (() -> AnyView)?
     var onAtualizarLembretes: (() -> Void)?
     @Published var lembretesEditando = false
@@ -302,6 +303,9 @@ final class NotchViewModel: ObservableObject {
             .lembretesApple: true,
             .monitores: monitoresDisponiveis,
             .agentes: hasAgentes,
+            // páginas fixas, como a anotação
+            .acoesRapidas: true,
+            .cor: true,
         ]
         return NotchSection.allCases.map {
             NotchSectionState(section: $0,
@@ -325,7 +329,8 @@ final class NotchViewModel: ObservableObject {
         // esse nil apagaria a escolha do usuário sem que ele tenha escolhido.
         didSet {
             guard let focus, focus != oldValue else { return }
-            UserDefaults.standard.set(focus.rawValue, forKey: Self.focoSalvoKey)
+            UserDefaults.standard.set(NotchSectionOrder.focoParaGuardar(focus, secoes: secoes).rawValue,
+                                      forKey: Self.focoSalvoKey)
             if oldValue == .agenda || oldValue == .lembretesApple { resumePendingNotifications() }
         }
     }
@@ -427,9 +432,24 @@ final class NotchViewModel: ObservableObject {
 
     /// Swipe horizontal no card: anda um passo na faixa e trava, igual ao clique.
     func focarVizinho(avancando: Bool) {
-        guard let atual = focus, let i = secoes.firstIndex(of: atual), secoes.count > 1 else { return }
-        let destino = (i + (avancando ? 1 : -1) + secoes.count) % secoes.count
-        focar(secoes[destino])
+        guard let atual = focus,
+              let destino = NotchSectionOrder.vizinho(de: atual, em: secoes, avancando: avancando)
+        else { return }
+        focar(destino)
+    }
+
+    /// Foco numa seção fora da faixa, aberta por atalho do Quick Actions. Dura
+    /// até o card fechar.
+    var emVisita: Bool { focus.map { !secoes.contains($0) } ?? false }
+
+    func abrirAtalho(_ s: NotchSection) {
+        if secoes.contains(s) { focar(s); return }
+        if focus == .nota, typingNote { QuickNote.shared.editing = false }
+        focoPendente = nil
+        focoTrocadoEm = ProcessInfo.processInfo.systemUptime
+        NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .default)
+        focus = s
+        focusLocked = true
     }
 
     func publicarAltura(_ h: CGFloat) {
@@ -536,7 +556,7 @@ final class NotchViewModel: ObservableObject {
             if typingNote { QuickNote.shared.editing = false }
             monitoresArrastando = false
             mirrorOn = false
-            focoAoFechar = focusLocked ? focus.map { ($0, ProcessInfo.processInfo.systemUptime) } : nil
+            focoAoFechar = focusLocked ? focus.map { (NotchSectionOrder.focoParaGuardar($0, secoes: secoes), ProcessInfo.processInfo.systemUptime) } : nil
             focusLocked = false
             focoPendente = nil
         }

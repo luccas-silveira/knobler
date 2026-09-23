@@ -1291,6 +1291,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     MonitoresSettingsSelection.shared.displayID = id
                     self?.showSettings(pane: .monitores)
                 }
+                viewModel.onAbrirAjustesDoNotch = { [weak self] in self?.showSettings(pane: .notch) }
                 viewModel.onAtualizarLembretes = { [weak self] in self?.appleReminders.refresh() }
                 viewModel.onLembretesView = { [weak self, weak viewModel, weak panel] in
                     guard let self, let viewModel else { return AnyView(EmptyView()) }
