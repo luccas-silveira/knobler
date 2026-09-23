@@ -74,6 +74,9 @@ enum PresentationCheck {
             let p = NotchPresentation(content: note, layout: layout)
             assert(p.size == CGSize(width: 430, height: inset + 148 + 60))
             assert(p.keyboard && p.interactionSize.width == 462)
+            var travado = layout
+            travado.alturaMinimaSecao = 200
+            assert(NotchPresentation(content: note, layout: travado).size.height == inset + 200 + 60)
             layout.sectionWidth = NotchMetrics.linkCardWidth
             let link = NotchPresentation(content: NotchContentState(expanded: true, focus: .link), layout: layout)
             assert(link.size.width == 780 && link.interactionSize.width == 812)

@@ -9,6 +9,9 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 ### Added
 - Texto da tela (peça): ⌃⇧T vira o cursor em mira, você seleciona uma área e o texto dela vai pro clipboard.
 
+### Changed
+- Com o card aberto, trocar para uma seção menor não encolhe o card; ele volta ao tamanho natural ao fechar.
+
 ### Fixed
 - Conta-gotas não deixa mais a tela travada pra cliques depois de usado (a 0.33.0 anunciou, mas a correção ficou fora do build).
 - O anel do Claude lê a credencial sem pedir a senha das chaves a cada abertura do app.

@@ -127,6 +127,9 @@ struct NotchPresentation: Equatable {
         var available = CGSize(width: 900, height: 900)
         var closedContent = false
         var sectionHeight: CGFloat = 118
+        /// Maior altura de seção vista desde que o card abriu: trocar para uma
+        /// seção mais baixa não encolhe o card sob o cursor. Zero ao fechar.
+        var alturaMinimaSecao: CGFloat = 0
         var sectionWidth: CGFloat = 430
         var notificationActions = false
         /// Altura a mais do card de notificação: subtítulo e, com o mouse em
@@ -154,7 +157,7 @@ struct NotchPresentation: Equatable {
                             height: layout.notch.height)
         case .music:
             target = CGSize(width: layout.sectionWidth,
-                            height: topInset + layout.sectionHeight + 60)
+                            height: topInset + max(layout.sectionHeight, layout.alturaMinimaSecao) + 60)
         case .notification:
             target = CGSize(width: 380, height: topInset + (layout.notificationActions ? 92 : 56)
                             + min(max(layout.notificationExtra, 0), Self.notificationExtraMax))
