@@ -22,9 +22,10 @@ Nada é baixado. Todo o código já veio no app; instalar é ligar a chave.
 **Incluído no Knobler** — Música, Notificações, Prateleira e AirPods. São de
 fábrica porque substituem algo que o macOS já fazia; não têm botão.
 
-**Plugins** — as doze peças que acrescentam: Pomodoro, Alertas programados, Descanso,
+**Plugins** — as treze peças que acrescentam: Pomodoro, Alertas programados, Descanso,
 Mensagens, Webhooks, Ditado, Espelho, Desenho, Nota rápida, Preview de link,
-Conversão de arquivo e Agentes.
+Conversão de arquivo, Agentes e [Texto da tela](texto-da-tela.md), que nasce
+desinstalada.
 
 ## Instalar e desinstalar
 

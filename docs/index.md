@@ -42,6 +42,7 @@ contratos e explicações para entender decisões.
 - [Shelf de capturas](shelf.md) — inclui conversão de arquivos e AirDrop
 - [Preview de link](link-preview.md) — arraste um link e a página abre no card
 - [Conta-gotas](color-picker.md)
+- [Texto da tela](texto-da-tela.md)
 - [Mensagens LAN](messages.md)
 - [Webhooks](webhooks.md)
 - [AirPods](airpods.md)
