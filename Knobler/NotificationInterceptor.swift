@@ -121,7 +121,7 @@ final class NotificationInterceptor {
         guard let parsed = parse(banner) else { return }
 
         // dedupe por conteúdo (o mesmo banner pode reaparecer com outro handle)
-        let key = "\(parsed.appName ?? "")|\(parsed.title)|\(parsed.body)"
+        let key = "\(parsed.appName ?? "")|\(parsed.title)|\(parsed.subtitle ?? "")|\(parsed.body)"
         if key == lastContentKey, Date().timeIntervalSince(lastContentDate) < 2 { return }
         lastContentKey = key
         lastContentDate = Date()
@@ -151,10 +151,13 @@ final class NotificationInterceptor {
         }
 
         onNotification(NotchNotification(
-            appName: airdrop ? "AirDrop" : Self.appName(forBundleID: Self.defaultBundleID),
+            // sem nome legível fica nil: o card cai no sino em vez de fingir
+            // ser de um app que não é
+            appName: airdrop ? "AirDrop" : parsed.appName,
             title: parsed.title,
             body: parsed.body,
-            bundleID: airdrop ? nil : Self.defaultBundleID,
+            subtitle: parsed.subtitle,
+            doBanner: true,
             iconEmoji: airdrop ? "📥" : nil,
             actionTitles: buttons.map(\.title),
             actionToken: token,
@@ -199,12 +202,6 @@ final class NotificationInterceptor {
     }
 
 
-    /// O Tahoe não expõe o app de origem no banner (AXStackingIdentifier foi
-    /// removido) e o banco da Central de Notificações some com a notificação
-    /// quando ela é lida rápido — nenhuma fonte confiável em tempo real. Como
-    /// o WhatsApp é o único app com notificação ligada neste Mac, todo banner
-    /// interceptado usa o ícone dele. Trocar aqui se habilitar outro app.
-    private static let defaultBundleID = "net.whatsapp.WhatsApp"
 
     private func currentBanners() -> [AXUIElement] {
         guard let app = NSRunningApplication.runningApplications(
@@ -232,38 +229,27 @@ final class NotificationInterceptor {
         return children(of: element).flatMap { bannerDescendants(of: $0, depth: depth + 1) }
     }
 
-    private func parse(_ banner: AXUIElement) -> (appName: String?, title: String, body: String)? {
-        var texts: [String] = []
+    private func parse(_ banner: AXUIElement)
+        -> (appName: String?, title: String, subtitle: String?, body: String)? {
+        var texts: [NotificationRules.TextoDoBanner] = []
         collectStaticTexts(banner, into: &texts)
-        texts = texts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-        guard !texts.isEmpty else { return nil }
-
-        // heurística: banners padrão vêm como [app, título, corpo...];
-        // com 2 textos assume [título, corpo]; com 1, só título
-        switch texts.count {
-        case 1: return (nil, texts[0], "")
-        case 2: return (nil, texts[0], texts[1])
-        default: return (texts[0], texts[1], texts[2...].joined(separator: " — "))
-        }
+        guard let partes = NotificationRules.partes(texts) else { return nil }
+        // no Tahoe o app não é um dos textos: vem no começo da descrição do
+        // banner. O banner comum só expõe a versão formatada
+        // (AXAttributedDescription); o alerta do AirDrop expõe a de texto puro.
+        let descricao = (copyAttribute(banner, "AXAttributedDescription") as? NSAttributedString)?.string
+            ?? stringAttribute(banner, kAXDescriptionAttribute)
+        let app = NotificationRules.appName(fromDescription: descricao) ?? partes.app
+        return (app, partes.title, partes.subtitle, partes.body)
     }
 
-    private static func appName(forBundleID bundleID: String) -> String? {
-        if let app = NSRunningApplication.runningApplications(
-            withBundleIdentifier: bundleID).first {
-            return app.localizedName
-        }
-        guard let url = NSWorkspace.shared.urlForApplication(
-            withBundleIdentifier: bundleID) else { return nil }
-        return FileManager.default.displayName(atPath: url.path)
-            .replacingOccurrences(of: ".app", with: "")
-    }
-
-    private func collectStaticTexts(_ element: AXUIElement, into texts: inout [String], depth: Int = 0) {
-        guard depth <= 8, texts.count < 6 else { return }
+    private func collectStaticTexts(_ element: AXUIElement,
+                                    into texts: inout [NotificationRules.TextoDoBanner],
+                                    depth: Int = 0) {
+        guard depth <= 8, texts.count < 8 else { return }
         if stringAttribute(element, kAXRoleAttribute) == (kAXStaticTextRole as String),
            let value = stringAttribute(element, kAXValueAttribute) {
-            texts.append(value)
+            texts.append(.init(id: stringAttribute(element, kAXIdentifierAttribute), valor: value))
         }
         for child in children(of: element) {
             collectStaticTexts(child, into: &texts, depth: depth + 1)

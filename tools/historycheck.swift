@@ -19,11 +19,41 @@ struct HistoryCheck {
         testMesmoIDUmaVez()
         testTetoDeLinhas()
         testPersistencia()
+        testSubtitleNoDisco()
         testApagar()
         testGesto()
         testZonaDoGesto()
         testInicioDeGesto()
         print("✅ historycheck ok")
+    }
+
+    /// Arquivo gravado antes do subtítulo existir continua carregando; o
+    /// subtítulo novo sobrevive ao disco.
+    static func testSubtitleNoDisco() {
+        let antigo = """
+        [{"id":"\(UUID().uuidString)","appName":"\u{200E}WhatsApp","title":"Ana","body":"Oi",
+          "bundleID":"net.whatsapp.WhatsApp","revealsDownloads":false,"date":\(Date().timeIntervalSinceReferenceDate)}]
+        """
+        let velho = try! JSONDecoder().decode([NotchNotification].self, from: Data(antigo.utf8))
+        assert(velho.count == 1 && velho[0].subtitle == nil && velho[0].title == "Ana",
+               "histórico sem subtitle carrega")
+
+        let n = NotchNotification(appName: "WhatsApp", title: "Ana", body: "Oi",
+                                  subtitle: "Grupo da família")
+        let volta = try! JSONDecoder().decode(
+            NotchNotification.self, from: try! JSONEncoder().encode(n))
+        assert(volta.subtitle == "Grupo da família", "subtitle sobrevive ao disco")
+        let semSub = try! JSONDecoder().decode(
+            NotchNotification.self,
+            from: try! JSONEncoder().encode(NotchNotification(appName: nil, title: "x", body: "")))
+        assert(semSub.subtitle == nil)
+        assert(!semSub.doBanner, "default: não veio de banner")
+        let banner = try! JSONDecoder().decode(
+            NotchNotification.self,
+            from: try! JSONEncoder().encode(NotchNotification(appName: "Mail", title: "x", body: "",
+                                                              doBanner: true)))
+        assert(banner.doBanner, "origem sobrevive ao disco: o clique da linha depende dela")
+        assert(!velho[0].doBanner, "histórico antigo não ganha permissão de abrir app")
     }
 
     /// Mais recente primeiro — a lista é lida de cima pra baixo.

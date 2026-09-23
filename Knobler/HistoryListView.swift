@@ -20,12 +20,6 @@ struct HistoryListView: View {
     /// app que acabou de vir pra frente.
     var onOpen: () -> Void = {}
 
-    private static let hora: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm"
-        return f
-    }()
-
     /// Linha sob o ponteiro — só ela mostra o X, senão a lista vira um mural
     /// de botões de apagar.
     @State private var hovered: UUID?
@@ -65,11 +59,42 @@ struct HistoryListView: View {
     }
 
     private func linha(_ item: NotchNotification) -> some View {
+        HistoryRow(item: item, mostraX: hovered == item.id) { history.remover(item.id) }
+            .contentShape(Rectangle())
+            .onHover { hovered = $0 ? item.id : (hovered == item.id ? nil : hovered) }
+            .onTapGesture {
+                NotchView.openSourceApp(item)
+                onOpen()
+            }
+    }
+}
+
+/// Uma linha do histórico. Separada da lista pra renderizar sozinha no
+/// harness: a lista vive num ScrollView, que sai preto offscreen.
+struct HistoryRow: View {
+    let item: NotchNotification
+    /// O X só aparece na linha sob o ponteiro.
+    let mostraX: Bool
+    let onRemove: () -> Void
+
+    private static let hora: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        return f
+    }()
+
+    var body: some View {
         HStack(alignment: .top, spacing: 8) {
             Text(Self.hora.string(from: item.date))
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(.white.opacity(0.4))
                 .frame(width: 38, alignment: .leading)
+            RemoteAvatarView(iconURL: item.iconURL, iconEmoji: item.iconEmoji,
+                             iconColor: item.iconColor,
+                             fallbackPath: NotchView.appPath(bundleID: item.bundleID,
+                                                             named: item.appName),
+                             escala: 0.5)
+                .frame(width: 16, height: 16)
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 5) {
                     if let app = item.appName {
@@ -82,30 +107,25 @@ struct HistoryListView: View {
                         .foregroundStyle(.white.opacity(0.9))
                         .lineLimit(1)
                 }
-                if !item.body.isEmpty {
-                    Text(item.body)
+                let resto = [item.subtitle, item.body].compactMap { $0 }
+                    .filter { !$0.isEmpty }.joined(separator: " · ")
+                if !resto.isEmpty {
+                    Text(resto)
                         .font(.system(size: 11))
                         .foregroundStyle(.white.opacity(0.55))
                         .lineLimit(1)
                 }
             }
             Spacer(minLength: 0)
-            // o X só existe na linha sob o ponteiro; o `frame` fixo segura o
-            // lugar dele pra linha não dançar no hover
-            Button { history.remover(item.id) } label: {
+            // o `frame` fixo segura o lugar do X pra linha não dançar no hover
+            Button(action: onRemove) {
                 Image(systemName: "xmark")
                     .font(.system(size: 9, weight: .bold))
                     .foregroundStyle(.white.opacity(0.5))
             }
             .buttonStyle(.plain)
-            .opacity(hovered == item.id ? 1 : 0)
+            .opacity(mostraX ? 1 : 0)
             .frame(width: 12)
-        }
-        .contentShape(Rectangle())
-        .onHover { hovered = $0 ? item.id : (hovered == item.id ? nil : hovered) }
-        .onTapGesture {
-            NotchView.openSourceApp(item)
-            onOpen()
         }
     }
 }

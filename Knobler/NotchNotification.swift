@@ -17,6 +17,12 @@ struct NotchNotification: Identifiable, Equatable, Codable {
     let appName: String?
     let title: String
     let body: String
+    /// Linha entre título e corpo (ex.: nome do grupo). Só banner de app tem.
+    var subtitle: String? = nil
+    /// Veio de um banner do sistema (interceptor). Só esses podem ABRIR o app
+    /// pelo nome no clique: o nome de um card da API local vem de qualquer
+    /// processo — ou página web — que alcance 127.0.0.1.
+    var doBanner = false
     /// Bundle ID do app de origem (banners interceptados) — ícone/abrir exatos.
     var bundleID: String? = nil
     /// Alvo de sessão do Supacode: clique na notificação foca worktree/tab.
@@ -63,7 +69,7 @@ struct NotchNotification: Identifiable, Equatable, Codable {
     /// `openURL`, `bundleID`, `revealsDownloads` e os campos do Supacode
     /// sobrevivem — são dados, não handles vivos, e o clique continua valendo.
     private enum CodingKeys: String, CodingKey {
-        case id, appName, title, body, bundleID, supacodeWorktree, supacodeTab
+        case id, appName, title, body, subtitle, doBanner, bundleID, supacodeWorktree, supacodeTab
         case openURL, iconURL, iconEmoji, iconColorRGBA, revealsDownloads
         case webhookID, date
     }
@@ -76,6 +82,8 @@ struct NotchNotification: Identifiable, Equatable, Codable {
         appName = try box.decodeIfPresent(String.self, forKey: .appName)
         title = try box.decode(String.self, forKey: .title)
         body = try box.decode(String.self, forKey: .body)
+        subtitle = try box.decodeIfPresent(String.self, forKey: .subtitle)
+        doBanner = try box.decodeIfPresent(Bool.self, forKey: .doBanner) ?? false
         bundleID = try box.decodeIfPresent(String.self, forKey: .bundleID)
         supacodeWorktree = try box.decodeIfPresent(String.self, forKey: .supacodeWorktree)
         supacodeTab = try box.decodeIfPresent(String.self, forKey: .supacodeTab)
@@ -97,6 +105,8 @@ struct NotchNotification: Identifiable, Equatable, Codable {
         try box.encodeIfPresent(appName, forKey: .appName)
         try box.encode(title, forKey: .title)
         try box.encode(body, forKey: .body)
+        try box.encodeIfPresent(subtitle, forKey: .subtitle)
+        try box.encode(doBanner, forKey: .doBanner)
         try box.encodeIfPresent(bundleID, forKey: .bundleID)
         try box.encodeIfPresent(supacodeWorktree, forKey: .supacodeWorktree)
         try box.encodeIfPresent(supacodeTab, forKey: .supacodeTab)
@@ -117,12 +127,14 @@ struct NotchNotification: Identifiable, Equatable, Codable {
     }
 
     /// O memberwise init some quando existe `init(from:)` — este o repõe, com os
-    /// mesmos defaults, pros 22 pontos que constroem notificação no app.
+    /// mesmos defaults, pros pontos que constroem notificação no app.
     init(
         id: UUID = UUID(),
         appName: String?,
         title: String,
         body: String,
+        subtitle: String? = nil,
+        doBanner: Bool = false,
         bundleID: String? = nil,
         supacodeWorktree: String? = nil,
         supacodeTab: String? = nil,
@@ -141,6 +153,8 @@ struct NotchNotification: Identifiable, Equatable, Codable {
         self.appName = appName
         self.title = title
         self.body = body
+        self.subtitle = subtitle
+        self.doBanner = doBanner
         self.bundleID = bundleID
         self.supacodeWorktree = supacodeWorktree
         self.supacodeTab = supacodeTab

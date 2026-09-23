@@ -1,6 +1,7 @@
 //
-//  tools/sharingcheck.swift — self-check do envio (Sharing) e da regra que
-//  decide o que é botão de ação num alerta do sistema (NotificationInterceptor).
+//  tools/sharingcheck.swift — self-check do envio (Sharing) e das regras puras
+//  do interceptor (NotificationRules): botão de ação, AirDrop, silêncio, e o
+//  conteúdo do banner.
 //  NÃO faz parte do alvo do app.
 //
 //  Rodar:
@@ -21,6 +22,10 @@ struct SharingCheck {
         testAirDropCancel()
         testSilenciarEmReuniao()
         testMicIndicaChamada()
+        testLimpo()
+        testAppNameDaDescricao()
+        testPartesDoBanner()
+        testHaQuanto()
         print("✅ sharingcheck ok")
     }
 
@@ -129,5 +134,79 @@ struct SharingCheck {
         }
         assert(!NotificationRules.isActionTitle(""), "vazio não vira botão")
         assert(!NotificationRules.isActionTitle("   "), "só espaço não vira botão")
+    }
+
+    /// O WhatsApp manda U+200E grudado no nome do app e no texto; sem limpar,
+    /// "‎WhatsApp" nunca casa com o processo e o card perde ícone e clique.
+    static func testLimpo() {
+        assert(NotificationRules.limpo("\u{200E}WhatsApp") == "WhatsApp")
+        assert(NotificationRules.limpo("  Mail \n") == "Mail")
+        assert(NotificationRules.limpo("\u{200E}📷 \u{200E}Foto") == "📷 Foto")
+        assert(NotificationRules.limpo("\u{200E}") == "")
+        // emoji composto depende de ZWJ e VS16, que também são "ignoráveis"
+        assert(NotificationRules.limpo("❤️ te amo") == "❤️ te amo", "coração perdeu o VS16")
+        assert(NotificationRules.limpo("👨‍👩‍👧") == "👨‍👩‍👧", "família perdeu o ZWJ")
+    }
+
+    /// O banner do Tahoe não tem o app nos textos: ele vem no começo da
+    /// descrição, "App, título, corpo", sem escape de vírgula.
+    static func testAppNameDaDescricao() {
+        assert(NotificationRules.appName(fromDescription: "WhatsApp, Ana, Oi") == "WhatsApp")
+        assert(NotificationRules.appName(fromDescription: "\u{200E}WhatsApp, Ana, Grupo, Teste") == "WhatsApp",
+               "formato real, lido do banner em 2026-09-23")
+        assert(NotificationRules.appName(fromDescription: "AirDrop, Recebendo uma foto") == "AirDrop")
+        assert(NotificationRules.appName(fromDescription: "Mail, Oi, tudo bem, e aí") == "Mail",
+               "vírgula no conteúdo não muda o app")
+        assert(NotificationRules.appName(fromDescription: "SemVirgula") == nil,
+               "sem separador não dá pra saber o que é app")
+        assert(NotificationRules.appName(fromDescription: ", corpo") == nil, "nome vazio")
+        assert(NotificationRules.appName(fromDescription: "") == nil)
+        assert(NotificationRules.appName(fromDescription: nil) == nil)
+    }
+
+    static func testPartesDoBanner() {
+        typealias T = NotificationRules.TextoDoBanner
+        func p(_ t: [T]) -> (String, String?, String)? {
+            NotificationRules.partes(t).map { ($0.title, $0.subtitle, $0.body) }
+        }
+        // rotulado: a ordem na árvore não importa, a hora some
+        let r = p([T(id: "date", valor: "agora"), T(id: "body", valor: "Oi"),
+                   T(id: "subtitle", valor: "Grupo da família"), T(id: "title", valor: "Ana")])
+        assert(r?.0 == "Ana" && r?.1 == "Grupo da família" && r?.2 == "Oi")
+        let semSub = p([T(id: "title", valor: "Ana"), T(id: "body", valor: "Oi")])
+        assert(semSub?.0 == "Ana" && semSub?.1 == nil && semSub?.2 == "Oi")
+        let soSub = p([T(id: "subtitle", valor: "Grupo"), T(id: "body", valor: "oi")])
+        assert(soSub?.0 == "Grupo" && soSub?.1 == nil && soSub?.2 == "oi",
+               "sem título, o subtítulo sobe")
+        let soCorpo = p([T(id: "body", valor: "oi"), T(id: "date", valor: "agora")])
+        assert(soCorpo?.0 == "oi" && soCorpo?.2 == "", "só corpo vira título")
+        assert(p([T(id: "date", valor: "agora")]) == nil, "só hora não é notificação")
+        assert(p([T(id: "title", valor: "\u{200E}")]) == nil, "texto invisível é vazio")
+        let limpo = p([T(id: "title", valor: "\u{200E}Ana"), T(id: "body", valor: "\u{200E}📷 Foto")])
+        assert(limpo?.0 == "Ana" && limpo?.2 == "📷 Foto")
+        // sem rótulo nenhum: posição
+        assert(p([]) == nil)
+        let um = p([T(id: nil, valor: "Só título")])
+        assert(um?.0 == "Só título" && um?.1 == nil && um?.2 == "")
+        let dois = p([T(id: nil, valor: "Ana"), T(id: nil, valor: "Oi")])
+        assert(dois?.0 == "Ana" && dois?.1 == nil && dois?.2 == "Oi")
+        // 3+ sem rótulo: macOS antigo, [app, título, corpo…] como sempre foi
+        let quatro = NotificationRules.partes([T(id: nil, valor: "App"), T(id: nil, valor: "B"),
+                                               T(id: nil, valor: "C"), T(id: nil, valor: "D")])
+        assert(quatro?.app == "App" && quatro?.title == "B" && quatro?.subtitle == nil
+               && quatro?.body == "C — D")
+        assert(NotificationRules.partes([T(id: "title", valor: "x")])?.app == nil,
+               "rotulado nunca tira o app dos textos")
+    }
+
+    static func testHaQuanto() {
+        let t0 = Date(timeIntervalSince1970: 1_000_000)
+        func h(_ s: TimeInterval) -> String { NotificationRules.haQuanto(t0, agora: t0 + s) }
+        assert(h(0) == "agora")
+        assert(h(59) == "agora")
+        assert(h(60) == "há 1 min")
+        assert(h(3599) == "há 59 min")
+        assert(h(3600) == "há 1 h")
+        assert(h(-30) == "agora", "relógio pra trás não vira número negativo")
     }
 }
