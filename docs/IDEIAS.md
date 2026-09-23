@@ -47,7 +47,6 @@ A **ordem** de implementação (agrupada por infra compartilhada) mora em
 
 - **WhatsApp Web**: Enviar mensagens via WhatsApp direto do notch (parse da URL, login headless).
 
-- **Progresso do AirDrop no notch**: o app já não atrapalha mais o AirDrop (o alerta do sistema fica de pé) e mostra um card de espelho, mas sem barra de progresso da transferência nem ponto de envio fora do shelf (ex.: item na barra de menus com seletor de arquivo).
 
 ---
 
@@ -147,5 +146,5 @@ A **ordem** de implementação (agrupada por infra compartilhada) mora em
 - **DND inteligente** → "silenciar durante reuniões" e, desde a v0.21.0, também
   durante chamadas — microfone aceso há mais de 20 s conta como call
   (`docs/notifications.md`).
-- **Progresso do AirDrop** → estado do envio no notch, sem percentual (a API do
-  sistema não expõe bytes transferidos).
+- **Progresso do AirDrop** → anel com porcentagem ao receber, destino ao enviar
+  e card final com miniatura e ações (`docs/notifications.md`).

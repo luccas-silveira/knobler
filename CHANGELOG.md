@@ -6,6 +6,14 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- AirDrop no notch: anel azul com porcentagem ao receber, destino ao enviar, e
+  card final com miniatura e ações (Abrir, Mostrar no Finder, Prateleira).
+
+### Fixed
+- O notch da tela embutida não some mais quando um app fica maximizado: só
+  tela cheia de verdade (barra de menus escondida) esconde o notch.
+
 ### Fixed
 - Barras do visualizador acompanham a batida da música em vez de balançar sozinhas.
 
