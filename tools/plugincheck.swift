@@ -24,6 +24,8 @@ struct PluginCheck {
         testSecaoDaFichaExisteNoEnum()
         testDefaultsVazioViraOsOnze()
         testMigracaoRodaUmaVezSo()
+        testAgentesChegaPraQuemJaUsava()
+        testAgentesDesinstaladaNaoVolta()
         testIdDesconhecidoIgnoradoCalado()
         testPecaDesligadaNaoNasce()
         testPecaDesinstaladaNaoNasce()
@@ -136,6 +138,27 @@ struct PluginCheck {
                "a migração rodou de novo e reinstalou tudo")
     }
 
+    /// Quem já tinha migrado (v1, sem Agentes) ganha Agentes uma vez.
+    static func testAgentesChegaPraQuemJaUsava() {
+        let d = defaultsLimpo("plugincheck.agentes.antigo")
+        d.set(1, forKey: PluginsInstalados.chaveMigracao)
+        d.set(["pomodoro"], forKey: PluginsInstalados.chave)
+        _ = PluginHost(defaults: d)
+        assert(PluginsInstalados.ler(d) == [.pomodoro, .agentes], "\(PluginsInstalados.ler(d))")
+    }
+
+    /// Desinstalou, relançou: não volta. Vale pra instalação nova também.
+    static func testAgentesDesinstaladaNaoVolta() {
+        for nova in [true, false] {
+            let d = defaultsLimpo("plugincheck.agentes.volta.\(nova)")
+            if !nova { d.set(1, forKey: PluginsInstalados.chaveMigracao) }
+            let host = PluginHost(defaults: d)
+            assert(host.estaInstalado(.agentes), "Agentes precisa começar instalada (nova=\(nova))")
+            host.desinstalar(.agentes)
+            assert(!PluginHost(defaults: d).estaInstalado(.agentes), "Agentes voltou (nova=\(nova))")
+        }
+    }
+
     /// Id que este build não conhece é ignorado calado — e **não** é apagado:
     /// peça que volte com o mesmo nome volta instalada (ticket 005).
     static func testIdDesconhecidoIgnoradoCalado() {
@@ -156,6 +179,7 @@ struct PluginCheck {
         let d = defaultsLimpo("plugincheck.host")
         PluginsInstalados.gravar([.pomodoro], d)
         d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d.set(true, forKey: PluginsInstalados.chaveAgentes)
 
         let host = PluginHost(defaults: d)
         host.subir()
@@ -179,6 +203,7 @@ struct PluginCheck {
         let d = defaultsLimpo("plugincheck.semcobaia")
         PluginsInstalados.gravar([.descanso], d)
         d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d.set(true, forKey: PluginsInstalados.chaveAgentes)
 
         var nasceu = false
         let host = PluginHost(defaults: d)
@@ -200,6 +225,7 @@ struct PluginCheck {
         // `testSemDescansoNaoTravaATela`).
         PluginsInstalados.gravar([.pomodoro, .descanso], d)
         d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d.set(true, forKey: PluginsInstalados.chaveAgentes)
 
         var estados = 0, bordas: [Bool] = [], pausas: [TimeInterval] = []
         let host = PluginHost(defaults: d)
@@ -240,6 +266,7 @@ struct PluginCheck {
         let d = defaultsLimpo("plugincheck.superficies")
         PluginsInstalados.gravar(Set(PluginID.allCases), d)
         d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d.set(true, forKey: PluginsInstalados.chaveAgentes)
 
         let host = PluginHost(defaults: d)
         assert(host.secoesEscondidas.isEmpty, "escondeu seção com tudo instalado")
@@ -265,6 +292,7 @@ struct PluginCheck {
         let d = defaultsLimpo("plugincheck.semdescanso")
         PluginsInstalados.gravar([.pomodoro], d)
         d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d.set(true, forKey: PluginsInstalados.chaveAgentes)
 
         var pausas: [TimeInterval] = []
         let host = PluginHost(defaults: d)
@@ -299,6 +327,7 @@ struct PluginCheck {
         let d = defaultsLimpo("plugincheck.vitrine")
         PluginsInstalados.gravar(Set(PluginID.allCases), d)
         d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d.set(true, forKey: PluginsInstalados.chaveAgentes)
         let host = PluginHost(defaults: d)
 
         assert(host.estadoDoCard(.pomodoro) == .abrir, "instalada e convertida tem que abrir")
@@ -323,6 +352,7 @@ struct PluginCheck {
         let d = defaultsLimpo("plugincheck.mudo")
         PluginsInstalados.gravar(Set(PluginID.allCases), d)
         d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d.set(true, forKey: PluginsInstalados.chaveAgentes)
         let host = PluginHost(defaults: d)
 
         for peca in PluginRegistry.todos where !peca.pronta {
@@ -332,12 +362,12 @@ struct PluginCheck {
                    "\(peca.nome) ofereceu desinstalar sem nunca ter nascido")
         }
 
-        // As 11 peças convertidas mais Monitores (nasceu peça, na v0.30.0):
+        // As 11 peças convertidas mais Monitores e Agentes:
         // nenhuma mostra mais "Em breve" — se um dia deixar de ser verdade, é
         // este assert que avisa.
         assert(PluginRegistry.todos.filter(\.pronta).map(\.id) ==
                [.monitores, .pomodoro, .lembretes, .descanso, .mensagens, .webhooks, .ditado, .espelho, .anotacao,
-                .notaRapida, .previewLink, .conversao],
+                .notaRapida, .previewLink, .conversao, .agentes],
                "mudou quem está convertido: \(PluginRegistry.todos.filter(\.pronta).map(\.id))")
     }
 
@@ -352,6 +382,7 @@ struct PluginCheck {
         let d = defaultsLimpo("plugincheck.lembretes")
         PluginsInstalados.gravar([.lembretes], d)
         d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d.set(true, forKey: PluginsInstalados.chaveAgentes)
 
         var desligou = false
         let host = PluginHost(defaults: d)
@@ -373,6 +404,7 @@ struct PluginCheck {
         let d2 = defaultsLimpo("plugincheck.semlembretes")
         PluginsInstalados.gravar([.pomodoro], d2)
         d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d2.set(true, forKey: PluginsInstalados.chaveAgentes)
         let host2 = PluginHost(defaults: d2)
         host2.subir()
         assert(!host2.estaVivo(.lembretes), "nasceu sem estar instalada")
@@ -391,6 +423,7 @@ struct PluginCheck {
         let d = defaultsLimpo("plugincheck.descanso")
         PluginsInstalados.gravar([.descanso], d)
         d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d.set(true, forKey: PluginsInstalados.chaveAgentes)
 
         var desligou = false
         var overlayParado = false
@@ -413,6 +446,7 @@ struct PluginCheck {
         let d2 = defaultsLimpo("plugincheck.semdescanso")
         PluginsInstalados.gravar([.pomodoro], d2)
         d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d2.set(true, forKey: PluginsInstalados.chaveAgentes)
         let host2 = PluginHost(defaults: d2)
         host2.subir()
         assert(!host2.estaVivo(.descanso), "nasceu sem estar instalada")
@@ -431,6 +465,7 @@ struct PluginCheck {
         let d = defaultsLimpo("plugincheck.mensagens")
         PluginsInstalados.gravar([.mensagens], d)
         d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d.set(true, forKey: PluginsInstalados.chaveAgentes)
 
         var desligou = false
         let host = PluginHost(defaults: d)
@@ -448,6 +483,7 @@ struct PluginCheck {
         let d2 = defaultsLimpo("plugincheck.semmensagens")
         PluginsInstalados.gravar([.pomodoro], d2)
         d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d2.set(true, forKey: PluginsInstalados.chaveAgentes)
         let host2 = PluginHost(defaults: d2)
         host2.subir()
         assert(!host2.estaVivo(.mensagens), "nasceu sem estar instalada")
@@ -466,6 +502,7 @@ struct PluginCheck {
         let d = defaultsLimpo("plugincheck.webhooks")
         PluginsInstalados.gravar([.webhooks], d)
         d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d.set(true, forKey: PluginsInstalados.chaveAgentes)
 
         var desligou = false
         let host = PluginHost(defaults: d)
@@ -483,6 +520,7 @@ struct PluginCheck {
         let d2 = defaultsLimpo("plugincheck.semwebhooks")
         PluginsInstalados.gravar([.pomodoro], d2)
         d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d2.set(true, forKey: PluginsInstalados.chaveAgentes)
         let host2 = PluginHost(defaults: d2)
         host2.subir()
         assert(!host2.estaVivo(.webhooks), "nasceu sem estar instalada")
@@ -510,6 +548,7 @@ struct PluginCheck {
         let d = defaultsLimpo("plugincheck.ditado")
         PluginsInstalados.gravar([.ditado], d)
         d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d.set(true, forKey: PluginsInstalados.chaveAgentes)
 
         let fake = DitadoServicoFake()
         let host = PluginHost(defaults: d)
@@ -528,6 +567,7 @@ struct PluginCheck {
         let d2 = defaultsLimpo("plugincheck.semditado")
         PluginsInstalados.gravar([.pomodoro], d2)
         d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d2.set(true, forKey: PluginsInstalados.chaveAgentes)
         let host2 = PluginHost(defaults: d2)
         host2.ditadoEfeitos.nascer = { chamou = true; return DitadoServicoFake() }
         host2.subir()
@@ -556,6 +596,7 @@ struct PluginCheck {
         let d = defaultsLimpo("plugincheck.anotacao")
         PluginsInstalados.gravar([.anotacao], d)
         d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d.set(true, forKey: PluginsInstalados.chaveAgentes)
 
         let fake = AnotacaoServicoFake()
         let host = PluginHost(defaults: d)
@@ -574,6 +615,7 @@ struct PluginCheck {
         let d2 = defaultsLimpo("plugincheck.semanotacao")
         PluginsInstalados.gravar([.pomodoro], d2)
         d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d2.set(true, forKey: PluginsInstalados.chaveAgentes)
         let host2 = PluginHost(defaults: d2)
         host2.anotacaoEfeitos.nascer = { chamou = true; return AnotacaoServicoFake() }
         host2.subir()
@@ -602,6 +644,7 @@ struct PluginCheck {
         let d = defaultsLimpo("plugincheck.espelho")
         PluginsInstalados.gravar([.espelho], d)
         d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d.set(true, forKey: PluginsInstalados.chaveAgentes)
 
         let fake = EspelhoServicoFake()
         let host = PluginHost(defaults: d)
@@ -620,6 +663,7 @@ struct PluginCheck {
         let d2 = defaultsLimpo("plugincheck.semespelho")
         PluginsInstalados.gravar([.pomodoro], d2)
         d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d2.set(true, forKey: PluginsInstalados.chaveAgentes)
         let host2 = PluginHost(defaults: d2)
         host2.espelhoEfeitos.nascer = { chamou = true; return EspelhoServicoFake() }
         host2.subir()
@@ -649,6 +693,7 @@ struct PluginCheck {
         let d = defaultsLimpo("plugincheck.notarapida")
         PluginsInstalados.gravar([.notaRapida], d)
         d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d.set(true, forKey: PluginsInstalados.chaveAgentes)
 
         let fake = NotaRapidaServicoFake()
         let host = PluginHost(defaults: d)
@@ -667,6 +712,7 @@ struct PluginCheck {
         let d2 = defaultsLimpo("plugincheck.semnotarapida")
         PluginsInstalados.gravar([.pomodoro], d2)
         d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d2.set(true, forKey: PluginsInstalados.chaveAgentes)
         let host2 = PluginHost(defaults: d2)
         host2.notaRapidaEfeitos.nascer = { chamou = true; return NotaRapidaServicoFake() }
         host2.subir()
@@ -696,6 +742,7 @@ struct PluginCheck {
         let d = defaultsLimpo("plugincheck.previewlink")
         PluginsInstalados.gravar([.previewLink], d)
         d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d.set(true, forKey: PluginsInstalados.chaveAgentes)
 
         let fake = PreviewLinkServicoFake()
         let host = PluginHost(defaults: d)
@@ -714,6 +761,7 @@ struct PluginCheck {
         let d2 = defaultsLimpo("plugincheck.sempreviewlink")
         PluginsInstalados.gravar([.pomodoro], d2)
         d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d2.set(true, forKey: PluginsInstalados.chaveAgentes)
         let host2 = PluginHost(defaults: d2)
         host2.previewLinkEfeitos.nascer = { chamou = true; return PreviewLinkServicoFake() }
         host2.subir()
@@ -739,6 +787,7 @@ struct PluginCheck {
         let d = defaultsLimpo("plugincheck.conversao")
         PluginsInstalados.gravar([.conversao], d)
         d.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d.set(true, forKey: PluginsInstalados.chaveAgentes)
         let host = PluginHost(defaults: d)
         host.subir()
 
@@ -768,6 +817,7 @@ struct PluginCheck {
         let d2 = defaultsLimpo("plugincheck.semconversao")
         PluginsInstalados.gravar([.pomodoro], d2)
         d2.set(PluginsInstalados.versaoMigracao, forKey: PluginsInstalados.chaveMigracao)
+        d2.set(true, forKey: PluginsInstalados.chaveAgentes)
         let host2 = PluginHost(defaults: d2)
         host2.subir()
         assert(!host2.estaVivo(.conversao), "nasceu sem estar instalada")

@@ -37,6 +37,7 @@ private func corDaPeca(_ id: PluginID) -> Color {
     case .previewLink: return .blue
     case .conversao: return .mint
     case .monitores: return .cyan
+    case .agentes: return .pink
     }
 }
 
@@ -225,6 +226,12 @@ struct PluginsSettingsPane: View {
                 if let vm = KnoblerMain.delegate.viewModelPrincipal() {
                     vm.setExpandedDirect(true)
                     vm.focar(.shelf)
+                }
+            case .agentes:
+                // Sem painel: o ABRIR mostra a própria seção no notch.
+                if let vm = KnoblerMain.delegate.viewModelPrincipal() {
+                    vm.setExpandedDirect(true)
+                    vm.focar(.agentes)
                 }
             default:
                 break
