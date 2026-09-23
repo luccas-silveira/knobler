@@ -26,6 +26,14 @@
         "@kimsungwhee/apple-docs-mcp@latest"
       ],
       "env": {}
+    },
+    "graft": {
+      "type": "stdio",
+      "command": "graft",
+      "args": [
+        "mcp"
+      ],
+      "env": {}
     }
   }
 }
