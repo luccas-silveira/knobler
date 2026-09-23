@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-09-23
+
 ### Fixed
 - "Ocultar em tela cheia" funciona em telas com notch: o app em tela cheia
   não cobre a faixa do notch e nunca era reconhecido.
