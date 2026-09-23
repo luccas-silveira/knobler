@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-09-23
+
 ### Added
 - Ajustes: olho em cada seção do card esconde a seção mesmo com conteúdo; interruptor "Subir o que acabou de acontecer" desliga a reordenação automática.
 
