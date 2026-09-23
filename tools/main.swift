@@ -426,6 +426,17 @@ let scenarios: [Scenario] = [
             body: "O item \"Relatório final.pdf\" não pôde ser copiado porque o disco de destino ficou sem espaço durante a operação. Libere espaço no disco externo e tente de novo; os 11 itens anteriores já foram copiados e continuam no destino.")
         vm.holdNotification(true)
     },
+    // AirDrop recebido: miniatura no lugar do ícone e as três ações
+    Scenario(name: "notification-airdrop-recebido", realNotch: true) { vm, _, _ in
+        var n = NotchNotification(appName: "AirDrop", title: "Recebido", body: "IMG_5708.MOV",
+                                  iconEmoji: "📥")
+        n.thumbnail = NSImage(size: NSSize(width: 64, height: 64), flipped: false) { r in
+            NSColor.systemTeal.setFill(); r.fill(); return true
+        }
+        n.actionTitles = ["Abrir", "Mostrar no Finder", "Prateleira"]
+        n.actionToken = UUID()
+        vm.activeNotification = n
+    },
     // app que não se identifica: sino, nunca WhatsApp
     Scenario(name: "notification-sem-app", realNotch: true) { vm, _, _ in
         vm.activeNotification = NotchNotification(

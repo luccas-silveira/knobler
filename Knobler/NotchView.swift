@@ -1396,13 +1396,22 @@ struct NotchView: View {
         return Swift.max(0, agora - compacto + folga)
     }
 
+    @ViewBuilder
     private func appIcon(for notification: NotchNotification) -> some View {
-        RemoteAvatarView(iconURL: notification.iconURL,
-                         iconEmoji: notification.iconEmoji,
-                         iconColor: notification.iconColor,
-                         fallbackPath: Self.appPath(bundleID: notification.bundleID,
-                                                    named: notification.appName))
-            .frame(width: 32, height: 32)
+        if let thumb = notification.thumbnail {
+            Image(nsImage: thumb)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: 32, height: 32)
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        } else {
+            RemoteAvatarView(iconURL: notification.iconURL,
+                             iconEmoji: notification.iconEmoji,
+                             iconColor: notification.iconColor,
+                             fallbackPath: Self.appPath(bundleID: notification.bundleID,
+                                                        named: notification.appName))
+                .frame(width: 32, height: 32)
+        }
     }
 
     /// Estático e internal: a linha do histórico reusa o mesmo clique. O corpo
