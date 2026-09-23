@@ -24,16 +24,16 @@ enviar), código de AirDrop reunido num módulo, e card com mais contexto e aç�
 
 ## Card em andamento
 
-Miniatura do arquivo, barra com %, linha "Recebendo de <par>" /
-"Enviando pra <par>". Alerta do sistema: esconder sem fechar (ex.: mover pra
-fora da tela) **somente** se a pesquisa provar que não interrompe a transferência;
-senão fica visível.
+Miniatura do arquivo e anel com % (recebimento); envio indeterminado com
+"Enviando pra <aparelho>". Recebimento: "Recebendo por AirDrop" + nome do arquivo.
+O alerta "Recebendo" do sistema fica intocado (ver A3).
 
 ## Card no fim
 
-Miniatura, "Recebido de X" / "Enviado pra X", botões **Abrir**, **Mostrar no
-Finder**, **Prateleira** (reusa `actionTitles`/`actionToken`). Duração 10 s. O
-histórico guarda a miniatura.
+Miniatura, "Recebido: <arquivo>" / "Enviado pra <aparelho>", botões **Abrir**,
+**Mostrar no Finder**, **Prateleira** (reusa `actionTitles`/`actionToken`). Duração
+30 s (card acionável). O alerta "AirDrop Concluído" do sistema é fechado.
+Histórico sem miniatura nem botões.
 
 ## Falhas
 
@@ -49,3 +49,27 @@ via `tools/snapshot.sh` com cenários novos (andamento com %, fim com ações).
 ## Fora do escopo
 
 API local de AirDrop; notificação de app de terceiros com ações.
+
+## Decisões do grill
+
+- **A1** — recebimento via `Progress.addSubscriber(forFileURL: ~/Downloads)` confirmado
+  ao vivo (30 atualizações de % num vídeo de ~5 s, com nome do arquivo). Mantido.
+- **A3** — alerta "Recebendo" (transferência viva) nunca é tocado; o alerta
+  "AirDrop Concluído" é fechado e substituído pelo card. Motivo: teste ao vivo mostrou
+  que ele só nasce após o fim da transferência. Descartado "esconder fora da tela".
+- **A4** — recebimento sem nome do par (o alerta não traz): card diz "Recebendo por
+  AirDrop" + nome do arquivo.
+- **A2** — envio sem %: atividade indeterminada com destino lido por AX da janela
+  "AirDrop" do próprio processo (`AXButton desc="<aparelho>, Enviando|Enviado"`).
+  Card: "Enviando pra <aparelho>" / "Enviado pra <aparelho>". Sem destino legível,
+  cai no texto atual.
+- **A8** — "barra" vira o anel com % já existente (`NotchActivity.progress`,
+  `NotchView.swift:1157-1180`). Sem componente novo.
+- **A6** — 10 s descartado: card com botões usa o `actionableDuration` (30 s) existente.
+- **A5** — botões Abrir/Finder/Prateleira só no card vivo (ações não persistem por
+  desenho, `NotchNotification.swift:59-67`); no histórico o clique segue revelando
+  Downloads. Roteamento: ramo novo em `onNotificationAction` pro token de AirDrop.
+- **A7** — miniatura via `ShelfPreview.thumbnail(of:)` (funciona no snapshot; QL não).
+  Só no card vivo; histórico segue com 📥, sem imagem persistida.
+- **A9/A10** — sem decisão: plano atualiza `tools/check.sh`, `tools/notchview-fontes.txt`,
+  `docs/shelf.md`, `docs/notifications.md` e o comentário de `KnoblerApp.swift:157-159`.
