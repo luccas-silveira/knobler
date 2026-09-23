@@ -53,6 +53,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private var notches: [CGDirectDisplayID: ScreenNotch] = [:]
     private var statusItem: NSStatusItem?
+    /// Texto da tela (peça). `nil` com a peça desinstalada.
+    private weak var textoDaTela: TextoDaTelaServico?
     private let media = MediaController()
     private var interceptor: NotificationInterceptor?
     private let volumeHUD = VolumeHUDController()
@@ -577,6 +579,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self?.mirrorAutoOpened = false
                 self?.desligarEspelhoEmTodos()
             }
+        })
+        // Texto da tela: o serviço inteiro nasce aqui; o aviso vai pra todas as
+        // telas, igual ao conta-gotas (notificação construída uma vez, fora do laço).
+        plugins.textoDaTelaEfeitos = TextoDaTelaEfeitos(nascer: { [weak self] in
+            let servico = TextoDaTelaServico { aviso in
+                self?.notches.values.forEach { $0.viewModel.enqueue(aviso) }
+            }
+            self?.textoDaTela = servico
+            return servico
         })
         // A nona conversão (tarefa 8), a segunda sem painel: `QuickNote` é
         // `.shared` (singleton — `NotchView`/`NotchViewModel` seguem lendo
@@ -1485,6 +1496,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         addItem(menu, "Lembretes…", "checklist", #selector(openAppleReminders))
         addItem(menu, "Selecionar cor…", "eyedropper", #selector(pickColor))
+        if textoDaTela != nil {
+            addItem(menu, "Extrair texto da tela…", "text.viewfinder", #selector(extrairTexto))
+        }
         // ponto de envio que não passa pela prateleira: mandar um arquivo não
         // devia obrigar a arrastá-lo pro notch antes
         addItem(menu, "Enviar por AirDrop…", "square.and.arrow.up", #selector(sendAirDrop))
@@ -1674,6 +1688,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Conta-gotas: lupa nativa, HEX no clipboard, card no notch com os outros
     /// formatos. Cancelar (Esc) não mostra nada.
+    @objc private func extrairTexto() { textoDaTela?.acionar() }
+
     @objc private func pickColor() {
         ColorPicker.pick(format: .hex) { [weak self] color in
             guard let self, let color else { return }
