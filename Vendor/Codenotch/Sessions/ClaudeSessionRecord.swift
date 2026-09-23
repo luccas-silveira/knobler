@@ -45,6 +45,8 @@ struct ClaudeSessionRecord {
     init?(json: [String: Any]) {
         guard let pid = (json["pid"] as? NSNumber)?.int32Value,
               let cwd = json["cwd"] as? String else { return nil }
+        // SDK (claude-mem, subagentes de ferramenta): só o agente principal conta
+        if (json["entrypoint"] as? String)?.hasPrefix("sdk-") == true { return nil }
 
         let raw = json["status"] as? String
         let tempo = json["tempo"] as? String        // the normalised form, when present

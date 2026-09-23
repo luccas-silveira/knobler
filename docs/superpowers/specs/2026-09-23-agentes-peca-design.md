@@ -59,8 +59,8 @@ Pesquisa só interna, por pedido do usuário. Dossiê:
   sozinha (limitada pelo timeout do refresher); `parar()` só impede novas. Motivo:
   matar exige mexer no vendor e pode cortar a gravação do token no meio. A
   leitura de uso em curso também não é cancelada; o resultado cai num store já
-  limpo e é descartado (`atualizarUso` checa `claude === self.claude`; o `uso` do
-  Codex é zerado de novo no `parar()` se preciso).
+  limpo e é descartado: `atualizarUso` só grava se `timer != nil` depois de cada
+  `await` (o Claude já checa `self.claude === claude`).
 - **A1** — ABRIR na vitrine abre o notch focado na seção Agentes, como o
   `.previewLink` (`PluginsSettingsPane.swift:211`).
 - **A3** — O passo único marca `plugins.agentes.migrado` também em instalação

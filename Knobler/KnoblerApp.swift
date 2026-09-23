@@ -1595,11 +1595,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if !silenciando {
                 SessionChime.play(esperando ? SessionChime.defaultBlocked : SessionChime.defaultFinished)
             }
+            let codex = evento.providerID == "codex"
+            // bundleID só pro ícone do app da IA; card da API não lança app
             publicar(NotchNotification(
-                appName: evento.providerID == "codex" ? "Codex" : "Claude Code",
+                appName: codex ? "Codex" : "Claude Code",
                 title: evento.session.name,
                 body: esperando ? "Esperando você" : "Concluiu",
-                iconEmoji: esperando ? "✋" : "✅"))
+                bundleID: codex ? "com.openai.codex" : "com.anthropic.claudefordesktop"))
         }
         AgentesUso.shared.iniciar()
     }
