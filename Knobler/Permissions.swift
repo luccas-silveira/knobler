@@ -27,6 +27,10 @@ enum PermissionStatus {
 }
 
 enum Permission: String, CaseIterable, Identifiable {
+    /// O balão de Gravação de tela só aparece uma vez; depois dele quem aciona
+    /// o Texto da tela vai direto pros Ajustes. Gravado por qualquer caminho de pedido.
+    static let chavePediuGravacao = "textoDaTela.pediuGravacao"
+
     case acessibilidade, microfone, camera, calendario, lembretes, bluetooth, redeLocal, arquivos,
          audioSistema, gravacaoTela
 
@@ -221,6 +225,7 @@ enum Permission: String, CaseIterable, Identifiable {
         case .gravacaoTela:
             // O balão aparece uma vez só; a concessão vale depois de relançar
             // (o "Sair e Reabrir" do próprio macOS cobre isso).
+            UserDefaults.standard.set(true, forKey: Self.chavePediuGravacao)
             _ = CGRequestScreenCaptureAccess()
             done()
         case .bluetooth, .redeLocal, .arquivos, .audioSistema:

@@ -22,6 +22,8 @@ final class TextoDaTelaServico: PluginServico {
     private let avisar: (NotchNotification) -> Void
     private var selecao: SelecaoDeTela?
     private var ocupado = false
+    /// Peça desinstalada no meio de uma captura: não abre camada nem avisa.
+    private var parado = false
     /// Apaga o ícone da faixa do notch quando a peça desliga.
     var aoParar: (() -> Void)?
 
@@ -32,6 +34,7 @@ final class TextoDaTelaServico: PluginServico {
     }
 
     func parar() {
+        parado = true
         KeyboardShortcuts.removeHandlers(for: Self.atalho)
         selecao?.cancelar()
         aoParar?()
@@ -44,11 +47,9 @@ final class TextoDaTelaServico: PluginServico {
             // Primeiro pedido mostra o balão; depois dele o macOS não pergunta
             // de novo (e o status não distingue negada de nunca pedida), então
             // os acionamentos seguintes abrem os Ajustes no painel certo.
-            let chave = "textoDaTela.pediuGravacao"
-            if UserDefaults.standard.bool(forKey: chave) {
+            if UserDefaults.standard.bool(forKey: Permission.chavePediuGravacao) {
                 NSWorkspace.shared.open(Permission.gravacaoTela.settingsURL)
             } else {
-                UserDefaults.standard.set(true, forKey: chave)
                 Permission.gravacaoTela.request {}
             }
             return
@@ -59,6 +60,7 @@ final class TextoDaTelaServico: PluginServico {
                 let fotos = try await Self.fotografar()
                 // sem foto nenhuma a camada não abriria e o serviço ficaria preso em `ocupado`
                 guard !fotos.isEmpty else { return falhou() }
+                guard !parado else { ocupado = false; return }
                 let camada = SelecaoDeTela(fotos: fotos) { [weak self] resultado in
                     self?.selecao = nil
                     guard let self else { return }
@@ -85,7 +87,7 @@ final class TextoDaTelaServico: PluginServico {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let resultado = Result { try TextoDaTela.linhas(em: recorte) }
             DispatchQueue.main.async {
-                guard let self else { return }
+                guard let self, !self.parado else { return }
                 self.ocupado = false
                 switch resultado {
                 case .failure(let error):
