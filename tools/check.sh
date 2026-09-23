@@ -65,6 +65,8 @@ swift_check presentationcheck Knobler/NotchSectionOrder.swift Knobler/NotchPrese
 swift_check askcheck          Knobler/AskModels.swift Knobler/AskFeature.swift tools/askcheck.swift
 swift_check updatercheck      Knobler/Updater.swift tools/updatercheck.swift
 swift_check agentrequestcheck Knobler/AgentRequestModels.swift Knobler/AgentRequestStore.swift tools/agentrequestcheck.swift
+# backend vendorizado inteiro: o modelo do codenotch se amarra em quase tudo.
+swift_check agentescheck     $(find Vendor/Codenotch -name '*.swift') tools/agentescheck.swift
 swift_check airpodscheck      Knobler/AirPodsBattery.swift tools/airpods_selfcheck.swift
 swift_check wirecheck         Knobler/Wire.swift tools/wirecheck/main.swift
 swift_check webhookcheck      Knobler/WebhookKeychainStore.swift Knobler/WebhookClient.swift \
