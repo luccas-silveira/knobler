@@ -13,7 +13,6 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ### Changed
 - Ajustes com a barra lateral em grupos (Sistema, Features, Integrações) e busca por painel ou opção.
-- Com o card aberto, trocar para uma seção menor não encolhe o card; ele volta ao tamanho natural ao fechar.
 
 ### Fixed
 - Conta-gotas não deixa mais a tela travada pra cliques depois de usado (a 0.33.0 anunciou, mas a correção ficou fora do build).

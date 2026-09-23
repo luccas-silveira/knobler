@@ -97,7 +97,7 @@ Direção: `.alignment` ao trocar de seção pelo gesto de rolagem e
 
 ## Médio (1 a 2 dias)
 
-Feitos em 2026-09-23: 9, 10, 11 e 12 (o 11 pela alternativa: o card só cresce enquanto está aberto).
+Feitos em 2026-09-23: 9, 10 e 12. O 11 foi feito e revertido: travar a altura deixava espaço vazio numa seção baixa e parecia bug.
 
 ### 9. Atalho global para abrir o notch e navegar por teclado
 

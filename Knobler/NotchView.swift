@@ -43,8 +43,6 @@ struct NotchView: View {
     @State private var espelhoPronto = false
     /// Barra de endereço da seção Link enquanto nenhuma página está aberta.
     @State private var linkDigitado = ""
-    /// Maior altura de seção desde que o card abriu; zera ao fechar.
-    @State private var alturaTravada: CGFloat = 0
     @FocusState private var linkFocado: Bool
 
     private var presentation: NotchPresentation {
@@ -73,7 +71,6 @@ struct NotchView: View {
                 + (display?.error != nil ? 42 : 0)
                 + (display?.preferences.mode == .hardware && display?.hardwareBrightness == false ? 32 : 0)
         }
-        layout.alturaMinimaSecao = alturaTravada
         layout.sectionWidth = NotchMetrics.larguraDoCard(vm.focus, padrao: 430, linkAberto: linkAberto)
         layout.notificationActions = vm.activeNotification?.actionTitles.isEmpty == false
         layout.notificationExtra = Self.alturaExtra(vm.activeNotification, aberto: vm.notificationHeld)
@@ -283,16 +280,10 @@ struct NotchView: View {
             agentRequestExpanded = agentRequestInitiallyExpanded
             publishPresentation(presentation)
         }
-        .onChange(of: presentation) { _, value in
-            publishPresentation(value)
-            if value.mode == .music { alturaTravada = value.size.height - value.topInset - 60 }
-        }
+        .onChange(of: presentation) { _, value in publishPresentation(value) }
         .onChange(of: agentRequestStore.state.active?.id) { _, _ in agentRequestExpanded = false }
         .onChange(of: vm.focus) { _, _ in ligarEspelhoSeEmFoco() }
-        .onChange(of: vm.expanded) { _, aberto in
-            ligarEspelhoSeEmFoco()
-            if !aberto { alturaTravada = 0 }
-        }
+        .onChange(of: vm.expanded) { _, _ in ligarEspelhoSeEmFoco() }
         // digitar segura as notificações; parar de digitar solta a fila
         .onChange(of: note.editing) { _, editing in
             if !editing { vm.resumePendingNotifications() }
