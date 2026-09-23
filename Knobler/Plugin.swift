@@ -20,7 +20,7 @@ import Foundation
 /// renomear um caso desinstala a peça na máquina de quem já usava.
 enum PluginID: String, CaseIterable {
     case pomodoro, lembretes, descanso, mensagens, webhooks, ditado
-    case espelho, anotacao, notaRapida, previewLink, conversao, monitores, agentes
+    case espelho, anotacao, notaRapida, previewLink, conversao, monitores, agentes, textoDaTela
 }
 
 /// Um serviço vivo. A peça devolve isto ao nascer; soltar a referência é o que
@@ -195,6 +195,13 @@ struct PreviewLinkEfeitos {
     var nascer: () -> PluginServico? = { nil }
 }
 
+/// Os efeitos que a montagem do Texto da tela precisa do app. Mesmo desenho do
+/// `EspelhoEfeitos`: o serviço importa AppKit/ScreenCaptureKit, então `nascer`
+/// é a peça inteira e mora no `AppDelegate`.
+struct TextoDaTelaEfeitos {
+    var nascer: () -> PluginServico? = { nil }
+}
+
 /// O que a peça recebe pra nascer: a pergunta "a outra peça está instalada?"
 /// (a única dependência plugin→plugin é Pomodoro→Descanso, e "não" é caminho
 /// normal) e os efeitos que o app empresta.
@@ -212,6 +219,7 @@ struct PluginDeps {
     var previewLink = PreviewLinkEfeitos()
     var monitores = MonitoresEfeitos()
     var agentes = AgentesEfeitos()
+    var textoDaTela = TextoDaTelaEfeitos()
 }
 
 /// A ficha da peça. Tudo aqui é dado, menos `nascer`.
@@ -346,6 +354,11 @@ enum PluginRegistry {
                simbolo: "sparkles", secao: "agentes", painel: nil,
                rotas: [], permissao: nil, pronta: true,
                nascer: { $0.agentes.nascer() }),
+        Plugin(id: .textoDaTela, nome: "Texto da tela",
+               descricao: "Selecione uma área e copie o texto dela.",
+               simbolo: "text.viewfinder", secao: nil, painel: nil,
+               rotas: [], permissao: "gravacaoTela", pronta: true,
+               nascer: montarTextoDaTela),
     ]
 
     static let deFabrica: [PluginDeFabrica] = [
@@ -399,7 +412,7 @@ enum PluginsInstalados {
     /// atualiza e quem instala do zero. Roda uma vez só.
     static func migrarSePreciso(_ d: UserDefaults = .standard) {
         guard d.integer(forKey: chaveMigracao) < versaoMigracao else { return }
-        d.set(PluginID.allCases.filter { $0 != .monitores }.map(\.rawValue), forKey: chave)
+        d.set(PluginID.allCases.filter { $0 != .monitores && $0 != .textoDaTela }.map(\.rawValue), forKey: chave)
         d.set(versaoMigracao, forKey: chaveMigracao)
     }
 
@@ -476,6 +489,7 @@ final class PluginHost: ObservableObject {
     var previewLinkEfeitos = PreviewLinkEfeitos()
     var monitoresEfeitos = MonitoresEfeitos()
     var agentesEfeitos = AgentesEfeitos()
+    var textoDaTelaEfeitos = TextoDaTelaEfeitos()
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -492,7 +506,7 @@ final class PluginHost: ObservableObject {
                    webhooks: webhooksEfeitos, ditado: ditadoEfeitos, anotacao: anotacaoEfeitos,
                    espelho: espelhoEfeitos, notaRapida: notaRapidaEfeitos,
                    previewLink: previewLinkEfeitos, monitores: monitoresEfeitos,
-                   agentes: agentesEfeitos)
+                   agentes: agentesEfeitos, textoDaTela: textoDaTelaEfeitos)
     }
 
     /// O launch inteiro. Peça desligada nem é visitada — custo zero de verdade.
@@ -772,6 +786,12 @@ func montarAnotacao(_ deps: PluginDeps) -> PluginServico? {
 /// `montarAnotacao`: a montagem inteira mora em `deps.espelho.nascer`.
 func montarEspelho(_ deps: PluginDeps) -> PluginServico? {
     deps.espelho.nascer()
+}
+
+/// Sem seção nem painel: o gatilho é o atalho, o ícone na faixa do notch e o
+/// menu Ferramentas. A montagem inteira mora em `deps.textoDaTela.nascer`.
+func montarTextoDaTela(_ deps: PluginDeps) -> PluginServico? {
+    deps.textoDaTela.nascer()
 }
 
 /// A nona conversão (tarefa 8) e a segunda **sem painel de Ajustes** — o

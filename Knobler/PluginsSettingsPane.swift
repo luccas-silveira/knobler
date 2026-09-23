@@ -38,6 +38,7 @@ private func corDaPeca(_ id: PluginID) -> Color {
     case .conversao: return .mint
     case .monitores: return .cyan
     case .agentes: return .pink
+    case .textoDaTela: return .orange
     }
 }
 
