@@ -162,6 +162,7 @@ struct ShelfDropDelegate: DropDelegate {
 }
 
 struct ShelfRowView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var shelf: ShelfStore
     /// Foco na prateleira ao abrir o preview de conversão.
     var vm: NotchViewModel?
@@ -291,7 +292,7 @@ struct ShelfRowView: View {
             }
             Button("Remover do shelf") { shelf.remover(entrada) }
         }
-        .transition(.blurReplace)
+        .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace))
     }
 
     /// Duas folhas atrás da miniatura: o que diz "é pilha" sem ler número.

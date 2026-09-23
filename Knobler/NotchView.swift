@@ -1727,6 +1727,7 @@ struct ActivityRingView: View {
 /// Alimentado pelas bandas do áudio real; sem tap disponível, toca a animação
 /// de reserva que a Apple usa no app Música. Medidas em `IlhaVisualizador`.
 struct AudioBarsView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var playing: Bool
     @ObservedObject var levels: SystemAudioLevels
     var capa: NSImage?
@@ -1743,8 +1744,8 @@ struct AudioBarsView: View {
     }
 
     @ViewBuilder private var pintura: some View {
-        if !playing {
-            // pausado: seis pontinhos parados, como a ilha sem análise
+        if !playing || reduceMotion {
+            // pausado (ou Reduzir movimento): seis pontinhos parados, como a ilha sem análise
             capaTratada.mask(barras(Self.paradas))
         } else if let bands {
             // Anima `frame(width:height:)`, não `scaleEffect`: escala

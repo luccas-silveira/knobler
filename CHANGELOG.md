@@ -15,6 +15,7 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 - Trocar pra uma seção menor não fecha mais o card na hora com o mouse ali; e reabrir em até 30 s volta pra seção onde você estava.
 - Botões só de ícone no notch mostram o nome ao parar o mouse, são lidos pelo VoiceOver e têm área de clique maior; os ícones de seção inativos ficaram mais visíveis.
 - "Limpar" e o ✕ da prateleira podem ser desfeitos por 5 s.
+- Com "Reduzir movimento" ligado, o visualizador de áudio fica parado e a prateleira troca itens sem desfoque.
 
 ## [0.33.0] - 2026-09-23
 
