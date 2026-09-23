@@ -16,6 +16,8 @@ enum PermissionCheck {
     static func main() {
         assert(Permission.lembretes.settingsURL.absoluteString.hasSuffix("Privacy_Reminders"))
         assert(Permission.lembretes.title == "Lembretes")
+        assert(Permission.gravacaoTela.settingsURL.absoluteString.hasSuffix("Privacy_ScreenCapture"))
+        assert(Permission.gravacaoTela.title == "Gravação de tela")
         let home = "/Users/alguem"
 
         // Translocação vence tudo: mesmo em quarentena, é ela que o usuário precisa resolver.

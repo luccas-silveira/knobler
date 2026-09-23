@@ -4,7 +4,7 @@
 //
 //  Inventário único das permissões que o app usa: estado, por quê e o link
 //  pro painel certo do Ajustes do Sistema. Existe porque o painel de Ajustes
-//  precisa dos 8 estados de uma vez e os deep links viviam copiados em 6
+//  precisa dos 10 casos de uma vez e os deep links viviam copiados em 6
 //  arquivos diferentes.
 //
 //  Só LÊ estado — quem pede continua sendo cada subsistema, no primeiro uso
@@ -28,7 +28,7 @@ enum PermissionStatus {
 
 enum Permission: String, CaseIterable, Identifiable {
     case acessibilidade, microfone, camera, calendario, lembretes, bluetooth, redeLocal, arquivos,
-         audioSistema
+         audioSistema, gravacaoTela
 
     var id: String { rawValue }
 
@@ -43,6 +43,7 @@ enum Permission: String, CaseIterable, Identifiable {
         case .redeLocal: return "Rede local"
         case .arquivos: return "Arquivos e pastas"
         case .audioSistema: return "Gravação de áudio do sistema"
+        case .gravacaoTela: return "Gravação de tela"
         }
     }
 
@@ -67,6 +68,8 @@ enum Permission: String, CaseIterable, Identifiable {
             return "Lê as capturas de tela que entram na prateleira."
         case .audioSistema:
             return "Anima o visualizador com o áudio real do player, em vez da animação de reserva."
+        case .gravacaoTela:
+            return "Fotografar a tela pra extrair texto da região que você selecionar."
         }
     }
 
@@ -86,6 +89,7 @@ enum Permission: String, CaseIterable, Identifiable {
         // ponytail: âncora só existe no macOS 14.4+; em 14.2/14.3 o Ajustes
         // abre a raiz de Privacidade, que ainda é melhor que não abrir nada.
         case .audioSistema: anchor = "Privacy_AudioCapture"
+        case .gravacaoTela: anchor = "Privacy_ScreenCapture"
         }
         return URL(string: "x-apple.systempreferences:com.apple.preference.security?\(anchor)")!
     }
@@ -95,6 +99,9 @@ enum Permission: String, CaseIterable, Identifiable {
         case .acessibilidade:
             // AXIsProcessTrusted() não distingue negada de nunca pedida.
             return AXIsProcessTrusted() ? .concedida : .naoPedida
+        case .gravacaoTela:
+            // Sem API que distinga negada de nunca pedida, igual à Acessibilidade.
+            return CGPreflightScreenCaptureAccess() ? .concedida : .naoPedida
         case .microfone:
             return Self.capture(AVCaptureDevice.authorizationStatus(for: .audio))
         case .camera:
@@ -184,7 +191,7 @@ enum Permission: String, CaseIterable, Identifiable {
     var canRequest: Bool {
         guard status == .naoPedida else { return false }
         switch self {
-        case .acessibilidade, .microfone, .camera, .calendario, .lembretes: return true
+        case .acessibilidade, .microfone, .camera, .calendario, .lembretes, .gravacaoTela: return true
         // Bluetooth: quem pede é o BluetoothMonitor na abertura (IOBluetooth).
         // Rede local, Arquivos e Áudio do sistema: sem API de pedido — o balão
         // é efeito colateral do primeiro uso real do recurso.
@@ -211,6 +218,11 @@ enum Permission: String, CaseIterable, Identifiable {
         case .lembretes:
             let store = EKEventStore()
             store.requestFullAccessToReminders { _, _ in _ = store; done() }
+        case .gravacaoTela:
+            // O balão aparece uma vez só; a concessão vale depois de relançar
+            // (o "Sair e Reabrir" do próprio macOS cobre isso).
+            _ = CGRequestScreenCaptureAccess()
+            done()
         case .bluetooth, .redeLocal, .arquivos, .audioSistema:
             done()
         }
