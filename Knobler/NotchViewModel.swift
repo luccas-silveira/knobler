@@ -364,7 +364,9 @@ final class NotchViewModel: ObservableObject {
                                            fixadas: AppSettings.shared.notchSectionsFixadas,
                                            agora: Date(),
                                            travadaNaNota: travadaNaNota,
-                                           desinstaladas: NotchSection.desinstaladas())
+                                           desinstaladas: NotchSection.desinstaladas(),
+                                           ocultas: AppSettings.shared.notchSectionsOcultas,
+                                           promover: AppSettings.shared.promoverSecoesRecentes)
         // a trava da nota vence até a escolha manual anterior — e descarta o
         // pedido pendente de propósito: digitar é o compromisso mais forte, e
         // deixar o pedido vivo faria o foco pular de seção no instante em que o

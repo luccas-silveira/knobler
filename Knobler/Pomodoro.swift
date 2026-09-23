@@ -118,6 +118,9 @@ final class Pomodoro {
         onPhaseBegin?(newPhase)
     }
 
+    /// Tempo que falta na fase rodando ou pausada — o menu da barra mostra.
+    var restante: TimeInterval { currentRemaining() }
+
     private func currentRemaining() -> TimeInterval {
         if let end = endDate { return max(0, end.timeIntervalSinceNow) }
         return pausedRemaining ?? 0

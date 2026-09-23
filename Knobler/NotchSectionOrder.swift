@@ -82,6 +82,8 @@ enum NotchSectionOrder {
     /// é de quem chama (o VM), não daqui.
     ///
     /// - Parameters:
+    ///   - ocultas: escondidas pelo usuário; vencem conteúdo e alfinete.
+    ///   - promover: `false` = ordem-base sempre, nada sobe por evento recente.
     ///   - base: ordem escolhida nos Ajustes.
     ///   - estados: o que cada seção tem a dizer agora.
     ///   - fixadas: seções que o usuário quer ver mesmo vazias.
@@ -95,7 +97,9 @@ enum NotchSectionOrder {
                         fixadas: Set<NotchSection>,
                         agora: Date,
                         travadaNaNota: Bool,
-                        desinstaladas: Set<NotchSection> = []) -> [NotchSection] {
+                        desinstaladas: Set<NotchSection> = [],
+                        ocultas: Set<NotchSection> = [],
+                        promover: Bool = true) -> [NotchSection] {
         // duplicata em `estados` é bug de quem chama, mas aqui não pode virar
         // trap: `uniqueKeysWithValues` derruba o app inteiro. A última entrada
         // vence — é a mais nova que o VM escreveu.
@@ -105,7 +109,7 @@ enum NotchSectionOrder {
         // peça desinstalada sai antes de tudo: a fixação dela é **ignorada**,
         // não apagada (007) — senão a faixa apareceria com um ícone vazio.
         let ordemBase = visiveis(base: base + padrao.filter { !base.contains($0) },
-                                 desinstaladas: desinstaladas)
+                                 desinstaladas: desinstaladas.union(ocultas))
         // fixada aparece vazia, na posição da ordem-base: sem `lastEvent`
         // recente ela não é promovida, então cai onde o usuário a deixou.
         let visiveis = ordemBase.filter {
@@ -114,7 +118,7 @@ enum NotchSectionOrder {
 
         let promovidas = visiveis
             .filter { s in
-                guard let quando = porSecao[s]?.lastEvent else { return false }
+                guard promover, let quando = porSecao[s]?.lastEvent else { return false }
                 return agora.timeIntervalSince(quando) < janelaDePromocao
             }
             // mais recente primeiro; empate cai na ordem-base (sort estável não

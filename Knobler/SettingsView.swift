@@ -268,7 +268,7 @@ struct NotchSettingsPane: View {
     var body: some View {
         Form {
             Section("Ordem das seções do card") {
-                Text("A ordem em repouso. Algo que acabou de acontecer sobe sozinho por alguns segundos. O alfinete mantém a seção no card mesmo sem conteúdo.")
+                Text("O olho esconde a seção do card. O alfinete mantém a seção no card mesmo sem conteúdo.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 List {
@@ -276,6 +276,16 @@ struct NotchSettingsPane: View {
                         HStack {
                             Label(s.titulo, systemImage: s.simbolo)
                             Spacer()
+                            Toggle(isOn: Binding(
+                                get: { !settings.notchSectionsOcultas.contains(s) },
+                                set: { mostrar in
+                                    if mostrar { settings.notchSectionsOcultas.remove(s) }
+                                    else { settings.notchSectionsOcultas.insert(s) }
+                                })) {
+                                    Image(systemName: "eye")
+                                }
+                                .toggleStyle(.checkbox)
+                                .help("Mostrar no card")
                             // checkbox nativo, não `Button` com ícone: dentro de
                             // uma `List` com `.onMove` o botão disputa o gesto de
                             // arrastar com a reordenação da linha. O checkbox é o
@@ -302,6 +312,10 @@ struct NotchSettingsPane: View {
                     }
                 }
                 .frame(height: 220)
+                SettingToggle(
+                    title: "Subir o que acabou de acontecer",
+                    subtitle: "Seção com novidade passa na frente por alguns segundos. Desligado, o card segue sempre a ordem acima.",
+                    isOn: $settings.promoverSecoesRecentes)
             }
             Section("Visibilidade") {
                 SettingToggle(

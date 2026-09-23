@@ -1452,63 +1452,80 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // sem a peça instalada não há linha de Pomodoro nenhuma no menu
         if let pomodoro {
             let s = AppSettings.shared
+            menu.addItem(.sectionHeader(title: "Foco"))
+            if let status = Self.pomodoroStatus(pomodoro) {
+                let it = menu.addItem(withTitle: status, action: nil, keyEquivalent: "")
+                it.isEnabled = false
+            }
             switch pomodoro.runState {
             case .idle:
-                addPomodoroItem(menu, "▶ Iniciar foco (\(s.pomodoroFocus) min)", #selector(pomStart))
+                addItem(menu, "Iniciar foco (\(s.pomodoroFocus) min)", "play.fill", #selector(pomStart))
             case .running:
-                addPomodoroItem(menu, "⏸ Pausar", #selector(pomPause))
-                addPomodoroItem(menu, "⏭ Pular fase", #selector(pomSkip))
-                addPomodoroItem(menu, "↺ Resetar", #selector(pomReset))
+                addItem(menu, "Pausar", "pause.fill", #selector(pomPause))
+                addItem(menu, "Pular fase", "forward.end.fill", #selector(pomSkip))
+                addItem(menu, "Resetar", "arrow.counterclockwise", #selector(pomReset))
             case .paused:
-                addPomodoroItem(menu, "▶ Retomar", #selector(pomResume))
-                addPomodoroItem(menu, "⏭ Pular fase", #selector(pomSkip))
-                addPomodoroItem(menu, "↺ Resetar", #selector(pomReset))
+                addItem(menu, "Retomar", "play.fill", #selector(pomResume))
+                addItem(menu, "Pular fase", "forward.end.fill", #selector(pomSkip))
+                addItem(menu, "Resetar", "arrow.counterclockwise", #selector(pomReset))
             case .waiting:
                 let mins = Int(Pomodoro.duration(of: pomodoro.phase,
                                                  config: s.pomodoroConfig) / 60)
                 let label = pomodoro.phase == .focus
-                    ? "▶ Iniciar foco (\(mins) min)"
-                    : "▶ Iniciar pausa (\(mins) min)"
-                addPomodoroItem(menu, label, #selector(pomStartNext))
-                addPomodoroItem(menu, "↺ Resetar", #selector(pomReset))
+                    ? "Iniciar foco (\(mins) min)"
+                    : "Iniciar pausa (\(mins) min)"
+                addItem(menu, label, "play.fill", #selector(pomStartNext))
+                addItem(menu, "Resetar", "arrow.counterclockwise", #selector(pomReset))
             }
             menu.addItem(.separator())
         }
+        menu.addItem(.sectionHeader(title: "Ferramentas"))
         // a anotação inteira (ligar, ferramentas, cores, fundo) mora na seção
         // Anotação do card — o menu não duplica nada disso.
         // Sem a peça instalada, o item some — é a superfície dela fora do card.
         if let quickNote {
-            let nota = menu.addItem(
-                withTitle: "✎ Nota rápida", action: #selector(toggleQuickNote), keyEquivalent: "")
-            nota.target = self
-            nota.state = quickNote.active ? .on : .off
+            addItem(menu, "Nota rápida", "pencil.tip", #selector(toggleQuickNote))
+                .state = quickNote.active ? .on : .off
         }
-        let reminders = menu.addItem(withTitle: "Lembretes…",
-            action: #selector(openAppleReminders), keyEquivalent: "")
-        reminders.target = self
-        let picker = menu.addItem(
-            withTitle: "◉ Selecionar cor…", action: #selector(pickColor), keyEquivalent: "")
-        picker.target = self
+        addItem(menu, "Lembretes…", "checklist", #selector(openAppleReminders))
+        addItem(menu, "Selecionar cor…", "eyedropper", #selector(pickColor))
         // ponto de envio que não passa pela prateleira: mandar um arquivo não
         // devia obrigar a arrastá-lo pro notch antes
-        let airdrop = menu.addItem(
-            withTitle: "↗ Enviar por AirDrop…", action: #selector(sendAirDrop), keyEquivalent: "")
-        airdrop.target = self
+        addItem(menu, "Enviar por AirDrop…", "square.and.arrow.up", #selector(sendAirDrop))
         menu.addItem(.separator())
-        let novidades = menu.addItem(
-            withTitle: "Novidades…", action: #selector(openNovidades), keyEquivalent: "")
-        novidades.target = self
-        let settings = menu.addItem(
-            withTitle: "Ajustes…", action: #selector(openSettings), keyEquivalent: ",")
-        settings.target = self
+        addItem(menu, "Novidades…", "sparkles", #selector(openNovidades))
+        addItem(menu, "Ajustes…", "gearshape", #selector(openSettings), key: ",")
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit Knobler",
-                     action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let sair = menu.addItem(withTitle: "Sair do Knobler",
+                                action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        sair.image = NSImage(systemSymbolName: "power", accessibilityDescription: nil)
     }
 
-    private func addPomodoroItem(_ menu: NSMenu, _ title: String, _ sel: Selector) {
-        let it = menu.addItem(withTitle: title, action: sel, keyEquivalent: "")
+    @discardableResult
+    private func addItem(_ menu: NSMenu, _ title: String, _ symbol: String,
+                         _ sel: Selector, key: String = "") -> NSMenuItem {
+        let it = menu.addItem(withTitle: title, action: sel, keyEquivalent: key)
         it.target = self
+        it.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+        return it
+    }
+
+    /// "Foco · 18:42 restantes" — fotografia do momento em que o menu abre.
+    /// ponytail: não atualiza com o menu aberto; timer em .eventTracking se incomodar.
+    static func pomodoroStatus(_ p: Pomodoro) -> String? {
+        let fase: String
+        switch p.phase {
+        case .focus: fase = "Foco"
+        case .shortBreak: fase = "Pausa curta"
+        case .longBreak: fase = "Pausa longa"
+        }
+        let seg = Int(p.restante.rounded())
+        let tempo = String(format: "%d:%02d", seg / 60, seg % 60)
+        switch p.runState {
+        case .idle, .waiting: return nil
+        case .running: return "\(fase) · \(tempo) restantes"
+        case .paused: return "\(fase) · pausado em \(tempo)"
+        }
     }
 
     /// Interruptor da nota, acionado pelo item de menu (tela sob o mouse). Sem

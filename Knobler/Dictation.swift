@@ -99,7 +99,11 @@ struct DeepgramEngine: TranscriptionEngine, Sendable {
 final class MicRecorder {
     static let sampleRate: Double = 16000
 
-    private let engine = AVAudioEngine()
+    // Engine nova a cada gravação: a que nasce no launch fica presa ao
+    // microfone padrão daquele instante. Trocar de entrada (AirPods, monitor com
+    // mic) deixava o inputNode com formato inválido e o ditado dizia "sem
+    // acesso ao microfone" até relançar o app.
+    private var engine = AVAudioEngine()
     private var converter: AVAudioConverter?
     private var samples: [Float] = []
     // append() roda na thread de áudio do AVAudioEngine e stop() lê na main:
@@ -111,6 +115,7 @@ final class MicRecorder {
         samplesLock.lock()
         samples.removeAll()
         samplesLock.unlock()
+        engine = AVAudioEngine()
         let input = engine.inputNode
         let inputFormat = input.outputFormat(forBus: 0)
         // Sem microfone (ex.: Mac mini sem mic externo) ou permissão negada, o
@@ -396,7 +401,8 @@ final class DictationController {
         } catch {
             recordingEngine = nil
             recordingDestination = nil
-            flash(.error("Sem acesso ao microfone"))
+            flash(.error(AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
+                         ? "Microfone indisponível" : "Sem acesso ao microfone"))
             return
         }
         recording = true

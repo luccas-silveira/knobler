@@ -188,6 +188,19 @@ final class AppSettings: ObservableObject {
         }
     }
 
+    /// Seções que nunca aparecem no card, nem com conteúdo nem fixadas.
+    @Published var notchSectionsOcultas: Set<NotchSection> {
+        didSet {
+            UserDefaults.standard.set(notchSectionsOcultas.map(\.rawValue).sorted(),
+                                      forKey: "notchSectionsOcultas")
+        }
+    }
+
+    /// Seção com evento recente passa na frente da ordem salva.
+    @Published var promoverSecoesRecentes: Bool {
+        didSet { UserDefaults.standard.set(promoverSecoesRecentes, forKey: "promoverSecoesRecentes") }
+    }
+
     /// Nome que os outros veem nas Mensagens LAN. Começa com o do macOS.
     @Published var displayName: String {
         didSet { UserDefaults.standard.set(displayName, forKey: "displayName") }
@@ -308,6 +321,9 @@ final class AppSettings: ObservableObject {
             salva: defaults.stringArray(forKey: "notchSectionOrder") ?? [])
         notchSectionsFixadas = NotchSectionOrder.sanearFixadas(
             salvas: defaults.stringArray(forKey: "notchSectionsFixadas") ?? [])
+        notchSectionsOcultas = NotchSectionOrder.sanearFixadas(
+            salvas: defaults.stringArray(forKey: "notchSectionsOcultas") ?? [])
+        promoverSecoesRecentes = flag("promoverSecoesRecentes")              // default true
 
         if let data = defaults.data(forKey: "reminders"),
            let decoded = try? JSONDecoder().decode([Reminder].self, from: data) {

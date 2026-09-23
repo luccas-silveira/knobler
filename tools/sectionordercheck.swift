@@ -27,6 +27,8 @@ struct SectionOrderCheck {
         testFixadaDesinstaladaEIgnorada()
         testSanearDescartaDesconhecida()
         testSanearCompletaFaltantes()
+        testOcultaSomeMesmoComConteudoEFixada()
+        testSemPromocaoSegueABase()
         print("✅ sectionordercheck ok")
     }
 
@@ -205,5 +207,27 @@ struct SectionOrderCheck {
         let out = NotchSectionOrder.sanear(salva: ["shelf", "musica"])
         assert(Array(out.prefix(2)) == [.shelf, .musica], "prefixo salvo não preservado: \(out)")
         assert(Set(out) == Set(NotchSection.allCases), "sanear não completou: \(out)")
+    }
+
+    /// Oculta vence conteúdo e alfinete.
+    static func testOcultaSomeMesmoComConteudoEFixada() {
+        let out = NotchSectionOrder.ordenar(
+            base: [.shelf, .musica],
+            estados: [viva(.musica, haSegundos: 2), viva(.shelf, haSegundos: nil)],
+            fixadas: [.musica],
+            agora: agora, travadaNaNota: false, ocultas: [.musica])
+        assert(out == [.shelf], "oculta apareceu: \(out)")
+    }
+
+    /// Promoção desligada: evento recente não fura a ordem-base.
+    static func testSemPromocaoSegueABase() {
+        let out = NotchSectionOrder.ordenar(
+            base: [.shelf, .musica, .atividade],
+            estados: [viva(.musica, haSegundos: nil),
+                      viva(.shelf, haSegundos: nil),
+                      viva(.atividade, haSegundos: 3)],
+            fixadas: [],
+            agora: agora, travadaNaNota: false, promover: false)
+        assert(out == [.shelf, .musica, .atividade], "promoveu com promoção desligada: \(out)")
     }
 }

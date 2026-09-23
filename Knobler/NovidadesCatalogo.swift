@@ -17,7 +17,7 @@ import Foundation
 enum NovidadesCatalogo {
     /// Versões com arquivo em `Knobler/Novidades/`. Escrita à mão junto do HTML;
     /// o `novidadescheck` confere que arquivo e lista batem.
-    static let versoes: [String] = ["0.25.0", "0.26.0", "0.26.1", "0.27.0", "0.28.0", "0.29.0", "0.30.0", "0.31.0"]
+    static let versoes: [String] = ["0.25.0", "0.26.0", "0.26.1", "0.27.0", "0.28.0", "0.29.0", "0.30.0", "0.31.0", "0.32.0"]
 
     /// A página da primeira abertura. Não é uma versão: nunca entra na
     /// comparação de SemVer.
