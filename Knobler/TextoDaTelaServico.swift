@@ -22,6 +22,8 @@ final class TextoDaTelaServico: PluginServico {
     private let avisar: (NotchNotification) -> Void
     private var selecao: SelecaoDeTela?
     private var ocupado = false
+    /// Apaga o ícone da faixa do notch quando a peça desliga.
+    var aoParar: (() -> Void)?
 
     init(avisar: @escaping (NotchNotification) -> Void) {
         self.avisar = avisar
@@ -32,6 +34,7 @@ final class TextoDaTelaServico: PluginServico {
     func parar() {
         KeyboardShortcuts.removeHandlers(for: Self.atalho)
         selecao?.cancelar()
+        aoParar?()
     }
 
     /// Atalho, ícone do notch ou menu. Segundo toque com a seleção aberta é ignorado.

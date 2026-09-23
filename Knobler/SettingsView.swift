@@ -173,6 +173,7 @@ struct SettingToggle: View {
 struct GeneralSettingsPane: View {
     @ObservedObject var settings = AppSettings.shared
     @ObservedObject var updater = Updater.shared
+    @ObservedObject private var host = PluginHost.shared
 
     private var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString")
@@ -213,6 +214,14 @@ struct GeneralSettingsPane: View {
                         Text("{\"title\", \"body\", \"app\"}")
                             .font(.caption.monospaced())
                             .textSelection(.enabled)
+                    }
+                }
+            }
+            if host.estaInstalado(.textoDaTela) {
+                Section("Texto da tela") {
+                    LabeledContent("Atalho") {
+                        ShortcutRecorder(name: TextoDaTelaServico.atalho)
+                            .frame(width: 140)
                     }
                 }
             }

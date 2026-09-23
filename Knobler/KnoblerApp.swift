@@ -587,6 +587,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self?.notches.values.forEach { $0.viewModel.enqueue(aviso) }
             }
             self?.textoDaTela = servico
+            self?.notches.values.forEach { $0.viewModel.textoDaTelaLigado = true }
+            servico.aoParar = { self?.notches.values.forEach { $0.viewModel.textoDaTelaLigado = false } }
             return servico
         })
         // A nona conversão (tarefa 8), a segunda sem painel: `QuickNote` é
@@ -1240,6 +1242,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
                 // controles do card do Pomodoro → engine (onState reprograma todas as vms)
                 viewModel.onPomodoroPause = { [weak self] in self?.pomodoro?.pause() }
+                viewModel.onExtrairTexto = { [weak self] in self?.textoDaTela?.acionar() }
+                viewModel.textoDaTelaLigado = self.textoDaTela != nil
                 viewModel.onPomodoroResume = { [weak self] in self?.pomodoro?.resume() }
                 viewModel.onPomodoroSkip = { [weak self] in self?.pomodoro?.skip() }
                 viewModel.onPomodoroReset = { [weak self] in self?.pomodoro?.reset() }

@@ -911,6 +911,21 @@ struct NotchView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(s.titulo)
             }
+            if vm.textoDaTelaLigado {
+                Divider().frame(height: 10).overlay(.white.opacity(0.2))
+                Button {
+                    vm.setExpandedDirect(false)
+                    vm.onExtrairTexto?()
+                } label: {
+                    Image(systemName: "text.viewfinder")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.35))
+                        .padding(4)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Extrair texto da tela")
+            }
         }
         .frame(height: NotchMetrics.sectionStripHeight)
     }

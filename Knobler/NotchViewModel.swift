@@ -729,4 +729,8 @@ final class NotchViewModel: ObservableObject {
     var onPomodoroStartNext: (() -> Void)?
     var onPomodoroSettings: (() -> Void)?
 
+    /// Texto da tela: o ícone na faixa só existe com a peça ligada.
+    @Published var textoDaTelaLigado = false
+    var onExtrairTexto: (() -> Void)?
+
 }

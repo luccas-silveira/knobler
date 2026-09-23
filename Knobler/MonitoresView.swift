@@ -172,7 +172,7 @@ struct MonitoresSettingsPane: View {
                 HStack {
                     Text(shortcut.title)
                     Spacer()
-                    MonitorShortcutRecorder(name: shortcut.name)
+                    ShortcutRecorder(name: shortcut.name)
                         .frame(width: 150)
                         .accessibilityLabel(shortcut.title)
                 }
@@ -213,7 +213,7 @@ struct MonitoresSettingsPane: View {
     }
 }
 
-private struct MonitorShortcutRecorder: NSViewRepresentable {
+struct ShortcutRecorder: NSViewRepresentable {
     let name: KeyboardShortcuts.Name
     func makeNSView(context: Context) -> KeyboardShortcuts.RecorderCocoa {
         KeyboardShortcuts.RecorderCocoa(for: name)

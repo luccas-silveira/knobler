@@ -141,3 +141,6 @@ Vendor/Codenotch/Sessions/ProcessLiveness.swift
 Vendor/Codenotch/Sessions/SessionCompletionWatcher.swift
 Vendor/Codenotch/Sessions/SessionFocus.swift
 Vendor/Codenotch/Sessions/TerminalTabFocus.swift
+Knobler/TextoDaTela.swift
+Knobler/SelecaoDeTela.swift
+Knobler/TextoDaTelaServico.swift
