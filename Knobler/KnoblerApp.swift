@@ -1075,9 +1075,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         var ids = Set<CGDirectDisplayID>()
         for screen in NSScreen.screens {
+            // em tela com notch o app em tela cheia não desce até a faixa do
+            // notch: a janela começa abaixo do safe area, não no topo da tela
             let f = screen.frame
-            let cg = CGRect(x: f.minX, y: primeira.frame.maxY - f.maxY,
-                            width: f.width, height: f.height)
+            let topo = screen.safeAreaInsets.top
+            let cg = CGRect(x: f.minX, y: primeira.frame.maxY - f.maxY + topo,
+                            width: f.width, height: f.height - topo)
             if cheias.contains(where: { $0.insetBy(dx: -1, dy: -1).contains(cg) }) {
                 ids.insert(Self.displayID(of: screen))
             }
