@@ -158,19 +158,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// **indeterminada** enquanto vai (o `NSSharingService` não expõe bytes
     /// transferidos — ver `AirDropState`) e card no fim.
     func airdropComEstado(_ urls: [URL]) {
-        Sharing.airdrop(urls) { [weak self] in self?.aplicarEstadoAirDrop($0) }
+        AirDropEnvio.enviar(urls) { [weak self] in self?.aplicarEstadoAirDrop($0) }
     }
 
     private func aplicarEstadoAirDrop(_ state: AirDropState) {
         switch state {
-        case .enviando(let label):
+        case .enviando(let label, _):
             airdropActivity = NotchActivity(
                 id: "airdrop",
                 title: "Enviando por AirDrop",
                 detail: label,
                 progress: nil,
                 updatedAt: Date())
-        case .enviado(let label):
+        case .enviado(let label, _, _):
             airdropActivity = nil
             publicar(NotchNotification(
                 appName: "AirDrop", title: "Enviado", body: label, iconEmoji: "📤"))
@@ -1653,7 +1653,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func sendAirDrop() {
-        Sharing.airdropFromPanel { [weak self] in self?.aplicarEstadoAirDrop($0) }
+        AirDropEnvio.enviarDoPainel { [weak self] in self?.aplicarEstadoAirDrop($0) }
     }
 
     @objc private func pomStart() { pomodoro?.start() }

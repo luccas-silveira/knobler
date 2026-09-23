@@ -42,6 +42,7 @@ Knobler/NotchSectionOrder.swift
 Knobler/QuickNote.swift
 Knobler/NotificationInterceptor.swift
 Knobler/NotificationRules.swift
+Knobler/AirDrop/AirDropEnvio.swift
 Knobler/AirDrop/AirDropRegras.swift
 Knobler/RemoteAvatarLoader.swift
 Knobler/WebhookKeychainStore.swift
