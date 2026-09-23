@@ -54,7 +54,8 @@ de arquivo) são peças.
   literal com gate de compilação — sem descoberta mágica.
 - **Instalado é uma lista de ids** (`pluginsInstalados` no `UserDefaults`), não
   um booleano por peça. A migração dá as onze pra todo mundo uma vez só, então
-  ninguém perde feature na atualização.
+  ninguém perde feature na atualização. Agentes chegou depois e tem passo
+  único próprio (`plugins.agentes.migrado`).
 - **`PluginHost` é quem sobe o app.** No launch ele itera só as peças instaladas
   e chama `nascer`; peça desligada não é visitada — não há objeto, timer nem
   observer. É disso que depende a promessa de custo zero do `PRODUCT.md`.
@@ -75,7 +76,7 @@ O `PluginID` e o nome da seção são identidade estável: renomear um deles
 desinstala a peça na máquina de quem já usa. Por isso o card da peça `anotacao`
 se chama "Desenho" (o nome do painel) enquanto o id segue `anotacao`.
 
-Hoje as onze peças estão convertidas de verdade (`pronta: true` na ficha, todas
+Hoje as doze peças estão convertidas de verdade (`pronta: true` na ficha, todas
 com `nascer`): a vitrine não tem mais nenhum card "Em breve" — esse estado
 continua existindo no mecanismo (`Plugin.swift`), pronto pra receber a próxima
 feature que nascer sem `nascer` ainda. Ver [`plugins.md`](plugins.md) pro lado
@@ -99,7 +100,7 @@ do usuário.
 | Avisos do desenvolvedor já mostrados | `DevAvisos` (sem dependências, por isso testável isolado) + `avisos.vistos` | card do notch, via `AppDelegate.publicar` |
 | Notificações das últimas 24 h (em disco) | `NotificationHistory.shared` | `HistoryListView` |
 | Nota rápida (texto, foco, tela dona) | `QuickNote.shared` | `NotchView`, menu da barra |
-| Sessões e limites de Claude/Codex (backend vendorizado em `Vendor/Codenotch`) | `AgentesUso.shared` — um por app: é quem detecta a transição, então o card e o som saem uma vez só | `AgentesView`, seção Agentes; card via `AppDelegate.publicar` |
+| Sessões e limites de Claude/Codex (backend vendorizado em `Vendor/Codenotch`) | `AgentesUso.shared` — um por app, nasce pela peça Agentes (`PluginHost`), não no launch: é quem detecta a transição, então o card e o som saem uma vez só | `AgentesView`, seção Agentes; card via `AppDelegate.publicar` |
 | Página do preview de link (tela dona) | `LinkPreview.shared` | `LinkPreviewView`, seção Link |
 | Conversão esperando confirmação | `ShelfStore.preview` | `ShelfPreviewView` |
 | Overlay de anotação, ferramenta, cor e espessura correntes | `AnnotationController.shared` (um painel por monitor) | seção Anotação do card, Ajustes › Desenho, `GET /status` |

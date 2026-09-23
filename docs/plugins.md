@@ -2,7 +2,7 @@
 
 ![Painel Plugins](images/settings-plugins.png)
 
-*Ajustes → Plugins: as onze peças, cada uma com ABRIR/INSTALAR + ⋯.*
+*Ajustes → Plugins: as doze peças, cada uma com ABRIR/INSTALAR + ⋯.*
 
 ![Seção Incluído no Knobler](images/settings-plugins-fabrica.png)
 
@@ -22,9 +22,9 @@ Nada é baixado. Todo o código já veio no app; instalar é ligar a chave.
 **Incluído no Knobler** — Música, Notificações, Prateleira e AirPods. São de
 fábrica porque substituem algo que o macOS já fazia; não têm botão.
 
-**Plugins** — as onze peças que acrescentam: Pomodoro, Alertas programados, Descanso,
-Mensagens, Webhooks, Ditado, Espelho, Desenho, Nota rápida, Preview de link e
-Conversão de arquivo.
+**Plugins** — as doze peças que acrescentam: Pomodoro, Alertas programados, Descanso,
+Mensagens, Webhooks, Ditado, Espelho, Desenho, Nota rápida, Preview de link,
+Conversão de arquivo e Agentes.
 
 ## Instalar e desinstalar
 
@@ -32,7 +32,7 @@ Conversão de arquivo.
   com **"Desinstalar (seus dados ficam salvos)"**.
 - Peça desinstalada mostra **INSTALAR**. É o mesmo card, no mesmo lugar da
   grade — só o botão muda.
-- As onze peças hoje são todas assim. Se uma feature nova entrar antes de virar
+- As doze peças hoje são todas assim. Se uma feature nova entrar antes de virar
   peça, ela aparece com **"Em breve"** no lugar do botão: funciona normalmente,
   só ainda não dá pra desinstalar.
 
