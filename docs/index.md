@@ -44,7 +44,7 @@ contratos e explicações para entender decisões.
 - [Conta-gotas](color-picker.md)
 - [Texto da tela](texto-da-tela.md)
 - [Mensagens LAN](messages.md)
-- [Webhooks](webhooks.md)
+- [Notificações externas (webhooks)](webhooks.md)
 - [AirPods](airpods.md)
 - [Espelho de câmera](mirror.md)
 - [Anotação de tela](annotation.md) — desenhe sobre apresentações e qualquer app
@@ -68,6 +68,7 @@ contratos e explicações para entender decisões.
 - [Changelog](../CHANGELOG.md) — mudanças por release.
 - [Revisão de 08/09/2026](revisao-2026-09-08.md) — bugs pendentes, evidências,
   critérios de correção e investigação do defeito visual do knob.
+- [Backlog de UX](ux-backlog.md) — 20 melhorias de uso diário, por dificuldade.
 - [Diagnóstico visual](diagnostico-visual.md) — medições do deslocamento e coleta
   de uma ocorrência ativa, sem reiniciar o app.
 - [Handoff](../HANDOFF.md) — estado operacional da última sessão;
