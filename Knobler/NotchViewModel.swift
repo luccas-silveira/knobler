@@ -411,9 +411,16 @@ final class NotchViewModel: ObservableObject {
         // Sair da seção não encerra a nota: `active` e `text` seguem intactos.
         if focus == .nota, section != .nota, typingNote { QuickNote.shared.editing = false }
         focoPendente = nil
+        if focus != section {
+            focoTrocadoEm = ProcessInfo.processInfo.systemUptime
+        }
         focus = section
         focusLocked = true
     }
+
+    private var focoTrocadoEm = -Double.infinity
+    private var focoAoFechar: (NotchSection, TimeInterval)?
+    static let memoriaDoFoco: TimeInterval = 30
 
     /// Swipe horizontal no card: anda um passo na faixa e trava, igual ao clique.
     func focarVizinho(avancando: Bool) {
@@ -474,7 +481,11 @@ final class NotchViewModel: ObservableObject {
 
     func setHover(_ inside: Bool) {
         openingWork?.cancel()
-        opening.hover(inside, typing: typingNote, now: ProcessInfo.processInfo.systemUptime)
+        let now = ProcessInfo.processInfo.systemUptime
+        // trocar de seção pode encolher o card e deixar o cursor do lado de
+        // fora sem ele ter saído: a saída logo depois ganha o prazo longo, e
+        // voltar o mouse pro card cancela o fechamento
+        opening.hover(inside, typing: typingNote || now - focoTrocadoEm < 1, now: now)
         guard let request = opening.pending else { return }
         let work = DispatchWorkItem { [weak self] in
             guard let self,
@@ -501,11 +512,17 @@ final class NotchViewModel: ObservableObject {
             agendaHoje()
             onAtualizarLembretes?()
         }
+        // reabrir logo depois de fechar volta pra seção escolhida à mão
+        if value && !expanded, focoPendente == nil, let (secao, quando) = focoAoFechar,
+           ProcessInfo.processInfo.systemUptime - quando < Self.memoriaDoFoco {
+            focoPendente = secao
+        }
         if value && !expanded && receivedSections { reconcileSections() }
         if !value {
             if typingNote { QuickNote.shared.editing = false }
             monitoresArrastando = false
             mirrorOn = false
+            focoAoFechar = focusLocked ? focus.map { ($0, ProcessInfo.processInfo.systemUptime) } : nil
             focusLocked = false
             focoPendente = nil
         }

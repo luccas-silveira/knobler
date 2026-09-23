@@ -12,6 +12,7 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 ### Fixed
 - Conta-gotas não deixa mais a tela travada pra cliques depois de usado (a 0.33.0 anunciou, mas a correção ficou fora do build).
 - O anel do Claude lê a credencial sem pedir a senha das chaves a cada abertura do app.
+- Trocar pra uma seção menor não fecha mais o card na hora com o mouse ali; e reabrir em até 30 s volta pra seção onde você estava.
 
 ## [0.33.0] - 2026-09-23
 
