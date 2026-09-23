@@ -11,5 +11,7 @@ FONTES=$(grep -v '^#' tools/notchview-fontes.txt)
 # `.mainMenu + 3`, `isOpaque = false`, `.canJoinAllSpaces` —, e não contra uma
 # NSWindow comum.
 # shellcheck disable=SC2086
-swiftc -O -o build/cortecheck $FONTES Knobler/NotchWindow.swift tools/cortecheck/main.swift
+swiftc -O -o build/cortecheck $FONTES -import-objc-header Vendor/MonitorControl/MonitorControl.h \
+  -F/System/Library/PrivateFrameworks -framework DisplayServices -framework CoreDisplay \
+  Knobler/NotchWindow.swift tools/cortecheck/main.swift
 ./build/cortecheck

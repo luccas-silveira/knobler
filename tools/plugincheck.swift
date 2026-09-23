@@ -115,13 +115,14 @@ struct PluginCheck {
 
     // MARK: - O instalado
 
-    /// Instalação do zero: ninguém perde feature — os 11 vêm ligados.
+    /// Instalação do zero preserva as peças antigas; Monitores exige instalação explícita.
     static func testDefaultsVazioViraOsOnze() {
         let d = defaultsLimpo("plugincheck.novo")
         assert(PluginsInstalados.ler(d).isEmpty, "defaults não estava limpo")
         PluginsInstalados.migrarSePreciso(d)
-        assert(PluginsInstalados.ler(d) == Set(PluginID.allCases),
-               "migração não instalou os 11: \(PluginsInstalados.ler(d))")
+        assert(PluginsInstalados.ler(d) == Set(PluginID.allCases).subtracting([.monitores]),
+               "migração alterou as peças legadas: \(PluginsInstalados.ler(d))")
+        assert(!PluginsInstalados.ler(d).contains(.monitores), "Monitores precisa começar desinstalada")
     }
 
     /// A migração é uma vez só — senão desinstalar não colaria: a peça voltaria
@@ -331,11 +332,11 @@ struct PluginCheck {
                    "\(peca.nome) ofereceu desinstalar sem nunca ter nascido")
         }
 
-        // Conversão de arquivo (tarefa 10) fecha as dez conversões: as 11
-        // peças estão prontas agora, e nenhuma mostra mais "Em breve" — se um
-        // dia deixar de ser verdade, é este assert que avisa.
+        // As 11 peças convertidas mais Monitores (nasceu peça, na v0.30.0):
+        // nenhuma mostra mais "Em breve" — se um dia deixar de ser verdade, é
+        // este assert que avisa.
         assert(PluginRegistry.todos.filter(\.pronta).map(\.id) ==
-               [.pomodoro, .lembretes, .descanso, .mensagens, .webhooks, .ditado, .espelho, .anotacao,
+               [.monitores, .pomodoro, .lembretes, .descanso, .mensagens, .webhooks, .ditado, .espelho, .anotacao,
                 .notaRapida, .previewLink, .conversao],
                "mudou quem está convertido: \(PluginRegistry.todos.filter(\.pronta).map(\.id))")
     }

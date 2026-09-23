@@ -3,7 +3,7 @@ import Foundation
 import CoreGraphics
 
 enum NotchMode: Equatable {
-    case closed, music, notification, hud, dictation, question, pomodoro, airpods, message, update
+    case closed, music, notification, hud, dictation, question, pomodoro, airpods, airpodsIsland, message, update
 }
 
 struct NotchContentState {
@@ -18,6 +18,8 @@ struct NotchContentState {
     var hud = false
     var update = false
     var airpods = false
+    /// Ilha compacta de conexão dos AirPods; o card (`airpods`) vence ela.
+    var airpodsIsland = false
     var expanded = false
     var pomodoro = false
     var focus: NotchSection?
@@ -31,6 +33,7 @@ struct NotchContentState {
         if hud { return .hud }
         if update { return .update }
         if airpods { return .airpods }
+        if airpodsIsland { return .airpodsIsland }
         if expanded { return .music }
         if pomodoro { return .pomodoro }
         return .closed
@@ -40,7 +43,7 @@ struct NotchContentState {
         switch mode {
         case .question: return true
         case .message: return reply
-        case .music: return expanded && ([.nota, .mensagens, .link].contains(focus) || editingAgenda || editingReminders)
+        case .music: return expanded && ([.nota, .mensagens, .link, .monitores].contains(focus) || editingAgenda || editingReminders)
         default: return false
         }
     }
@@ -108,7 +111,7 @@ struct NotchPresentation: Equatable {
     let keyboard: Bool
     let contentID: String
 
-    var compact: Bool { [.closed, .hud, .dictation, .pomodoro].contains(mode) }
+    var compact: Bool { [.closed, .hud, .dictation, .pomodoro, .airpodsIsland].contains(mode) }
     var hoverPadding: CGFloat { mode == .music ? 16 : 0 }
     var interactionSize: CGSize {
         CGSize(width: mode == .music ? size.width + 2 * hoverPadding : 400,
@@ -123,6 +126,9 @@ struct NotchPresentation: Equatable {
         var sectionHeight: CGFloat = 118
         var sectionWidth: CGFloat = 430
         var notificationActions = false
+        /// Altura a mais do card de notificação: subtítulo e, com o mouse em
+        /// cima, o texto inteiro. Medida pela NotchView; teto em `notificationExtraMax`.
+        var notificationExtra: CGFloat = 0
         var mediaHeight: CGFloat = 0
         var questionSize = CGSize(width: 460, height: 120)
         var contentID = ""
@@ -140,18 +146,22 @@ struct NotchPresentation: Equatable {
             target = CGSize(width: layout.realNotch
                 ? layout.notch.width + (layout.closedContent ? 88 : 0)
                 : (layout.closedContent ? 200 : 160), height: layout.notch.height)
-        case .hud, .dictation, .pomodoro:
+        case .hud, .dictation, .pomodoro, .airpodsIsland:
             target = CGSize(width: layout.realNotch ? layout.notch.width + 170 : 232,
                             height: layout.notch.height)
         case .music:
             target = CGSize(width: layout.sectionWidth,
                             height: topInset + layout.sectionHeight + 60)
         case .notification:
-            target = CGSize(width: 380, height: topInset + (layout.notificationActions ? 92 : 56))
+            target = CGSize(width: 380, height: topInset + (layout.notificationActions ? 92 : 56)
+                            + min(max(layout.notificationExtra, 0), Self.notificationExtraMax))
         case .message:
             target = CGSize(width: 360, height: topInset + (content.reply ? 108 : 72)
                             + (layout.mediaHeight > 0 ? layout.mediaHeight + 6 : 0))
-        case .airpods: target = CGSize(width: 320, height: topInset + 64)
+        case .airpods:
+            // nunca mais estreito que a ilha: senão encolhe sob o cursor na promoção
+            let ilha = layout.realNotch ? layout.notch.width + 170 : 232
+            target = CGSize(width: max(Self.airpodsCardWidth, ilha), height: topInset + Self.airpodsCardHeight)
         case .update: target = CGSize(width: 380, height: topInset + 72)
         case .question:
             target = CGSize(width: layout.questionSize.width, height: topInset + layout.questionSize.height)
@@ -159,6 +169,13 @@ struct NotchPresentation: Equatable {
         size = CGSize(width: min(target.width, max(1, layout.available.width - 64)),
                       height: min(target.height, max(1, layout.available.height - 24)))
     }
+
+    /// Largura/altura do card de AirPods, lidas também pela NotchView. A largura
+    /// cobre a ilha (notch + 170) pra o card não encolher sob o cursor no hover.
+    static let airpodsCardWidth: CGFloat = 380
+    static let airpodsCardHeight: CGFloat = 184
+    /// Teto do texto aberto no hover: o resto é cortado, o card não cresce além.
+    static let notificationExtraMax: CGFloat = 200
 
     /// Janela fixa: reserva folga para hover, sombra e overshoot do card largo.
     static func hostFrame(screen: CGRect, visible: CGRect) -> CGRect {
@@ -232,6 +249,7 @@ enum NotchMetrics {
         case .anotacao: return annotationButtonHeight * 2 + 6
         case .agenda: return agendaHeight
         case .lembretesApple: return 330
+        case .monitores: return 192
         }
     }
 

@@ -69,6 +69,8 @@ final class NotchViewModel: ObservableObject {
     /// true = notch físico (câmera no meio); false = ilha simulada em monitor externo
     @Published var hasRealNotch = false
     @Published var activeNotification: NotchNotification?
+    /// Mouse sobre o card de notificação: o timer para e o texto abre inteiro.
+    @Published private(set) var notificationHeld = false
     @Published var hud: HUDState?
     @Published var dictation: DictationPhase?
     /// Atividade em curso. Só título/detalhe e o aparecer/sumir promovem — o
@@ -95,6 +97,11 @@ final class NotchViewModel: ObservableObject {
     /// Próximo evento do calendário. Sem `didSet`: não é mudança de seção, só
     /// alimenta a linha extra do card do Pomodoro e a pílula fechada.
     @Published var calendarAviso: CalendarAviso?
+    @Published var monitoresSelecionado: UInt32?
+    @Published var monitoresDisponiveis = false
+    @Published var monitoresArrastando = false
+    @Published var monitoresContraste = false
+    var onMonitoresSettings: ((UInt32) -> Void)?
     var onLembretesView: (() -> AnyView)?
     var onAtualizarLembretes: (() -> Void)?
     @Published var lembretesEditando = false
@@ -207,11 +214,14 @@ final class NotchViewModel: ObservableObject {
         agendaDeslocamento = 0
         atualizarAgenda()
     }
-    /// AirPods conectados: bateria por componente (nil = desconectado). Alimenta
-    /// a faixa junto da música e o card dedicado no hover.
+    /// AirPods conectados: bateria por componente (nil = desconectado).
     @Published var airpods: AirPodsBattery?
-    /// Card transitório de AirPods (connect / bateria baixa), auto-some.
+    /// Card grande de AirPods (hover na ilha ou bateria baixa), auto-some.
     @Published var airpodsCard = false
+    /// Ilha compacta de conexão dos AirPods, auto-some.
+    @Published var airpodsIsland = false
+    /// Cursor sobre o card de AirPods: timer suspenso até a saída.
+    private(set) var airpodsHeld = false
     /// Atualização disponível/instalando. Espelha o Updater; quem empurra é o
     /// AppDelegate, como faz com AirPods e Pomodoro.
     @Published var update: UpdateState?
@@ -285,6 +295,7 @@ final class NotchViewModel: ObservableObject {
             // A navegação e o acesso às permissões existem mesmo num dia vazio.
             .agenda: true,
             .lembretesApple: true,
+            .monitores: monitoresDisponiveis,
         ]
         return NotchSection.allCases.map {
             NotchSectionState(section: $0,
@@ -416,6 +427,9 @@ final class NotchViewModel: ObservableObject {
         var level: Float
         var muted: Bool = false
         var charging: Bool = false
+        var displayID: UInt32?
+        var displayName: String?
+        var displayControl: String?
     }
 
     typealias Mode = NotchMode
@@ -432,7 +446,7 @@ final class NotchViewModel: ObservableObject {
                           reply: incoming?.allowReply == true, dictation: dictation != nil,
                           typingNote: typingNote, editingAgenda: editandoAgenda, editingReminders: editandoLembretes, notification: activeNotification != nil,
                           hud: hud != nil, update: updateCard && update != nil,
-                          airpods: airpodsCard, expanded: expanded, pomodoro: pomodoro != nil,
+                          airpods: airpodsCard, airpodsIsland: airpodsIsland, expanded: expanded, pomodoro: pomodoro != nil,
                           focus: focus)
     }
 
@@ -448,7 +462,7 @@ final class NotchViewModel: ObservableObject {
     private var hudWork: DispatchWorkItem?
 
     func fecharPorHoverOut() {
-        guard !linkAberto && !editandoAgenda && !editandoLembretes else { return }
+        guard !linkAberto && !editandoAgenda && !editandoLembretes && !monitoresArrastando else { return }
         setExpandedDirect(false)
     }
 
@@ -459,7 +473,7 @@ final class NotchViewModel: ObservableObject {
         let work = DispatchWorkItem { [weak self] in
             guard let self,
                   let value = self.opening.fire(request, now: ProcessInfo.processInfo.systemUptime,
-                                                linkOpen: self.linkAberto || self.editandoAgenda || self.editandoLembretes) else { return }
+                                                linkOpen: self.linkAberto || self.editandoAgenda || self.editandoLembretes || self.monitoresArrastando) else { return }
             self.applyExpanded(value)
         }
         openingWork = work
@@ -477,12 +491,14 @@ final class NotchViewModel: ObservableObject {
     private func applyExpanded(_ value: Bool) {
         precondition(Thread.isMainThread, "Apresentação deve mudar na main thread")
         if value && !expanded {
+            monitoresSelecionado = displayID
             agendaHoje()
             onAtualizarLembretes?()
         }
         if value && !expanded && receivedSections { reconcileSections() }
         if !value {
             if typingNote { QuickNote.shared.editing = false }
+            monitoresArrastando = false
             mirrorOn = false
             focusLocked = false
             focoPendente = nil
@@ -595,6 +611,7 @@ final class NotchViewModel: ObservableObject {
     func dismissActiveNotification() {
         dismissWork?.cancel()
         activeNotification = nil
+        notificationHeld = false
         if !queue.isEmpty {
             let next = queue.removeFirst()
             // respiro entre uma e outra pra animação de fechar/abrir ler bem
@@ -607,6 +624,7 @@ final class NotchViewModel: ObservableObject {
     /// Segurar o mouse em cima pausa o auto-dismiss.
     func holdNotification(_ hovering: Bool) {
         guard activeNotification != nil else { return }
+        notificationHeld = hovering
         if hovering {
             dismissWork?.cancel()
         } else {
@@ -659,11 +677,40 @@ final class NotchViewModel: ObservableObject {
 
     private var airpodsWork: DispatchWorkItem?
 
-    /// Mostra o card de AirPods por `duration` e some (igual ao HUD).
-    func showAirPodsCard(duration: TimeInterval = 4.0) {
-        airpodsCard = true
+    /// Conexão abre a ilha (~3 s); bateria baixa abre o card direto (~5 s).
+    func showAirPods(_ reason: AirPodsAnnounce) {
+        airpodsIsland = reason == .connected
+        airpodsCard = reason == .lowBattery
+        // cursor já em cima: vira card e espera a saída
+        if airpodsHeld { airpodsIsland = false; airpodsCard = true; return }
+        scheduleAirPodsDismiss(after: reason == .connected ? 3.0 : 5.0)
+    }
+
+    /// Cursor sobre a ilha promove para o card e segura o timer; ao sair,
+    /// reagenda curto. Não passa pelo `setHover`: senão o card de música
+    /// acordaria por baixo e assumiria quando os AirPods somem.
+    func holdAirPods(_ hovering: Bool) {
+        guard airpodsIsland || airpodsCard else { return }
+        airpodsHeld = hovering
+        if hovering {
+            airpodsWork?.cancel()
+            airpodsIsland = false
+            airpodsCard = true
+        } else {
+            scheduleAirPodsDismiss(after: 1.0)
+        }
+    }
+
+    func dismissAirPods() {
         airpodsWork?.cancel()
-        let work = DispatchWorkItem { [weak self] in self?.airpodsCard = false }
+        airpodsHeld = false
+        airpodsIsland = false
+        airpodsCard = false
+    }
+
+    private func scheduleAirPodsDismiss(after duration: TimeInterval) {
+        airpodsWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.dismissAirPods() }
         airpodsWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: work)
     }

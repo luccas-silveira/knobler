@@ -249,9 +249,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self.interceptor = interceptor
 
 
-        // HUDs são estado global do sistema: aparecem em TODAS as telas
+        // Com destino identificado, o HUD aparece somente no notch correspondente.
         volumeHUD.onHUD = { [weak self] state in
-            self?.notches.values.forEach { $0.viewModel.showHUD(state) }
+            guard let self else { return }
+            if let id = state.displayID {
+                let target = self.notches[id] ?? self.notches.values.first
+                target?.viewModel.showHUD(state)
+            } else {
+                self.notches.values.forEach { $0.viewModel.showHUD(state) }
+            }
         }
         // o health-check do tap já sonda a Acessibilidade a cada 3s: o badge
         // pega carona em vez de abrir um timer só pra ele
@@ -284,12 +290,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         battery.start()
 
-        // AirPods: card no connect + faixa de bateria enquanto conectado.
+        // AirPods: ilha na conexão, card na bateria baixa.
         // start()/stop() ficam no sink de settings (reage ao toggle).
-        bluetooth.onAnnounce = { [weak self] ap in
+        bluetooth.onAnnounce = { [weak self] ap, reason in
             self?.notches.values.forEach {
                 $0.viewModel.airpods = ap
-                $0.viewModel.showAirPodsCard()
+                $0.viewModel.showAirPods(reason)
             }
         }
         bluetooth.onUpdate = { [weak self] ap in
@@ -298,7 +304,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         bluetooth.onDisconnect = { [weak self] in
             self?.notches.values.forEach {
                 $0.viewModel.airpods = nil
-                $0.viewModel.airpodsCard = false
+                $0.viewModel.dismissAirPods()
             }
         }
 
@@ -607,6 +613,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // já nasce dormente (nenhum link aberto), então `nascer` só devolve o
         // singleton como o `PluginServico` (conformidade em `LinkPreview.swift`).
         plugins.previewLinkEfeitos = PreviewLinkEfeitos(nascer: { LinkPreview.shared })
+        plugins.monitoresEfeitos = MonitoresEfeitos(nascer: { [weak self] in
+            Monitores.shared.onHUD = { [weak self] display, command in
+                let isBrightness = command == .brightness || command == .contrast
+                guard display.preferences.showHUD,
+                      isBrightness ? AppSettings.shared.brightnessHUD : AppSettings.shared.volumeHUD else { return }
+                let value = isBrightness ? (command == .contrast ? display.contrast ?? 0 : display.brightness) : display.volume ?? 0
+                self?.volumeHUD.onHUD?(.init(kind: isBrightness ? .brightness : .volume,
+                    level: Float(value), muted: !isBrightness && display.muted,
+                    displayID: display.id, displayName: display.name,
+                    displayControl: command == .contrast ? "Contraste" : nil))
+            }
+            Monitores.shared.start()
+            return Monitores.shared
+        })
         // O nascimento das peças instaladas. Quem está desligado nem é visitado.
         plugins.subir()
         // Só agora as janelas: ver o comentário no lugar de onde esta linha veio.
@@ -1217,6 +1237,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 viewModel.onPomodoroSettings = { [weak self] in
                     self?.showSettings(pane: .pomodoro)
                 }
+                viewModel.onMonitoresSettings = { [weak self] id in
+                    MonitoresSettingsSelection.shared.displayID = id
+                    self?.showSettings(pane: .monitores)
+                }
                 viewModel.onAtualizarLembretes = { [weak self] in self?.appleReminders.refresh() }
                 viewModel.onLembretesView = { [weak self, weak viewModel, weak panel] in
                     guard let self, let viewModel else { return AnyView(EmptyView()) }
@@ -1630,6 +1654,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // a nota morre com o app; desligar aqui é o que joga o texto no
         // clipboard antes (o didSet de `active`) em vez de sumir com ele
         QuickNote.shared.active = false
+        Monitores.shared.stop()
         // devolve o OSD nativo — sem o Knobler o usuário fica sem HUD nenhum
         OSDSuppressor.restore()
         // devolve o preview do print (senão ficaria sem preview E sem shelf)

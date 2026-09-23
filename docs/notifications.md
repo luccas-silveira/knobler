@@ -9,6 +9,14 @@ processo do Notification Center (`AXObserver` + polling de segurança), lê o
 título/corpo do banner, fecha o balão nativo e mostra o mesmo conteúdo como um
 card que desce do notch.
 
+O card mostra o app de origem (ícone e nome), o subtítulo quando o banner tem
+um (nome do grupo, por exemplo) e há quanto tempo a notificação chegou. Com o
+mouse em cima, o timer para e o texto abre inteiro.
+
+O nome do app vem da descrição que o macOS dá ao banner pela Acessibilidade.
+Quando o banner não diz de onde veio, o card mostra um sino e o clique não abre
+nada — melhor que atribuir a notificação ao app errado.
+
 ## Como usar
 
 - Não exige ação: qualquer notificação do sistema que abriria o banner nativo
@@ -104,11 +112,9 @@ continua no rodapé, e sair por ela (ou pelo swipe horizontal) não apaga o text
 
 ### O que aparece em cada linha
 
-Horário à esquerda, nome do app, título e corpo truncado numa linha. **Sem
-ícone do app** — `NSWorkspace.icon(forFile:)` não renderiza no harness de
-snapshot offscreen do projeto, então a linha ficou só com texto. Clicar numa
-linha faz o mesmo que clicar no card original teria feito (abre a URL, foca o
-app, revela a pasta do AirDrop) e recolhe o notch.
+Horário, ícone do app, nome do app, título, e subtítulo e corpo truncados numa
+linha. Clicar numa linha faz o mesmo que clicar no card original teria feito
+(abre a URL, foca ou abre o app, revela a pasta do AirDrop) e recolhe o notch.
 
 Quando não há nada nas últimas 24 h, a seção mostra "Nada nas últimas 24 h".
 

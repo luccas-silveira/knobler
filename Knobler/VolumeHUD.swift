@@ -47,6 +47,7 @@ final class VolumeHUDController {
         brightnessGet != nil && brightnessSet != nil
     }
 
+    private var monitorKeys = Set<Int>()
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var healthTimer: Timer?
@@ -214,6 +215,22 @@ final class VolumeHUDController {
             return Unmanaged.passRetained(cgEvent)
         }
         if stateByte == 0xA { logKey("nx=\(keyCode)") }
+
+        // O serviço decide o destino; a preferência de HUD não desliga o controle.
+        if stateByte == 0xB, monitorKeys.remove(keyCode) != nil { return nil }
+        if stateByte == 0xA {
+            let command: MonitorCommand? = switch keyCode {
+            case 0, 1: .volume
+            case 7: .mute
+            case 2, 3: .brightness
+            default: nil
+            }
+            let fine = nsEvent.modifierFlags.contains([.shift, .option])
+            if let command, Monitores.shared.handleKey(command, increase: keyCode == 0 || keyCode == 2, fine: fine) {
+                monitorKeys.insert(keyCode)
+                return nil
+            }
+        }
 
         let isVolume = Self.volumeKeyCodes.contains(keyCode)
             && AppSettings.shared.volumeHUD

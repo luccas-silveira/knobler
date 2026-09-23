@@ -19,6 +19,7 @@ struct NotchView: View {
     @ObservedObject private var note = QuickNote.shared
     @ObservedObject private var linkPreview = LinkPreview.shared
     @ObservedObject private var mirror = MirrorController.shared
+    @ObservedObject private var monitors = Monitores.shared
     @ObservedObject private var annotation = AnnotationController.shared
     /// Só pra saber se há conversa (o `hasMensagens` da ordem das seções). O
     /// store não tem singleton: quem injeta é o app (e o harness de snapshot).
@@ -60,8 +61,17 @@ struct NotchView: View {
         if vm.focus == .lembretesApple {
             layout.sectionHeight = min(330, max(0, vm.availableSize.height - vm.notchSize.height - 84))
         }
+        if vm.focus == .monitores {
+            let display = monitors.displays.first { $0.id == vm.monitoresSelecionado }
+                ?? monitors.displays.first { $0.id == vm.displayID } ?? monitors.displays.first
+            layout.sectionHeight = 172 + (vm.monitoresContraste ? 54 : 0)
+                + (display?.software == true ? 24 : 0)
+                + (display?.error != nil ? 42 : 0)
+                + (display?.preferences.mode == .hardware && display?.hardwareBrightness == false ? 32 : 0)
+        }
         layout.sectionWidth = NotchMetrics.larguraDoCard(vm.focus, padrao: 430, linkAberto: linkAberto)
         layout.notificationActions = vm.activeNotification?.actionTitles.isEmpty == false
+        layout.notificationExtra = Self.alturaExtra(vm.activeNotification, aberto: vm.notificationHeld)
         layout.mediaHeight = vm.incoming?.mediaHeight ?? 0
         layout.questionSize = questionSize
         layout.contentID = "\(askStore.state.active?.id ?? "")/\(askStore.state.page)/\(agentRequestStore.state.active?.id ?? "")"
@@ -94,6 +104,9 @@ struct NotchView: View {
         // a raiz é o "onde a moldura deveria estar" do invariante da lacuna de
         // topo — ver Knobler/CorteDoKnob.swift
         .coordinateSpace(name: CorteDoKnob.espacoRaiz)
+        .onReceive(monitors.$displays) { displays in
+            vm.monitoresDisponiveis = !displays.isEmpty
+        }
     }
 
     /// O retrato do instante da violação. Montado SÓ quando ela acontece.
@@ -162,8 +175,7 @@ struct NotchView: View {
             case .notification:
                 notificationCard
                     .frame(width: currentSize.width - 48,
-                           height: vm.activeNotification?.actionTitles.isEmpty == false
-                               ? 92 : 56, alignment: .top)
+                           height: currentSize.height - topInset, alignment: .top)
                     .padding(.top, topInset)
                     // notificação desce do notch, como no iPhone
                     .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace).combined(with: .move(edge: .top)))
@@ -179,13 +191,20 @@ struct NotchView: View {
                 questionCard
                     // pergunta desce do notch, como as notificações
                     .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace).combined(with: .move(edge: .top)))
+            case .airpodsIsland:
+                if let ap = vm.airpods {
+                    AirPodsIslandView(battery: ap)
+                        .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace))
+                }
             case .airpods:
-                airpodsConnectCard
-                    .frame(width: 320 - 40)
-                    .padding(.top, topInset)
-                    .padding(.bottom, 12)
-                    // desce do notch, como as notificações
-                    .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace).combined(with: .move(edge: .top)))
+                if let ap = vm.airpods {
+                    AirPodsCardView(battery: ap)
+                        .frame(width: currentSize.width - 40)
+                        .padding(.top, topInset + 6)
+                        .padding(.bottom, 12)
+                        // desce do notch, como as notificações
+                        .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace).combined(with: .move(edge: .top)))
+                }
             case .update:
                 updateNotchCard
                     .frame(width: 380 - 40)
@@ -220,10 +239,21 @@ struct NotchView: View {
             }
         }
         .onHover { inside in
+            // card de AirPods segurado solta em qualquer saída, mesmo se outro
+            // modo (HUD, notificação) estiver por cima nessa hora
+            if !inside, vm.airpodsHeld { vm.holdAirPods(false) }
+            // idem pra notificação: se uma mensagem ou pergunta cobriu o card
+            // durante o hover, a saída não passa pelo ramo abaixo e o card
+            // voltaria aberto e sem timer
+            if !inside, vm.notificationHeld, mode != .notification { vm.holdNotification(false) }
             if mode == .notification {
                 vm.holdNotification(inside)
             } else if mode == .message {
                 vm.holdIncoming(inside)
+            } else if mode == .airpods || mode == .airpodsIsland {
+                // entrada promove sem acordar a música; saída também fecha a
+                // música pendente, senão ela assume quando os AirPods somem
+                if inside { vm.holdAirPods(true) } else { vm.setHover(false) }
             } else if !inside || mode != .question {
                 // O card de pergunta usa hover para preview e clique; não deixe
                 // esse movimento alterar o estado de expansão da música.
@@ -293,8 +323,13 @@ struct NotchView: View {
                         .font(.footnote)
                         .frame(width: 18, alignment: .leading)
                         .contentTransition(.symbolEffect(.replace))
-                    Text(Self.hudLabel(hud))
-                        .font(.subheadline.weight(.semibold))
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(Self.hudLabel(hud))
+                            .font(hud.displayName == nil ? .subheadline.weight(.semibold) : .caption.weight(.semibold))
+                        if let name = hud.displayName {
+                            Text(name).font(.system(size: 8)).lineLimit(1).frame(maxWidth: 95, alignment: .leading)
+                        }
+                    }
                 }
                 .foregroundStyle(.white)
                 .padding(.leading, 16)
@@ -576,6 +611,14 @@ struct NotchView: View {
     }
 
     private static func hudLabel(_ hud: NotchViewModel.HUDState) -> String {
+        if let control = hud.displayControl { return control }
+        if hud.displayName != nil {
+            switch hud.kind {
+            case .brightness: return "Brilho"
+            case .volume: return hud.muted ? "Silenciado" : "Volume"
+            case .battery: break
+            }
+        }
         switch hud.kind {
         case .volume: return hud.muted ? "Mute" : "Sound"
         case .brightness: return "Brightness"
@@ -810,6 +853,7 @@ struct NotchView: View {
                 case .anotacao: AnnotationDeckView(annotation: annotation)
                 case .agenda: AgendaView(vm: vm)
                 case .lembretesApple: vm.onLembretesView?()
+                case .monitores: MonitoresView(vm: vm)
                 case .musica, .none: musicSection
                 }
             }
@@ -897,7 +941,7 @@ struct NotchView: View {
                     .frame(width: 3, height: 3)
                     .offset(x: 6, y: -6)
             }
-        case .espelho, .mensagens, .agenda, .lembretesApple:
+        case .espelho, .mensagens, .agenda, .lembretesApple, .monitores:
             EmptyView()
         }
     }
@@ -1261,15 +1305,28 @@ struct NotchView: View {
                 HStack(spacing: 12) {
                     appIcon(for: notification)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(notification.title)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .lineLimit(1)
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(notification.title)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .lineLimit(vm.notificationHeld ? nil : 1)
+                            Spacer(minLength: 0)
+                            Text(NotificationRules.haQuanto(notification.date, agora: Date()))
+                                .font(.caption2)
+                                .foregroundStyle(.white.opacity(0.45))
+                                .fixedSize()
+                        }
+                        if let subtitle = notification.subtitle, !subtitle.isEmpty {
+                            Text(subtitle)
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.white.opacity(0.8))
+                                .lineLimit(vm.notificationHeld ? nil : 1)
+                        }
                         if !notification.body.isEmpty {
                             Text(notification.body)
                                 .font(.caption)
                                 .foregroundStyle(.white.opacity(0.65))
-                                .lineLimit(2)
+                                .lineLimit(vm.notificationHeld ? nil : 2)
                         }
                     }
                     Spacer(minLength: 0)
@@ -1300,6 +1357,43 @@ struct NotchView: View {
                 }
             }
         }
+    }
+
+    /// Quanto o card cresce além do compacto (título 1 linha + corpo 2).
+    /// ponytail: estimativa por métrica de fonte, não medida do layout real;
+    /// errar por uma linha só sobra ou corta um pouco. Trocar por medição via
+    /// PreferenceKey se incomodar.
+    static func alturaExtra(_ n: NotchNotification?, aberto: Bool) -> CGFloat {
+        guard let n else { return 0 }
+        guard aberto || n.subtitle?.isEmpty == false else { return 0 }
+        // card 380 − padding 48 − ícone 32 − espaço 12; o título divide a linha
+        // com a hora
+        func altura(_ texto: String, _ fonte: NSFont, max linhas: Int?,
+                    largura: CGFloat = 288) -> CGFloat {
+            guard !texto.isEmpty else { return 0 }
+            func medida(_ s: String) -> CGFloat {
+                (s as NSString).boundingRect(
+                    with: CGSize(width: largura, height: .greatestFiniteMagnitude),
+                    options: [.usesLineFragmentOrigin], attributes: [.font: fonte]).height
+            }
+            let linha = medida("x")
+            // o teto do card é ~15 linhas: medir além disso só custa tempo
+            let total = medida(String(texto.prefix(2_000)))
+            let n = Swift.max(1, Int((total / linha).rounded(.up)))
+            return CGFloat(linhas.map { Swift.min(n, $0) } ?? n) * linha
+        }
+        let tituloF = NSFont.systemFont(ofSize: NSFont.preferredFont(forTextStyle: .subheadline).pointSize,
+                                        weight: .semibold)
+        let corpoF = NSFont.preferredFont(forTextStyle: .caption1)
+        let compacto = altura("x", tituloF, max: 1) + altura("x\nx", corpoF, max: 2)
+        let agora = altura(n.title, tituloF, max: aberto ? nil : 1, largura: 288 - 45)
+            + altura(n.subtitle ?? "", corpoF, max: aberto ? nil : 1)
+            + altura(n.body, corpoF, max: aberto ? nil : 2)
+        // o Text do SwiftUI entrelinha um pouco mais que a métrica do AppKit e a
+        // diferença acumula por linha: aberto ganha uma linha de folga, senão a
+        // última encosta na borda
+        let folga = aberto ? altura("x", corpoF, max: 1) : 0
+        return Swift.max(0, agora - compacto + folga)
     }
 
     private func appIcon(for notification: NotchNotification) -> some View {
@@ -1341,7 +1435,18 @@ struct NotchView: View {
             app.activate()
             return
         }
-        Self.runningApp(named: notification.appName)?.activate()
+        if let app = Self.runningApp(named: notification.appName) {
+            app.activate()
+            return
+        }
+        // app instalado e fechado: abre, em vez de o clique não fazer nada.
+        // Só pra banner do sistema — o nome de um card da API local vem de fora
+        // e não pode lançar app — e só em pastas de apps.
+        if notification.doBanner,
+           let path = Self.appPath(bundleID: notification.bundleID, named: notification.appName) {
+            NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: path),
+                                               configuration: NSWorkspace.OpenConfiguration())
+        }
     }
 
     /// Foca a sessão no Supacode via CLI do app e traz o app pra frente.
@@ -1366,65 +1471,34 @@ struct NotchView: View {
         }
     }
 
+    /// Compara limpo dos dois lados: o `localizedName` do WhatsApp também traz
+    /// U+200E, e o nome lido do banner já vem limpo.
     private static func runningApp(named name: String?) -> NSRunningApplication? {
-        guard let name, !name.isEmpty else { return nil }
+        guard let name else { return nil }
+        let alvo = NotificationRules.limpo(name)
+        guard !alvo.isEmpty else { return nil }
         return NSWorkspace.shared.runningApplications.first {
-            $0.localizedName?.localizedCaseInsensitiveCompare(name) == .orderedSame
+            NotificationRules.limpo($0.localizedName ?? "")
+                .localizedCaseInsensitiveCompare(alvo) == .orderedSame
         }
     }
 
     /// Caminho do app pro ícone: bundle ID exato, senão app rodando pelo nome,
-    /// senão instalado em /Applications.
-    private static func appPath(bundleID: String?, named name: String?) -> String? {
+    /// senão instalado em /Applications ou ~/Applications (web apps do Safari,
+    /// PWAs do Chrome).
+    static func appPath(bundleID: String?, named name: String?) -> String? {
         if let bundleID,
            let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
             return url.path
         }
         if let path = runningApp(named: name)?.bundleURL?.path { return path }
-        guard let name, !name.isEmpty else { return nil }
-        let installed = "/Applications/\(name).app"
-        return FileManager.default.fileExists(atPath: installed) ? installed : nil
-    }
-
-    // MARK: - AirPods
-
-    /// Card transitório mostrado quando os AirPods conectam ou ficam com bateria
-    /// baixa: nome + bateria L / R / estojo.
-    @ViewBuilder
-    private var airpodsConnectCard: some View {
-        if let ap = vm.airpods {
-            HStack(spacing: 12) {
-                Image(systemName: "airpodspro")
-                    .font(.title2)
-                    .foregroundStyle(.white)
-                    .frame(width: 30)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(ap.name)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                    HStack(spacing: 14) {
-                        airpodsPip("L", ap.left)
-                        airpodsPip("R", ap.right)
-                        airpodsPip("Estojo", ap.case_)
-                    }
-                }
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    /// Um componente (rótulo + %); vermelho quando ≤10%, "—" quando não reportou.
-    private func airpodsPip(_ label: String, _ level: Int?) -> some View {
-        HStack(spacing: 3) {
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(.white.opacity(0.55))
-            Text(level.map { "\($0)%" } ?? "—")
-                .font(.caption.monospacedDigit().weight(.semibold))
-                .foregroundStyle((level ?? 100) <= 10 ? .red : .white)
-        }
+        guard let name else { return nil }
+        let nome = NotificationRules.limpo(name)
+        // "/" ou ".." escapariam da pasta de apps
+        guard !nome.isEmpty, !nome.contains("/") else { return nil }
+        let pastas = ["/Applications", NSHomeDirectory() + "/Applications"]
+        return pastas.map { "\($0)/\(nome).app" }
+            .first { FileManager.default.fileExists(atPath: $0) }
     }
 
     // MARK: - Atualização disponível
@@ -1505,24 +1579,29 @@ struct NotchView: View {
 /// arco girando (indeterminado).
 struct ActivityRingView: View {
     var progress: Double?
+    var color: Color = .orange
+    var lineWidth: CGFloat = 2.5
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         if let progress {
             ZStack {
-                Circle().stroke(.white.opacity(0.25), lineWidth: 2.5)
+                Circle().stroke(.white.opacity(0.25), lineWidth: lineWidth)
                 Circle()
                     .trim(from: 0, to: max(0.03, progress))
-                    .stroke(Color.orange, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                    .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                     .rotationEffect(.degrees(-90))
+                    // em 0 o lineCap redondo deixaria um ponto no topo
+                    .opacity(progress > 0 ? 1 : 0)
             }
-            .animation(.spring(response: 0.3, dampingFraction: 0.9), value: progress)
+            .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.9), value: progress)
         } else {
             TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
                 let phase = context.date.timeIntervalSinceReferenceDate
                     .truncatingRemainder(dividingBy: 1.2) / 1.2
                 Circle()
                     .trim(from: 0, to: 0.7)
-                    .stroke(Color.orange, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                    .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                     .rotationEffect(.degrees(phase * 360))
             }
         }
@@ -1633,11 +1712,14 @@ struct AudioBarsView: View {
 
 /// Avatar do card: tenta o avatar remoto (com guardas) quando há iconURL e o
 /// toggle está on; senão o ícone do app; senão o sino.
-private struct RemoteAvatarView: View {
+struct RemoteAvatarView: View {
     let iconURL: String?
     let iconEmoji: String?
     var iconColor: NSColor? = nil
     let fallbackPath: String?
+    /// Emoji e sino foram desenhados pro card (32 pt); a linha do histórico
+    /// usa metade.
+    var escala: CGFloat = 1
     @StateObject private var loader = RemoteAvatarLoader()
 
     var body: some View {
@@ -1648,7 +1730,7 @@ private struct RemoteAvatarView: View {
                     .overlay(RoundedRectangle(cornerRadius: 7)
                         .strokeBorder(.white.opacity(0.25), lineWidth: 1))
             } else if let e = iconEmoji, !e.isEmpty {
-                Text(e).font(.system(size: 22))
+                Text(e).font(.system(size: 22 * escala))
             } else if let img = loader.image {
                 Image(nsImage: img).resizable().scaledToFit()
                     .clipShape(RoundedRectangle(cornerRadius: 7))
@@ -1656,7 +1738,7 @@ private struct RemoteAvatarView: View {
                 Image(nsImage: NSWorkspace.shared.icon(forFile: path)).resizable()
             } else {
                 Image(systemName: "bell.badge.fill").resizable().scaledToFit()
-                    .padding(6).foregroundStyle(.white.opacity(0.6))
+                    .padding(6 * escala).foregroundStyle(.white.opacity(0.6))
             }
         }
         .onAppear { reload() }

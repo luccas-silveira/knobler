@@ -51,8 +51,14 @@ enum PresentationCheck {
         state.hud = false
         assert(state.mode == .update)
         state.update = false
-        assert(state.mode == .airpods)
+        state.airpodsIsland = true
+        assert(state.mode == .airpods, "card vence a ilha")
         state.airpods = false
+        assert(state.mode == .airpodsIsland)
+        state.hud = true
+        assert(state.mode == .hud, "volume toma o lugar da ilha")
+        state.hud = false
+        state.airpodsIsland = false
         assert(state.mode == .music)
         state.expanded = false
         assert(state.mode == .pomodoro && !state.keyboard)
@@ -74,6 +80,40 @@ enum PresentationCheck {
             layout.available = CGSize(width: 600, height: 200)
             let limited = NotchPresentation(content: note, layout: layout)
             assert(limited.size.width <= 536 && limited.size.height <= 176)
+        }
+        do {
+            var layout = NotchPresentation.Layout()
+            layout.realNotch = true
+            let ilha = NotchPresentation(content: NotchContentState(airpodsIsland: true), layout: layout)
+            let hud = NotchPresentation(content: NotchContentState(hud: true), layout: layout)
+            assert(ilha.size == hud.size && ilha.compact, "ilha tem o tamanho da pílula")
+            let card = NotchPresentation(content: NotchContentState(airpods: true), layout: layout)
+            assert(card.size.width == NotchPresentation.airpodsCardWidth)
+            assert(card.size.width >= ilha.size.width, "card não pode encolher sob o cursor")
+            // notch mais largo (texto maior): o card ainda cobre a ilha
+            for largura in stride(from: 180, through: 260, by: 20) {
+                layout.notch = CGSize(width: CGFloat(largura), height: 32)
+                let i = NotchPresentation(content: NotchContentState(airpodsIsland: true), layout: layout)
+                let c = NotchPresentation(content: NotchContentState(airpods: true), layout: layout)
+                assert(c.size.width >= i.size.width, "card encolhe sob o cursor com notch \(largura)")
+            }
+        }
+        do {
+            var layout = NotchPresentation.Layout()
+            layout.realNotch = true
+            let base = NotchPresentation(content: NotchContentState(notification: true), layout: layout)
+            assert(base.size == CGSize(width: 380, height: 32 + 56))
+            layout.notificationExtra = 40
+            let aberto = NotchPresentation(content: NotchContentState(notification: true), layout: layout)
+            assert(aberto.size.height == base.size.height + 40, "hover soma a altura do texto")
+            layout.notificationActions = true
+            let comBotao = NotchPresentation(content: NotchContentState(notification: true), layout: layout)
+            assert(comBotao.size.height == 32 + 92 + 40, "botões e texto somam")
+            layout.notificationActions = false
+            layout.notificationExtra = 5_000
+            let gigante = NotchPresentation(content: NotchContentState(notification: true), layout: layout)
+            assert(gigante.size.height == 32 + 56 + NotchPresentation.notificationExtraMax,
+                   "texto gigante para no teto")
         }
         for screen in [CGRect(x: 0, y: 0, width: 1512, height: 982),
                        CGRect(x: -1920, y: 400, width: 1920, height: 1080)] {

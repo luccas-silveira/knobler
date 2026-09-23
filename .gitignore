@@ -11,3 +11,6 @@ graphify-out/
 
 # chave privada de assinatura — nunca versionar
 *.p12
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/

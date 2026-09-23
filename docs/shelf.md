@@ -16,6 +16,8 @@ e ele expande sozinho; o item fica guardado no card aberto até você arrastar
 de volta pro Finder (ou pra outro app). Screenshots novos também podem cair
 direto na prateleira automaticamente (observados via Spotlight, sem polling),
 prontos pra arrastar em vez de precisar ir até a área de trabalho.
+Só entram automaticamente capturas criadas desde que a observação foi ligada;
+capturas antigas reindexadas pelo Spotlight ficam de fora.
 
 ## Como usar
 

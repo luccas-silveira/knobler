@@ -1,5 +1,8 @@
 # AirPods/Bluetooth no notch — design
 
+> Substituída na apresentação por `2026-09-22-airpods-animados-design.md`. O
+> glance no hover descrito aqui foi removido no commit `12c765f`.
+
 Data: 2026-07-19 · Versão alvo: v0.17
 
 ## Objetivo

@@ -15,7 +15,7 @@ import SwiftUI
 
 enum SettingsPane: String, CaseIterable, Identifiable {
     case geral, notch, desenho, ditado, pomodoro, lembretes, descanso, webhooks, mensagens
-    case plugins, permissoes
+    case plugins, permissoes, monitores
     var id: String { rawValue }
 
     var title: String {
@@ -31,6 +31,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .mensagens: return "Mensagens"
         case .plugins: return "Plugins"
         case .permissoes: return "Permissões"
+        case .monitores: return "Monitores"
         }
     }
 
@@ -47,6 +48,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .mensagens: return "bubble.left.and.bubble.right.fill"
         case .plugins: return "square.grid.2x2.fill"
         case .permissoes: return "lock.shield.fill"
+        case .monitores: return "display"
         }
     }
 
@@ -71,6 +73,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .mensagens: return .green
         case .plugins: return .cyan
         case .permissoes: return .brown
+        case .monitores: return .cyan
         }
     }
 }
@@ -137,6 +140,7 @@ struct SettingsView: View {
         case .mensagens: IdentitySettingsView()
         case .plugins: PluginsSettingsPane(router: router)
         case .permissoes: PermissionsSettingsPane()
+        case .monitores: MonitoresSettingsPane()
         }
     }
 }

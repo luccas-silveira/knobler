@@ -36,6 +36,7 @@ private func corDaPeca(_ id: PluginID) -> Color {
     case .notaRapida: return .orange
     case .previewLink: return .blue
     case .conversao: return .mint
+    case .monitores: return .cyan
     }
 }
 

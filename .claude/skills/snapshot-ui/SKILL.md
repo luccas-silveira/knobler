@@ -36,10 +36,12 @@ verdade) não renderiza via `ImageRenderer` offscreen** — vira o ícone de
 - `WKWebView` — a seção Link (o preview de site não tem PNG no harness) e
   `NovidadesWindow`, a janela de novidades: mesma vala, por isso
   `docs/images/novidades.png` também é manual.
-- `NSWorkspace.icon(forFile:)`/`QLThumbnailGenerator` — `ShelfThumbnailDragView`,
-  por isso `docs/images/expanded-shelf.png` é capturada no app rodando de
-  verdade: o `foco-shelf.png` do harness sai com o ícone de "proibido" no lugar
-  das miniaturas.
+- `ShelfThumbnailDragView` (um `NSView` com `NSImageView`, alimentado por
+  `QLThumbnailGenerator`) — por isso `docs/images/expanded-shelf.png` é
+  capturada no app rodando de verdade: o `foco-shelf.png` do harness sai com o
+  ícone de "proibido" no lugar das miniaturas. O culpado é o `NSView`, não o
+  ícone: `Image(nsImage: NSWorkspace.shared.icon(forFile:))` em SwiftUI
+  renderiza normalmente (card de notificação e `historico-linhas.png`).
 - `ScrollView` (`NSScrollView` por baixo) — sintoma diferente dos outros: não
   vira o ícone de "proibido", o conteúdo simplesmente não aparece (área inteira
   preta), mesmo com `LazyVStack` trocado por `VStack` simples. Confirmado na

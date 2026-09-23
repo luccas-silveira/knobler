@@ -20,7 +20,7 @@ import Foundation
 /// renomear um caso desinstala a peça na máquina de quem já usava.
 enum PluginID: String, CaseIterable {
     case pomodoro, lembretes, descanso, mensagens, webhooks, ditado
-    case espelho, anotacao, notaRapida, previewLink, conversao
+    case espelho, anotacao, notaRapida, previewLink, conversao, monitores
 }
 
 /// Um serviço vivo. A peça devolve isto ao nascer; soltar a referência é o que
@@ -180,6 +180,10 @@ struct NotaRapidaEfeitos {
 /// o tipo aqui arrastaria os dois pro compile isolado do `plugincheck`
 /// (constraint 1). `nascer` só devolve o singleton — sem estado próprio pra
 /// ligar, ele já nasce "pronto" (nenhum link aberto).
+struct MonitoresEfeitos {
+    var nascer: () -> PluginServico? = { nil }
+}
+
 struct PreviewLinkEfeitos {
     var nascer: () -> PluginServico? = { nil }
 }
@@ -199,6 +203,7 @@ struct PluginDeps {
     var espelho = EspelhoEfeitos()
     var notaRapida = NotaRapidaEfeitos()
     var previewLink = PreviewLinkEfeitos()
+    var monitores = MonitoresEfeitos()
 }
 
 /// A ficha da peça. Tudo aqui é dado, menos `nascer`.
@@ -252,6 +257,11 @@ struct PluginDeFabrica {
 /// bate o martelo neles.
 enum PluginRegistry {
     static let todos: [Plugin] = [
+        Plugin(id: .monitores, nome: "Monitores",
+               descricao: "Brilho, contraste e som de cada tela.",
+               simbolo: "display", secao: "monitores", painel: "monitores",
+               rotas: [], permissao: "acessibilidade", pronta: true,
+               nascer: { $0.monitores.nascer() }),
         Plugin(id: .pomodoro, nome: "Pomodoro",
                descricao: "Ciclos de foco com pausa contada.",
                simbolo: "timer", secao: "pomodoro", painel: "pomodoro",
@@ -376,7 +386,7 @@ enum PluginsInstalados {
     /// do zero. Roda uma vez só.
     static func migrarSePreciso(_ d: UserDefaults = .standard) {
         guard d.integer(forKey: chaveMigracao) < versaoMigracao else { return }
-        d.set(PluginID.allCases.map(\.rawValue), forKey: chave)
+        d.set(PluginID.allCases.filter { $0 != .monitores }.map(\.rawValue), forKey: chave)
         d.set(versaoMigracao, forKey: chaveMigracao)
     }
 
@@ -439,6 +449,7 @@ final class PluginHost: ObservableObject {
     var espelhoEfeitos = EspelhoEfeitos()
     var notaRapidaEfeitos = NotaRapidaEfeitos()
     var previewLinkEfeitos = PreviewLinkEfeitos()
+    var monitoresEfeitos = MonitoresEfeitos()
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -452,7 +463,7 @@ final class PluginHost: ObservableObject {
                    descanso: descansoEfeitos, mensagens: mensagensEfeitos,
                    webhooks: webhooksEfeitos, ditado: ditadoEfeitos, anotacao: anotacaoEfeitos,
                    espelho: espelhoEfeitos, notaRapida: notaRapidaEfeitos,
-                   previewLink: previewLinkEfeitos)
+                   previewLink: previewLinkEfeitos, monitores: monitoresEfeitos)
     }
 
     /// O launch inteiro. Peça desligada nem é visitada — custo zero de verdade.

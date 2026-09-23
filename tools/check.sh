@@ -97,6 +97,7 @@ swift_check shelfdropcheck        $CONVERSAO Knobler/ShelfDrop.swift \
   Knobler/LinkBrowser.swift tools/shelfdropcheck.swift
 
 swift_check shelfordemcheck       Knobler/ShelfOrdem.swift tools/shelfordemcheck.swift
+swift_check screenshotcheck       Knobler/ScreenshotWatcher.swift Knobler/Permissions.swift tools/screenshotcheck.swift
 swift_check historycheck          Knobler/NotchNotification.swift Knobler/NotificationHistory.swift Knobler/NotchGesture.swift tools/historycheck.swift
 swift_check sectionordercheck    Knobler/NotchSectionOrder.swift tools/sectionordercheck.swift
 # Diagnóstico passivo: a integração não pode sumir nem voltar a reconstruir a raiz.

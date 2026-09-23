@@ -413,6 +413,25 @@ let scenarios: [Scenario] = [
             body: "O Time Machine terminou o backup de hoje às 14:32."
         )
     },
+    Scenario(name: "notification-subtitulo", realNotch: true) { vm, _, _ in
+        vm.activeNotification = NotchNotification(
+            appName: "Finder", title: "Cópia concluída",
+            body: "12 itens copiados para o disco externo",
+            subtitle: "Backup de fotos")
+    },
+    // hover: o texto abre inteiro e o card cresce junto
+    Scenario(name: "notification-aberta", realNotch: true, frameHeight: 360) { vm, _, _ in
+        vm.activeNotification = NotchNotification(
+            appName: "Finder", title: "Não foi possível concluir a cópia",
+            body: "O item \"Relatório final.pdf\" não pôde ser copiado porque o disco de destino ficou sem espaço durante a operação. Libere espaço no disco externo e tente de novo; os 11 itens anteriores já foram copiados e continuam no destino.")
+        vm.holdNotification(true)
+    },
+    // app que não se identifica: sino, nunca WhatsApp
+    Scenario(name: "notification-sem-app", realNotch: true) { vm, _, _ in
+        vm.activeNotification = NotchNotification(
+            appName: nil, title: "Acesso aos dados bloqueado",
+            body: "Um app tentou acessar seus dados a partir de outros apps e foi bloqueado.")
+    },
     // ponytail: do histórico, só o cenário vazio fica no harness — o populado
     // (ScrollView com itens) renderiza preto sólido no ImageRenderer offscreen,
     // ver CLAUDE.md. Um PNG preto é um falso gate, pior que não ter o cenário.
@@ -626,27 +645,34 @@ let scenarios: [Scenario] = [
         vm.pomodoro = PomodoroState(phase: .shortBreak, runState: .waiting, remaining: 5 * 60, completedFocus: 1, cyclesUntilLong: 4)
         vm.setExpandedDirect(true)
     },
-    // AirPods: card de conexão (transitório), faixa junto da música,
-    // card dedicado sem música, e aviso de bateria baixa.
+    // AirPods: ilha de conexão, card (hover), bateria baixa, modelo
+    // desconhecido e fone sem leitura de um lado.
+    Scenario(name: "airpods-island", realNotch: true) { vm, _, _ in
+        vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 90, right: 82, case_: 31, model: .pro)
+        vm.airpodsIsland = true
+    },
+    Scenario(name: "airpods-island-external", realNotch: false) { vm, _, _ in
+        vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 90, right: 82, case_: 31, model: .pro)
+        vm.airpodsIsland = true
+    },
     Scenario(name: "airpods-connect", realNotch: true) { vm, _, _ in
-        vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 90, right: 89, case_: 31)
+        vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 90, right: 89, case_: 31, model: .pro)
         vm.airpodsCard = true
     },
     Scenario(name: "airpods-connect-external", realNotch: false) { vm, _, _ in
-        vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 90, right: 89, case_: 31)
+        vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 90, right: 89, case_: 31, model: .pro)
         vm.airpodsCard = true
     },
-    Scenario(name: "airpods-strip-music", realNotch: true) { vm, media, _ in
-        media.injectPreview(state: fakeState(), artwork: fakeArtwork())
-        vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 90, right: 89, case_: 31)
-        vm.setExpandedDirect(true)
-    },
-    Scenario(name: "airpods-card-nomusic", realNotch: true) { vm, _, _ in
-        vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 90, right: 89, case_: 31)
-        vm.setExpandedDirect(true)
-    },
     Scenario(name: "airpods-low", realNotch: false) { vm, _, _ in
-        vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 8, right: 74, case_: nil)
+        vm.airpods = AirPodsBattery(name: "AirPods Pro", left: 8, right: 74, case_: nil, model: .pro)
+        vm.airpodsCard = true
+    },
+    Scenario(name: "airpods-gen3", realNotch: true) { vm, _, _ in
+        vm.airpods = AirPodsBattery(name: "AirPods", left: 64, right: nil, case_: 100, model: .gen3)
+        vm.airpodsCard = true
+    },
+    Scenario(name: "airpods-unknown", realNotch: true) { vm, _, _ in
+        vm.airpods = AirPodsBattery(name: "Fone Bluetooth", left: 50, right: 50, case_: nil)
         vm.airpodsCard = true
     },
     // Update: card de versão nova e o estado de instalação.
@@ -703,6 +729,8 @@ for scenario in scenarios {
     // mesma razão: a nota também é singleton, e o pontinho dela apareceria em
     // todo notch fechado depois do cenário que a liga
     QuickNote.shared.active = false
+    // anéis desenhados já no nível final: o ImageRenderer não roda a entrada
+    BatteryRingView.animaEntrada = false
     scenario.configure(vm, media, askStore)
     if let request = scenario.agentRequest {
         agentRequestStore.send(.enqueue(request))
@@ -862,6 +890,27 @@ for scenario in scenarios {
     print("ok \(path)")
 }
 
+// Linhas do histórico fora da lista: a lista é um ScrollView e sai preta
+// offscreen, mas a linha sozinha renderiza — é o gate do ícone.
+@MainActor func renderHistoryRows(_ name: String, _ itens: [NotchNotification]) {
+    let view = VStack(alignment: .leading, spacing: 6) {
+        ForEach(itens) { HistoryRow(item: $0, mostraX: false, onRemove: {}) }
+    }
+    .padding(16)
+    .frame(width: 430, alignment: .leading)
+    .background(Color.black)
+    let renderer = ImageRenderer(content: view)
+    renderer.scale = 2
+    guard let nsImage = renderer.nsImage,
+          let tiff = nsImage.tiffRepresentation,
+          let rep = NSBitmapImageRep(data: tiff),
+          let png = rep.representation(using: .png, properties: [:])
+    else { print("FALHOU: \(name)"); exit(1) }
+    let path = "\(outputDir)/\(name).png"
+    try? png.write(to: URL(fileURLWithPath: path))
+    print("ok \(path)")
+}
+
 // Overlay do Descanso (bloqueio forçado) — render à parte, não usa NotchView.
 @MainActor func renderOverlay(_ name: String, label: String, hold: Double) {
     let model = BreakOverlayModel()
@@ -922,4 +971,10 @@ renderMessageScenario("messages-incoming", realNotch: true) { vm, _, _ in
 
 renderOverlay("descanso", label: "Almoço", hold: 0)
 renderOverlay("descanso-hold", label: "Almoço", hold: 0.6)
+renderHistoryRows("historico-linhas", [
+    NotchNotification(appName: "Finder", title: "Backup concluído", body: "Time Machine terminou."),
+    NotchNotification(appName: "Finder", title: "Cópia concluída", body: "12 itens", subtitle: "Backup de fotos"),
+    NotchNotification(appName: nil, title: "Webhook", body: "deploy ok", iconEmoji: "🚀"),
+    NotchNotification(appName: nil, title: "Sem origem", body: "cai no sino"),
+])
 }

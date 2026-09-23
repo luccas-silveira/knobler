@@ -8,6 +8,7 @@ Knobler/NotchViewModel.swift
 Knobler/NotchPresentation.swift
 Knobler/NotchShell.swift
 Knobler/AirPodsBattery.swift
+Knobler/AirPodsViews.swift
 Knobler/Updater.swift
 Knobler/AnnotationModel.swift
 Knobler/AnnotationController.swift
@@ -84,3 +85,11 @@ Knobler/MessageStore.swift
 Knobler/MessageMedia.swift
 Knobler/MessagesView.swift
 Knobler/IncomingMessageView.swift
+Knobler/MonitoresModel.swift
+Knobler/Monitores.swift
+Knobler/MonitoresView.swift
+Vendor/MonitorControl/Arm64DDC.swift
+Vendor/MonitorControl/IntelDDC.swift
+Vendor/MonitorControl/Command.swift
+Vendor/MonitorControl/Display.swift
+Vendor/MonitorControl/KeyboardShortcuts.swift

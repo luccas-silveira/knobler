@@ -13,6 +13,8 @@ Dynamic Island para o notch do Mac — nativo, Swift/SwiftUI, macOS 14.2+.
 - **Visualizador com áudio real**: CoreAudio process tap no player + FFT em 6
   bandas — as barras dançam com a música de verdade, recortando a própria capa
   desfocada e saturada por baixo.
+- **Monitores** (peça opcional): brilho, contraste, volume e mudo por tela,
+  sincronização relativa e escurecimento por software. → [detalhes](docs/monitores.md)
 - **HUDs no notch**: volume, brilho e bateria (carregador/20%) substituem o OSD
   nativo. → [detalhes](docs/huds.md)
 - **Notificações do sistema** interceptadas e exibidas no notch (Acessibilidade),
@@ -62,7 +64,7 @@ Dynamic Island para o notch do Mac — nativo, Swift/SwiftUI, macOS 14.2+.
 - **Avisos do desenvolvedor**: recados sobre o próprio Knobler (novidade,
   manutenção, problema descoberto) como card no notch, lidos de um JSON público
   do repositório. Desliga em Ajustes › Geral. → [detalhes](docs/avisos.md)
-- **Bateria dos AirPods** por componente ao conectar.
+- **AirPods no ritmo do iPhone**: ilha animada ao conectar e anel de bateria por peça.
   → [detalhes](docs/airpods.md)
 - **Espelho de câmera** antes de reuniões: fixe a seção e abrir a aba já acende
   a câmera. → [detalhes](docs/mirror.md)

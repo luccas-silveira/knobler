@@ -15,6 +15,10 @@ targets:
       - path: Knobler
         excludes:
           - Novidades/**
+      - path: Vendor/MonitorControl
+        excludes:
+          - "*.md"
+          - LICENSE
       # a página de novidades: folder reference (type: folder) pra preservar
       # midia/ dentro do bundle — os src do HTML são relativos.
       - path: Knobler/Novidades
@@ -57,6 +61,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.zoi.knobler
         SWIFT_VERSION: "5.0"
+        OTHER_LDFLAGS: "$(inherited) -F/System/Library/PrivateFrameworks -framework DisplayServices -framework CoreDisplay"
         SWIFT_OBJC_BRIDGING_HEADER: Knobler/Knobler-Bridging-Header.h
         # Espelha a última release. NÃO editar à mão — o tools/release.sh é o
         # único escritor (ver VERSIONING.md). Build de release sobrescreve via

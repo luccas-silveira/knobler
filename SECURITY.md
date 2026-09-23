@@ -59,7 +59,9 @@ do FileVault e das permissões do seu usuário:
 | `Arrastados/` | `.txt` gerado ao arrastar texto selecionado pro notch | até apagar |
 
 Preferências ficam em `UserDefaults` (domínio `com.zoi.knobler`) — inclui o que
-você configurou, **não** segredos.
+você configurou, **não** segredos. A peça Monitores guarda preferências por
+identidade persistente da tela e associações de saída de áudio nesse domínio.
+Ela não importa preferências do MonitorControl nem cria novas rotas HTTP.
 
 No Keychain, com ACL presa ao requisito de assinatura do app: os três segredos do
 pareamento de webhook (`deviceId`, `deviceSecret`, `publishToken`) e o token de

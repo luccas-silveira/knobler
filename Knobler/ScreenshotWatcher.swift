@@ -19,6 +19,7 @@ final class ScreenshotWatcher {
     /// O primeiro resultado do query traz TODAS as capturas antigas do índice;
     /// só emitimos depois desse gathering — senão o shelf enche de histórico.
     private var gathered = false
+    private var startedAt = Date()
 
     func start() {
         guard query == nil else { return }
@@ -29,7 +30,7 @@ final class ScreenshotWatcher {
             format: "kMDItemIsScreenCapture == 1 && kMDItemContentTypeTree == %@",
             "public.image")
         query.searchScopes = [NSMetadataQueryLocalComputerScope]
-        // mais recentes primeiro: o item [0] após um update é a captura nova
+        // Ordena o resultado; a data ainda precisa ser validada nos updates.
         query.sortDescriptors = [NSSortDescriptor(key: kMDItemFSCreationDate as String,
                                                   ascending: false)]
 
@@ -41,6 +42,7 @@ final class ScreenshotWatcher {
             name: .NSMetadataQueryDidUpdate, object: query)
 
         gathered = false
+        startedAt = Date()
         query.start()
         self.query = query
     }
@@ -51,6 +53,7 @@ final class ScreenshotWatcher {
         NotificationCenter.default.removeObserver(self, name: .NSMetadataQueryDidFinishGathering, object: query)
         NotificationCenter.default.removeObserver(self, name: .NSMetadataQueryDidUpdate, object: query)
         self.query = nil
+        gathered = false
     }
 
     @objc private func finishedGathering(_: Notification) {
@@ -71,8 +74,11 @@ final class ScreenshotWatcher {
         for item in added {
             guard let path = item.value(forAttribute: kMDItemPath as String) as? String
             else { continue }
-            // ignora o arquivo temporário "." que o screencapture cria antes de gravar
-            guard !(path as NSString).lastPathComponent.hasPrefix(".") else { continue }
+            // "Adicionado" ao Spotlight não significa recém-criado: reindexação
+            // e discos que voltam a ficar disponíveis também trazem itens antigos.
+            let createdAt = item.value(forAttribute: kMDItemFSCreationDate as String) as? Date
+            guard Self.isNewScreenshot(path: path, createdAt: createdAt, since: startedAt)
+            else { continue }
             let url = URL(fileURLWithPath: path)
             // Arquivos e Pastas não expõe status: o Spotlight devolve o path
             // mesmo sem acesso, e só a leitura revela se o TCC deixa. O painel
@@ -82,9 +88,17 @@ final class ScreenshotWatcher {
             Permission.record(.arquivos,
                               worked: FileManager.default.isReadableFile(atPath: path))
             DispatchQueue.main.async { [weak self] in
-                self?.onScreenshot?(url)
+                // Desligar/religar a captura invalida entregas da consulta anterior.
+                guard let self, self.query === query else { return }
+                self.onScreenshot?(url)
             }
         }
+    }
+
+    static func isNewScreenshot(path: String, createdAt: Date?, since start: Date) -> Bool {
+        guard let createdAt, createdAt >= start else { return false }
+        // Ignora o arquivo temporário oculto que o screencapture cria ao gravar.
+        return !(path as NSString).lastPathComponent.hasPrefix(".")
     }
 
     deinit { stop() }

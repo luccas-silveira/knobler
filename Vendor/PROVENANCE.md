@@ -21,3 +21,37 @@
   `/usr/bin/perl` (binário da Apple com o entitlement do MediaRemote), que o
   `MediaRemoteSource.swift` invoca. Ver `project.yml` (embed sem link) e o
   design/research em `docs/superpowers/specs/2026-07-21-now-playing-universal-*`.
+
+## MonitorControl 4.4.0
+
+- **Origem:** cópia fornecida em `MonitorControl-4.4.0/`, projeto
+  <https://github.com/MonitorControl/MonitorControl>, versão declarada 4.4.0.
+  A cópia local inclui o substituto `KeyboardShortcuts.swift`; não presumimos
+  que seu conteúdo corresponde byte a byte à tag pública.
+- **Licença:** MIT; texto integral em `MonitorControl/License.txt` e avisos
+  de copyright preservados nos arquivos.
+- **Transportes reutilizados:** `Arm64DDC.swift`, `IntelDDC.swift`, `Command.swift`,
+  declarações privadas necessárias de `MonitorControl.h`. Identificação IOKit
+  e pontuação de correspondência ARM preservadas.
+- **Adaptações:** `Display.swift` reúne os caminhos necessários de `Display`,
+  `AppleDisplay`, `OtherDisplay` e gamma/overlay de `DisplayManager`. Mantém
+  curvas, calibração, escala combinada configurável (padrão 0,5), piso de
+  software 0,15, suavização em passos /6 e 20 ms, remapeamento e tentativas.
+  A fila serial e invalidação por geração/revisão pertencem ao serviço
+  `Monitores.swift`; menus, sliders, OSD e delegado upstream foram removidos.
+  Falhas de escrita não entram no cache; leitura ARM malsucedida não herda
+  sucesso da escrita do pedido. A validação compartilhada `MonitorDDCReply`
+  verifica tipo, status, comando e checksum; converte os bytes altos antes
+  do deslocamento de 16 bits (corrigindo truncamento no caminho Intel).
+  Portas IOKit são liberadas também em Release, sem efeito colateral dentro
+  de `assert`; interfaces I2C são liberadas ao terminar cada tentativa.
+  Preferências e atalhos usam prefixo
+  `monitores.` no domínio Knobler, sem importar valores do aplicativo original.
+  `KeyboardShortcuts.swift` preserva registro Carbon e gravador; textos pt-BR,
+  navegação por teclado e remoção do handler ao desativar foram adaptados.
+- **Bindings:** frameworks privados Apple `DisplayServices` e `CoreDisplay`,
+  além de IOKit/CoreGraphics/CoreAudio. Não se inclui updater, login helper,
+  preferências ou capturador de teclas de mídia upstream.
+- **Compilação:** somente `Vendor/MonitorControl/` é fonte do alvo. A pasta
+  importada não é dependência de build. Compatibilidade física de monitores,
+  adaptadores, Intel e Apple Silicon deve ser validada separadamente.

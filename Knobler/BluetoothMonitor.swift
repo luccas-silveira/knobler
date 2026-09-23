@@ -14,7 +14,7 @@ import IOBluetooth
 
 final class BluetoothMonitor: NSObject {
     /// Connect novo ou bateria cruzando o limite baixo → card transitório.
-    var onAnnounce: ((AirPodsBattery) -> Void)?
+    var onAnnounce: ((AirPodsBattery, AirPodsAnnounce) -> Void)?
     /// Refresh silencioso (mantém a faixa de bateria atual).
     var onUpdate: ((AirPodsBattery) -> Void)?
     /// AirPods desconectaram → limpar o estado no notch.
@@ -97,18 +97,21 @@ final class BluetoothMonitor: NSObject {
             self.startPolling()
             self.onUpdate?(battery)   // sempre atualiza a faixa
 
-            if !wasPresent, announce {
-                self.onAnnounce?(battery)   // primeira conexão → card
-            }
-
-            // aviso de bateria baixa, uma vez por ciclo (rearma ao recarregar)
+            // bateria baixa, uma vez por ciclo (rearma ao recarregar)
+            var low = false
             if let min = battery.minLevel {
                 if min <= self.lowThreshold, !self.warnedLow {
                     self.warnedLow = true
-                    self.onAnnounce?(battery)
+                    low = true
                 } else if min > self.recoverThreshold {
                     self.warnedLow = false
                 }
+            }
+            // conectar já descarregado vira um anúncio só: o de bateria baixa
+            if low {
+                self.onAnnounce?(battery, .lowBattery)
+            } else if !wasPresent, announce {
+                self.onAnnounce?(battery, .connected)
             }
         }
     }

@@ -6,6 +6,27 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- Peça opcional Monitores: brilho, contraste, volume e mudo por tela no notch,
+  ajustes individuais, escurecimento por software e sincronização relativa.
+  Backend do MonitorControl 4.4.0; compatibilidade física ainda depende de
+  validação por monitor, conexão e arquitetura.
+- Controle de brilho pelo teclado direcionado à tela sob o cursor e HUD com
+  identificação do destino; volume acompanha a saída de áudio associada.
+- AirPods no ritmo do iPhone: ilha animada na conexão, com o ícone do seu
+  modelo e anel de bateria; passe o mouse para ver o card do iPhone, com
+  fones e estojo em foto e um anel cada. Bateria baixa abre o card direto.
+- Notificações mais completas: o card mostra o subtítulo (nome do grupo, por
+  exemplo) e há quanto tempo chegou; com o mouse em cima, o texto abre inteiro.
+  O histórico ganhou o ícone do app em cada linha.
+
+### Fixed
+- Toda notificação de app aparecia no notch como se fosse do WhatsApp, com o
+  ícone dele, e clicar abria o WhatsApp. Agora o card mostra o app de verdade,
+  ou um sino quando o banner não diz de onde veio.
+- Capturas antigas adicionadas ao índice do Spotlight após a abertura do app
+  não entram mais automaticamente na prateleira.
+
 ## [0.29.0] - 2026-09-19
 
 ### Fixed
