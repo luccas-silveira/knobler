@@ -99,6 +99,7 @@ do usuário.
 | Avisos do desenvolvedor já mostrados | `DevAvisos` (sem dependências, por isso testável isolado) + `avisos.vistos` | card do notch, via `AppDelegate.publicar` |
 | Notificações das últimas 24 h (em disco) | `NotificationHistory.shared` | `HistoryListView` |
 | Nota rápida (texto, foco, tela dona) | `QuickNote.shared` | `NotchView`, menu da barra |
+| Sessões e limites de Claude/Codex (backend vendorizado em `Vendor/Codenotch`) | `AgentesUso.shared` — um por app: é quem detecta a transição, então o card e o som saem uma vez só | `AgentesView`, seção Agentes; card via `AppDelegate.publicar` |
 | Página do preview de link (tela dona) | `LinkPreview.shared` | `LinkPreviewView`, seção Link |
 | Conversão esperando confirmação | `ShelfStore.preview` | `ShelfPreviewView` |
 | Overlay de anotação, ferramenta, cor e espessura correntes | `AnnotationController.shared` (um painel por monitor) | seção Anotação do card, Ajustes › Desenho, `GET /status` |

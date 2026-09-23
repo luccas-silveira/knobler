@@ -6,6 +6,9 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- Seção Agentes: sessões do Claude Code e do Codex com estado (trabalhando, esperando você, concluída), card e som quando uma termina ou para pra perguntar, e anéis de limite do plano. O anel do Claude é opcional nos Ajustes. Backend adaptado do [codenotch](https://github.com/vinzdg/codenotch) (MIT).
+
 ## [0.32.0] - 2026-09-23
 
 ### Added
