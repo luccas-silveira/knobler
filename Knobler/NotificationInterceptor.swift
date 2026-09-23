@@ -128,7 +128,7 @@ final class NotificationInterceptor {
 
         NSLog("knobler intercepted: title=%@", parsed.title)
 
-        let airdrop = NotificationRules.isAirDrop(appName: parsed.appName, title: parsed.title)
+        let airdrop = AirDropRegras.isAirDrop(appName: parsed.appName, title: parsed.title)
         let buttons = actionButtons(in: banner)
         // O alerta do AirDrop acompanha uma transferência viva e alertas com
         // botão (Aceitar/Recusar) exigem decisão — em ambos, fechar destrói

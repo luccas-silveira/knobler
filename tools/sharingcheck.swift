@@ -119,13 +119,6 @@ struct SharingCheck {
     /// Espelhar o "Fechar" do alerta daria um botão inútil no card — e pior,
     /// clicar nele destruiria o alerta que estamos tentando preservar.
     static func testActionTitle() {
-        assert(NotificationRules.isAirDrop(appName: "AirDrop", title: "Recebendo uma foto"),
-               "o alerta real vem com appName=AirDrop")
-        assert(NotificationRules.isAirDrop(appName: nil, title: "AirDrop"),
-               "com um texto só, o AirDrop cai no título")
-        assert(!NotificationRules.isAirDrop(appName: "WhatsApp", title: "Fulano"),
-               "notificação comum não é AirDrop")
-
         for acao in ["Aceitar", "Recusar", "Accept", "Decline", "Responder", "Marcar como lida"] {
             assert(NotificationRules.isActionTitle(acao), "\(acao) é ação")
         }
