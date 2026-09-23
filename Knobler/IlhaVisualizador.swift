@@ -97,10 +97,11 @@ enum IlhaVisualizador {
          escurecer: max(0, luminancia - luminanciaMaxima))
     }
 
-    /// Uma mola por leitura do espectro, todas as barras juntas — é o que a
-    /// Apple faz, e a irregularidade vem do som, não da animação. Números sem
-    /// fonte.
-    static let mola = Animation.spring(response: 0.30, dampingFraction: 0.62)
+    /// Transição entre leituras do espectro, todas as barras juntas. Dura um
+    /// intervalo de publicação (20Hz) e não passa do alvo: a mola de 0,3 s que
+    /// estava aqui atrasava a barra da batida e o overshoot inventava
+    /// movimento que não estava no som — parecia dança aleatória.
+    static let mola = Animation.linear(duration: 0.05)
 
     // MARK: - Animação de reserva (Apple, com uma escolha nossa)
 
