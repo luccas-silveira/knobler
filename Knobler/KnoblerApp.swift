@@ -228,6 +228,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         #endif
         configureAskFeature()
         configureAgentRequestFeature()
+        configureAgentes()
         observeAskLifecycle()
 
         setupStatusItem()
@@ -1593,6 +1594,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     ///
     /// Silenciar nunca descarta: o `record` roda igual, e o card silenciado está
     /// na seção Histórico quando a reunião acabar.
+    /// Sessão do Claude Code/Codex que terminou ou parou pra perguntar: um card
+    /// e um som, como o codenotch faz. O evento já chega uma vez só por
+    /// transição; o card é montado aqui, fora do laço por tela.
+    private func configureAgentes() {
+        AgentesUso.shared.onEvento = { [weak self] evento in
+            guard let self else { return }
+            let esperando = evento.reason == .blocked
+            if !silenciando {
+                SessionChime.play(esperando ? SessionChime.defaultBlocked : SessionChime.defaultFinished)
+            }
+            publicar(NotchNotification(
+                appName: evento.providerID == "codex" ? "Codex" : "Claude Code",
+                title: evento.session.name,
+                body: esperando ? (evento.session.waitingFor ?? "Esperando você") : "Concluído",
+                iconEmoji: esperando ? "✋" : "✅"))
+        }
+        AgentesUso.shared.iniciar()
+    }
+
     private func publicar(_ notification: NotchNotification) {
         guard silenciando else {
             notches.values.forEach { $0.viewModel.enqueue(notification) }
