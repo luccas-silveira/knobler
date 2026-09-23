@@ -156,6 +156,9 @@ final class ClaudeTokenRefresher: ObservableObject {
         defer { isRunning = false; launchedPID = nil }
 
         let current = await expiry()
+        // knobler: `stop()` durante o `await` acima (o usuário desligou o anel
+        // do Claude) não pode terminar num `claude` lançado.
+        guard timer != nil else { return }
         guard Self.shouldRenew(expiry: current, now: now, margin: margin,
                                attemptedFor: attemptedFor, lastAttempt: lastAttempt,
                                cooldown: cooldown),

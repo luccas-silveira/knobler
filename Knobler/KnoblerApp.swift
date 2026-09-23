@@ -1585,15 +1585,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         vm.setExpandedDirect(true)
     }
 
-    /// Manda a notificação pras telas — ou, em reunião, só pro histórico.
-    ///
-    /// Só passa por aqui o que chega **de fora**: app interceptado, API local e
-    /// webhook. Pomodoro, lembretes e conta-gotas continuam indo direto ao
-    /// `enqueue`, porque são coisas que *você* agendou — engoli-las seria perder
-    /// o alarme que você mesmo pediu, não filtrar ruído.
-    ///
-    /// Silenciar nunca descarta: o `record` roda igual, e o card silenciado está
-    /// na seção Histórico quando a reunião acabar.
     /// Sessão do Claude Code/Codex que terminou ou parou pra perguntar: um card
     /// e um som, como o codenotch faz. O evento já chega uma vez só por
     /// transição; o card é montado aqui, fora do laço por tela.
@@ -1613,6 +1604,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         AgentesUso.shared.iniciar()
     }
 
+    /// Manda a notificação pras telas — ou, em reunião, só pro histórico.
+    ///
+    /// Só passa por aqui o que chega **de fora**: app interceptado, API local e
+    /// webhook. Pomodoro, lembretes e conta-gotas continuam indo direto ao
+    /// `enqueue`, porque são coisas que *você* agendou — engoli-las seria perder
+    /// o alarme que você mesmo pediu, não filtrar ruído.
+    ///
+    /// Silenciar nunca descarta: o `record` roda igual, e o card silenciado está
+    /// na seção Histórico quando a reunião acabar.
     private func publicar(_ notification: NotchNotification) {
         guard silenciando else {
             notches.values.forEach { $0.viewModel.enqueue(notification) }
