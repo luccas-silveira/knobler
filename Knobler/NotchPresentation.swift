@@ -25,6 +25,8 @@ struct NotchContentState {
     var focus: NotchSection?
     /// Teclado bloqueado pra limpeza vence tudo: nada mais recebe tecla.
     var tecladoBloqueado = false
+    /// Card aberto pelo atalho global: aceita teclado pra navegar sem mouse.
+    var pelaTecla = false
 
     var mode: NotchMode {
         if tecladoBloqueado { return .tecladoBloqueado }
@@ -46,7 +48,7 @@ struct NotchContentState {
         switch mode {
         case .question: return true
         case .message: return reply
-        case .music: return expanded && ([.nota, .mensagens, .link, .monitores].contains(focus) || editingAgenda || editingReminders)
+        case .music: return expanded && (pelaTecla || [.nota, .mensagens, .link, .monitores].contains(focus) || editingAgenda || editingReminders)
         default: return false
         }
     }

@@ -4,6 +4,7 @@
 //
 
 import AppKit
+import Carbon.HIToolbox
 import Combine
 import Security
 import SwiftUI
@@ -176,6 +177,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // gesto de swipe no notch (monitor local de scroll)
     private var scrollMonitor: Any?
+    private var keyMonitor: Any?
     private var scrollAccumX: CGFloat = 0
     private var scrollAccumY: CGFloat = 0
     private var scrollActed = false
@@ -364,6 +366,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             .sink { [weak self] in DispatchQueue.main.async { self?.applyVisibility() } }
 
         setupSwipeGestures()
+        setupAtalhoDoNotch()
 
         // API local: scripts publicam cards no notch (diferencial do Knobler)
         apiServer.onNotification = { [weak self] notification in
@@ -938,6 +941,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Dois dedos sobre o notch: pra baixo abre a música, pra cima fecha,
     /// horizontal pula/volta faixa (como o Dynamic Island).
+    static let atalhoAbrirNotch = KeyboardShortcuts.Name(
+        "abrirNotch", default: .init(carbonKeyCode: kVK_ANSI_K, carbonModifiers: controlKey | optionKey))
+
+    /// Atalho global que abre o card, setas/Tab entre seções e Esc pra fechar.
+    // ponytail: notificação ou HUD por cima tira o teclado do painel e o Esc
+    // para até ela sair; resolver = segurar a fila como na digitação da nota.
+    private func setupAtalhoDoNotch() {
+        KeyboardShortcuts.onKeyDown(for: Self.atalhoAbrirNotch) { [weak self] in
+            self?.viewModelUnderMouse()?.alternarPeloTeclado()
+        }
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let window = NSApp.keyWindow as? NotchWindow,
+                  let vm = self?.notches.values.first(where: { $0.window === window })?.viewModel,
+                  vm.abertoPorTeclado, !(window.firstResponder is NSText) else { return event }
+            switch Int(event.keyCode) {
+            case kVK_LeftArrow: vm.focarVizinho(avancando: false)
+            case kVK_RightArrow: vm.focarVizinho(avancando: true)
+            case kVK_Tab: vm.focarVizinho(avancando: !event.modifierFlags.contains(.shift))
+            case kVK_Escape: vm.setExpandedDirect(false)
+            default: return event
+            }
+            return nil
+        }
+    }
+
     private func setupSwipeGestures() {
         scrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) {
             [weak self] event in
@@ -1197,9 +1225,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     rootView: NotchView(
                         vm: viewModel, askStore: askStore, agentRequestStore: agentRequestStore,
                         media: media, levels: audioLevels, shelf: shelf,
-                        onKeyboardEligibilityChanged: { [weak panel] active in
+                        onKeyboardEligibilityChanged: { [weak panel, weak viewModel] active in
                             panel?.allowsKeyboard = active
                             if !active, panel?.isKeyWindow == true { panel?.resignKey() }
+                            // aberto pelo atalho: o painel pega as teclas sem ativar o app
+                            if active, viewModel?.abertoPorTeclado == true { panel?.makeKey() }
                         })
                         .environmentObject(lanMessagingParaInjetar)
                         .environmentObject(messageStoreParaInjetar)
@@ -1211,6 +1241,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                         notchReal: viewModel?.hasRealNotch ?? false)
                 }
                 panel.contentView = host
+                // clicar em outro app fecha o card do atalho; notificação por
+                // cima também tira o teclado, mas aí o card não está à vista
+                panel.aoPerderTeclado = { [weak viewModel] in
+                    guard let viewModel, viewModel.abertoPorTeclado, viewModel.mode == .music else { return }
+                    viewModel.setExpandedDirect(false)
+                }
                 notch = ScreenNotch(window: panel, viewModel: viewModel)
                 notches[id] = notch
 

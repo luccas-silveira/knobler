@@ -284,6 +284,12 @@ struct NotchSettingsPane: View {
                     Text("Clicar").tag(true)
                 }
                 .pickerStyle(.segmented)
+                LabeledContent("Atalho") {
+                    ShortcutRecorder(name: AppDelegate.atalhoAbrirNotch)
+                }
+                Text("Com o card aberto pelo atalho, ← → ou Tab trocam de seção e Esc fecha.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 if !settings.notchAbrirComClique {
                     LabeledContent("Atraso") {
                         HStack {

@@ -39,6 +39,9 @@ enum PresentationCheck {
             assert(o.pending == nil && o.hovering)
         }
 
+        assert(NotchContentState(expanded: true, focus: .agenda, pelaTecla: true).keyboard)
+        assert(!NotchContentState(expanded: false, pelaTecla: true).keyboard)
+        assert(!NotchContentState(expanded: true, focus: .agenda).keyboard)
         var state = NotchContentState(question: true, incoming: true, reply: true,
             dictation: true, typingNote: true, notification: true, hud: true,
             update: true, airpods: true, expanded: true, pomodoro: true, focus: .nota)

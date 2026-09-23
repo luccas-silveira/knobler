@@ -43,6 +43,12 @@ final class NotchWindow: NSPanel {
     var allowsKeyboard = false
 
     override var canBecomeKey: Bool { allowsKeyboard }
+    /// Clicar em outro app tira o teclado do painel.
+    var aoPerderTeclado: (() -> Void)?
+    override func resignKey() {
+        super.resignKey()
+        aoPerderTeclado?()
+    }
     override var canBecomeMain: Bool { false }
 }
 

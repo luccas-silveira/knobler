@@ -31,6 +31,8 @@ final class NotchViewModel: ObservableObject {
     var displayID: CGDirectDisplayID?
 
     @Published private(set) var expanded = false
+    /// Aberto pelo atalho global: o painel aceita teclado até o card fechar.
+    @Published private(set) var abertoPorTeclado = false
     private var opening = NotchOpening()
     private var openingWork: DispatchWorkItem?
     var questionIsActive: () -> Bool = { false }
@@ -461,7 +463,8 @@ final class NotchViewModel: ObservableObject {
                           typingNote: typingNote, editingAgenda: editandoAgenda, editingReminders: editandoLembretes, notification: activeNotification != nil,
                           hud: hud != nil, update: updateCard && update != nil,
                           airpods: airpodsCard, airpodsIsland: airpodsIsland, expanded: expanded, pomodoro: pomodoro != nil,
-                          focus: focus, tecladoBloqueado: TecladoBloqueado.shared.ativo)
+                          focus: focus, tecladoBloqueado: TecladoBloqueado.shared.ativo,
+                          pelaTecla: abertoPorTeclado)
     }
 
     var mode: Mode { contentState().mode }
@@ -501,6 +504,13 @@ final class NotchViewModel: ObservableObject {
                                       execute: work)
     }
 
+    /// Atalho global: abre com teclado ou fecha o que ele mesmo abriu.
+    func alternarPeloTeclado() {
+        if expanded && abertoPorTeclado { setExpandedDirect(false); return }
+        abertoPorTeclado = true
+        setExpandedDirect(true)
+    }
+
     /// Gesto, drop e pedidos externos atravessam o mesmo caminho que o hover.
     func setExpandedDirect(_ value: Bool) {
         openingWork?.cancel()
@@ -522,6 +532,7 @@ final class NotchViewModel: ObservableObject {
         }
         if value && !expanded && receivedSections { reconcileSections() }
         if !value {
+            abertoPorTeclado = false
             if typingNote { QuickNote.shared.editing = false }
             monitoresArrastando = false
             mirrorOn = false
