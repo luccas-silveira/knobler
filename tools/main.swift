@@ -445,18 +445,23 @@ let scenarios: [Scenario] = [
             AgentSession(id: id, name: nome, detail: detalhe, state: e, waitingFor: nil,
                          since: agora, processID: 1)
         }
-        func uso(_ id: String, _ f: Double) -> ProviderSnapshot {
+        // dois anéis por provider: um confortável, outro com a semana esgotada
+        func uso(_ id: String, _ curta: Double, _ semana: Double, reset: Double) -> ProviderSnapshot {
             ProviderSnapshot(id: id, displayName: id, glyph: id == "claude" ? .claude : .openai,
                 fidelity: .official, status: .ok,
-                windows: [LimitWindow(id: "primary", label: "5h", usedFraction: f,
-                                      resetsAt: agora.addingTimeInterval(2 * 3600))],
-                headlineID: "primary")
+                windows: [LimitWindow(id: "primary", label: "5h", usedFraction: curta,
+                                      resetsAt: agora.addingTimeInterval(reset)),
+                          LimitWindow(id: "week", label: "7d", usedFraction: semana,
+                                      resetsAt: agora.addingTimeInterval(3 * 86400))],
+                headlineID: "primary", weeklyID: "week")
         }
         AgentesUso.shared.injetar(
             sessoes: [sessao("a", "knobler", "Terminal", .busy),
                       sessao("b", "site", "VS Code", .waiting),
                       sessao("c", "api", "Codex", .success)],
-            uso: ["claude": uso("claude", 0.42), "codex": uso("codex", 0.81)])
+            uso: ["claude": uso("claude", 0.42, 0.18, reset: 2 * 3600),
+                  "codex": uso("codex", 0.86, 1.0, reset: 40 * 60)],
+            lidoEm: ["claude": agora, "codex": agora])
         vm.setExpandedDirect(true)
         vm.secoes = [.agentes, .musica]
         vm.focar(.agentes)

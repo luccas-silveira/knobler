@@ -20,6 +20,9 @@ final class AgentesUso: ObservableObject {
     @Published private(set) var sessoes: [AgentSession] = []
     /// Última leitura de cada provider ("claude", "codex").
     @Published private(set) var uso: [String: ProviderSnapshot] = [:]
+    /// Quando cada leitura de `uso` chegou. Falha de rede mantém a leitura
+    /// anterior, e é por aqui que a UI sabe que ela envelheceu.
+    @Published private(set) var lidoEm: [String: Date] = [:]
     /// Uma vez por transição, independente de quantas telas existem.
     var onEvento: ((SessionCompletionWatcher.Event) -> Void)?
 
@@ -104,15 +107,19 @@ final class AgentesUso: ObservableObject {
     }
 
     private func atualizarUso() async {
-        if let s = try? await codex.fetchSnapshot() { uso["codex"] = s }
+        if let s = try? await codex.fetchSnapshot() { uso["codex"] = s; lidoEm["codex"] = Date() }
         guard let claude, AppSettings.shared.agentesClaudeUso else { return }
-        if let s = try? await claude.fetchSnapshot(), self.claude === claude { uso["claude"] = s }
+        if let s = try? await claude.fetchSnapshot(), self.claude === claude {
+            uso["claude"] = s; lidoEm["claude"] = Date()
+        }
     }
 
     /// Só pro harness de snapshot. Fora de `#if DEBUG` porque o `snapshot.sh`
     /// compila com `-O` sem a flag.
-    func injetar(sessoes: [AgentSession], uso: [String: ProviderSnapshot]) {
+    func injetar(sessoes: [AgentSession], uso: [String: ProviderSnapshot],
+                 lidoEm: [String: Date] = [:]) {
         self.sessoes = Self.ordenar(sessoes)
         self.uso = uso
+        self.lidoEm = lidoEm
     }
 }
