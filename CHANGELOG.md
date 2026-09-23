@@ -14,6 +14,7 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 - O anel do Claude lê a credencial sem pedir a senha das chaves a cada abertura do app.
 - Trocar pra uma seção menor não fecha mais o card na hora com o mouse ali; e reabrir em até 30 s volta pra seção onde você estava.
 - Botões só de ícone no notch mostram o nome ao parar o mouse, são lidos pelo VoiceOver e têm área de clique maior; os ícones de seção inativos ficaram mais visíveis.
+- "Limpar" e o ✕ da prateleira podem ser desfeitos por 5 s.
 
 ## [0.33.0] - 2026-09-23
 

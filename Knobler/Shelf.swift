@@ -189,10 +189,17 @@ struct ShelfRowView: View {
                 shelfItem(entrada)
             }
             Spacer(minLength: 0)
-            Button("Limpar") { shelf.clear() }
-                .buttonStyle(.plain)
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.45))
+            if shelf.desfazivel != nil {
+                Button("Desfazer") { shelf.desfazer() }
+                    .buttonStyle(.plain)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.85))
+            } else {
+                Button("Limpar") { shelf.clear() }
+                    .buttonStyle(.plain)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.45))
+            }
         }
     }
 
@@ -213,7 +220,7 @@ struct ShelfRowView: View {
                 if ShelfOrdem.saiAoArrastar(
                     aceitou: aceitou, dentroDoNotch: dentroDoNotch,
                     habilitado: AppSettings.shared.shelfSaiAoArrastar) {
-                    shelf.remover(entrada)
+                    shelf.remover(entrada, desfazivel: false)
                 }
             }
             .frame(width: 30, height: 30)

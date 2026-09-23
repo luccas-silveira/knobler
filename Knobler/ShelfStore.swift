@@ -12,8 +12,15 @@ final class ShelfStore: ObservableObject {
             // espalhar a reconciliação por mutador deixaria o próximo caminho
             // novo de fora.
             pilhaAberta = ShelfOrdem.pilhaAberta(pilhaAberta, em: entradas)
+            // qualquer mudança invalida o desfazer: devolver a lista antiga
+            // apagaria o que chegou depois. Quem remove grava DEPOIS de atribuir.
+            desfazivel = nil
         }
     }
+    /// A linha como estava antes do último ✕ ou "Limpar". Vive 5 s.
+    @Published private(set) var desfazivel: [ShelfEntry]?
+    private var expiracao: DispatchWorkItem?
+    static let janelaDeDesfazer: TimeInterval = 5
     /// A pilha que está aberta em grade, tomando o card (ticket 008). Volátil:
     /// não entra no `shelfItems`, porque o notch não deve reabrir amanhã na
     /// pilha que alguém olhou hoje.
@@ -75,12 +82,35 @@ final class ShelfStore: ObservableObject {
 
     /// Tira a entrada inteira. Remover um arquivo de dentro de uma pilha é
     /// outra ação, e ela ainda não existe.
-    func remover(_ entrada: ShelfEntry) {
+    /// `desfazivel: false` é a saída por arraste: o arquivo foi pra outro
+    /// lugar de propósito, não há o que desfazer.
+    func remover(_ entrada: ShelfEntry, desfazivel: Bool = true) {
+        guard entradas.contains(where: { $0.id == entrada.id }) else { return }
+        let anterior = entradas
         entradas.removeAll { $0.id == entrada.id }
+        if desfazivel { guardarDesfazer(anterior) }
     }
 
     func clear() {
+        // a atribuição zeraria o desfazer mesmo sem nada pra limpar
+        guard !entradas.isEmpty else { return }
+        let anterior = entradas
         entradas.removeAll()
+        guardarDesfazer(anterior)
+    }
+
+    func desfazer() {
+        guard let anterior = desfazivel else { return }
+        expiracao?.cancel()
+        entradas = anterior
+    }
+
+    private func guardarDesfazer(_ anterior: [ShelfEntry]) {
+        desfazivel = anterior
+        expiracao?.cancel()
+        let item = DispatchWorkItem { [weak self] in self?.desfazivel = nil }
+        expiracao = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.janelaDeDesfazer, execute: item)
     }
 
     /// Abre o preview de uma conversão. Substitui o que estiver aberto.

@@ -72,6 +72,8 @@ enum ConversionPreviewCheck {
         print("== ciclo de vida do temporário ==")
         cicloDeVida()
         falhaAoSalvar()
+        print("== desfazer da prateleira ==")
+        desfazer()
 
         if falhas > 0 {
             print("❌ \(falhas) falha(s)")
@@ -137,6 +139,36 @@ enum ConversionPreviewCheck {
     }
 
     // MARK: - Presets
+
+    /// ✕ e "Limpar" guardam a linha anterior; a saída por arraste e qualquer
+    /// mudança depois não. O prazo de 5 s é do DispatchQueue, fica de fora.
+    static func desfazer() {
+        let suite = "knobler.desfazercheck"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let shelf = ShelfStore(defaults: defaults)
+        let a = URL(fileURLWithPath: "/tmp/a"), b = URL(fileURLWithPath: "/tmp/b")
+        shelf.add([a]); shelf.add([b])
+        let cheia = shelf.entradas
+
+        shelf.clear()
+        check(shelf.entradas.isEmpty && shelf.desfazivel == cheia, "Limpar guarda a linha")
+        shelf.desfazer()
+        check(shelf.entradas == cheia && shelf.desfazivel == nil, "Desfazer devolve a linha inteira")
+
+        shelf.remover(cheia[0])
+        check(shelf.desfazivel == cheia, "✕ guarda a linha")
+        shelf.add([URL(fileURLWithPath: "/tmp/c")])
+        check(shelf.desfazivel == nil, "item novo invalida o desfazer")
+        shelf.desfazer()
+        check(shelf.entradas.count == 2, "desfazer inválido não mexe na linha")
+
+        shelf.remover(shelf.entradas[0], desfazivel: false)
+        check(shelf.desfazivel == nil, "saída por arraste não guarda")
+        shelf.clear(); shelf.clear()
+        check(shelf.desfazivel?.count == 1, "Limpar na linha vazia não apaga o desfazer")
+    }
 
     static func presets() {
         check(ConversionOptions.Quality.alta.lossyCompression == 0.9,
