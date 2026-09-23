@@ -403,7 +403,16 @@ final class NotchViewModel: ObservableObject {
         let inicial = secoes.first(where: { comConteudo.contains($0) }) ?? secoes.first
         guard !focusLocked, let primeira = inicial else {
             // o foco travado pode ter perdido o conteúdo enquanto isso
-            if let f = focus, !secoes.contains(f) { focus = inicial; focusLocked = false }
+            if let f = focus, !secoes.contains(f) {
+                // visita do Quick Actions só acaba quando o card fecha: música
+                // parando ou mensagem chegando não expulsam o usuário. Exceção:
+                // a seção visitada deixou de existir (peça desinstalada).
+                if visitando {
+                    if NotchSection.desinstaladas().contains(f) { focus = .acoesRapidas }
+                    return
+                }
+                focus = inicial; focusLocked = false
+            }
             return
         }
         focus = primeira
@@ -422,6 +431,7 @@ final class NotchViewModel: ObservableObject {
             focoTrocadoEm = ProcessInfo.processInfo.systemUptime
             NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .default)
         }
+        visitando = false
         focus = section
         focusLocked = true
     }
@@ -448,9 +458,13 @@ final class NotchViewModel: ObservableObject {
         focoPendente = nil
         focoTrocadoEm = ProcessInfo.processInfo.systemUptime
         NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .default)
+        visitando = true
         focus = s
         focusLocked = true
     }
+    /// Distingue visita de foco travado que perdeu o conteúdo: os dois ficam
+    /// fora de `secoes`, mas só o segundo deve ser realocado no recálculo.
+    private var visitando = false
 
     func publicarAltura(_ h: CGFloat) {
         guard abs(h - alturaAtual) > 0.5 else { return }
@@ -558,6 +572,7 @@ final class NotchViewModel: ObservableObject {
             mirrorOn = false
             focoAoFechar = focusLocked ? focus.map { (NotchSectionOrder.focoParaGuardar($0, secoes: secoes), ProcessInfo.processInfo.systemUptime) } : nil
             focusLocked = false
+            visitando = false
             focoPendente = nil
         }
         expanded = value
