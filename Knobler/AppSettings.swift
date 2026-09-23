@@ -19,6 +19,12 @@ final class AppSettings: ObservableObject {
     @Published var notchNotifications: Bool {
         didSet { UserDefaults.standard.set(notchNotifications, forKey: "notchNotifications") }
     }
+    /// Anel de limite do Claude na seção Agentes. Desligado por padrão: lê o
+    /// login do Claude Code (os termos de uso de 2026-02 não permitem isso ao pé
+    /// da letra) e o macOS pede a senha do Keychain algumas vezes por dia.
+    @Published var agentesClaudeUso: Bool {
+        didSet { UserDefaults.standard.set(agentesClaudeUso, forKey: "agentesClaudeUso") }
+    }
     @Published var volumeHUD: Bool {
         didSet { UserDefaults.standard.set(volumeHUD, forKey: "volumeHUD") }
     }
@@ -288,6 +294,7 @@ final class AppSettings: ObservableObject {
         // opt-in: engolir card sem o usuário ter pedido é o tipo de surpresa que
         // faz perder notificação e culpar o app
         silenciarEmReuniao = defaults.bool(forKey: "silenciarEmReuniao")
+        agentesClaudeUso = defaults.bool(forKey: "agentesClaudeUso")
         silenciarComMicrofone = defaults.bool(forKey: "silenciarComMicrofone")  // idem
         mirrorBeforeMeetings = flag("mirrorBeforeMeetings")
         mirrorDeviceID = defaults.string(forKey: "mirrorDeviceID") ?? ""  // "" = automática

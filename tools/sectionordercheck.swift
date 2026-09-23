@@ -29,6 +29,10 @@ struct SectionOrderCheck {
         testSanearCompletaFaltantes()
         testOcultaSomeMesmoComConteudoEFixada()
         testSemPromocaoSegueABase()
+        // seção Agentes: nasce na ordem de fábrica logo depois da Atividade
+        let i = NotchSectionOrder.padrao.firstIndex(of: .agentes)
+        assert(i == NotchSectionOrder.padrao.firstIndex(of: .atividade).map { $0 + 1 })
+        assert(NotchSection.agentes.titulo == "Agentes")
         print("✅ sectionordercheck ok")
     }
 

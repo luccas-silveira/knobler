@@ -253,6 +253,8 @@ enum NotchMetrics {
         case .agenda: return agendaHeight
         case .lembretesApple: return 330
         case .monitores: return 192
+        // dois anéis + até quatro sessões
+        case .agentes: return 150
         }
     }
 
@@ -266,4 +268,5 @@ struct NotchSectionInputs: Equatable {
     var note = false
     var link = false
     var annotation = false
+    var agentes = false
 }

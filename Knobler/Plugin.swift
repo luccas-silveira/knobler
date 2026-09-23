@@ -20,7 +20,7 @@ import Foundation
 /// renomear um caso desinstala a peça na máquina de quem já usava.
 enum PluginID: String, CaseIterable {
     case pomodoro, lembretes, descanso, mensagens, webhooks, ditado
-    case espelho, anotacao, notaRapida, previewLink, conversao, monitores
+    case espelho, anotacao, notaRapida, previewLink, conversao, monitores, agentes
 }
 
 /// Um serviço vivo. A peça devolve isto ao nascer; soltar a referência é o que
@@ -184,6 +184,13 @@ struct MonitoresEfeitos {
     var nascer: () -> PluginServico? = { nil }
 }
 
+/// Os efeitos de Agentes. `AgentesUso` é `@MainActor` e arrasta o vendor do
+/// codenotch, então fica fora deste arquivo (constraint 1); `nascer` liga o
+/// singleton e devolve ele.
+struct AgentesEfeitos {
+    var nascer: () -> PluginServico? = { nil }
+}
+
 struct PreviewLinkEfeitos {
     var nascer: () -> PluginServico? = { nil }
 }
@@ -204,6 +211,7 @@ struct PluginDeps {
     var notaRapida = NotaRapidaEfeitos()
     var previewLink = PreviewLinkEfeitos()
     var monitores = MonitoresEfeitos()
+    var agentes = AgentesEfeitos()
 }
 
 /// A ficha da peça. Tudo aqui é dado, menos `nascer`.
@@ -333,6 +341,11 @@ enum PluginRegistry {
                simbolo: "arrow.2.squarepath", secao: nil, painel: nil,
                rotas: [], permissao: nil, pronta: true,
                nascer: montarConversao),
+        Plugin(id: .agentes, nome: "Agentes",
+               descricao: "Sessões e limites de Claude Code e Codex.",
+               simbolo: "sparkles", secao: "agentes", painel: nil,
+               rotas: [], permissao: nil, pronta: true,
+               nascer: { $0.agentes.nascer() }),
     ]
 
     static let deFabrica: [PluginDeFabrica] = [
@@ -382,12 +395,24 @@ enum PluginsInstalados {
     /// regra "todos instalados" mudar. Hoje: 1.
     static let versaoMigracao = 1
 
-    /// Todo mundo atravessa com os 11 instalados — quem atualiza e quem instala
-    /// do zero. Roda uma vez só.
+    /// Todo mundo atravessa com as peças instaladas, menos Monitores — quem
+    /// atualiza e quem instala do zero. Roda uma vez só.
     static func migrarSePreciso(_ d: UserDefaults = .standard) {
         guard d.integer(forKey: chaveMigracao) < versaoMigracao else { return }
         d.set(PluginID.allCases.filter { $0 != .monitores }.map(\.rawValue), forKey: chave)
         d.set(versaoMigracao, forKey: chaveMigracao)
+    }
+
+    /// Agentes entrou depois da migração v1: quem já tinha migrado não a
+    /// ganharia. Passo único com chave própria — rodou, não roda mais, então
+    /// desinstalar depois cola. Em instalação nova a v1 já incluiu Agentes;
+    /// o passo só marca a chave.
+    static let chaveAgentes = "plugins.agentes.migrado"
+
+    static func acrescentarAgentesSePreciso(_ d: UserDefaults = .standard, instalacaoNova: Bool) {
+        guard !d.bool(forKey: chaveAgentes) else { return }
+        if !instalacaoNova { gravar(ler(d).union([.agentes]), d) }
+        d.set(true, forKey: chaveAgentes)
     }
 
     /// Id desconhecido é ignorado **calado** — plugin que volte com o mesmo
@@ -450,10 +475,13 @@ final class PluginHost: ObservableObject {
     var notaRapidaEfeitos = NotaRapidaEfeitos()
     var previewLinkEfeitos = PreviewLinkEfeitos()
     var monitoresEfeitos = MonitoresEfeitos()
+    var agentesEfeitos = AgentesEfeitos()
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        let nova = defaults.integer(forKey: PluginsInstalados.chaveMigracao) < PluginsInstalados.versaoMigracao
         PluginsInstalados.migrarSePreciso(defaults)
+        PluginsInstalados.acrescentarAgentesSePreciso(defaults, instalacaoNova: nova)
         instalados = PluginsInstalados.ler(defaults)
     }
 
@@ -463,7 +491,8 @@ final class PluginHost: ObservableObject {
                    descanso: descansoEfeitos, mensagens: mensagensEfeitos,
                    webhooks: webhooksEfeitos, ditado: ditadoEfeitos, anotacao: anotacaoEfeitos,
                    espelho: espelhoEfeitos, notaRapida: notaRapidaEfeitos,
-                   previewLink: previewLinkEfeitos, monitores: monitoresEfeitos)
+                   previewLink: previewLinkEfeitos, monitores: monitoresEfeitos,
+                   agentes: agentesEfeitos)
     }
 
     /// O launch inteiro. Peça desligada nem é visitada — custo zero de verdade.

@@ -258,6 +258,8 @@ struct GeneralSettingsPane: View {
 
 struct NotchSettingsPane: View {
     @ObservedObject var settings = AppSettings.shared
+    /// Desinstalar Agentes some com o toggle na hora.
+    @ObservedObject private var host = PluginHost.shared
 
     /// A ordem salva menos as seções de peça desinstalada.
     private var visiveis: [NotchSection] {
@@ -316,6 +318,14 @@ struct NotchSettingsPane: View {
                     title: "Subir o que acabou de acontecer",
                     subtitle: "Seção com novidade passa na frente por alguns segundos. Desligado, o card segue sempre a ordem acima.",
                     isOn: $settings.promoverSecoesRecentes)
+            }
+            if host.estaInstalado(.agentes) {
+                Section("Agentes") {
+                    SettingToggle(
+                        title: "Mostrar o limite do Claude",
+                        subtitle: "Lê o login do Claude Code num endereço interno da Anthropic. Os termos de uso de fevereiro de 2026 não permitem isso ao pé da letra, e o macOS pode pedir a senha do Keychain algumas vezes por dia. O limite do Codex e as sessões dos dois aparecem sem isso.",
+                        isOn: $settings.agentesClaudeUso)
+                }
             }
             Section("Visibilidade") {
                 SettingToggle(

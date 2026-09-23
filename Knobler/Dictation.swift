@@ -117,6 +117,14 @@ final class MicRecorder {
         samplesLock.unlock()
         engine = AVAudioEngine()
         let input = engine.inputNode
+        // Abrir o mic de um fone Bluetooth derruba o perfil de áudio dele pra
+        // chamada: o que estiver tocando muda volume, engasga e perde qualidade.
+        // Com fone BT como entrada padrão, grava pelo mic embutido.
+        if Self.padraoEhBluetooth(), var mic = Self.micEmbutido(), let unit = input.audioUnit {
+            AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice,
+                                 kAudioUnitScope_Global, 0, &mic,
+                                 UInt32(MemoryLayout<AudioDeviceID>.size))
+        }
         let inputFormat = input.outputFormat(forBus: 0)
         // Sem microfone (ex.: Mac mini sem mic externo) ou permissão negada, o
         // inputNode reporta um formato INVÁLIDO — 0 canais, e às vezes sampleRate
@@ -152,6 +160,49 @@ final class MicRecorder {
         } catch {
             cleanup()
             throw error
+        }
+    }
+
+    private static func propriedade<T>(_ objeto: AudioObjectID, _ seletor: AudioObjectPropertySelector,
+                                       _ escopo: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal,
+                                       _ valor: T) -> T {
+        var v = valor
+        var tamanho = UInt32(MemoryLayout<T>.size)
+        var endereco = AudioObjectPropertyAddress(mSelector: seletor, mScope: escopo,
+                                                  mElement: kAudioObjectPropertyElementMain)
+        AudioObjectGetPropertyData(objeto, &endereco, 0, nil, &tamanho, &v)
+        return v
+    }
+
+    private static func transporte(_ device: AudioDeviceID) -> UInt32 {
+        propriedade(device, kAudioDevicePropertyTransportType, kAudioObjectPropertyScopeGlobal, UInt32(0))
+    }
+
+    static func padraoEhBluetooth() -> Bool {
+        let padrao = propriedade(AudioObjectID(kAudioObjectSystemObject),
+                                 kAudioHardwarePropertyDefaultInputDevice,
+                                 kAudioObjectPropertyScopeGlobal, AudioDeviceID(0))
+        let t = transporte(padrao)
+        return t == kAudioDeviceTransportTypeBluetooth || t == kAudioDeviceTransportTypeBluetoothLE
+    }
+
+    /// Mic embutido do Mac, se houver (Mac mini não tem).
+    static func micEmbutido() -> AudioDeviceID? {
+        var endereco = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDevices,
+                                                  mScope: kAudioObjectPropertyScopeGlobal,
+                                                  mElement: kAudioObjectPropertyElementMain)
+        var tamanho: UInt32 = 0
+        let sistema = AudioObjectID(kAudioObjectSystemObject)
+        guard AudioObjectGetPropertyDataSize(sistema, &endereco, 0, nil, &tamanho) == noErr else { return nil }
+        var ids = [AudioDeviceID](repeating: 0, count: Int(tamanho) / MemoryLayout<AudioDeviceID>.size)
+        guard AudioObjectGetPropertyData(sistema, &endereco, 0, nil, &tamanho, &ids) == noErr else { return nil }
+        return ids.first { id in
+            guard transporte(id) == kAudioDeviceTransportTypeBuiltIn else { return false }
+            var e = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyStreams,
+                                               mScope: kAudioObjectPropertyScopeInput,
+                                               mElement: kAudioObjectPropertyElementMain)
+            var n: UInt32 = 0
+            return AudioObjectGetPropertyDataSize(id, &e, 0, nil, &n) == noErr && n > 0
         }
     }
 

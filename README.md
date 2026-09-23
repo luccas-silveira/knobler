@@ -232,4 +232,7 @@ remedido depois da reescrita do visualizador; parado, 0,0% de CPU e ~22MB de RAM
 ## Licença
 
 [MIT](LICENSE). O `Vendor/MediaRemoteAdapter.framework` tem proveniência
-própria — ver [`Vendor/PROVENANCE.md`](Vendor/PROVENANCE.md).
+própria — ver [`Vendor/PROVENANCE.md`](Vendor/PROVENANCE.md). A leitura de
+sessões e limites de Claude/Codex em `Vendor/Codenotch/` vem do
+[codenotch](https://github.com/vinzdg/codenotch), MIT, licença em
+[`Vendor/Codenotch/LICENSE`](Vendor/Codenotch/LICENSE).

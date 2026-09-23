@@ -228,6 +228,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         #endif
         configureAskFeature()
         configureAgentRequestFeature()
+        configureAgentes()
         observeAskLifecycle()
 
         setupStatusItem()
@@ -1599,6 +1600,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         vm.focoPendente = .nota
         note.active = true
         vm.setExpandedDirect(true)
+    }
+
+    /// Sessão do Claude Code/Codex que terminou ou parou pra perguntar: um card
+    /// e um som, como o codenotch faz. O evento já chega uma vez só por
+    /// transição; o card é montado aqui, fora do laço por tela.
+    private func configureAgentes() {
+        AgentesUso.shared.onEvento = { [weak self] evento in
+            guard let self else { return }
+            let esperando = evento.reason == .blocked
+            if !silenciando {
+                SessionChime.play(esperando ? SessionChime.defaultBlocked : SessionChime.defaultFinished)
+            }
+            let codex = evento.providerID == "codex"
+            // bundleID só pro ícone do app da IA; card da API não lança app
+            publicar(NotchNotification(
+                appName: codex ? "Codex" : "Claude Code",
+                title: evento.session.name,
+                body: esperando ? "Esperando você" : "Concluiu",
+                bundleID: codex ? "com.openai.codex" : "com.anthropic.claudefordesktop"))
+        }
+        plugins.agentesEfeitos = AgentesEfeitos(nascer: {
+            AgentesUso.shared.iniciar()
+            return AgentesUso.shared
+        })
     }
 
     /// Manda a notificação pras telas — ou, em reunião, só pro histórico.

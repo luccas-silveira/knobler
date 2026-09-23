@@ -42,6 +42,7 @@ final class NotchViewModel: ObservableObject {
     func updateSections(_ inputs: NotchSectionInputs) {
         let membershipChanged = inputs.note != sectionInputs.note
             || inputs.messages != sectionInputs.messages || inputs.link != sectionInputs.link
+            || inputs.agentes != sectionInputs.agentes
         sectionInputs = inputs
         receivedSections = true
         if expanded && (secoes.isEmpty || membershipChanged) { reconcileSections() }
@@ -51,7 +52,8 @@ final class NotchViewModel: ObservableObject {
         if sectionInputs.annotation { focoPendente = .anotacao }
         recalcularSecoes(estadoDasSecoes(hasMusic: sectionInputs.music, hasShelf: sectionInputs.shelf,
             hasHistory: sectionInputs.history, hasMensagens: sectionInputs.messages,
-            hasNota: sectionInputs.note, hasLink: sectionInputs.link), travadaNaNota: typingNote)
+            hasNota: sectionInputs.note, hasLink: sectionInputs.link,
+            hasAgentes: sectionInputs.agentes), travadaNaNota: typingNote)
     }
 
 
@@ -278,7 +280,8 @@ final class NotchViewModel: ObservableObject {
     /// quem chama é a NotchView, que já observa esses stores.
     func estadoDasSecoes(hasMusic: Bool, hasShelf: Bool,
                          hasHistory: Bool, hasMensagens: Bool,
-                         hasNota: Bool, hasLink: Bool = false) -> [NotchSectionState] {
+                         hasNota: Bool, hasLink: Bool = false,
+                         hasAgentes: Bool = false) -> [NotchSectionState] {
         let conteudo: [NotchSection: Bool] = [
             .musica: hasMusic,
             .atividade: activity != nil,
@@ -296,6 +299,7 @@ final class NotchViewModel: ObservableObject {
             .agenda: true,
             .lembretesApple: true,
             .monitores: monitoresDisponiveis,
+            .agentes: hasAgentes,
         ]
         return NotchSection.allCases.map {
             NotchSectionState(section: $0,

@@ -471,6 +471,33 @@ let scenarios: [Scenario] = [
     // frameHeight maior que o padrão 240: a seção de histórico tem altura
     // própria (chrome + a lista), e com 240 o PNG cortava a faixa do rodapé —
     // um gate que não mostra o rodapé não prova que o card coube.
+    Scenario(name: "expanded-agentes", realNotch: true, frameHeight: 400) { vm, _, _ in
+        let agora = Date()
+        func sessao(_ id: String, _ nome: String, _ detalhe: String, _ e: AgentSession.State) -> AgentSession {
+            AgentSession(id: id, name: nome, detail: detalhe, state: e, waitingFor: nil,
+                         since: agora, processID: 1)
+        }
+        // dois anéis por provider: um confortável, outro com a semana esgotada
+        func uso(_ id: String, _ curta: Double, _ semana: Double, reset: Double) -> ProviderSnapshot {
+            ProviderSnapshot(id: id, displayName: id, glyph: id == "claude" ? .claude : .openai,
+                fidelity: .official, status: .ok,
+                windows: [LimitWindow(id: "primary", label: "5h", usedFraction: curta,
+                                      resetsAt: agora.addingTimeInterval(reset)),
+                          LimitWindow(id: "week", label: "7d", usedFraction: semana,
+                                      resetsAt: agora.addingTimeInterval(3 * 86400))],
+                headlineID: "primary", weeklyID: "week")
+        }
+        AgentesUso.shared.injetar(
+            sessoes: [sessao("a", "knobler", "Terminal", .busy),
+                      sessao("b", "site", "VS Code", .waiting),
+                      sessao("c", "api", "Codex", .success)],
+            uso: ["claude": uso("claude", 0.42, 0.18, reset: 2 * 3600),
+                  "codex": uso("codex", 0.86, 1.0, reset: 40 * 60)],
+            lidoEm: ["claude": agora, "codex": agora])
+        vm.setExpandedDirect(true)
+        vm.secoes = [.agentes, .musica]
+        vm.focar(.agentes)
+    },
     Scenario(name: "foco-historico-vazio", realNotch: true, frameHeight: 400) { vm, _, _ in
         vm.setExpandedDirect(true)
         vm.secoes = [.historico]
@@ -758,6 +785,7 @@ for scenario in scenarios {
     // o histórico é singleton: sem zerar entre cenários, o que um cenário
     // grava vaza pro próximo (o histórico entraria na faixa de todo card)
     NotificationHistory.shared.prune(now: .distantFuture)
+    AgentesUso.shared.injetar(sessoes: [], uso: [:])
     // mesma razão: a nota também é singleton, e o pontinho dela apareceria em
     // todo notch fechado depois do cenário que a liga
     QuickNote.shared.active = false
