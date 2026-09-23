@@ -29,6 +29,10 @@ struct SectionOrderCheck {
         testSanearCompletaFaltantes()
         testOcultaSomeMesmoComConteudoEFixada()
         testSemPromocaoSegueABase()
+        testAtalhosSaneados()
+        testAtalhoDesinstaladoSome()
+        testVizinhoNaVisitaVoltaAoQuickActions()
+        testFocoGuardadoNaVisitaEhQuickActions()
         // seção Agentes: nasce na ordem de fábrica logo depois da Atividade
         let i = NotchSectionOrder.padrao.firstIndex(of: .agentes)
         assert(i == NotchSectionOrder.padrao.firstIndex(of: .atividade).map { $0 + 1 })
@@ -233,5 +237,30 @@ struct SectionOrderCheck {
             fixadas: [],
             agora: agora, travadaNaNota: false, promover: false)
         assert(out == [.shelf, .musica, .atividade], "promoveu com promoção desligada: \(out)")
+    }
+
+    static func testAtalhosSaneados() {
+        let r = NotchSectionOrder.sanearAtalhos(salvos: ["cor", "xyz", "monitores", "cor", "acoesRapidas"])
+        precondition(r == [.cor, .monitores], "atalhos: \(r)")
+    }
+
+    static func testAtalhoDesinstaladoSome() {
+        let r = NotchSectionOrder.atalhosVisiveis([.agentes, .cor], desinstaladas: [.agentes])
+        precondition(r == [.cor], "visiveis: \(r)")
+    }
+
+    static func testVizinhoNaVisitaVoltaAoQuickActions() {
+        let faixa: [NotchSection] = [.musica, .acoesRapidas, .nota]
+        precondition(NotchSectionOrder.vizinho(de: .cor, em: faixa, avancando: true) == .acoesRapidas)
+        precondition(NotchSectionOrder.vizinho(de: .cor, em: faixa, avancando: false) == .acoesRapidas)
+        precondition(NotchSectionOrder.vizinho(de: .musica, em: faixa, avancando: true) == .acoesRapidas)
+        precondition(NotchSectionOrder.vizinho(de: .musica, em: faixa, avancando: false) == .nota)
+        precondition(NotchSectionOrder.vizinho(de: .musica, em: [.musica], avancando: true) == nil)
+    }
+
+    static func testFocoGuardadoNaVisitaEhQuickActions() {
+        let faixa: [NotchSection] = [.musica, .acoesRapidas]
+        precondition(NotchSectionOrder.focoParaGuardar(.cor, secoes: faixa) == .acoesRapidas)
+        precondition(NotchSectionOrder.focoParaGuardar(.musica, secoes: faixa) == .musica)
     }
 }

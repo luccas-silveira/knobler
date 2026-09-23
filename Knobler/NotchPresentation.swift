@@ -258,6 +258,9 @@ enum NotchMetrics {
         case .monitores: return 192
         // dois anéis + até quatro sessões
         case .agentes: return 150
+        // duas linhas de 4 atalhos de 56 pt + espaçamento
+        case .acoesRapidas: return 132
+        case .cor: return 110
         }
     }
 

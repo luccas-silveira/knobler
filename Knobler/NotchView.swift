@@ -888,6 +888,7 @@ struct NotchView: View {
                 case .lembretesApple: vm.onLembretesView?()
                 case .monitores: MonitoresView(vm: vm)
                 case .agentes: AgentesView(agentes: agentes)
+                case .acoesRapidas, .cor: EmptyView()
                 case .musica, .none: musicSection
                 }
             }
@@ -990,7 +991,7 @@ struct NotchView: View {
             if agentes.sessoes.first?.state == .waiting {
                 Circle().fill(.orange).frame(width: 3, height: 3).offset(x: 6, y: -6)
             }
-        case .espelho, .mensagens, .agenda, .lembretesApple, .monitores:
+        case .espelho, .mensagens, .agenda, .lembretesApple, .monitores, .acoesRapidas, .cor:
             EmptyView()
         }
     }

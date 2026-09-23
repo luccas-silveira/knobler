@@ -13,7 +13,7 @@ import Foundation
 /// pro `GET /status`, então renomear um caso quebra ordem salva de usuário.
 enum NotchSection: String, CaseIterable {
     case musica, atividade, pomodoro, shelf, espelho, mensagens, historico, nota, link,
-         anotacao, agenda, lembretesApple, monitores, agentes
+         anotacao, agenda, lembretesApple, monitores, agentes, acoesRapidas, cor
 
     /// Rótulo em pt-BR pros Ajustes e o `aria` da faixa.
     var titulo: String {
@@ -32,6 +32,8 @@ enum NotchSection: String, CaseIterable {
         case .lembretesApple: return "Lembretes"
         case .monitores: return "Monitores"
         case .agentes: return "Agentes"
+        case .acoesRapidas: return "Ações rápidas"
+        case .cor: return "Cor"
         }
     }
 
@@ -52,6 +54,8 @@ enum NotchSection: String, CaseIterable {
         case .lembretesApple: return "checklist"
         case .monitores: return "display"
         case .agentes: return "sparkles"
+        case .acoesRapidas: return "square.grid.2x2"
+        case .cor: return "eyedropper"
         }
     }
 }
@@ -71,7 +75,7 @@ enum NotchSectionOrder {
     /// Ordem de fábrica, usada quando não há nada salvo nos Ajustes.
     static let padrao: [NotchSection] = [
         .musica, .atividade, .agentes, .pomodoro, .shelf, .espelho, .mensagens, .historico, .nota,
-        .link, .anotacao, .agenda, .lembretesApple, .monitores,
+        .link, .anotacao, .agenda, .lembretesApple, .monitores, .acoesRapidas, .cor,
     ]
 
     /// Quanto tempo um evento continua promovendo a seção dele.
@@ -79,6 +83,38 @@ enum NotchSectionOrder {
     /// ponytail: janela fixa em vez de preferência. Vira ajuste se alguém
     /// reclamar; o card vive segundos e ninguém cronometra isso.
     static let janelaDePromocao: TimeInterval = 10
+
+    /// Atalhos do Quick Actions lidos do UserDefaults: ordem preservada, sem
+    /// duplicata, sem desconhecido e sem o próprio Quick Actions. Não completa
+    /// nada — vazio é o estado de fábrica.
+    static func sanearAtalhos(salvos: [String]) -> [NotchSection] {
+        var vistos: [NotchSection] = []
+        for raw in salvos {
+            guard let s = NotchSection(rawValue: raw), s != .acoesRapidas, !vistos.contains(s) else { continue }
+            vistos.append(s)
+        }
+        return vistos
+    }
+
+    static func atalhosVisiveis(_ atalhos: [NotchSection],
+                                desinstaladas: Set<NotchSection>) -> [NotchSection] {
+        atalhos.filter { !desinstaladas.contains($0) }
+    }
+
+    /// Swipe. Foco fora da faixa é visita aberta pelo Quick Actions: qualquer
+    /// direção volta pra ele.
+    static func vizinho(de atual: NotchSection, em secoes: [NotchSection],
+                        avancando: Bool) -> NotchSection? {
+        guard let i = secoes.firstIndex(of: atual) else { return .acoesRapidas }
+        guard secoes.count > 1 else { return nil }
+        return secoes[(i + (avancando ? 1 : -1) + secoes.count) % secoes.count]
+    }
+
+    /// O que gravar como foco da sessão: a visita nunca é lembrada, quem volta é
+    /// o Quick Actions que a abriu.
+    static func focoParaGuardar(_ foco: NotchSection, secoes: [NotchSection]) -> NotchSection {
+        secoes.contains(foco) ? foco : .acoesRapidas
+    }
 
     /// Ordem efetiva do card. Calculada UMA vez, na abertura — o congelamento
     /// é de quem chama (o VM), não daqui.
