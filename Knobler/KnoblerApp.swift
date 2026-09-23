@@ -1603,7 +1603,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 body: esperando ? "Esperando você" : "Concluiu",
                 bundleID: codex ? "com.openai.codex" : "com.anthropic.claudefordesktop"))
         }
-        AgentesUso.shared.iniciar()
+        plugins.agentesEfeitos = AgentesEfeitos(nascer: {
+            AgentesUso.shared.iniciar()
+            return AgentesUso.shared
+        })
     }
 
     /// Manda a notificação pras telas — ou, em reunião, só pro histórico.

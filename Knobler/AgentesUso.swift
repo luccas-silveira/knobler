@@ -68,6 +68,24 @@ final class AgentesUso: ObservableObject {
         Task { await atualizarUso() }
     }
 
+    /// Desinstalar: nenhum monitor, timer, Keychain ou subprocesso novo.
+    /// ponytail: renovação do token já em curso termina sozinha (timeout do
+    /// refresher); matar exigiria mexer no vendor.
+    func parar() {
+        timer?.invalidate()
+        timer = nil
+        bag.removeAll()
+        claudeUso(false)
+        coordinator.stop()
+        // Depois do `stop()`: ele emite `[]` por fonte, que passa pelo watcher.
+        porFonte = [:]
+        sessoes = []
+        uso = [:]
+        lidoEm = [:]
+        // Watcher novo: reinstalar não anuncia de novo sessão que já tinha terminado.
+        watcher = SessionCompletionWatcher()
+    }
+
     func focar(_ sessao: AgentSession) {
         guard let pid = sessao.processID else { return }
         Task { _ = await SessionFocus.focus(pid: pid) }
@@ -107,9 +125,10 @@ final class AgentesUso: ObservableObject {
     }
 
     private func atualizarUso() async {
-        if let s = try? await codex.fetchSnapshot() { uso["codex"] = s; lidoEm["codex"] = Date() }
+        // `timer != nil`: leitura que voltou depois de `parar()` é descartada.
+        if let s = try? await codex.fetchSnapshot(), timer != nil { uso["codex"] = s; lidoEm["codex"] = Date() }
         guard let claude, AppSettings.shared.agentesClaudeUso else { return }
-        if let s = try? await claude.fetchSnapshot(), self.claude === claude {
+        if let s = try? await claude.fetchSnapshot(), self.claude === claude, timer != nil {
             uso["claude"] = s; lidoEm["claude"] = Date()
         }
     }
@@ -123,3 +142,5 @@ final class AgentesUso: ObservableObject {
         self.lidoEm = lidoEm
     }
 }
+
+extension AgentesUso: PluginServico {}
