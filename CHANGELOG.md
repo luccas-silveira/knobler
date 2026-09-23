@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-09-23
+
 ### Added
 - Bloquear teclado pra limpeza (menu da barra ou `POST /keyboard/lock`): todo
   evento de teclado é descartado até clicar no card do notch.
