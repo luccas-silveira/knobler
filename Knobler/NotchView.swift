@@ -888,7 +888,8 @@ struct NotchView: View {
                 case .lembretesApple: vm.onLembretesView?()
                 case .monitores: MonitoresView(vm: vm)
                 case .agentes: AgentesView(agentes: agentes)
-                case .acoesRapidas, .cor: EmptyView()
+                case .acoesRapidas: AcoesRapidasView(vm: vm)
+                case .cor: EmptyView()
                 case .musica, .none: musicSection
                 }
             }

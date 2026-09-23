@@ -10,6 +10,13 @@
 
 import AppKit
 import SwiftUI
+import Carbon.HIToolbox
+
+// Fora do AppDelegate pra `tools/snapshot.sh` compilar os Ajustes sem ele.
+extension KeyboardShortcuts.Name {
+    static let abrirNotch = KeyboardShortcuts.Name(
+        "abrirNotch", default: .init(carbonKeyCode: kVK_ANSI_K, carbonModifiers: controlKey | optionKey))
+}
 
 // MARK: - Painéis
 
@@ -74,7 +81,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .geral: return ["HUD", "volume", "brilho", "bateria", "música", "visualizador", "calendário",
                              "reunião", "silenciar", "microfone", "atualizações", "login", "API", "prateleira",
                              "capturas de tela", "tela cheia", "agentes", "Claude", "espelho", "câmera"]
-        case .notch: return ["atalho", "teclado", "clique", "hover", "mouse", "atraso", "ordem", "seções", "esconder"]
+        case .notch: return ["atalho", "teclado", "clique", "hover", "mouse", "atraso", "ordem", "seções", "esconder", "ações rápidas", "atalhos"]
         case .desenho: return ["anotação", "traço", "cor", "ferramenta", "quadro", "fundo", "desvanecer"]
         case .ditado: return ["microfone", "Control", "ativação", "motor", "IA", "formatação", "endpoint"]
         case .pomodoro: return ["foco", "pausa", "durações", "fase", "timer"]
@@ -335,7 +342,7 @@ struct NotchSettingsPane: View {
                 }
                 .pickerStyle(.segmented)
                 LabeledContent("Atalho") {
-                    ShortcutRecorder(name: AppDelegate.atalhoAbrirNotch)
+                    ShortcutRecorder(name: .abrirNotch)
                 }
                 Text("Com o card aberto pelo atalho, ← → ou Tab trocam de seção e Esc fecha.")
                     .font(.caption)
@@ -400,6 +407,37 @@ struct NotchSettingsPane: View {
                     title: "Subir o que acabou de acontecer",
                     subtitle: "Seção com novidade passa na frente por alguns segundos. Desligado, o card segue sempre a ordem acima.",
                     isOn: $settings.promoverSecoesRecentes)
+            }
+            Section("Ações rápidas") {
+                Text("Atalhos que aparecem na seção Ações rápidas. Valem também para seções escondidas do card.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                let marcados = settings.acoesRapidas
+                let linhas = marcados + NotchSection.allCases.filter { $0 != .acoesRapidas && !marcados.contains($0) }
+                List {
+                    ForEach(linhas, id: \.self) { s in
+                        HStack {
+                            Label(s.titulo, systemImage: s.simbolo)
+                            Spacer()
+                            Toggle(isOn: Binding(
+                                get: { settings.acoesRapidas.contains(s) },
+                                set: { marcar in
+                                    if marcar { if !settings.acoesRapidas.contains(s) { settings.acoesRapidas.append(s) } }
+                                    else { settings.acoesRapidas.removeAll { $0 == s } }
+                                })) { EmptyView() }
+                                .toggleStyle(.checkbox)
+                                .help("Mostrar nas Ações rápidas")
+                        }
+                    }
+                    .onMove { origem, destino in
+                        // só os marcados se reordenam: soltar abaixo deles cola no fim.
+                        guard origem.allSatisfy({ $0 < marcados.count }) else { return }
+                        var nova = marcados
+                        nova.move(fromOffsets: origem, toOffset: min(destino, marcados.count))
+                        settings.acoesRapidas = nova
+                    }
+                }
+                .frame(height: 220)
             }
             if host.estaInstalado(.agentes) {
                 Section("Agentes") {

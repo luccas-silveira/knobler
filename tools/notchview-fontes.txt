@@ -90,6 +90,7 @@ Knobler/IncomingMessageView.swift
 Knobler/MonitoresModel.swift
 Knobler/Monitores.swift
 Knobler/MonitoresView.swift
+Knobler/AcoesRapidasView.swift
 Vendor/MonitorControl/Arm64DDC.swift
 Vendor/MonitorControl/IntelDDC.swift
 Vendor/MonitorControl/Command.swift

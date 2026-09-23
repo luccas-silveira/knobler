@@ -365,6 +365,18 @@ let scenarios: [Scenario] = [
         vm.focus = .musica
     },
     // o "streamdeck" da anotação: ferramentas, cores e ações no card
+    Scenario(name: "expanded-acoes-rapidas", realNotch: true) { vm, _, _ in
+        AppSettings.shared.acoesRapidas = [.cor, .monitores, .nota]
+        vm.setExpandedDirect(true)
+        vm.secoes = [.acoesRapidas]
+        vm.focus = .acoesRapidas
+    },
+    Scenario(name: "expanded-acoes-rapidas-vazio", realNotch: true) { vm, _, _ in
+        AppSettings.shared.acoesRapidas = []
+        vm.setExpandedDirect(true)
+        vm.secoes = [.acoesRapidas]
+        vm.focus = .acoesRapidas
+    },
     Scenario(name: "foco-anotacao", realNotch: true) { vm, _, _ in
         vm.setExpandedDirect(true)
         vm.secoes = [.anotacao, .musica]
@@ -803,6 +815,7 @@ for scenario in scenarios {
     // o histórico é singleton: sem zerar entre cenários, o que um cenário
     // grava vaza pro próximo (o histórico entraria na faixa de todo card)
     NotificationHistory.shared.prune(now: .distantFuture)
+    AppSettings.shared.acoesRapidas = []
     AgentesUso.shared.injetar(sessoes: [], uso: [:])
     // mesma razão: a nota também é singleton, e o pontinho dela apareceria em
     // todo notch fechado depois do cenário que a liga

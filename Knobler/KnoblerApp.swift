@@ -941,14 +941,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Dois dedos sobre o notch: pra baixo abre a música, pra cima fecha,
     /// horizontal pula/volta faixa (como o Dynamic Island).
-    static let atalhoAbrirNotch = KeyboardShortcuts.Name(
-        "abrirNotch", default: .init(carbonKeyCode: kVK_ANSI_K, carbonModifiers: controlKey | optionKey))
 
     /// Atalho global que abre o card, setas/Tab entre seções e Esc pra fechar.
     // ponytail: notificação ou HUD por cima tira o teclado do painel e o Esc
     // para até ela sair; resolver = segurar a fila como na digitação da nota.
     private func setupAtalhoDoNotch() {
-        KeyboardShortcuts.onKeyDown(for: Self.atalhoAbrirNotch) { [weak self] in
+        KeyboardShortcuts.onKeyDown(for: .abrirNotch) { [weak self] in
             self?.viewModelUnderMouse()?.alternarPeloTeclado()
         }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
