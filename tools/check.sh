@@ -103,6 +103,7 @@ swift_check shelfordemcheck       Knobler/ShelfOrdem.swift tools/shelfordemcheck
 swift_check screenshotcheck       Knobler/ScreenshotWatcher.swift Knobler/Permissions.swift tools/screenshotcheck.swift
 swift_check historycheck          Knobler/NotchNotification.swift Knobler/NotificationHistory.swift Knobler/NotchGesture.swift tools/historycheck.swift
 swift_check sectionordercheck    Knobler/NotchSectionOrder.swift tools/sectionordercheck.swift
+swift_check tecladocheck         Knobler/TecladoBloqueado.swift tools/tecladocheck.swift
 # Diagnóstico passivo: a integração não pode sumir nem voltar a reconstruir a raiz.
 run cortedetectorcheck bash -c '
 grep -qF "SensorDeCorte(vigia: vigia" Knobler/NotchView.swift || exit 1
@@ -151,7 +152,7 @@ swift_check eventoscheck          Knobler/NotchViewModel.swift Knobler/NotchPres
   Knobler/AppSettings.swift Knobler/Descanso.swift Knobler/Mirror.swift \
   Knobler/Reminders.swift Knobler/Peer.swift Knobler/LANMessaging.swift \
   Knobler/MessageStore.swift Knobler/Permissions.swift Knobler/Plugin.swift \
-  Knobler/WebhookClient.swift Knobler/WebhookKeychainStore.swift tools/eventoscheck.swift
+  Knobler/WebhookClient.swift Knobler/WebhookKeychainStore.swift Knobler/TecladoBloqueado.swift tools/eventoscheck.swift
 # Reminders traz o próprio @main atrás de -D (molde do Pomodoro), sem harness.
 run reminderscheck bash -c "xcrun swiftc -parse-as-library -swift-version 5 \
   -D REMINDERS_SELFCHECK Knobler/Reminders.swift -o /tmp/reminderscheck && /tmp/reminderscheck"

@@ -30,6 +30,8 @@ final class NotchAPIServer {
     var statusProvider: (() -> [String: Any])?
     /// POST /mirror — liga/desliga o espelho da câmera no notch.
     var onMirror: ((Bool) -> Void)?
+    /// POST /keyboard/lock e /keyboard/unlock — bloqueio de teclado pra limpeza.
+    var onTeclado: ((Bool) -> Void)?
     /// Pergunta interativa (POST /ask): o hook do Claude Code cria, o card
     /// no notch responde, o hook lê via GET /ask/<id> (polling).
     var onAsk: ((AskRequest) -> Void)?
@@ -297,6 +299,12 @@ final class NotchAPIServer {
             return Self.ok
         }
 
+        if request.hasPrefix("POST /keyboard/lock") || request.hasPrefix("POST /keyboard/unlock") {
+            let on = request.hasPrefix("POST /keyboard/lock")
+            DispatchQueue.main.async { [weak self] in self?.onTeclado?(on) }
+            return Self.ok
+        }
+
         if request.hasPrefix("POST /mirror") {
             // Rota de peça: sem o Espelho instalado o callback está vazio e a
             // rota mentiria `{"ok":true}`. O id no corpo deixa o outro lado
@@ -407,7 +415,7 @@ final class NotchAPIServer {
 
         return Self.http(
             status: "404 Not Found",
-            body: #"{"ok":false,"usage":["POST /notify {title, body?, app?, supacodeWorktree?, supacodeTab?}","POST /activity {id?, title, detail?, progress?, done?}","POST /mirror {on?} (plugin: espelho)","POST /ask {id, questions}","GET /ask/<id>","POST /ask/<id>/cancel","GET /status"]}"#
+            body: #"{"ok":false,"usage":["POST /notify {title, body?, app?, supacodeWorktree?, supacodeTab?}","POST /activity {id?, title, detail?, progress?, done?}","POST /mirror {on?} (plugin: espelho)","POST /keyboard/lock","POST /keyboard/unlock","POST /ask {id, questions}","GET /ask/<id>","POST /ask/<id>/cancel","GET /status"]}"#
         )
     }
 

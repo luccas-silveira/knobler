@@ -88,6 +88,17 @@ Para remover:
 Uma activity expira após 30 minutos sem atualização. A activity mais
 recentemente atualizada é a exibida.
 
+### `POST /keyboard/lock` · `POST /keyboard/unlock`
+
+Bloqueia o teclado inteiro (teclas, modificadores, mídia) pra limpeza; o notch mostra
+"Teclado bloqueado — clique para destravar". Sem corpo. Não liga sem Acessibilidade
+(abre Ajustes › Permissões) nem com campo de senha focado (avisa no notch). O estado
+é só em memória: sair do app libera o teclado.
+
+```bash
+curl -X POST http://127.0.0.1:4477/keyboard/lock
+```
+
 ### `POST /mirror` (plugin: espelho)
 
 Liga o espelho no notch do monitor sob o ponteiro ou desliga o espelho em todos

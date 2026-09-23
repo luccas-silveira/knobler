@@ -6,8 +6,16 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- Bloquear teclado pra limpeza (menu da barra ou `POST /keyboard/lock`): todo
+  evento de teclado é descartado até clicar no card do notch.
+
 ### Fixed
 - Barras do visualizador acompanham a batida da música em vez de balançar sozinhas.
+- Monitores: sair aguarda o fim das escritas e a restauração do brilho por
+  software; falhas permitem tentar novamente antes de encerrar.
+- A restauração pode ser repetida nos ajustes mesmo após desativar Monitores.
+- Teclas de volume e brilho continuam controlando monitores com o HUD oculto.
 
 ## [0.32.0] - 2026-09-23
 

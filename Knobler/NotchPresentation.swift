@@ -3,7 +3,7 @@ import Foundation
 import CoreGraphics
 
 enum NotchMode: Equatable {
-    case closed, music, notification, hud, dictation, question, pomodoro, airpods, airpodsIsland, message, update
+    case closed, music, notification, hud, dictation, question, pomodoro, airpods, airpodsIsland, message, update, tecladoBloqueado
 }
 
 struct NotchContentState {
@@ -23,8 +23,11 @@ struct NotchContentState {
     var expanded = false
     var pomodoro = false
     var focus: NotchSection?
+    /// Teclado bloqueado pra limpeza vence tudo: nada mais recebe tecla.
+    var tecladoBloqueado = false
 
     var mode: NotchMode {
+        if tecladoBloqueado { return .tecladoBloqueado }
         if question { return .question }
         if incoming { return .message }
         if dictation { return .dictation }
@@ -162,7 +165,7 @@ struct NotchPresentation: Equatable {
             // nunca mais estreito que a ilha: senão encolhe sob o cursor na promoção
             let ilha = layout.realNotch ? layout.notch.width + 170 : 232
             target = CGSize(width: max(Self.airpodsCardWidth, ilha), height: topInset + Self.airpodsCardHeight)
-        case .update: target = CGSize(width: 380, height: topInset + 72)
+        case .update, .tecladoBloqueado: target = CGSize(width: 380, height: topInset + 72)
         case .question:
             target = CGSize(width: layout.questionSize.width, height: topInset + layout.questionSize.height)
         }

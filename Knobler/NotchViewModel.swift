@@ -449,7 +449,7 @@ final class NotchViewModel: ObservableObject {
                           typingNote: typingNote, editingAgenda: editandoAgenda, editingReminders: editandoLembretes, notification: activeNotification != nil,
                           hud: hud != nil, update: updateCard && update != nil,
                           airpods: airpodsCard, airpodsIsland: airpodsIsland, expanded: expanded, pomodoro: pomodoro != nil,
-                          focus: focus)
+                          focus: focus, tecladoBloqueado: TecladoBloqueado.shared.ativo)
     }
 
     var mode: Mode { contentState().mode }

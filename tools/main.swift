@@ -271,6 +271,7 @@ let scenarios: [Scenario] = [
         vm.secoes = [.nota, .musica]
         vm.focus = .nota
     },
+    Scenario(name: "teclado-bloqueado", realNotch: true) { _, _, _ in TecladoBloqueado.shared._simularAtivo(true) },
     Scenario(name: "closed-note", realNotch: true) { vm, _, _ in
         vm.displayID = 1
         QuickNote.shared.hostDisplayID = 1
@@ -760,6 +761,7 @@ for scenario in scenarios {
     // mesma razão: a nota também é singleton, e o pontinho dela apareceria em
     // todo notch fechado depois do cenário que a liga
     QuickNote.shared.active = false
+    TecladoBloqueado.shared._simularAtivo(false)
     Monitores.shared.displays = []
     // anéis desenhados já no nível final: o ImageRenderer não roda a entrada
     BatteryRingView.animaEntrada = false

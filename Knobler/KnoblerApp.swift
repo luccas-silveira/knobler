@@ -646,6 +646,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         calendar.start()
 
+        apiServer.onTeclado = { [weak self] on in
+            if on { self?.bloquearTeclado() } else { TecladoBloqueado.shared.desligar() }
+        }
         apiServer.onMirror = { [weak self] on in
             guard let self else { return }
             if on {
@@ -1492,6 +1495,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // ponto de envio que não passa pela prateleira: mandar um arquivo não
         // devia obrigar a arrastá-lo pro notch antes
         addItem(menu, "Enviar por AirDrop…", "square.and.arrow.up", #selector(sendAirDrop))
+        addItem(menu, "Bloquear teclado", "keyboard.badge.ellipsis", #selector(bloquearTeclado))
         menu.addItem(.separator())
         addItem(menu, "Novidades…", "sparkles", #selector(openNovidades))
         addItem(menu, "Ajustes…", "gearshape", #selector(openSettings), key: ",")
@@ -1525,6 +1529,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .idle, .waiting: return nil
         case .running: return "\(fase) · \(tempo) restantes"
         case .paused: return "\(fase) · pausado em \(tempo)"
+        }
+    }
+
+    /// Trava o teclado pra limpeza; o card no notch destrava. Menu e API passam aqui.
+    @objc private func bloquearTeclado() {
+        switch TecladoBloqueado.shared.ligar() {
+        case .semAcessibilidade?: openAccessibilityPane()
+        case .entradaSegura?:
+            // montada fora do laço: um id por tela duplicaria o histórico
+            let aviso = NotchNotification(appName: "Knobler", title: "Teclado não bloqueado",
+                                          body: "Saia do campo de senha antes de bloquear")
+            notches.values.forEach { $0.viewModel.enqueue(aviso) }
+        case nil: break
         }
     }
 

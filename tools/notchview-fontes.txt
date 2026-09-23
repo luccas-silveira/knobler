@@ -93,3 +93,4 @@ Vendor/MonitorControl/IntelDDC.swift
 Vendor/MonitorControl/Command.swift
 Vendor/MonitorControl/Display.swift
 Vendor/MonitorControl/KeyboardShortcuts.swift
+Knobler/TecladoBloqueado.swift

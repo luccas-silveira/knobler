@@ -17,6 +17,7 @@ struct NotchView: View {
     @ObservedObject private var settings = AppSettings.shared
     @ObservedObject private var history = NotificationHistory.shared
     @ObservedObject private var note = QuickNote.shared
+    @ObservedObject private var teclado = TecladoBloqueado.shared
     @ObservedObject private var linkPreview = LinkPreview.shared
     @ObservedObject private var mirror = MirrorController.shared
     @ObservedObject private var monitors = Monitores.shared
@@ -212,6 +213,14 @@ struct NotchView: View {
                     .padding(.bottom, 12)
                     // desce do notch, como as notificações
                     .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace).combined(with: .move(edge: .top)))
+            case .tecladoBloqueado:
+                tecladoBloqueadoCard
+                .frame(width: 380 - 40)
+                .padding(.top, topInset)
+                .padding(.bottom, 12)
+                .contentShape(Rectangle())
+                .onTapGesture { teclado.desligar() }
+                .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace).combined(with: .move(edge: .top)))
             }
         }
         // mede a lacuna de topo da moldura desenhada; não desenha nada
@@ -1502,6 +1511,41 @@ struct NotchView: View {
     }
 
     // MARK: - Atualização disponível
+
+    /// Aviso do teclado bloqueado: o card inteiro destrava, o botão só deixa isso óbvio.
+    private var tecladoBloqueadoCard: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(LinearGradient(colors: [Color(red: 1, green: 0.72, blue: 0.3),
+                                                  Color(red: 1, green: 0.45, blue: 0.2)],
+                                         startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .shadow(color: .orange.opacity(0.5), radius: 8)
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+            .frame(width: 36, height: 36)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Teclado bloqueado")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                Text("Pode limpar à vontade.")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.65))
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            Label("Destravar", systemImage: "lock.open.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Capsule().fill(.white.opacity(0.14)))
+                .overlay(Capsule().strokeBorder(.white.opacity(0.18)))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
 
     /// Nome com sufixo `NotchCard` de propósito: `updateCard` já é a flag de
     /// exibição no view model, e as duas coisas convivem no mesmo escopo aqui.
