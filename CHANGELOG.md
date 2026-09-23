@@ -12,6 +12,7 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 - Atalho global ⌃⌥K (configurável em Ajustes › Notch) abre o card; ← → ou Tab trocam de seção e Esc fecha.
 
 ### Changed
+- Ajustes com a barra lateral em grupos (Sistema, Features, Integrações) e busca por painel ou opção.
 - Com o card aberto, trocar para uma seção menor não encolhe o card; ele volta ao tamanho natural ao fechar.
 
 ### Fixed

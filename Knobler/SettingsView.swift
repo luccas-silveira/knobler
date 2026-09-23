@@ -55,6 +55,45 @@ enum SettingsPane: String, CaseIterable, Identifiable {
     /// Painel de peça desinstalada não entra na lista — some, sem item
     /// acinzentado (002). Painel que não é de peça nenhuma (Geral, Notch,
     /// Permissões) nunca sai.
+    enum Grupo: String, CaseIterable {
+        case sistema = "Sistema", features = "Features", integracoes = "Integrações"
+    }
+
+    var grupo: Grupo {
+        switch self {
+        case .geral, .notch, .permissoes, .plugins: return .sistema
+        case .webhooks, .mensagens: return .integracoes
+        default: return .features
+        }
+    }
+
+    // ponytail: lista manual dos rótulos de cada painel; opção nova só aparece
+    // na busca se entrar aqui.
+    var palavras: [String] {
+        switch self {
+        case .geral: return ["HUD", "volume", "brilho", "bateria", "música", "visualizador", "calendário",
+                             "reunião", "silenciar", "microfone", "atualizações", "login", "API", "prateleira",
+                             "capturas de tela", "tela cheia", "agentes", "Claude", "espelho", "câmera"]
+        case .notch: return ["atalho", "teclado", "clique", "hover", "mouse", "atraso", "ordem", "seções", "esconder"]
+        case .desenho: return ["anotação", "traço", "cor", "ferramenta", "quadro", "fundo", "desvanecer"]
+        case .ditado: return ["microfone", "Control", "ativação", "motor", "IA", "formatação", "endpoint"]
+        case .pomodoro: return ["foco", "pausa", "durações", "fase", "timer"]
+        case .lembretes: return ["lembrete", "alerta", "horário", "frequência", "som"]
+        case .descanso: return ["pausa", "bloqueio", "olhos", "frequência"]
+        case .webhooks: return ["webhook", "perfil", "push", "credenciais"]
+        case .mensagens: return ["rede local", "identidade", "nome", "Mac"]
+        case .plugins: return ["peça", "instalar", "desinstalar", "marketplace", "vitrine"]
+        case .permissoes: return ["acessibilidade", "microfone", "calendário", "Bluetooth", "gravação de tela", "TCC"]
+        case .monitores: return ["brilho", "contraste", "DDC", "som", "mudo", "atalhos", "HUD", "escurecimento"]
+        }
+    }
+
+    /// Busca da barra lateral: título ou rótulo de opção, sem acento nem caixa.
+    func combina(_ busca: String) -> Bool {
+        let b = busca.trimmingCharacters(in: .whitespaces)
+        return b.isEmpty || title.localizedStandardContains(b) || palavras.contains { $0.localizedStandardContains(b) }
+    }
+
     static var visiveis: [SettingsPane] {
         let escondidos = PluginHost.shared.paineisEscondidos
         return allCases.filter { !escondidos.contains($0.rawValue) }
@@ -93,12 +132,18 @@ struct SettingsView: View {
     /// lista na próxima abertura da janela.
     // periphery:ignore
     @ObservedObject private var host = PluginHost.shared
+    @State private var busca = ""
 
     var body: some View {
         // .constant(.all): sem isso o divisor colapsa a sidebar por arrasto e,
         // sem toolbar/menu (LSUIElement), não existe caminho de volta
         NavigationSplitView(columnVisibility: .constant(.all)) {
-            List(SettingsPane.visiveis, selection: selection) { pane in
+            List(selection: selection) {
+              ForEach(SettingsPane.Grupo.allCases, id: \.self) { grupo in
+                let paineis = SettingsPane.visiveis.filter { $0.grupo == grupo && $0.combina(busca) }
+                if !paineis.isEmpty {
+                  Section(grupo.rawValue) {
+                    ForEach(paineis) { pane in
                 Label {
                     Text(pane.title)
                 } icon: {
@@ -110,8 +155,13 @@ struct SettingsView: View {
                             RoundedRectangle(cornerRadius: 6).fill(pane.color.gradient))
                 }
                 .tag(pane)
+                    }
+                  }
+                }
+              }
             }
             .listStyle(.sidebar)
+            .searchable(text: $busca, placement: .sidebar, prompt: "Buscar")
             // ponytail: frame direto — navigationSplitViewColumnWidth é ignorado
             // em NavigationSplitView hospedado num NSWindow manual (sem cena SwiftUI)
             .frame(width: 224)

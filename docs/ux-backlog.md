@@ -97,6 +97,8 @@ Direção: `.alignment` ao trocar de seção pelo gesto de rolagem e
 
 ## Médio (1 a 2 dias)
 
+Feitos em 2026-09-23: 9, 10, 11 e 12 (o 11 pela alternativa: o card só cresce enquanto está aberto).
+
 ### 9. Atalho global para abrir o notch e navegar por teclado
 
 Hoje o card só abre com o mouse. Atalho global existe só no Monitores e no
