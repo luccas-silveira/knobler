@@ -398,6 +398,13 @@ let scenarios: [Scenario] = [
             id: "deploy", title: "Deploy zoi-studio", detail: "rsync…",
             progress: 0.42, updatedAt: Date())
     },
+    // AirDrop recebendo com música tocando: símbolo azul no lugar da capa
+    Scenario(name: "closed-airdrop-music", realNotch: true) { vm, media, _ in
+        media.injectPreview(state: fakeState(), artwork: fakeArtwork())
+        vm.activity = NotchActivity(
+            id: "airdrop", title: "Recebendo por AirDrop", detail: "IMG_5640.MOV",
+            progress: 0.42, updatedAt: Date())
+    },
     // atividade sem progresso e sem música: a seção sobe sozinha na ordenação
     // (é a única com conteúdo) e a faixa fica com um ícone só
     Scenario(name: "foco-atividade-indeterminada", realNotch: true) { vm, _, _ in

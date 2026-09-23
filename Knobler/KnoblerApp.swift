@@ -139,6 +139,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var apiActivity: NotchActivity?
     private var calendarActivity: NotchActivity?
     private var airdropActivity: NotchActivity?
+    private lazy var airdrop = AirDropCoordenador(
+        shelf: shelf,
+        onActivity: { [weak self] in self?.airdropActivity = $0; self?.pushActivity() },
+        onCard: { [weak self] in self?.publicar($0) })
     /// Espelha `pomodoro.runState != .idle` pra não recalcular a atividade a cada
     /// tique do timer — só quando ele começa ou para.
     private var pomodoroAtivo = false
@@ -154,36 +158,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         notches.values.forEach { $0.viewModel.activity = display }
     }
 
-    /// Envia por AirDrop mostrando o estado no notch: atividade
-    /// **indeterminada** enquanto vai (o `NSSharingService` não expõe bytes
-    /// transferidos — ver `AirDropState`) e card no fim.
-    func airdropComEstado(_ urls: [URL]) {
-        AirDropEnvio.enviar(urls) { [weak self] in self?.aplicarEstadoAirDrop($0) }
-    }
-
-    private func aplicarEstadoAirDrop(_ state: AirDropState) {
-        switch state {
-        case .enviando(let label, _):
-            airdropActivity = NotchActivity(
-                id: "airdrop",
-                title: "Enviando por AirDrop",
-                detail: label,
-                progress: nil,
-                updatedAt: Date())
-        case .enviado(let label, _, _):
-            airdropActivity = nil
-            publicar(NotchNotification(
-                appName: "AirDrop", title: "Enviado", body: label, iconEmoji: "📤"))
-        case .cancelado:
-            airdropActivity = nil
-        case .falhou(let motivo):
-            airdropActivity = nil
-            publicar(NotchNotification(
-                appName: "AirDrop", title: "Não deu pra enviar", body: motivo,
-                iconEmoji: "📤"))
-        }
-        pushActivity()
-    }
     /// Empurra o lembrete pra daqui a `minutes`. Um `oneShot` já foi desligado
     /// pelo `onFire` quando o card apareceu — religa, senão o tick o ignoraria e
     /// o adiamento nunca venceria.
@@ -247,6 +221,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         interceptor.start()
         self.interceptor = interceptor
+        airdrop.iniciar()
 
 
         // Com destino identificado, o HUD aparece somente no notch correspondente.
@@ -1073,6 +1048,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         guard !cheias.isEmpty else { return [] }
 
+        // janela maximizada numa tela com notch tem o mesmo retângulo de uma em
+        // tela cheia (a barra de menus mede o mesmo que o notch). O que separa as
+        // duas é a barra de menus: em tela cheia ela some da tela.
+        let barras: [CGRect] = ((CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID)
+            as? [[String: Any]]) ?? []).compactMap { j in
+            guard (j[kCGWindowName as String] as? String) == "Menubar",
+                  let b = j[kCGWindowBounds as String] as? [String: CGFloat],
+                  let x = b["X"], let y = b["Y"], let w = b["Width"], let h = b["Height"]
+            else { return nil }
+            return CGRect(x: x, y: y, width: w, height: h)
+        }
+
         var ids = Set<CGDirectDisplayID>()
         for screen in NSScreen.screens {
             // em tela com notch o app em tela cheia não desce até a faixa do
@@ -1081,6 +1068,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let topo = screen.safeAreaInsets.top
             let cg = CGRect(x: f.minX, y: primeira.frame.maxY - f.maxY + topo,
                             width: f.width, height: f.height - topo)
+            let cgTela = CGRect(x: f.minX, y: primeira.frame.maxY - f.maxY,
+                                width: f.width, height: f.height)
+            if barras.contains(where: { $0.intersects(cgTela) }) { continue }
             if cheias.contains(where: { $0.insetBy(dx: -1, dy: -1).contains(cg) }) {
                 ids.insert(Self.displayID(of: screen))
             }
@@ -1222,13 +1212,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     } else if let reminder = AppSettings.shared.reminders.first(where: { $0.id == token }),
                        Self.snoozeOptions.indices.contains(index) {
                         self.snooze(reminder, by: Self.snoozeOptions[index].minutes)
+                    } else if self.airdrop.perform(token: token, index: index) {
+                        // card de AirDrop: ação local (abrir/Finder/prateleira)
                     } else {
                         self.interceptor?.perform(token: token, index: index)
                     }
                     self.notches.values.forEach { $0.viewModel.dismissActiveNotification() }
                 }
                 viewModel.onAirDrop = { [weak self] urls in
-                    self?.airdropComEstado(urls)
+                    self?.airdrop.enviar(urls)
                 }
 
                 // controles do card do Pomodoro → engine (onState reprograma todas as vms)
@@ -1653,7 +1645,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func sendAirDrop() {
-        AirDropEnvio.enviarDoPainel { [weak self] in self?.aplicarEstadoAirDrop($0) }
+        airdrop.enviarDoPainel()
     }
 
     @objc private func pomStart() { pomodoro?.start() }
