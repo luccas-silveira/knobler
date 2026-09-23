@@ -227,7 +227,7 @@ final class SystemAudioLevels: ObservableObject {
             // ataque rápido, queda suave — o "pulo" na batida vem daqui
             let previous = smoothed[band]
             smoothed[band] = shaped > previous
-                ? previous + (shaped - previous) * 0.55
+                ? previous + (shaped - previous) * 0.8
                 : previous + (shaped - previous) * 0.18
         }
 

@@ -11,6 +11,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ### Fixed
 - Ditado com fone Bluetooth (AirPods) como microfone padrão grava pelo mic do Mac, sem derrubar a qualidade nem mexer no volume do que está tocando.
+- Conta-gotas não deixa mais a tela travada pra cliques depois de usado.
+- Barras do visualizador acompanham a batida da música em vez de balançar sozinhas.
 
 ## [0.32.0] - 2026-09-23
 
