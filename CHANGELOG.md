@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-09-23
+
 ### Added
 - Texto da tela (peça): ⌃⇧T vira o cursor em mira, você seleciona uma área e o texto dela vai pro clipboard.
 - Ajustes › Notch: abrir o card com clique em vez de hover, ou regular o atraso do hover.
