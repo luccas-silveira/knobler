@@ -125,6 +125,7 @@ swift_check quicknotecheck        Knobler/QuickNote.swift Knobler/Plugin.swift K
   Knobler/Permissions.swift Knobler/WebhookClient.swift Knobler/WebhookKeychainStore.swift \
   Knobler/NotchNotification.swift tools/quicknotecheck.swift
 swift_check permissioncheck       Knobler/Permissions.swift tools/permissioncheck.swift
+swift_check textodatelacheck      Knobler/TextoDaTela.swift tools/textodatelacheck.swift
 swift_check annotationcheck      Knobler/AnnotationModel.swift tools/annotationcheck.swift
 swift_check appleremindersuicheck Knobler/AppleReminders.swift Knobler/AppleRemindersStore.swift Knobler/AppleRemindersView.swift Knobler/AppleRemindersNotchView.swift tools/appleremindersuicheck.swift
 swift_check applereminderscheck Knobler/AppleReminders.swift Knobler/AppleRemindersStore.swift tools/applereminderscheck.swift
