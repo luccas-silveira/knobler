@@ -77,8 +77,7 @@ final class TextoDaTelaServico: PluginServico {
         selecao = nil
         defer { try? FileManager.default.removeItem(at: arquivo) }
         guard !parado, FileManager.default.fileExists(atPath: arquivo.path) else { return }
-        guard let fonte = CGImageSourceCreateWithURL(arquivo as CFURL, nil),
-              let imagem = CGImageSourceCreateImageAtIndex(fonte, 0, nil) else { return falhou() }
+        guard let imagem = TextoDaTela.imagem(de: arquivo) else { return falhou() }
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let resultado = Result { try TextoDaTela.linhas(em: imagem) }
             DispatchQueue.main.async {

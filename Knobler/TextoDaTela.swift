@@ -8,9 +8,18 @@
 
 import CoreGraphics
 import Foundation
+import ImageIO
 import Vision
 
 enum TextoDaTela {
+    /// Abre a captura do screencapture já em memória: o CGImage de uma URL
+    /// decodifica preguiçoso e, com o arquivo apagado, o Vision lia vazio.
+    static func imagem(de arquivo: URL) -> CGImage? {
+        guard let dados = try? Data(contentsOf: arquivo),
+              let fonte = CGImageSourceCreateWithData(dados as CFData, nil) else { return nil }
+        return CGImageSourceCreateImageAtIndex(fonte, 0, nil)
+    }
+
     /// Linhas na ordem que o Vision devolve (já é a de leitura).
     /// ponytail: sem reordenação por coluna; ordenar por midY/minX se texto em
     /// colunas vier embaralhado.
