@@ -19,6 +19,9 @@ targets:
         excludes:
           - "*.md"
           - LICENSE
+      - path: Vendor/Codenotch
+        excludes:
+          - LICENSE
       # a página de novidades: folder reference (type: folder) pra preservar
       # midia/ dentro do bundle — os src do HTML são relativos.
       - path: Knobler/Novidades
@@ -30,6 +33,7 @@ targets:
     dependencies:
       - package: FluidAudio
       - sdk: Collaboration.framework
+      - sdk: libsqlite3.tbd
       # carregado pelo perl, não pelo app — embed sem link (ver Vendor/PROVENANCE.md)
       - framework: Vendor/MediaRemoteAdapter.framework
         embed: true
