@@ -232,9 +232,10 @@ struct ShelfRowView: View {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 11))
                     .foregroundStyle(.white.opacity(0.6), .black.opacity(0.6))
+                    .iconeBotao("Remover", largura: 22)
             }
             .buttonStyle(.plain)
-            .offset(x: 6, y: -5)
+            .offset(x: 11, y: -10)
         }
         .contextMenu {
             if let link = ShelfDrop.link(de: url) {
@@ -371,6 +372,7 @@ struct ShelfPilhaView: View {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.75))
+                    .iconeBotao("Voltar", largura: 22)
             }
             .buttonStyle(.plain)
             Text("\(pilha.urls.count) arquivos")
@@ -423,6 +425,7 @@ struct ShelfPilhaView: View {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 11))
                         .foregroundStyle(.white.opacity(0.6), .black.opacity(0.6))
+                        .iconeBotao("Remover", largura: 22)
                 }
                 .buttonStyle(.plain)
             }

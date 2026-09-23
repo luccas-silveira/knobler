@@ -33,6 +33,7 @@ struct MonitoresView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Ajustes de \(display.name)")
+                    .help("Ajustes de \(display.name)")
                 }
                 control("Brilho", value: display.brightness, command: .brightness, display: display)
                     .disabled(display.preferences.mode == .hardware && !display.hardwareBrightness)

@@ -126,6 +126,8 @@ struct HistoryRow: View {
             .buttonStyle(.plain)
             .opacity(mostraX ? 1 : 0)
             .frame(width: 12)
+            .help("Remover")
+            .accessibilityLabel("Remover")
         }
     }
 }

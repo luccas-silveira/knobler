@@ -28,3 +28,14 @@ struct NotchShell<Content: View>: View {
             .animation(reduceMotion ? nil : motion, value: presentation)
     }
 }
+
+extension View {
+    /// Botão só de ícone: dica no hover, nome pro VoiceOver e alvo de clique
+    /// maior que o desenho (a Apple pede ~28 pt; a faixa limita a altura).
+    func iconeBotao(_ titulo: String, largura: CGFloat = 28, altura: CGFloat = 22) -> some View {
+        frame(minWidth: largura, minHeight: altura)
+            .contentShape(Rectangle())
+            .help(titulo)
+            .accessibilityLabel(titulo)
+    }
+}

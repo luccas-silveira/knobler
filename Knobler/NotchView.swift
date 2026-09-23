@@ -491,6 +491,7 @@ struct NotchView: View {
                     Image(systemName: "gearshape.fill")
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.55))
+                        .iconeBotao("Ajustes do Pomodoro")
                 }
                 .buttonStyle(.plain)
             }
@@ -893,7 +894,7 @@ struct NotchView: View {
     /// Rodapé do card: as seções que não estão em foco, cada uma com um sinal
     /// vivo mínimo. Você perde o detalhe, não o glance.
     private var sectionStrip: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 2) {
             ForEach(vm.secoes, id: \.self) { s in
                 Button {
                     vm.focar(s)
@@ -901,15 +902,12 @@ struct NotchView: View {
                     ZStack {
                         Image(systemName: s.simbolo)
                             .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(.white.opacity(vm.focus == s ? 0.9 : 0.35))
+                            .foregroundStyle(.white.opacity(vm.focus == s ? 0.9 : 0.55))
                         sinalVivo(s)
                     }
-                    // alvo de clique maior que o desenho
-                    .padding(4)
-                    .contentShape(Rectangle())
+                    .iconeBotao(s.titulo)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(s.titulo)
             }
             if vm.textoDaTelaLigado {
                 Divider().frame(height: 10).overlay(.white.opacity(0.2))
@@ -919,12 +917,10 @@ struct NotchView: View {
                 } label: {
                     Image(systemName: "text.viewfinder")
                         .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.35))
-                        .padding(4)
-                        .contentShape(Rectangle())
+                        .foregroundStyle(.white.opacity(0.55))
+                        .iconeBotao("Extrair texto da tela")
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Extrair texto da tela")
             }
         }
         .frame(height: NotchMetrics.sectionStripHeight)
@@ -1060,6 +1056,7 @@ struct NotchView: View {
                     Image(systemName: "xmark.circle.fill")
                         .font(.title3)
                         .foregroundStyle(.white.opacity(0.7), .black.opacity(0.45))
+                        .iconeBotao("Desligar espelho")
                 }
                 .buttonStyle(.plain)
                 .padding(8)
@@ -1333,17 +1330,20 @@ struct NotchView: View {
                 Image(systemName: "backward.fill")
                     .font(.title3)
                     .foregroundStyle(.white)
+                    .iconeBotao("Faixa anterior")
             }
             Button { media.playPause() } label: {
                 Image(systemName: state.isPlaying ? "pause.fill" : "play.fill")
                     .font(.title)
                     .foregroundStyle(.white)
                     .frame(width: 30)
+                    .iconeBotao(state.isPlaying ? "Pausar" : "Tocar")
             }
             Button { media.nextTrack() } label: {
                 Image(systemName: "forward.fill")
                     .font(.title3)
                     .foregroundStyle(.white)
+                    .iconeBotao("Próxima faixa")
             }
         }
         .buttonStyle(.plain)
@@ -1354,6 +1354,7 @@ struct NotchView: View {
                     .font(.body)
                     .foregroundStyle(state.shuffling ? .white : .white.opacity(0.45))
                     .contentTransition(.symbolEffect(.replace))
+                    .iconeBotao(state.shuffling ? "Desligar aleatório" : "Tocar em ordem aleatória")
             }
             .buttonStyle(.plain)
             // fonte sem shuffle (navegador) → botão apagado, layout estável
