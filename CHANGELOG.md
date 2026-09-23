@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.30.0] - 2026-09-23
+
 ### Added
 - Peça opcional Monitores: brilho, contraste, volume e mudo por tela no notch,
   ajustes individuais, escurecimento por software e sincronização relativa.
