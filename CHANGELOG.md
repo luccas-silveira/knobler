@@ -9,6 +9,9 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 ### Added
 - Seção Agentes: sessões do Claude Code e do Codex com estado (trabalhando, esperando você, concluída), card e som quando uma termina ou para pra perguntar, e anéis de limite do plano. O anel do Claude é opcional nos Ajustes. É uma peça do marketplace, instalada por padrão e desinstalável em Ajustes › Plugins. Backend adaptado do [codenotch](https://github.com/vinzdg/codenotch) (MIT).
 
+### Fixed
+- Ditado com fone Bluetooth (AirPods) como microfone padrão grava pelo mic do Mac, sem derrubar a qualidade nem mexer no volume do que está tocando.
+
 ## [0.32.0] - 2026-09-23
 
 ### Added
