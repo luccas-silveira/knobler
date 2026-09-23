@@ -71,7 +71,13 @@ Os seis cenários visuais cobrem tela interna, DDC completo, software apenas,
 múltiplas telas, contraste expandido e erro de comunicação.
 `./tools/check.sh` inclui conversões e calibração, roteamento, invalidação,
 fila real com transporte simulado (agrupamento, falha e repetição, sincronização,
-cancelamento e restauração) e captura de teclas com HUD oculto.
+cancelamento e restauração), brilho Apple mudado por fora (a tecla parte do
+valor lido, sem salto nem propagação com a sincronização desligada; com ela
+ligada, o delta segue relativo sem reescrever a origem), suspensão e
+reconexão descartando escrita pendente, e captura de teclas com HUD oculto.
+Em 2026-09-23: 50 checks e build Debug aprovados; os seis snapshots foram
+inspecionados. O cenário de múltiplas telas mostra o seletor fechado, então
+sai igual ao de DDC; a escolha entre telas não tem prova visual.
 
 **Validação física pendente:** não foi executada nesta implementação, em Intel
 nem em Apple Silicon. Build e simulações não comprovam a compatibilidade de

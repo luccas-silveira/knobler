@@ -107,6 +107,37 @@ enum KeyboardShortcuts {
             if !suspend { assert(lifecycle.displays.isEmpty) }
             lifecycle.stop()
         }
+        // Brilho Apple mudado por fora: a tecla parte do valor lido, não do baseline velho, e sem sincronização não vaza.
+        var quiet = [one, two]
+        quiet[0].preferences.synchronize = false
+        quiet[1].preferences.synchronize = false
+        var appleWrites: [(UInt32, Double)] = []
+        let apple = Monitores(testDisplays: quiet, appleRead: { $0 == 1 ? 0.7 : 0.6 }) { id, _, value, _ in
+            lock.lock(); appleWrites.append((id, value)); lock.unlock()
+            return true
+        }
+        assert(apple.handleKey(.brightness, increase: true, fine: false, displayID: 1))
+        wait { lock.lock(); defer { lock.unlock() }; return !appleWrites.isEmpty }
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        lock.lock()
+        assert(appleWrites.count == 1 && appleWrites[0].0 == 1 && abs(appleWrites[0].1 - 0.7625) < 0.00001, "Tecla saltou do baseline desatualizado")
+        lock.unlock()
+        // Com sincronização ligada, a mudança externa segue relativa e a origem não é reescrita.
+        var synced = [one, two]
+        synced[0].preferences.synchronize = true
+        synced[1].preferences.synchronize = true
+        appleWrites = []
+        let observer = Monitores(testDisplays: synced, appleRead: { $0 == 1 ? 0.5 : 0.6 }) { id, _, value, _ in
+            lock.lock(); appleWrites.append((id, value)); lock.unlock()
+            return true
+        }
+        observer.observeAppleBrightness()
+        wait { lock.lock(); defer { lock.unlock() }; return !appleWrites.isEmpty }
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        lock.lock()
+        assert(appleWrites.count == 1 && appleWrites[0].0 == 2 && abs(appleWrites[0].1 - 0.8) < 0.00001, "Sincronização realimentou ou perdeu o delta")
+        lock.unlock()
+        apple.stop(); observer.stop()
         print("Monitores serviço: agrupamento, repetição, sincronização e restauração OK")
     }
 }
