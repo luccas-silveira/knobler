@@ -413,6 +413,7 @@ final class NotchViewModel: ObservableObject {
         focoPendente = nil
         if focus != section {
             focoTrocadoEm = ProcessInfo.processInfo.systemUptime
+            NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .default)
         }
         focus = section
         focusLocked = true

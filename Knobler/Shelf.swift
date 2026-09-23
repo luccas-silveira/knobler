@@ -81,6 +81,7 @@ struct ShelfDropDelegate: DropDelegate {
         // arraste que saiu da própria prateleira não vira entrada nova: quem
         // resolve esse caso é o fim da sessão de arraste (ticket 007)
         if !ShelfArrasteInterno.origemInterna {
+            NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .default)
             ShelfArquivos.juntos(arquivos) { [weak shelf] urls in shelf?.add(urls) }
         }
         for provider in providers where !arquivos.contains(provider) {
