@@ -1607,7 +1607,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             publicar(NotchNotification(
                 appName: evento.providerID == "codex" ? "Codex" : "Claude Code",
                 title: evento.session.name,
-                body: esperando ? (evento.session.waitingFor ?? "Esperando você") : "Concluído",
+                body: esperando ? "Esperando você" : "Concluiu",
                 iconEmoji: esperando ? "✋" : "✅"))
         }
         AgentesUso.shared.iniciar()

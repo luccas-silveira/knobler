@@ -20,6 +20,7 @@ struct NotchView: View {
     @ObservedObject private var linkPreview = LinkPreview.shared
     @ObservedObject private var mirror = MirrorController.shared
     @ObservedObject private var monitors = Monitores.shared
+    @ObservedObject private var agentes = AgentesUso.shared
     @ObservedObject private var annotation = AnnotationController.shared
     /// Só pra saber se há conversa (o `hasMensagens` da ordem das seções). O
     /// store não tem singleton: quem injeta é o app (e o harness de snapshot).
@@ -285,7 +286,8 @@ struct NotchView: View {
     private var sectionInputs: NotchSectionInputs {
         NotchSectionInputs(music: hasMusic, shelf: !shelf.entradas.isEmpty,
             history: !history.items.isEmpty, messages: !messages.threads.isEmpty,
-            note: noteVisible, link: linkAberto, annotation: annotation.isActive || annotation.temTinta)
+            note: noteVisible, link: linkAberto, annotation: annotation.isActive || annotation.temTinta,
+            agentes: !agentes.sessoes.isEmpty || !agentes.uso.isEmpty)
     }
 
     private var questionSize: CGSize {
@@ -854,6 +856,7 @@ struct NotchView: View {
                 case .agenda: AgendaView(vm: vm)
                 case .lembretesApple: vm.onLembretesView?()
                 case .monitores: MonitoresView(vm: vm)
+                case .agentes: AgentesView(agentes: agentes)
                 case .musica, .none: musicSection
                 }
             }
@@ -940,6 +943,11 @@ struct NotchView: View {
                 Circle().fill(.white.opacity(0.8))
                     .frame(width: 3, height: 3)
                     .offset(x: 6, y: -6)
+            }
+        // agentes: sessão esperando você acende o ponto, como a anotação.
+        case .agentes:
+            if agentes.sessoes.first?.state == .waiting {
+                Circle().fill(.orange).frame(width: 3, height: 3).offset(x: 6, y: -6)
             }
         case .espelho, .mensagens, .agenda, .lembretesApple, .monitores:
             EmptyView()

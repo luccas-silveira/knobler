@@ -13,7 +13,7 @@ import Foundation
 /// pro `GET /status`, então renomear um caso quebra ordem salva de usuário.
 enum NotchSection: String, CaseIterable {
     case musica, atividade, pomodoro, shelf, espelho, mensagens, historico, nota, link,
-         anotacao, agenda, lembretesApple, monitores
+         anotacao, agenda, lembretesApple, monitores, agentes
 
     /// Rótulo em pt-BR pros Ajustes e o `aria` da faixa.
     var titulo: String {
@@ -31,6 +31,7 @@ enum NotchSection: String, CaseIterable {
         case .agenda: return "Agenda"
         case .lembretesApple: return "Lembretes"
         case .monitores: return "Monitores"
+        case .agentes: return "Agentes"
         }
     }
 
@@ -50,6 +51,7 @@ enum NotchSection: String, CaseIterable {
         case .agenda: return "calendar"
         case .lembretesApple: return "checklist"
         case .monitores: return "display"
+        case .agentes: return "sparkles"
         }
     }
 }
@@ -68,7 +70,7 @@ struct NotchSectionState: Equatable {
 enum NotchSectionOrder {
     /// Ordem de fábrica, usada quando não há nada salvo nos Ajustes.
     static let padrao: [NotchSection] = [
-        .musica, .atividade, .pomodoro, .shelf, .espelho, .mensagens, .historico, .nota,
+        .musica, .atividade, .agentes, .pomodoro, .shelf, .espelho, .mensagens, .historico, .nota,
         .link, .anotacao, .agenda, .lembretesApple, .monitores,
     ]
 

@@ -109,11 +109,10 @@ final class AgentesUso: ObservableObject {
         if let s = try? await claude.fetchSnapshot(), self.claude === claude { uso["claude"] = s }
     }
 
-    #if DEBUG
-    /// Só pro harness de snapshot.
+    /// Só pro harness de snapshot. Fora de `#if DEBUG` porque o `snapshot.sh`
+    /// compila com `-O` sem a flag.
     func injetar(sessoes: [AgentSession], uso: [String: ProviderSnapshot]) {
         self.sessoes = Self.ordenar(sessoes)
         self.uso = uso
     }
-    #endif
 }
