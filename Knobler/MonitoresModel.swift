@@ -1,5 +1,6 @@
 // Conversões adaptadas de MonitorControl 4.4.0 (OtherDisplay.swift); licença em Vendor/MonitorControl.
 import Foundation
+import CoreGraphics
 
 enum MonitorCommand: String, Codable, CaseIterable { case brightness, contrast, volume, mute }
 enum MonitorControlMode: String, Codable, CaseIterable { case automatic, hardware, software }
