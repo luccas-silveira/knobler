@@ -95,7 +95,10 @@ Dossiê: `docs/superpowers/research/2026-09-23-extrair-texto-tela-research.md`.
 
 - **A6** — vira peça, não recurso fixo. Motivo: `docs/architecture.md:43-70`; só quem
   liga vê o pedido de Gravação de Tela e o alerta periódico.
-- **A1** — tela congelada antes da seleção. Motivo: o texto lido é o que a pessoa viu;
+- **A1 (revista em 2026-09-23, após teste ao vivo)** — seleção nativa do macOS
+  (`screencapture -i -s`), sem congelar nem escurecer. Motivo: a camada própria
+  parecia janela abrindo; o usuário quer que pareça função do sistema.
+- ~~A1~~ — tela congelada antes da seleção. Motivo: o texto lido é o que a pessoa viu;
   dispensa excluir a própria camada da captura. Padrão do Vorssaint/CleanShot/Shottr.
 - **A5** — ícone na ponta da faixa de seções + item no menu Ferramentas. Motivo: o notch
   não tem fileira de ferramentas; seção inteira seria peso pra um botão.

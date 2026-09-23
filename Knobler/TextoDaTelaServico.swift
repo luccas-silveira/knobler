@@ -2,14 +2,15 @@
 //  TextoDaTelaServico.swift
 //  Knobler
 //
-//  O coordenador do Texto da tela: permissão, foto de cada monitor, camada de
-//  seleção, OCR, clipboard e aviso no notch. É o PluginServico da peça —
-//  nascer registra o ⌃⇧T, parar() o remove.
+//  O coordenador do Texto da tela: permissão, seleção, OCR, clipboard e aviso
+//  no notch. A seleção é a do próprio macOS (`screencapture -i`, a mesma do
+//  ⌘⇧4): cursor em mira, sem congelar nem escurecer a tela, multi-monitor e
+//  Esc de graça. É o PluginServico da peça — nascer registra o ⌃⇧T, parar()
+//  o remove.
 //
 
 import AppKit
 import Carbon.HIToolbox
-import ScreenCaptureKit
 import os
 
 private let log = Logger(subsystem: "com.zoi.knobler", category: "TextoDaTela")
@@ -20,9 +21,8 @@ final class TextoDaTelaServico: PluginServico {
         default: .init(carbonKeyCode: kVK_ANSI_T, carbonModifiers: controlKey | shiftKey))
 
     private let avisar: (NotchNotification) -> Void
-    private var selecao: SelecaoDeTela?
-    private var ocupado = false
-    /// Peça desinstalada no meio de uma captura: não abre camada nem avisa.
+    private var selecao: Process?
+    /// Peça desinstalada no meio de uma seleção: não lê nem avisa.
     private var parado = false
     /// Apaga o ícone da faixa do notch quando a peça desliga.
     var aoParar: (() -> Void)?
@@ -36,13 +36,13 @@ final class TextoDaTelaServico: PluginServico {
     func parar() {
         parado = true
         KeyboardShortcuts.removeHandlers(for: Self.atalho)
-        selecao?.cancelar()
+        selecao?.terminate()
         aoParar?()
     }
 
     /// Atalho, ícone do notch ou menu. Segundo toque com a seleção aberta é ignorado.
     func acionar() {
-        guard !ocupado else { return }
+        guard selecao == nil else { return }
         guard CGPreflightScreenCaptureAccess() else {
             // Primeiro pedido mostra o balão; depois dele o macOS não pergunta
             // de novo (e o status não distingue negada de nunca pedida), então
@@ -54,41 +54,35 @@ final class TextoDaTelaServico: PluginServico {
             }
             return
         }
-        ocupado = true
-        Task { @MainActor in
-            do {
-                let fotos = try await Self.fotografar()
-                // sem foto nenhuma a camada não abriria e o serviço ficaria preso em `ocupado`
-                guard !fotos.isEmpty else { return falhou() }
-                guard !parado else { ocupado = false; return }
-                let camada = SelecaoDeTela(fotos: fotos) { [weak self] resultado in
-                    self?.selecao = nil
-                    guard let self else { return }
-                    guard let escolha = resultado,
-                          let foto = fotos.first(where: { $0.tela == escolha.0 })?.foto else {
-                        self.ocupado = false
-                        return
-                    }
-                    self.ler(foto: foto, tela: escolha.0, rect: escolha.1)
-                }
-                selecao = camada
-                camada.mostrar()
-            } catch {
-                log.error("captura falhou: \(error.localizedDescription, privacy: .public)")
-                falhou()
-            }
+        let arquivo = FileManager.default.temporaryDirectory
+            .appendingPathComponent("knobler-texto-\(UUID().uuidString).png")
+        let processo = Process()
+        processo.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        // -i seleção interativa, -s só retângulo (sem modo janela), -x sem som
+        processo.arguments = ["-i", "-s", "-x", arquivo.path]
+        processo.terminationHandler = { [weak self] _ in
+            DispatchQueue.main.async { self?.selecionou(arquivo) }
+        }
+        do {
+            try processo.run()
+            selecao = processo
+        } catch {
+            log.error("screencapture não abriu: \(error.localizedDescription, privacy: .public)")
+            falhou()
         }
     }
 
-    private func ler(foto: CGImage, tela: NSScreen, rect: CGRect) {
-        let escala = CGFloat(foto.width) / tela.frame.width
-        let pixels = TextoDaTela.recortePixels(selecao: rect, tela: tela.frame, escala: escala)
-        guard let recorte = foto.cropping(to: pixels) else { return falhou() }
+    /// Esc ou clique sem arrasto: o screencapture sai sem gravar arquivo — cancelamento calado.
+    private func selecionou(_ arquivo: URL) {
+        selecao = nil
+        defer { try? FileManager.default.removeItem(at: arquivo) }
+        guard !parado, FileManager.default.fileExists(atPath: arquivo.path) else { return }
+        guard let fonte = CGImageSourceCreateWithURL(arquivo as CFURL, nil),
+              let imagem = CGImageSourceCreateImageAtIndex(fonte, 0, nil) else { return falhou() }
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let resultado = Result { try TextoDaTela.linhas(em: recorte) }
+            let resultado = Result { try TextoDaTela.linhas(em: imagem) }
             DispatchQueue.main.async {
                 guard let self, !self.parado else { return }
-                self.ocupado = false
                 switch resultado {
                 case .failure(let error):
                     log.error("OCR falhou: \(error.localizedDescription, privacy: .public)")
@@ -107,26 +101,6 @@ final class TextoDaTelaServico: PluginServico {
     }
 
     private func falhou() {
-        ocupado = false
         avisar(NotchNotification(appName: "Knobler", title: "Não consegui ler a tela", body: ""))
-    }
-
-    /// Uma foto por monitor, na resolução nativa, sem o cursor.
-    @MainActor
-    private static func fotografar() async throws -> [(tela: NSScreen, foto: CGImage)] {
-        let conteudo = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-        var fotos: [(tela: NSScreen, foto: CGImage)] = []
-        for tela in NSScreen.screens {
-            let id = tela.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
-            guard let display = conteudo.displays.first(where: { $0.displayID == id }) else { continue }
-            let filtro = SCContentFilter(display: display, excludingWindows: [])
-            let config = SCStreamConfiguration()
-            config.width = Int(tela.frame.width * tela.backingScaleFactor)
-            config.height = Int(tela.frame.height * tela.backingScaleFactor)
-            config.showsCursor = false
-            let foto = try await SCScreenshotManager.captureImage(contentFilter: filtro, configuration: config)
-            fotos.append((tela, foto))
-        }
-        return fotos
     }
 }

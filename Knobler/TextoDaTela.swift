@@ -2,9 +2,8 @@
 //  TextoDaTela.swift
 //  Knobler
 //
-//  A parte pura do Texto da tela: converter a seleção em pixels da foto do
-//  monitor, ler o texto com o Vision e montar o resumo do aviso. Sem AppKit de
-//  propósito — o textodatelacheck compila isto isolado.
+//  A parte pura do Texto da tela: ler o texto com o Vision e montar o resumo
+//  do aviso. Sem AppKit de propósito — o textodatelacheck compila isto isolado.
 //
 
 import CoreGraphics
@@ -12,20 +11,6 @@ import Foundation
 import Vision
 
 enum TextoDaTela {
-    /// Seleção em pontos globais do AppKit (origem embaixo-esquerda do
-    /// principal) → retângulo em pixels da foto de `tela`, origem no topo.
-    static func recortePixels(selecao: CGRect, tela: CGRect, escala: CGFloat) -> CGRect {
-        CGRect(x: (selecao.minX - tela.minX) * escala,
-               y: (tela.maxY - selecao.maxY) * escala,
-               width: selecao.width * escala,
-               height: selecao.height * escala).integral
-    }
-
-    /// Clique sem arrasto ou fiapo de seleção conta como cancelar.
-    static func selecaoValida(_ r: CGRect) -> Bool {
-        r.width >= 4 && r.height >= 4
-    }
-
     /// Linhas na ordem que o Vision devolve (já é a de leitura).
     /// ponytail: sem reordenação por coluna; ordenar por midY/minX se texto em
     /// colunas vier embaralhado.

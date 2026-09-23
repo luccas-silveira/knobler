@@ -18,19 +18,13 @@ pedido de Gravação de tela.
 
 ## Como funciona
 
-1. No acionamento cada monitor é fotografado: a tela **congela** e o que você
-   lê é exatamente o que viu.
-2. A foto aparece escurecida com cursor em mira. Arraste: a área selecionada
-   fica clara e mostra a medida em pontos.
-3. Soltar confirma. `Esc` ou clique direito cancelam; clique sem arrasto (ou
-   seleção com menos de 4 pt num lado) também cancela, sem aviso.
-4. A seleção fica presa ao monitor onde o arraste começou.
+A seleção é a do próprio macOS, a mesma do ⌘⇧4 (`screencapture -i`): o
+cursor vira mira, você arrasta sobre o texto e solta. Nada congela nem escurece,
+funciona em qualquer monitor, e `Esc` ou clique sem arrasto cancelam sem aviso.
 
 Avisos no notch: **Texto copiado** (com o começo do texto), **Nenhum texto
 encontrado** (clipboard intacto) e **Não consegui ler a tela** (falha de
 captura ou de reconhecimento; o motivo vai pro log, categoria `TextoDaTela`).
-
-Trocar de monitor com a seleção aberta cancela.
 
 ## Permissão
 
@@ -45,9 +39,8 @@ sistema. Não há como evitar sem um entitlement da Apple.
 
 ## Código
 
-- `Knobler/TextoDaTela.swift` — parte pura: recorte em pixels, OCR, resumo
+- `Knobler/TextoDaTela.swift` — parte pura: OCR e resumo
   (coberta por `tools/textodatelacheck.swift`).
-- `Knobler/SelecaoDeTela.swift` — camada de seleção, um painel por monitor.
 - `Knobler/TextoDaTelaServico.swift` — coordenador e `PluginServico` da peça.
 
 Referência de mecanismo: Vorssaint (GPL-3.0), só leitura — nenhum trecho

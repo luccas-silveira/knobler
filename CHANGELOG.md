@@ -7,7 +7,7 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 ## [Unreleased]
 
 ### Added
-- Texto da tela (peça): ⌃⇧T congela a tela, você seleciona uma área e o texto dela vai pro clipboard.
+- Texto da tela (peça): ⌃⇧T vira o cursor em mira, você seleciona uma área e o texto dela vai pro clipboard.
 
 ### Fixed
 - Conta-gotas não deixa mais a tela travada pra cliques depois de usado (a 0.33.0 anunciou, mas a correção ficou fora do build).
