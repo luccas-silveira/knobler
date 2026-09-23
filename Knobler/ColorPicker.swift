@@ -16,8 +16,21 @@ enum ColorPicker {
 
     /// Abre a lupa, copia a cor no formato escolhido e devolve a cor amostrada
     /// (nil = usuário cancelou com Esc).
+    /// Lupa viva. Sem referência forte o sampler morria antes de responder e o
+    /// serviço da lupa (ColorSampler) ficava órfão com a janela invisível por
+    /// cima das telas, engolindo todo clique e tecla até ser morto.
+    private static var ativo: NSColorSampler?
+
     static func pick(format: Format, completion: @escaping (NSColor?) -> Void) {
-        NSColorSampler().show { color in
+        // segunda lupa por cima da primeira deixa uma delas sem dono
+        guard ativo == nil else { return }
+        let sampler = NSColorSampler()
+        ativo = sampler
+        // app agente não é ativo: sem isso o Esc vai pro app da frente e a lupa
+        // não tem como ser cancelada
+        NSApp.activate(ignoringOtherApps: true)
+        sampler.show { color in
+            ativo = nil
             if let color {
                 let pb = NSPasteboard.general
                 pb.clearContents()

@@ -112,6 +112,14 @@ enum KeychainSecret {
         interactionLock.lock()
         defer { interactionLock.unlock() }
 
+        // knobler: item de chaves legado (o do Claude Code é) ignora os dois
+        // pedidos de silêncio abaixo e abria o diálogo de senha a cada launch.
+        // Leitura de fundo vai direto pelo `security`, que está na ACL do item.
+        if !interactive, let rescue,
+           let lido = viaSecurityTool(service: rescue.service, account: rescue.account) {
+            return (errSecSuccess, lido)
+        }
+
         // knobler: silêncio só nesta query. O `SecKeychainSetUserInteractionAllowed(false)`
         // do upstream vale pro processo inteiro e derrubava, na janela da leitura,
         // os segredos do webhook lidos por outra thread.
