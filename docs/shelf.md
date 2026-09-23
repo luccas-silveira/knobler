@@ -140,14 +140,16 @@ Além do menu de contexto da miniatura, o menu da barra tem **↗ Enviar por
 AirDrop…**, que abre um seletor de arquivo — mandar algo não obriga mais a
 arrastá-lo pra prateleira antes.
 
-Nos dois caminhos o notch mostra o estado: uma atividade **"Enviando por
-AirDrop"** enquanto vai, e um card 📤 no fim. Fechar a janela do AirDrop sem
-escolher destino não mostra nada — desistir não é erro.
+Nos dois caminhos o notch mostra o estado: **"Enviando pra <aparelho>"**
+depois que você escolhe o destino, e um card **"Enviado pra <aparelho>"** no fim,
+com o botão **Mostrar no Finder**. Fechar a janela do AirDrop sem escolher
+destino não mostra nada — desistir não é erro.
 
-A atividade é **indeterminada** (sem barra de porcentagem) porque
-`NSSharingService` não expõe bytes transferidos; nenhuma API pública expõe. Quem
-mostra a régua de progresso é a janela do próprio sistema. Isso é limite da
-plataforma, não simplificação.
+O envio não tem porcentagem: o sistema não publica progresso de envio. O nome do
+aparelho vem da janela do AirDrop, lida por Acessibilidade; sem essa permissão o
+texto cai em "Enviando por AirDrop" e o card diz só "Enviado".
+
+O código mora em `Knobler/AirDrop/`.
 
 ## Permissões
 

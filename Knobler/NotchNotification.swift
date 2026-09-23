@@ -40,6 +40,9 @@ struct NotchNotification: Identifiable, Equatable, Codable {
     var actionTitles: [String] = []
     /// Chave pro interceptor achar os botões reais quando o card for clicado.
     var actionToken: UUID? = nil
+    /// Miniatura do arquivo (AirDrop). Só no card vivo: fica fora do Codable,
+    /// como os botões — o histórico mostra o emoji.
+    var thumbnail: NSImage? = nil
     /// Aviso do desenvolvedor: cada botão de `actionTitles` abre a URL de mesmo
     /// índice. Existe porque o `actionToken` é um handle vivo pros `AXUIElement`
     /// do banner — um aviso que veio de um JSON remoto não tem banner nenhum.

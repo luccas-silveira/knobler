@@ -93,7 +93,8 @@ swift_check plugincheck       Knobler/Plugin.swift Knobler/Pomodoro.swift \
 CONVERSAO="Knobler/FileConverter.swift Knobler/ImageConverter.swift Knobler/DocumentConverter.swift Knobler/VideoConverter.swift"
 swift_check imageconvertercheck    $CONVERSAO tools/imageconvertercheck.swift
 swift_check documentconvertercheck $CONVERSAO tools/documentconvertercheck.swift
-swift_check sharingcheck          Knobler/Sharing.swift Knobler/NotificationRules.swift tools/sharingcheck.swift
+swift_check sharingcheck          Knobler/Sharing.swift Knobler/AirDrop/AirDropEnvio.swift Knobler/AirDrop/AirDropRegras.swift Knobler/NotificationRules.swift tools/sharingcheck.swift
+swift_check airdropcheck          Knobler/AirDrop/AirDropRegras.swift tools/airdropcheck.swift
 # Confirmação passa pelo ShelfStore real, incluindo falha e sucesso parcial.
 swift_check conversionpreviewcheck $CONVERSAO Knobler/ShelfPreview.swift \
   Knobler/ShelfStore.swift Knobler/ShelfOrdem.swift tools/conversionpreviewcheck.swift

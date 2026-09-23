@@ -19,7 +19,7 @@ final class NotificationInterceptor {
     ]
     private static let windowSubroles: Set<String> =
         bannerSubroles.union(["AXSystemDialog"])
-    // regras puras (o que é ação, o que é AirDrop) em NotificationRules.swift
+    // regras puras em NotificationRules.swift; as do AirDrop em AirDrop/AirDropRegras.swift
     private static let closeActionHints = NotificationRules.closeActionHints
 
     private let onNotification: (NotchNotification) -> Void
@@ -128,13 +128,19 @@ final class NotificationInterceptor {
 
         NSLog("knobler intercepted: title=%@", parsed.title)
 
-        let airdrop = NotificationRules.isAirDrop(appName: parsed.appName, title: parsed.title)
+        // AirDrop tem dono próprio (AirDropCoordenador): o "Recebendo" acompanha a
+        // transferência viva e não pode ser tocado — o anel do notch já mostra o
+        // progresso, então não vira card. O "Concluído" só nasce depois do fim e é
+        // substituído pelo card com miniatura e ações.
+        switch AirDropRegras.faseDoAlerta(appName: parsed.appName, title: parsed.title) {
+        case .recebendo: return
+        case .concluido: close(banner); return
+        case nil: break
+        }
         let buttons = actionButtons(in: banner)
-        // O alerta do AirDrop acompanha uma transferência viva e alertas com
-        // botão (Aceitar/Recusar) exigem decisão — em ambos, fechar destrói
-        // algo que o usuário precisa. O do sistema fica na tela; o card do
-        // notch é um espelho, não o substitui.
-        if !airdrop, buttons.isEmpty { close(banner) }
+        // alertas com botão (Aceitar/Recusar) exigem decisão — fechar destruiria
+        // algo que o usuário precisa. O card do notch é um espelho.
+        if buttons.isEmpty { close(banner) }
 
         var token: UUID?
         if !buttons.isEmpty {
@@ -153,16 +159,13 @@ final class NotificationInterceptor {
         onNotification(NotchNotification(
             // sem nome legível fica nil: o card cai no sino em vez de fingir
             // ser de um app que não é
-            appName: airdrop ? "AirDrop" : parsed.appName,
+            appName: parsed.appName,
             title: parsed.title,
             body: parsed.body,
             subtitle: parsed.subtitle,
             doBanner: true,
-            iconEmoji: airdrop ? "📥" : nil,
             actionTitles: buttons.map(\.title),
-            actionToken: token,
-            // clique no card do AirDrop revela a pasta de destino
-            revealsDownloads: airdrop
+            actionToken: token
         ))
     }
 

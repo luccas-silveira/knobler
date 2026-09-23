@@ -10,10 +10,15 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 - Bloquear teclado pra limpeza (menu da barra ou `POST /keyboard/lock`): todo
   evento de teclado é descartado até clicar no card do notch.
 - Seção Agentes: sessões do Claude Code e do Codex com estado (trabalhando, esperando você, concluída), card e som quando uma termina ou para pra perguntar, e anéis de limite do plano. O anel do Claude é opcional nos Ajustes. É uma peça do marketplace, instalada por padrão e desinstalável em Ajustes › Plugins. Backend adaptado do [codenotch](https://github.com/vinzdg/codenotch) (MIT).
+- AirDrop no notch: anel azul com porcentagem ao receber, destino ao enviar, e
+  card final com miniatura e ações (Abrir, Mostrar no Finder, Prateleira).
 
 ### Fixed
 - Ditado com fone Bluetooth (AirPods) como microfone padrão grava pelo mic do Mac, sem derrubar a qualidade nem mexer no volume do que está tocando.
 - Conta-gotas não deixa mais a tela travada pra cliques depois de usado.
+- O anel do Claude lê a credencial sem pedir a senha das chaves a cada abertura do app.
+- O notch da tela embutida não some mais quando um app fica maximizado: só
+  tela cheia de verdade (barra de menus escondida) esconde o notch.
 - Barras do visualizador acompanham a batida da música em vez de balançar sozinhas.
 - Monitores: sair aguarda o fim das escritas e a restauração do brilho por
   software; falhas permitem tentar novamente antes de encerrar.

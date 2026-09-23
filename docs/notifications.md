@@ -28,8 +28,14 @@ nada — melhor que atribuir a notificação ao app errado.
 Dois casos em que o alerta do sistema **continua na tela** e o card do notch é
 só um espelho:
 
-- **AirDrop.** O alerta acompanha uma transferência viva; fechá-lo interrompia o
-  recebimento. O card mostra 📥 e clicar nele revela a pasta Downloads.
+- **AirDrop recebendo.** O alerta "Recebendo" acompanha uma transferência viva;
+  fechá-lo interrompe o recebimento, então ele nunca é tocado e não vira card.
+  O notch mostra um anel azul com a porcentagem (o sistema publica o progresso
+  de cada arquivo que chega em Downloads) e o ícone do AirDrop no lugar da capa.
+  Vários arquivos de uma vez viram um anel só, com a média. Quando termina, o
+  alerta "Concluído" do sistema é fechado e trocado por um card com miniatura e
+  **Abrir / Mostrar no Finder / Prateleira** (30 s). No histórico, clicar revela
+  Downloads. Se o outro lado cancela, o anel some sem card.
 - **Alertas com botão** (Aceitar/Recusar e afins). Exigem decisão, então o
   original fica de pé. Os botões são espelhados no card: clicar no notch aciona
   o botão real via Accessibility, e o card espera 30s em vez de 5s. Se algo der

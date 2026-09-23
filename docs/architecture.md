@@ -16,6 +16,7 @@ KnoblerMain
        │    ├─ MediaController / MediaRemoteSource
        │    ├─ DictationController / FluidAudio / Deepgram
        │    ├─ NotificationInterceptor / HUDs / MicMonitor
+       │    ├─ AirDropCoordenador (Knobler/AirDrop/: envio, progresso, card)
        │    ├─ CalendarCountdown / Pomodoro / ScheduleEngine
        │    ├─ MirrorController / ScreenshotWatcher / ShelfStore
        │    ├─ LANMessaging / WebhookClient

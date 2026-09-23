@@ -6,7 +6,8 @@
 //
 //  Rodar:
 //  xcrun swiftc -parse-as-library -swift-version 5 \
-//    Knobler/Sharing.swift Knobler/NotificationRules.swift tools/sharingcheck.swift -o /tmp/sharingcheck \
+//    Knobler/Sharing.swift Knobler/AirDrop/AirDropEnvio.swift Knobler/AirDrop/AirDropRegras.swift \
+//    Knobler/NotificationRules.swift tools/sharingcheck.swift -o /tmp/sharingcheck \
 //    && /tmp/sharingcheck
 //
 
@@ -18,7 +19,7 @@ struct SharingCheck {
     static func main() {
         testExistingFilter()
         testActionTitle()
-        testAirDropLabel()
+        testEstadoCarregaURLs()
         testAirDropCancel()
         testSilenciarEmReuniao()
         testMicIndicaChamada()
@@ -75,12 +76,13 @@ struct SharingCheck {
                "evento de duração zero não silencia nada")
     }
 
-    /// O card diz o que foi enviado: um arquivo pelo nome, vários pela contagem.
-    static func testAirDropLabel() {
-        let a = URL(fileURLWithPath: "/tmp/foto.png")
-        let b = URL(fileURLWithPath: "/tmp/nota.txt")
-        assert(Sharing.label(for: [a]) == "foto.png", "um arquivo: nome")
-        assert(Sharing.label(for: [a, b]) == "2 arquivos", "vários: contagem")
+    /// O card final precisa do destino e dos arquivos pra oferecer ações.
+    static func testEstadoCarregaURLs() {
+        let u = [URL(fileURLWithPath: "/tmp/x.png")]
+        let s = AirDropState.enviado(label: "x.png", destino: "iPhone", urls: u)
+        guard case .enviado(_, let d, let us) = s, d == "iPhone", us == u else {
+            print("FALHOU: enviado carrega destino e urls"); exit(1)
+        }
     }
 
     /// Fechar a janela do AirDrop sem escolher destino chega no delegate como
@@ -119,13 +121,6 @@ struct SharingCheck {
     /// Espelhar o "Fechar" do alerta daria um botão inútil no card — e pior,
     /// clicar nele destruiria o alerta que estamos tentando preservar.
     static func testActionTitle() {
-        assert(NotificationRules.isAirDrop(appName: "AirDrop", title: "Recebendo uma foto"),
-               "o alerta real vem com appName=AirDrop")
-        assert(NotificationRules.isAirDrop(appName: nil, title: "AirDrop"),
-               "com um texto só, o AirDrop cai no título")
-        assert(!NotificationRules.isAirDrop(appName: "WhatsApp", title: "Fulano"),
-               "notificação comum não é AirDrop")
-
         for acao in ["Aceitar", "Recusar", "Accept", "Decline", "Responder", "Marcar como lida"] {
             assert(NotificationRules.isActionTitle(acao), "\(acao) é ação")
         }

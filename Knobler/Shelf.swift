@@ -170,7 +170,7 @@ struct ShelfRowView: View {
     var onAirDrop: (([URL]) -> Void)?
 
     private func enviar(_ urls: [URL]) {
-        if let onAirDrop { onAirDrop(urls) } else { Sharing.airdrop(urls) }
+        if let onAirDrop { onAirDrop(urls) } else { AirDropEnvio.enviar(urls) }
     }
 
     var body: some View {

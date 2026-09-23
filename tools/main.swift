@@ -430,6 +430,13 @@ let scenarios: [Scenario] = [
             id: "deploy", title: "Deploy zoi-studio", detail: "rsync…",
             progress: 0.42, updatedAt: Date())
     },
+    // AirDrop recebendo com música tocando: símbolo azul no lugar da capa
+    Scenario(name: "closed-airdrop-music", realNotch: true) { vm, media, _ in
+        media.injectPreview(state: fakeState(), artwork: fakeArtwork())
+        vm.activity = NotchActivity(
+            id: "airdrop", title: "Recebendo por AirDrop", detail: "IMG_5640.MOV",
+            progress: 0.42, updatedAt: Date())
+    },
     // atividade sem progresso e sem música: a seção sobe sozinha na ordenação
     // (é a única com conteúdo) e a faixa fica com um ícone só
     Scenario(name: "foco-atividade-indeterminada", realNotch: true) { vm, _, _ in
@@ -457,6 +464,17 @@ let scenarios: [Scenario] = [
             appName: "Finder", title: "Não foi possível concluir a cópia",
             body: "O item \"Relatório final.pdf\" não pôde ser copiado porque o disco de destino ficou sem espaço durante a operação. Libere espaço no disco externo e tente de novo; os 11 itens anteriores já foram copiados e continuam no destino.")
         vm.holdNotification(true)
+    },
+    // AirDrop recebido: miniatura no lugar do ícone e as três ações
+    Scenario(name: "notification-airdrop-recebido", realNotch: true) { vm, _, _ in
+        var n = NotchNotification(appName: "AirDrop", title: "Recebido", body: "IMG_5708.MOV",
+                                  iconEmoji: "📥")
+        n.thumbnail = NSImage(size: NSSize(width: 64, height: 64), flipped: false) { r in
+            NSColor.systemTeal.setFill(); r.fill(); return true
+        }
+        n.actionTitles = ["Abrir", "Mostrar no Finder", "Prateleira"]
+        n.actionToken = UUID()
+        vm.activeNotification = n
     },
     // app que não se identifica: sino, nunca WhatsApp
     Scenario(name: "notification-sem-app", realNotch: true) { vm, _, _ in

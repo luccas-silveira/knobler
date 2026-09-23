@@ -650,7 +650,22 @@ struct NotchView: View {
     private var closedWings: some View {
         // paddings ≥ raio de canto inferior pra ficar fora da zona de curvatura
         HStack(spacing: 0) {
-            if wingsVisible {
+            if vm.activity?.id == "airdrop" {
+                // AirDrop tem cara própria: o símbolo azul toma o lugar da capa
+                // como na Central de Controle: círculo azul, ondas brancas
+                Circle().fill(.blue)
+                    .overlay(
+                        Self.airdropGlyph
+                            .renderingMode(.template)
+                            .resizable()
+                            .interpolation(.high)
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.white)
+                            .padding(3))
+                    .frame(width: 20, height: 20)
+                    .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace))
+                    .padding(.leading, vm.hasRealNotch ? 12 : 14)
+            } else if wingsVisible {
                 miniArtwork
                     .id(media.state?.title)
                     .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace))
@@ -676,7 +691,7 @@ struct NotchView: View {
                         .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace))
                 }
                 if let activity = vm.activity {
-                    ActivityRingView(progress: activity.progress)
+                    ActivityRingView(progress: activity.progress, color: Self.corDaAtividade(activity))
                         .frame(width: 17, height: 17)
                         .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace))
                 } else if wingsVisible {
@@ -1160,9 +1175,28 @@ struct NotchView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    /// O glifo do AirDrop não é SF Symbol público; o da barra lateral do Finder
+    /// é o original, vem de arquivo e renderiza até offscreen. Carregado a 64 pt
+    /// pra não pegar a representação pequena e pixelar. Sem ele, cai no símbolo
+    /// de ondas mais próximo.
+    static let airdropGlyph: Image = {
+        let path = "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/SidebarAirDrop.icns"
+        if let img = NSImage(contentsOfFile: path),
+           let cg = img.cgImage(forProposedRect: nil, context: nil,
+                                hints: [.ctm: AffineTransform(scale: 4)]) {
+            return Image(nsImage: NSImage(cgImage: cg, size: NSSize(width: 64, height: 64)))
+        }
+        return Image(systemName: "wave.3.up")
+    }()
+
+    /// AirDrop é azul, como no sistema; o resto segue o laranja das atividades.
+    static func corDaAtividade(_ activity: NotchActivity) -> Color {
+        activity.id == "airdrop" ? .blue : .orange
+    }
+
     private func activityRow(_ activity: NotchActivity) -> some View {
         HStack(spacing: 10) {
-            ActivityRingView(progress: activity.progress)
+            ActivityRingView(progress: activity.progress, color: Self.corDaAtividade(activity))
                 .frame(width: 22, height: 22)
             VStack(alignment: .leading, spacing: 1) {
                 Text(activity.title)
@@ -1413,13 +1447,22 @@ struct NotchView: View {
         return Swift.max(0, agora - compacto + folga)
     }
 
+    @ViewBuilder
     private func appIcon(for notification: NotchNotification) -> some View {
-        RemoteAvatarView(iconURL: notification.iconURL,
-                         iconEmoji: notification.iconEmoji,
-                         iconColor: notification.iconColor,
-                         fallbackPath: Self.appPath(bundleID: notification.bundleID,
-                                                    named: notification.appName))
-            .frame(width: 32, height: 32)
+        if let thumb = notification.thumbnail {
+            Image(nsImage: thumb)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: 32, height: 32)
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        } else {
+            RemoteAvatarView(iconURL: notification.iconURL,
+                             iconEmoji: notification.iconEmoji,
+                             iconColor: notification.iconColor,
+                             fallbackPath: Self.appPath(bundleID: notification.bundleID,
+                                                        named: notification.appName))
+                .frame(width: 32, height: 32)
+        }
     }
 
     /// Estático e internal: a linha do histórico reusa o mesmo clique. O corpo
