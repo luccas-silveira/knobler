@@ -172,7 +172,7 @@ fora da faixa (`emVisita`) e trava — nenhum ícone da faixa acende. A visita:
 
 - **swipe volta ao Quick Actions** — `NotchSectionOrder.vizinho` devolve
   `.acoesRapidas` quando a seção atual não está na faixa;
-- **fechar o card encerra** — `setExpanded(false)` zera `visitando`;
+- **fechar o card encerra** — fechar (`setExpandedDirect(false)`) zera `visitando`;
 - **não é lembrada** — `focoParaGuardar` troca seção fora da faixa por
   `.acoesRapidas`, tanto no `notchFocus` quanto na memória de 30 s do fechar;
 - **sobrevive ao recálculo com o card aberto** — música parando ou mensagem
