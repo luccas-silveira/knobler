@@ -358,24 +358,28 @@ struct NotchSettingsPane: View {
                     }
                 }
             }
-            Section("Ordem das seções do card") {
-                Text("O olho esconde a seção do card. O alfinete mantém a seção no card mesmo sem conteúdo.")
+            Section("Seções do card") {
+                Text("Arraste para mudar a ordem. O olho mostra a seção no card; o alfinete a mantém lá mesmo sem conteúdo.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                cabecalhoColunas(["No card", "Fixa"])
                 List {
                     ForEach(visiveis, id: \.self) { s in
+                        let oculta = settings.notchSectionsOcultas.contains(s)
                         HStack {
-                            Label(s.titulo, systemImage: s.simbolo)
+                            linhaSecao(s, arrastavel: true)
                             Spacer()
                             Toggle(isOn: Binding(
-                                get: { !settings.notchSectionsOcultas.contains(s) },
+                                get: { !oculta },
                                 set: { mostrar in
                                     if mostrar { settings.notchSectionsOcultas.remove(s) }
                                     else { settings.notchSectionsOcultas.insert(s) }
                                 })) {
-                                    Image(systemName: "eye")
+                                    Label("Mostrar \(s.titulo) no card", systemImage: "eye")
+                                        .labelStyle(.iconOnly)
                                 }
                                 .toggleStyle(.checkbox)
+                                .frame(width: Self.larguraColuna)
                                 .help("Mostrar no card")
                             // checkbox nativo, não `Button` com ícone: dentro de
                             // uma `List` com `.onMove` o botão disputa o gesto de
@@ -387,11 +391,16 @@ struct NotchSettingsPane: View {
                                     if fixar { settings.notchSectionsFixadas.insert(s) }
                                     else { settings.notchSectionsFixadas.remove(s) }
                                 })) {
-                                    Image(systemName: "pin.fill")
+                                    Label("Fixar \(s.titulo) no card", systemImage: "pin.fill")
+                                        .labelStyle(.iconOnly)
                                 }
                                 .toggleStyle(.checkbox)
-                                .help("Sempre no card, mesmo sem conteúdo")
+                                .frame(width: Self.larguraColuna)
+                                // fixar uma seção que o olho esconde não faz nada.
+                                .disabled(oculta)
+                                .help(oculta ? "Mostre a seção no card para poder fixá-la" : "Sempre no card, mesmo sem conteúdo")
                         }
+                        .frame(height: Self.alturaLinha)
                     }
                     .onMove { origem, destino in
                         var nova = visiveis
@@ -402,32 +411,40 @@ struct NotchSettingsPane: View {
                             nova + settings.notchSectionOrder.filter { !nova.contains($0) }
                     }
                 }
-                .frame(height: 220)
+                .scrollDisabled(true)
+                .frame(height: Self.alturaLista(visiveis.count))
                 SettingToggle(
                     title: "Subir o que acabou de acontecer",
                     subtitle: "Seção com novidade passa na frente por alguns segundos. Desligado, o card segue sempre a ordem acima.",
                     isOn: $settings.promoverSecoesRecentes)
             }
             Section("Ações rápidas") {
-                Text("Atalhos que aparecem na seção Ações rápidas. Valem também para seções escondidas do card.")
+                Text("Atalhos que aparecem na seção Ações rápidas. Valem também para seções escondidas do card. Arraste os marcados para mudar a ordem.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                cabecalhoColunas(["Atalho"])
                 let marcados = settings.acoesRapidas
                 let linhas = marcados + NotchSection.allCases.filter { $0 != .acoesRapidas && !marcados.contains($0) }
                 List {
                     ForEach(linhas, id: \.self) { s in
+                        let marcado = marcados.contains(s)
                         HStack {
-                            Label(s.titulo, systemImage: s.simbolo)
+                            linhaSecao(s, arrastavel: marcado)
                             Spacer()
                             Toggle(isOn: Binding(
                                 get: { settings.acoesRapidas.contains(s) },
                                 set: { marcar in
                                     if marcar { if !settings.acoesRapidas.contains(s) { settings.acoesRapidas.append(s) } }
                                     else { settings.acoesRapidas.removeAll { $0 == s } }
-                                })) { EmptyView() }
+                                })) { Text("Mostrar \(s.titulo) nas Ações rápidas") }
+                                .labelsHidden()
                                 .toggleStyle(.checkbox)
+                                .frame(width: Self.larguraColuna)
                                 .help("Mostrar nas Ações rápidas")
                         }
+                        .frame(height: Self.alturaLinha)
+                        // desmarcado não tem posição na grade: não arrasta.
+                        .moveDisabled(!marcado)
                     }
                     .onMove { origem, destino in
                         // só os marcados se reordenam: soltar abaixo deles cola no fim.
@@ -437,7 +454,8 @@ struct NotchSettingsPane: View {
                         settings.acoesRapidas = nova
                     }
                 }
-                .frame(height: 220)
+                .scrollDisabled(true)
+                .frame(height: Self.alturaLista(linhas.count))
             }
             if host.estaInstalado(.agentes) {
                 Section("Agentes") {
@@ -534,6 +552,44 @@ struct NotchSettingsPane: View {
         }
         .formStyle(.grouped)
         .toggleStyle(.switch)
+    }
+
+    // As listas mostram todas as linhas de uma vez: uma `List` com altura fixa
+    // rolaria por dentro da página, e as seções fora da janela pareceriam não existir.
+    private static let alturaLinha: CGFloat = 28
+    private static let larguraColuna: CGFloat = 52
+    private static func alturaLista(_ linhas: Int) -> CGFloat {
+        // ponytail: folga medida a olho pro inset do NSTableView; ajuste se sobrar/faltar linha.
+        CGFloat(linhas) * (alturaLinha + 4) + 12
+    }
+
+    /// Alça de arrastar + ícone de largura fixa + nome, pra os nomes alinharem.
+    private func linhaSecao(_ s: NotchSection, arrastavel: Bool) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "line.3.horizontal")
+                .foregroundStyle(.tertiary)
+                .opacity(arrastavel ? 1 : 0)
+                .accessibilityHidden(true)
+            Image(systemName: s.simbolo)
+                .frame(width: 20)
+                .accessibilityHidden(true)
+            Text(s.titulo)
+        }
+    }
+
+    /// Títulos das colunas de checkbox, alinhados à direita com as linhas.
+    private func cabecalhoColunas(_ titulos: [String]) -> some View {
+        HStack(spacing: 8) {
+            Spacer()
+            ForEach(titulos, id: \.self) { t in
+                Text(t)
+                    .frame(width: Self.larguraColuna)
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .padding(.trailing, 12)
+        .accessibilityHidden(true)
     }
 }
 
