@@ -559,8 +559,8 @@ struct NotchSettingsPane: View {
     private static let alturaLinha: CGFloat = 28
     private static let larguraColuna: CGFloat = 52
     private static func alturaLista(_ linhas: Int) -> CGFloat {
-        // ponytail: folga medida a olho pro inset do NSTableView; ajuste se sobrar/faltar linha.
-        CGFloat(linhas) * (alturaLinha + 4) + 12
+        // ponytail: passo de 36 pt medido na janela real (28 da linha + inset do NSTableView); ajuste se sobrar/faltar linha.
+        CGFloat(linhas) * (alturaLinha + 8) + 12
     }
 
     /// Alça de arrastar + ícone de largura fixa + nome, pra os nomes alinharem.
