@@ -184,7 +184,9 @@ final class MonitorDisplay {
             if restoreGamma() { restored = true; break }
             Thread.sleep(forTimeInterval: 0.02)
         }
-        DispatchQueue.main.sync { self.shade?.close(); self.shade = nil }
+        // async: no quit a main fica no laço do terminateLater esperando esta
+        // fila, e um sync aqui travava o encerramento (e o update) pra sempre
+        DispatchQueue.main.async { self.shade?.close(); self.shade = nil }
         return restored
     }
 }

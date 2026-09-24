@@ -114,7 +114,11 @@ final class Monitores: ObservableObject {
         stop()
         queue.async {
             let restored = self.restoreRetained()
-            DispatchQueue.main.async { completion(restored) }
+            // Não é main.async: com .terminateLater a main roda o laço no modo
+            // modal, que não drena a fila principal, e o reply nunca chegava
+            // (o app não fechava e o update girava pra sempre).
+            RunLoop.main.perform(inModes: [.common, .modalPanel]) { completion(restored) }
+            CFRunLoopWakeUp(CFRunLoopGetMain())
         }
     }
     func refresh() {

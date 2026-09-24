@@ -6,6 +6,10 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Fixed
+
+- Atualizar pelo app travava em "Atualizando…" pra sempre: o Knobler não conseguia fechar pra reabrir na versão nova (o mesmo travamento afetava o Sair).
+
 ## [0.35.0] - 2026-09-24
 
 ### Added
