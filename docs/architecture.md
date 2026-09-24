@@ -164,6 +164,27 @@ alvo de clique da faixa. Clique num ícone ou swipe horizontal chamam
 de mensagem, por exemplo). A nota rápida é modo exclusivo: com ela em foco a
 faixa some.
 
+### Visita a seção oculta (Quick Actions)
+
+A grade do Quick Actions (`AcoesRapidasView`) abre qualquer seção, esteja ela
+na faixa ou não. Seção fora de `secoes` abre por `abrirAtalho`, que põe o foco
+fora da faixa (`emVisita`) e trava — nenhum ícone da faixa acende. A visita:
+
+- **swipe volta ao Quick Actions** — `NotchSectionOrder.vizinho` devolve
+  `.acoesRapidas` quando a seção atual não está na faixa;
+- **fechar o card encerra** — `setExpanded(false)` zera `visitando`;
+- **não é lembrada** — `focoParaGuardar` troca seção fora da faixa por
+  `.acoesRapidas`, tanto no `notchFocus` quanto na memória de 30 s do fechar;
+- **sobrevive ao recálculo com o card aberto** — música parando ou mensagem
+  chegando não expulsam o usuário. Só cai pra `.acoesRapidas` se a seção
+  visitada deixou de existir (peça desinstalada). O flag `visitando` é o que
+  distingue a visita de um foco travado que perdeu conteúdo (esse é realocado).
+
+A seção Cor (`CorView`) é conta-gotas + últimas cores: `CoresRecentes` é
+singleton (8 HEX, mais recente primeiro, em `coresRecentes` no UserDefaults) e
+o registro acontece num ponto só, o `ColorPicker`, então cor tirada pelo menu
+ou pela Anotação cai na mesma lista. Tocar numa cor recopia o HEX.
+
 O `focus` é gravado no `UserDefaults` (`notchFocus`, chave única — não por
 monitor) e volta na composição das janelas via `restaurarFocoSalvo()`, que o
 enfileira como `focoPendente` em vez de escrever no `focus`: assim a restauração

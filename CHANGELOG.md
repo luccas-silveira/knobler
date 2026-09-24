@@ -6,6 +6,10 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- Ações rápidas: seção com uma grade de atalhos pras seções, inclusive as que estão fora da barra; deslizar volta pra ela.
+- Seção Cor: conta-gotas com as últimas 8 cores; tocar numa cor copia o HEX.
+
 ## [0.34.0] - 2026-09-23
 
 ### Added
