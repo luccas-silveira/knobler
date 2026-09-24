@@ -10,6 +10,9 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 - Ações rápidas: seção com uma grade de atalhos pras seções, inclusive as que estão fora da barra; deslizar volta pra ela.
 - Seção Cor: conta-gotas com as últimas 8 cores; tocar numa cor copia o HEX.
 
+### Fixed
+- Ajustes › Notch: as listas de seções mostram todas as linhas, com colunas nomeadas, alça de arrastar e rótulos pro VoiceOver.
+
 ## [0.34.0] - 2026-09-23
 
 ### Added
