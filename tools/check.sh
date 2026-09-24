@@ -79,7 +79,8 @@ swift_check presetcheck       Knobler/WebhookTemplate.swift Knobler/WebhookPrese
 swift_check assistentecheck   Knobler/WebhookAssistant.swift tools/assistentecheck.swift
 swift_check exemplocheck      Knobler/WebhookTemplate.swift Knobler/WebhookExemplo.swift tools/exemplocheck.swift
 swift_check automapcheck      Knobler/WebhookTemplate.swift Knobler/WebhookPresets.swift Knobler/WebhookAutoMap.swift tools/automapcheck.swift
-swift_check colorpickercheck  Knobler/ColorPicker.swift tools/colorpickercheck.swift
+swift_check colorpickercheck  Knobler/ColorPicker.swift Knobler/CoresRecentes.swift tools/colorpickercheck.swift
+swift_check corescheck        Knobler/CoresRecentes.swift tools/corescheck.swift
 swift_check ilhacheck         Knobler/IlhaVisualizador.swift tools/ilhacheck.swift
 # a máquina de peças; NotchSectionOrder entra só pra conferir o nome da seção
 # da ficha; FileConverter entra pra tarefa 10 (Conversão de arquivo) provar o

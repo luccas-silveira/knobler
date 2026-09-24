@@ -35,6 +35,8 @@ enum ColorPicker {
                 let pb = NSPasteboard.general
                 pb.clearContents()
                 pb.setString(string(color, format: format), forType: .string)
+                // ponto único: menu, Anotação e seção Cor passam aqui; Esc (nil) não registra
+                CoresRecentes.shared.adicionar(hex(color))
             }
             completion(color)
         }

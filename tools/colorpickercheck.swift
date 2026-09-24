@@ -4,7 +4,7 @@
 //
 //  Rodar:
 //  xcrun swiftc -parse-as-library -swift-version 5 \
-//    Knobler/ColorPicker.swift tools/colorpickercheck.swift -o /tmp/colorpickercheck \
+//    Knobler/ColorPicker.swift Knobler/CoresRecentes.swift tools/colorpickercheck.swift -o /tmp/colorpickercheck \
 //    && /tmp/colorpickercheck
 //
 
