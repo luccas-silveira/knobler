@@ -15,6 +15,7 @@ Knobler/AnnotationController.swift
 Knobler/AnnotationDeckView.swift
 Knobler/ColorPicker.swift
 Knobler/CoresRecentes.swift
+Knobler/CorView.swift
 Knobler/Pomodoro.swift
 Knobler/Plugin.swift
 Knobler/CalendarAviso.swift

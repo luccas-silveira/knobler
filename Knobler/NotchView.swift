@@ -889,7 +889,7 @@ struct NotchView: View {
                 case .monitores: MonitoresView(vm: vm)
                 case .agentes: AgentesView(agentes: agentes)
                 case .acoesRapidas: AcoesRapidasView(vm: vm)
-                case .cor: EmptyView()
+                case .cor: CorView()
                 case .musica, .none: musicSection
                 }
             }

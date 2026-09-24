@@ -377,6 +377,17 @@ let scenarios: [Scenario] = [
         vm.secoes = [.acoesRapidas]
         vm.focus = .acoesRapidas
     },
+    Scenario(name: "expanded-cor-vazio", realNotch: true) { vm, _, _ in
+        vm.setExpandedDirect(true)
+        vm.secoes = [.cor]
+        vm.focus = .cor
+    },
+    Scenario(name: "expanded-cor", realNotch: true) { vm, _, _ in
+        CoresRecentes.shared.carregar(["#FF3B30", "#34C759", "#0A84FF", "#FFD60A", "#BF5AF2"])
+        vm.setExpandedDirect(true)
+        vm.secoes = [.cor]
+        vm.focus = .cor
+    },
     Scenario(name: "foco-anotacao", realNotch: true) { vm, _, _ in
         vm.setExpandedDirect(true)
         vm.secoes = [.anotacao, .musica]
@@ -816,6 +827,7 @@ for scenario in scenarios {
     // grava vaza pro próximo (o histórico entraria na faixa de todo card)
     NotificationHistory.shared.prune(now: .distantFuture)
     AppSettings.shared.acoesRapidas = []
+    CoresRecentes.shared.limpar()
     AgentesUso.shared.injetar(sessoes: [], uso: [:])
     // mesma razão: a nota também é singleton, e o pontinho dela apareceria em
     // todo notch fechado depois do cenário que a liga

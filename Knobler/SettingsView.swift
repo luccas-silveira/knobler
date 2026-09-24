@@ -635,12 +635,6 @@ struct DesenhoSettingsPane: View {
         ]
 }
 
-private extension Color {
-    init(cor: AnnotationColor) {
-        self.init(red: cor.red, green: cor.green, blue: cor.blue, opacity: cor.alpha)
-    }
-}
-
 private extension AnnotationColor {
     init(_ color: Color) {
         let rgb = NSColor(color).usingColorSpace(.deviceRGB) ?? .yellow

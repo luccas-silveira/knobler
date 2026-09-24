@@ -17,4 +17,8 @@ final class CoresRecentes: ObservableObject {
         lista = Self.registrar(hex, em: lista)
         UserDefaults.standard.set(lista, forKey: "coresRecentes")
     }
+
+    /// Só memória, pro harness de snapshot: não toca o UserDefaults de quem roda.
+    func carregar(_ nova: [String]) { lista = nova }
+    func limpar() { lista = [] }
 }
