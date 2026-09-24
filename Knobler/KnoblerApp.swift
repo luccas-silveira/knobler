@@ -939,9 +939,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: - Swipe no notch
 
-    /// Dois dedos sobre o notch: pra baixo abre a música, pra cima fecha,
-    /// horizontal pula/volta faixa (como o Dynamic Island).
-
     /// Atalho global que abre o card, setas/Tab entre seções e Esc pra fechar.
     // ponytail: notificação ou HUD por cima tira o teclado do painel e o Esc
     // para até ela sair; resolver = segurar a fila como na digitação da nota.
@@ -964,6 +961,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    /// Dois dedos sobre o notch: pra baixo abre a música, pra cima fecha,
+    /// horizontal pula/volta faixa (como o Dynamic Island).
     private func setupSwipeGestures() {
         scrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) {
             [weak self] event in

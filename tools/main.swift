@@ -364,7 +364,6 @@ let scenarios: [Scenario] = [
         vm.secoes = [.musica, .pomodoro]
         vm.focus = .musica
     },
-    // o "streamdeck" da anotação: ferramentas, cores e ações no card
     Scenario(name: "expanded-acoes-rapidas", realNotch: true) { vm, _, _ in
         AppSettings.shared.acoesRapidas = [.cor, .monitores, .nota]
         vm.setExpandedDirect(true)
@@ -388,6 +387,7 @@ let scenarios: [Scenario] = [
         vm.secoes = [.cor]
         vm.focus = .cor
     },
+    // o "streamdeck" da anotação: ferramentas, cores e ações no card
     Scenario(name: "foco-anotacao", realNotch: true) { vm, _, _ in
         vm.setExpandedDirect(true)
         vm.secoes = [.anotacao, .musica]

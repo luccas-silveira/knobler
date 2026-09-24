@@ -408,7 +408,9 @@ final class NotchViewModel: ObservableObject {
                 // parando ou mensagem chegando não expulsam o usuário. Exceção:
                 // a seção visitada deixou de existir (peça desinstalada).
                 if visitando {
-                    if NotchSection.desinstaladas().contains(f) { focus = .acoesRapidas }
+                    if NotchSection.desinstaladas().contains(f) {
+                        focus = .acoesRapidas; visitando = false
+                    }
                     return
                 }
                 focus = inicial; focusLocked = false
