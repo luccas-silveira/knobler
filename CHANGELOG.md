@@ -6,6 +6,10 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Fixed
+
+- Se o Knobler não fechar sozinho em 10 s depois de uma atualização, ele é encerrado à força e reaberto na versão nova, em vez de ficar parado.
+
 ## [0.35.1] - 2026-09-24
 
 ### Fixed

@@ -393,7 +393,11 @@ extension Updater {
     private func relaunch() {
         let pid = ProcessInfo.processInfo.processIdentifier
         let path = Bundle.main.bundleURL.path
-        let script = "while kill -0 \(pid) 2>/dev/null; do sleep 0.3; done; "
+        // Rede de segurança: se o quit travar (já aconteceu, ver Monitores.stop),
+        // em ~10s o shell mata o processo e reabre mesmo assim — o bundle novo
+        // já está instalado, então um update nunca mais fica girando pra sempre.
+        let script = "i=0; while kill -0 \(pid) 2>/dev/null; do "
+            + "i=$((i+1)); [ $i -ge 33 ] && kill -9 \(pid); sleep 0.3; done; "
             + "sleep 1; open -a \"\(path)\""
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/bin/sh")
