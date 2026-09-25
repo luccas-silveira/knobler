@@ -1,0 +1,21 @@
+---
+import { markdownToHtml } from 'satteri';
+import Base from '../../layouts/Base.astro';
+import { carregarDocs } from '../../lib/docs.mjs';
+import { raiz } from '../../lib/changelog.mjs';
+
+export function getStaticPaths() {
+  return carregarDocs(new URL('docs/', raiz).pathname).map((d) => ({ params: { slug: d.slug }, props: d }));
+}
+
+const { markdown } = Astro.props;
+// satteri é o renderizador de Markdown que o próprio Astro usa.
+const { html } = await markdownToHtml(markdown, { features: { gfm: true } });
+const titulo = markdown.match(/^# (.+)$/m)?.[1] ?? Astro.params.slug;
+---
+<Base title={`${titulo} · Knobler`} description={`${titulo}: referência técnica do Knobler.`}>
+  <main class="wrap doc">
+    <p class="crumb">Docs</p>
+    <Fragment set:html={html} />
+  </main>
+</Base>
