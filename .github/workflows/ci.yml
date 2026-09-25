@@ -42,6 +42,11 @@ jobs:
             -configuration Debug CODE_SIGNING_ALLOWED=NO \
             -derivedDataPath build/dd build
 
+      # O site (site/) exige Node >= 22.12 para o Astro.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       # Mesmo script que roda localmente — a lista de gates vive num lugar só.
       # Sem --com-ambiente: o gate do Codex exige a CLI instalada no runner.
       - name: Self-checks

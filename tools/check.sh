@@ -183,6 +183,7 @@ run agent-requests-e2e   node tools/agent-requests-e2e.mjs
 for t in template normalize ratelimit tokens; do
   run "relay-$t" node --test "relay/test/$t.test.js"
 done
+run site-build bash -c "cd site && npm ci && cd .. && node --test site/tests/*.test.mjs"
 
 if [ "$WITH_ENV" -eq 1 ]; then
   echo "== gates que dependem do ambiente =="
