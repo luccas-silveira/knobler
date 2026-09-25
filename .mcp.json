@@ -28,12 +28,10 @@
       "env": {}
     },
     "graft": {
-      "type": "stdio",
       "command": "graft",
       "args": [
         "mcp"
-      ],
-      "env": {}
+      ]
     }
   }
 }
