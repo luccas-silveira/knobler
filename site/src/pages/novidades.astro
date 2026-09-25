@@ -1,0 +1,32 @@
+---
+import { readFileSync } from 'node:fs';
+import Base from '../layouts/Base.astro';
+import { parseChangelog, novidadesHtml, raiz } from '../lib/changelog.mjs';
+
+const versoes = parseChangelog(readFileSync(new URL('CHANGELOG.md', raiz), 'utf8'));
+const ROTULOS = { Added: 'Novo', Fixed: 'Corrigido', Changed: 'Mudou', Removed: 'Removido', Documentation: 'Documentação' };
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// Markdown inline mínimo do CHANGELOG: `código` e **negrito**.
+const inline = (s) => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+---
+<Base title="Novidades · Knobler" description="O que mudou em cada versão do Knobler.">
+  <main class="wrap feat">
+    <h1>Novidades</h1>
+    <p class="lede">O que mudou em cada versão, da mais nova pra mais antiga.</p>
+    {versoes.map((v) => {
+      const destaque = novidadesHtml(v.version);
+      return (
+        <section class="versao">
+          <h2>{v.version}{v.date && <span class="crumb"> · {v.date}</span>}</h2>
+          {destaque && <div class="destaque" set:html={destaque} />}
+          {Object.entries(v.sections).map(([sec, itens]) => (
+            <>
+              <h3>{ROTULOS[sec] ?? sec}</h3>
+              <ul>{itens.map((i) => <li set:html={inline(i)} />)}</ul>
+            </>
+          ))}
+        </section>
+      );
+    })}
+  </main>
+</Base>
