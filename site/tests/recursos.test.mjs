@@ -22,18 +22,27 @@ test('existem 20 páginas em dist/recursos/*/index.html', () => {
   assert.deepEqual(dirs, [...slugs].sort());
 });
 
-test('só conta-gotas e espelho ficam sem imagem', () => {
-  assert.deepEqual(recursos.filter((r) => r.imagemPendente).map((r) => r.slug).sort(), ['conta-gotas', 'espelho']);
+const shots = new URL('../src/assets/screenshots/', import.meta.url);
+
+test('nenhum recurso fica com imagemPendente', () => {
+  assert.deepEqual(recursos.filter((r) => 'imagemPendente' in r).map((r) => r.slug), []);
+});
+
+test('texto-da-tela e preview-de-link têm captura própria, não a provisória', () => {
+  const provisorias = ['ask-texto-integral.png', 'shelf-preview-imagem.png'];
+  for (const s of ['texto-da-tela', 'preview-de-link']) {
+    const img = recursos.find((r) => r.slug === s)?.imagem;
+    assert.ok(img && !provisorias.includes(img), `${s} ainda usa imagem provisória (${img})`);
+  }
 });
 
 for (const [i, r] of recursos.entries()) {
   test(`dados de ${r.slug} estão completos`, () => {
     for (const k of ['resumo', 'comoFunciona']) assert.ok(r[k]?.trim?.(), `${r.slug} sem ${k}`);
     assert.ok(Array.isArray(r.comoLigar) && r.comoLigar.length > 0, `${r.slug} sem comoLigar[]`);
-    if (!r.imagemPendente) {
-      assert.ok(r.imagem, `${r.slug} sem imagem`);
-      assert.ok(r.alt?.trim(), `${r.slug} sem alt`);
-    }
+    assert.ok(r.imagem, `${r.slug} sem imagem`);
+    assert.ok(existsSync(new URL(r.imagem, shots)), `${r.slug}: ${r.imagem} não existe em src/assets/screenshots/`);
+    assert.ok(r.alt?.trim(), `${r.slug} sem alt`);
   });
 
   test(`/recursos/${r.slug} tem h1 com o título`, () => {
@@ -42,12 +51,10 @@ for (const [i, r] of recursos.entries()) {
     assert.ok(h1.replace(/<[^>]+>/g, '').includes(r.titulo), `h1 não mostra "${r.titulo}"`);
   });
 
-  if (!r.imagemPendente) {
-    test(`/recursos/${r.slug} tem imagem com alt não vazio`, () => {
-      const imgs = [...main(ler(pagina(r.slug))).matchAll(/<img\b[^>]*>/g)].map(([t]) => t);
-      assert.ok(imgs.some((img) => /\balt="[^"]*\S[^"]*"/.test(img)), 'sem <img> com alt no <main>');
-    });
-  }
+  test(`/recursos/${r.slug} tem imagem com alt não vazio`, () => {
+    const imgs = [...main(ler(pagina(r.slug))).matchAll(/<img\b[^>]*>/g)].map(([t]) => t);
+    assert.ok(imgs.some((img) => /\balt="[^"]*\S[^"]*"/.test(img)), 'sem <img> com alt no <main>');
+  });
 
   test(`/recursos/${r.slug} linka anterior e próximo que existem`, () => {
     const links = hrefs(main(ler(pagina(r.slug)))).filter((h) => h.startsWith('/recursos/') && h !== `/recursos/${r.slug}`);

@@ -56,3 +56,32 @@ test('nenhuma menção a Control-clique na página inteira', () => {
     assert.ok(!proibido.test(t), `página cita ${proibido}`);
   }
 });
+
+// Etapa 9: capturas reais no lugar dos placeholders.
+const imgs = (h) => [...h.matchAll(/<img\b[^>]*>/g)].map(([t]) => t);
+const comAlt = (t) => /\balt="[^"]*\S[^"]*"/.test(t);
+
+test('instalar.astro não usa mais imagemPendente', () => {
+  const fonte = readFileSync(new URL('../src/pages/instalar.astro', import.meta.url), 'utf8');
+  assert.ok(!fonte.includes('imagemPendente'), 'instalar.astro ainda cita imagemPendente');
+});
+
+test('cada passo tem <img> com alt; passo 2 tem duas (alerta e Privacidade)', () => {
+  const ps = passos(main(html()));
+  assert.equal(ps.length, 3);
+  const n = ps.map((p) => imgs(p).filter(comAlt).length);
+  assert.ok(n[0] >= 1 && n[1] >= 2 && n[2] >= 1, `imgs com alt por passo: ${JSON.stringify(n)}`);
+});
+
+test('nenhum placeholder shot-ph sobra na página', () => {
+  assert.ok(!/\bshot-ph\b/.test(main(html())), 'ainda há .shot-ph');
+});
+
+test('todo src de <img> em /instalar existe no build', () => {
+  const srcs = imgs(main(html())).map((t) => t.match(/\bsrc="([^"]+)"/)?.[1]);
+  assert.ok(srcs.length >= 4, `só ${srcs.length} <img>`);
+  for (const s of srcs) {
+    assert.ok(s && s.startsWith('/'), `src inválido: ${s}`);
+    assert.ok(existsSync(new URL('.' + s.split('?')[0], dist)), `${s} não existe em dist`);
+  }
+});
