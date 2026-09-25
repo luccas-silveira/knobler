@@ -36,7 +36,7 @@ export const recursos = [
     resumo: 'Os eventos do dia no notch, e uma contagem antes do próximo compromisso.',
     comoFunciona: 'Abrindo o notch você vê os compromissos de hoje e pode passear pelos outros dias. Quinze minutos antes de um evento, aparece um anel que vai se esvaziando até a hora de começar.',
     comoLigar: ['Abra o notch e escolha o ícone de calendário.', 'Na primeira vez, permita o acesso ao Calendário.'],
-    imagem: 'expanded-activity-only.png', alt: 'Anel de contagem regressiva no notch aberto',
+    imagem: 'agenda-hoje.png', alt: 'Notch aberto na aba Agenda com os compromissos do dia',
   },
   {
     slug: 'avisos', titulo: 'Avisos', grupo: 'mac',

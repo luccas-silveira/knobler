@@ -10,7 +10,7 @@
 html,body{overflow-x:clip}
 body{background:var(--black);color:var(--ink);font:17px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}
-img{max-width:100%;display:block}
+img{max-width:100%;height:auto;display:block}
 .wrap{max-width:1120px;margin:0 auto;padding-inline:24px}
 
 /* barra de menus: o nav se divide em volta do notch, como no Mac */
@@ -51,7 +51,7 @@ footer nav{display:flex;gap:20px;flex-wrap:wrap}
 .group li a{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line);color:var(--ink2)}
 .group li a:hover{color:var(--ink)}
 .group li a::after{content:"→";color:var(--ink3)}
-figure.shot{border-radius:22px;overflow:hidden;background:var(--s1);padding:28px 20px;border:1px solid var(--line)}
+figure.shot{display:flex;justify-content:center;border-radius:22px;overflow:hidden;background:var(--s1);padding:28px 20px;border:1px solid var(--line)}
 .install-step figure.shot{margin-top:16px}
 @media (max-width:820px){.group,.group.flip{grid-template-columns:minmax(0,1fr);gap:28px}.group.flip .txt{order:0}}
 
@@ -89,3 +89,31 @@ pre{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding
 .doc :not(pre)>code{background:var(--s1);border-radius:6px;padding:1px 5px}
 .doc table{display:block;overflow-x:auto;border-collapse:collapse;font-size:14px}
 .doc th,.doc td{border-bottom:1px solid var(--line);padding:8px 12px;text-align:left}
+
+/* páginas sem .crumb: mesmo respiro de topo das páginas de recurso */
+.feat>h1:first-child{margin-top:48px}
+
+/* /instalar */
+.install-step{display:grid;grid-template-columns:48px minmax(0,1fr);gap:20px;padding:36px 0;border-bottom:1px solid var(--line)}
+.install-step .n{font:600 1.5rem var(--sans);color:var(--ink3)}
+.install-step h2{font-size:1.4rem}
+.install-step p{color:var(--ink2);margin-top:8px;max-width:60ch}
+details{margin-top:40px;border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+summary{cursor:pointer;font-weight:600}
+
+/* /novidades */
+.versao{margin-top:64px;padding-top:32px;border-top:1px solid var(--line)}
+.versao h2{font-size:1.75rem;letter-spacing:-.02em;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.versao h2 .crumb{margin-top:0;font-weight:400}
+.versao .destaque{margin-top:20px;color:var(--ink2)}
+.versao h3{font:600 13px var(--mono);color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-top:28px}
+.versao ul{margin-top:10px;padding-left:1.2em;color:var(--ink2)}
+.versao li+li{margin-top:8px}
+
+/* /recursos/ índice: mesmas linhas da home */
+.lista ul{list-style:none;padding:0;border-top:1px solid var(--line)}
+.lista li a{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line);color:var(--ink2)}
+.lista li a:hover{color:var(--ink)}
+.lista li a::after{content:"→";color:var(--ink3)}
+.versao .destaque h3{font:600 1.05rem var(--sans);color:var(--ink);text-transform:none;letter-spacing:0;margin-top:20px}
+.versao .destaque p{margin-top:6px}

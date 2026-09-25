@@ -20,7 +20,7 @@ const versao = versaoAtual();
     <div class="install-step"><span class="n">2</span><div><h2>Libere a abertura</h2><p>Na primeira vez, o macOS diz que não pode verificar o app. Clique em OK, abra Ajustes do Sistema, vá em Privacidade e Segurança e clique em "Abrir Mesmo Assim" ao lado do Knobler.</p><figure class="shot"><Image src={alerta} alt="Alerta do macOS dizendo que o Knobler não foi aberto, com os botões Mover para o Lixo e OK" /></figure><figure class="shot"><Image src={privacidade} alt="Seção Segurança de Privacidade e Segurança com o botão Abrir Mesmo Assim ao lado do Knobler" /></figure></div></div>
     <div class="install-step"><span class="n">3</span><div><h2>Dê as permissões</h2><p>O Knobler abre um guia na primeira vez. Acessibilidade é a única obrigatória: sem ela o volume e as notificações continuam saindo pelo sistema.</p><figure class="shot"><Image src={permissoes} alt="Painel Permissões dos Ajustes do Knobler, com Acessibilidade no topo" /></figure></div></div>
 
-    <details><summary>Prefere o Terminal? Instale com Homebrew</summary>
+    <details id="homebrew"><summary>Prefere o Terminal? Instale com Homebrew</summary>
 <pre>brew tap luccas-silveira/knobler
 brew trust luccas-silveira/knobler
 brew install knobler</pre>
