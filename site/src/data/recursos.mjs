@@ -1,0 +1,23 @@
+// Os recursos com página em /recursos/<slug>, na ordem em que a home os agrupa.
+export const recursos = [
+  { slug: 'now-playing', titulo: 'Música tocando', grupo: 'mac' },
+  { slug: 'huds', titulo: 'Volume, brilho e bateria', grupo: 'mac' },
+  { slug: 'notificacoes', titulo: 'Notificações', grupo: 'mac' },
+  { slug: 'airpods', titulo: 'AirPods', grupo: 'mac' },
+  { slug: 'agenda', titulo: 'Agenda', grupo: 'mac' },
+  { slug: 'avisos', titulo: 'Avisos', grupo: 'mac' },
+  { slug: 'pomodoro', titulo: 'Pomodoro', grupo: 'foco' },
+  { slug: 'descanso', titulo: 'Descanso', grupo: 'foco' },
+  { slug: 'lembretes-apple', titulo: 'Lembretes da Apple', grupo: 'foco' },
+  { slug: 'alertas', titulo: 'Alertas programados', grupo: 'foco' },
+  { slug: 'ditado', titulo: 'Ditado', grupo: 'anote' },
+  { slug: 'prateleira', titulo: 'Prateleira de arquivos', grupo: 'anote' },
+  { slug: 'nota-rapida', titulo: 'Nota rápida', grupo: 'anote' },
+  { slug: 'anotacao', titulo: 'Anotação de tela', grupo: 'anote' },
+  { slug: 'texto-da-tela', titulo: 'Texto da tela', grupo: 'anote' },
+  { slug: 'conta-gotas', titulo: 'Conta-gotas', grupo: 'anote' },
+  { slug: 'preview-de-link', titulo: 'Preview de link', grupo: 'anote' },
+  { slug: 'espelho', titulo: 'Espelho de câmera', grupo: 'anote' },
+  { slug: 'mensagens', titulo: 'Mensagens entre Macs', grupo: 'automacao' },
+  { slug: 'webhooks', titulo: 'Webhooks', grupo: 'automacao' },
+];

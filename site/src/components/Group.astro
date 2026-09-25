@@ -1,0 +1,20 @@
+---
+import { Image } from 'astro:assets';
+import { recursos } from '../data/recursos.mjs';
+const { grupo, titulo, texto, img, alt, flip = false, extras = [] } = Astro.props;
+const itens = [
+  ...recursos.filter((r) => r.grupo === grupo).map((r) => ({ href: `/recursos/${r.slug}`, titulo: r.titulo })),
+  ...extras,
+];
+---
+<section class:list={['group', { flip }]}>
+  <div class="txt">
+    <h2>{titulo}</h2>
+    <p>{texto}</p>
+    <ul>{itens.map((i) => <li><a href={i.href}>{i.titulo}</a></li>)}</ul>
+  </div>
+  <div>
+    <figure class="shot"><Image src={img} alt={alt} /></figure>
+    <slot />
+  </div>
+</section>

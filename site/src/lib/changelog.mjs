@@ -1,8 +1,17 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 // Raiz do repo, para quem precisar resolver CHANGELOG.md e Knobler/Novidades/.
-export const raiz = new URL('../../..', import.meta.url);
+// Sobe do cwd até achar CHANGELOG.md: o import.meta.url muda depois do bundle do Astro.
+function acharRaiz(dir = process.cwd()) {
+  if (existsSync(join(dir, 'CHANGELOG.md'))) return pathToFileURL(dir + '/');
+  if (dirname(dir) === dir) throw new Error('CHANGELOG.md não encontrado acima do cwd');
+  return acharRaiz(dirname(dir));
+}
+export const raiz = acharRaiz();
+
+export const versaoAtual = () => currentVersion(readFileSync(new URL('CHANGELOG.md', raiz), 'utf8'));
 
 // Versões numeradas em ordem; ignora [Unreleased]. Item multilinha vira um só.
 export function parseChangelog(texto) {

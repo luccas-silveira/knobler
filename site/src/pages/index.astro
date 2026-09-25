@@ -1,6 +1,54 @@
 ---
+import { Image } from 'astro:assets';
 import Base from '../layouts/Base.astro';
+import Group from '../components/Group.astro';
+import { versaoAtual, downloadUrl } from '../lib/changelog.mjs';
+import musica from '../assets/screenshots/music-expanded.png';
+import notificacao from '../assets/screenshots/notification.png';
+import pomodoro from '../assets/screenshots/pomodoro-focus.png';
+import prateleira from '../assets/screenshots/expanded-shelf.png';
+import atividade from '../assets/screenshots/closed-activity-music.png';
+
+const versao = versaoAtual();
+const zip = downloadUrl(versao);
+const curl = `curl -X POST 127.0.0.1:4477/notify \\
+  -d '{"title":"Build pronto","body":"main passou"}'`;
 ---
 <Base title="Knobler" description="O notch do Mac vira um Dynamic Island.">
-  <main class="wrap"><h1>Knobler</h1></main>
+  <main class="wrap">
+    <section class="hero">
+      <figure class="drop"><Image src={musica} alt="Notch aberto tocando música, com capa, controles e barra de progresso" loading="eager" /></figure>
+      <h1>O notch do seu Mac,<br />finalmente útil.</h1>
+      <p class="sub">Música, volume, notificações, ditado e foco aparecem onde a câmera já estava.</p>
+      <div class="ctas">
+        <a class="btn primary" href={zip}>Baixar para Mac</a>
+        <a class="btn ghost" href="/recursos">Ver recursos</a>
+      </div>
+      <p class="meta">Versão {versao} · macOS 14.2 ou mais novo · grátis e de código aberto</p>
+    </section>
+
+    <Group grupo="mac" titulo="O que já acontece no Mac, num lugar só."
+      texto="A música, o volume e as notificações do sistema passam a sair do notch, sem os balões espalhados pela tela."
+      img={notificacao} alt="Card de notificação descendo do notch" />
+    <Group grupo="foco" flip titulo="Foco sem abrir outro app."
+      texto="Pomodoro, pausas programadas e lembretes ficam no notch, visíveis sem roubar a tela."
+      img={pomodoro} alt="Pomodoro em foco no notch" />
+    <Group grupo="anote" titulo="Fale, guarde, anote."
+      texto="Dite em qualquer campo, arraste arquivos pro notch e desenhe por cima da tela numa apresentação."
+      img={prateleira} alt="Prateleira com arquivos guardados no notch" />
+    <Group grupo="automacao" flip titulo="Para quem automatiza."
+      texto="Qualquer script manda um card pro notch com uma linha. Serviços externos também, por webhook."
+      img={atividade} alt="Notch fechado com uma atividade ao lado da música"
+      extras={[{ href: '/docs/local-api', titulo: 'API local' }, { href: '/docs/plugins', titulo: 'Plugins' }]}>
+      <pre>{curl}</pre>
+    </Group>
+
+    <h2 class="sec-h">Instalar leva um minuto.</h2>
+    <ol class="steps">
+      <li><b>1</b><h3>Baixe</h3><p>Abra o arquivo baixado e arraste o Knobler para Aplicativos.</p></li>
+      <li><b>2</b><h3>Libere a abertura</h3><p>O macOS pede uma confirmação em Privacidade e Segurança na primeira vez.</p></li>
+      <li><b>3</b><h3>Dê as permissões</h3><p>O próprio app te guia pelo que cada recurso precisa.</p></li>
+    </ol>
+    <div class="ctas" style="justify-content:flex-start"><a class="btn primary" href={zip}>Baixar para Mac</a><a class="btn ghost" href="/instalar">Guia de instalação</a></div>
+  </main>
 </Base>
