@@ -106,14 +106,14 @@ export const recursos = [
     resumo: 'Copie o texto de qualquer coisa na tela, até de imagem ou vídeo pausado.',
     comoFunciona: 'Você marca uma área da tela e o texto que estiver ali vai para a área de transferência, pronto para colar. Tudo é lido no próprio Mac.',
     comoLigar: ['Instale a peça em Ajustes › Plugins.', 'Aperte ⌃⇧T e arraste sobre o texto.'],
-    imagem: 'ask-texto-integral.png', alt: 'Card do notch com um texto longo mostrado por inteiro',
+    imagem: 'texto-da-tela.png', alt: 'Card do notch confirmando o texto copiado da tela',
   },
   {
     slug: 'conta-gotas', titulo: 'Conta-gotas', grupo: 'anote',
     resumo: 'Pegue a cor de qualquer ponto da tela.',
     comoFunciona: 'O cursor vira uma lupa. Clique no ponto que quiser e o código da cor vai para a área de transferência, enquanto o notch mostra a cor escolhida.',
     comoLigar: ['Clique no ◐ da barra de menus.', 'Escolha Selecionar cor e clique no ponto da tela.'],
-    imagemPendente: true,
+    imagem: 'conta-gotas.png', alt: 'Card do notch com a cor escolhida, o HEX copiado e os outros formatos',
   },
   {
     slug: 'preview-de-link', titulo: 'Preview de link', grupo: 'anote',
@@ -127,7 +127,7 @@ export const recursos = [
     resumo: 'Uma olhada na câmera antes da reunião, sem abrir outro app.',
     comoFunciona: 'A imagem da câmera aparece dentro do notch aberto, como um espelho. Fechou a seção, a câmera desliga.',
     comoLigar: ['Em Ajustes › Notch, fixe a seção Espelho.', 'Abra o notch e escolha Espelho. Na primeira vez, permita a câmera.'],
-    imagemPendente: true,
+    imagem: 'espelho.png', alt: 'Notch aberto mostrando a imagem da câmera, como um espelho',
   },
   {
     slug: 'mensagens', titulo: 'Mensagens entre Macs', grupo: 'automacao',

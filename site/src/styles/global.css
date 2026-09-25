@@ -52,6 +52,7 @@ footer nav{display:flex;gap:20px;flex-wrap:wrap}
 .group li a:hover{color:var(--ink)}
 .group li a::after{content:"→";color:var(--ink3)}
 figure.shot{border-radius:22px;overflow:hidden;background:var(--s1);padding:28px 20px;border:1px solid var(--line)}
+.install-step figure.shot{margin-top:16px}
 @media (max-width:820px){.group,.group.flip{grid-template-columns:minmax(0,1fr);gap:28px}.group.flip .txt{order:0}}
 
 /* instalar em 3 passos */

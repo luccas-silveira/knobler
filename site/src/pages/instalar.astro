@@ -1,10 +1,13 @@
 ---
 import Base from '../layouts/Base.astro';
+import { Image } from 'astro:assets';
 import { versaoAtual, downloadUrl } from '../lib/changelog.mjs';
+import finder from '../assets/screenshots/instalar-finder.png';
+import alerta from '../assets/screenshots/instalar-alerta.png';
+import privacidade from '../assets/screenshots/instalar-privacidade.png';
+import permissoes from '../assets/screenshots/instalar-permissoes.png';
 
 const versao = versaoAtual();
-// imagemPendente: as capturas dos passos entram na etapa 9; até lá, placeholder tracejado.
-const imagemPendente = (legenda) => legenda;
 ---
 <Base title="Instalar · Knobler" description="Baixe o Knobler e instale em três passos, ou use o Homebrew.">
   <main class="wrap feat">
@@ -13,9 +16,9 @@ const imagemPendente = (legenda) => legenda;
     <div class="ctas" style="justify-content:flex-start"><a class="btn primary" href={downloadUrl(versao)}>Baixar Knobler {versao}</a></div>
     <p class="meta" style="text-align:left">Knobler-{versao}.zip · macOS 14.2 ou mais novo</p>
 
-    <div class="install-step"><span class="n">1</span><div><h2>Mova para Aplicativos</h2><p>O Safari descompacta o arquivo sozinho. Arraste o Knobler da pasta Downloads para Aplicativos. Ele precisa estar lá para as permissões funcionarem.</p><div class="shot-ph">{imagemPendente('captura: Finder arrastando para Aplicativos')}</div></div></div>
-    <div class="install-step"><span class="n">2</span><div><h2>Libere a abertura</h2><p>Na primeira vez, o macOS diz que não pode verificar o app. Clique em OK, abra Ajustes do Sistema, vá em Privacidade e Segurança e clique em "Abrir Mesmo Assim" ao lado do Knobler.</p><div class="shot-ph">{imagemPendente('captura: alerta do macOS')}</div><div class="shot-ph">{imagemPendente('captura: Privacidade e Segurança com "Abrir Mesmo Assim"')}</div></div></div>
-    <div class="install-step"><span class="n">3</span><div><h2>Dê as permissões</h2><p>O Knobler abre um guia na primeira vez. Acessibilidade é a única obrigatória: sem ela o volume e as notificações continuam saindo pelo sistema.</p><div class="shot-ph">{imagemPendente('captura: painel de permissões do Knobler')}</div></div></div>
+    <div class="install-step"><span class="n">1</span><div><h2>Mova para Aplicativos</h2><p>O Safari descompacta o arquivo sozinho. Arraste o Knobler da pasta Downloads para Aplicativos. Ele precisa estar lá para as permissões funcionarem.</p><figure class="shot"><Image src={finder} alt="Janela do Finder na pasta Downloads com o Knobler e Aplicativos na barra lateral" /></figure></div></div>
+    <div class="install-step"><span class="n">2</span><div><h2>Libere a abertura</h2><p>Na primeira vez, o macOS diz que não pode verificar o app. Clique em OK, abra Ajustes do Sistema, vá em Privacidade e Segurança e clique em "Abrir Mesmo Assim" ao lado do Knobler.</p><figure class="shot"><Image src={alerta} alt="Alerta do macOS dizendo que o Knobler não foi aberto, com os botões Mover para o Lixo e OK" /></figure><figure class="shot"><Image src={privacidade} alt="Seção Segurança de Privacidade e Segurança com o botão Abrir Mesmo Assim ao lado do Knobler" /></figure></div></div>
+    <div class="install-step"><span class="n">3</span><div><h2>Dê as permissões</h2><p>O Knobler abre um guia na primeira vez. Acessibilidade é a única obrigatória: sem ela o volume e as notificações continuam saindo pelo sistema.</p><figure class="shot"><Image src={permissoes} alt="Painel Permissões dos Ajustes do Knobler, com Acessibilidade no topo" /></figure></div></div>
 
     <details><summary>Prefere o Terminal? Instale com Homebrew</summary>
 <pre>brew tap luccas-silveira/knobler
