@@ -1,0 +1,22 @@
+// Docs de feature que têm página em /recursos/<slug>.
+export const RECURSOS_SLUGS = {
+  'now-playing.md': 'now-playing',
+  'huds.md': 'huds',
+  'notifications.md': 'notificacoes',
+  'airpods.md': 'airpods',
+  'calendar-countdown.md': 'agenda',
+  'avisos.md': 'avisos',
+  'pomodoro.md': 'pomodoro',
+  'descanso.md': 'descanso',
+  'apple-reminders.md': 'lembretes-apple',
+  'reminders.md': 'alertas',
+  'dictation.md': 'ditado',
+  'shelf.md': 'prateleira',
+  'nota-rapida.md': 'nota-rapida',
+  'annotation.md': 'anotacao',
+  'texto-da-tela.md': 'texto-da-tela',
+  'color-picker.md': 'conta-gotas',
+  'link-preview.md': 'preview-de-link',
+  'mirror.md': 'espelho',
+  'messages.md': 'mensagens',
+};
