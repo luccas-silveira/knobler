@@ -40,6 +40,11 @@ O build lê do disco, sem rede:
   arquivos. Nada fora da lista é publicado (specs, handoffs e backlog ficam
   de fora).
 
+Links desses docs para arquivos fora da lista: vão para `/recursos/<slug>`
+quando o assunto tem página; senão, para o arquivo no GitHub
+(`github.com/luccas-silveira/knobler/blob/master/...`). Imagens de
+`docs/images/` citadas nos docs são copiadas no build.
+
 ## Mapa do site
 
 - `/` — hero com o notch em ação, botão **Baixar** com a versão, link
@@ -50,9 +55,18 @@ O build lê do disco, sem rede:
 - `/instalar` — download, passo a passo do Gatekeeper com imagens (o app não
   é notarizado), permissões (Acessibilidade e demais) e a alternativa
   `brew install --cask`.
-- `/novidades` — gerada do `CHANGELOG.md`.
+- `/novidades` — uma entrada por versão do `CHANGELOG.md`. Onde existe
+  `Knobler/Novidades/<versão>.html` (texto para leigo, com as imagens de
+  `Knobler/Novidades/midia/`), ele substitui o texto do CHANGELOG.
 - `/docs/<slug>` — as quatro referências técnicas lidas do repositório.
 - `404`.
+
+## Imagens
+
+Toda página de recurso tem screenshot. Avisos, Lembretes da Apple, texto da
+tela e preview de link reaproveitam PNGs de `Snapshots/` ou
+`Knobler/Novidades/midia/`. Conta-gotas e espelho de câmera são capturados à
+mão no app real, com aviso ao usuário antes (mexe na máquina dele).
 
 ## Download
 
@@ -68,8 +82,20 @@ O `release.sh` gera exatamente esse nome.
   HTML gerado é a do `CHANGELOG.md` e que o link de download aponta pra ela.
 - Links internos quebrados quebram o build.
 
-## Em aberto para a pesquisa
+## Publicação
 
-- Como o site chega hoje ao servidor 147.79.87.179 (nginx). A spec só exige
-  que a publicação seja um comando único e documentado.
-- Se o `release.sh` publica o site sozinho ou só lembra de publicar.
+`site/deploy.sh`: build e `rsync -az --delete dist/ root@147.79.87.179:/var/www/knobler-site/`
+(raiz lida no nginx do servidor em 2026-09-25).
+
+O `tools/release.sh` roda `site/deploy.sh` depois do `gh release create`.
+Falha no deploy do site só avisa; não desfaz a release do app.
+
+## Decisões do grill
+
+- **A5** — publicação por `rsync` para `/var/www/knobler-site`. Motivo: raiz lida no nginx do servidor; nada estava versionado.
+- **A6** — `release.sh` publica o site sozinho; falha só avisa. Motivo: o site parou 13 versões atrás por depender de lembrar.
+- **A1** — `/novidades` usa o texto de `Knobler/Novidades/` onde existe, CHANGELOG no resto. Motivo: texto já escrito para leigo.
+- **A4** — conta-gotas e espelho capturados à mão antes de publicar. Motivo: não existe imagem nenhuma deles.
+- **A2** — links para docs fora da lista vão para a página de recurso ou para o GitHub. Motivo: 8 links quebrariam.
+- **A3** — `/instalar` é a ajuda do leigo (Gatekeeper e permissões); troubleshooting fica técnico. Motivo: o guia começa em bash.
+- **A7, A8, A9, A10** — só confirmam a spec. A9 fixa o caminho do Gatekeeper: Ajustes > Privacidade e Segurança > "Abrir Mesmo Assim" (o Control-clique não funciona desde o macOS 15).
