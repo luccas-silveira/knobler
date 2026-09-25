@@ -1,0 +1,224 @@
+<!doctype html>
+<!-- Hallmark · pre-emit critique: P4 H4 E4 S5 R5 V4 -->
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knobler — mockup do site</title>
+<style>
+:root{
+  --black:oklch(0% 0 0); --s1:oklch(9% .002 280); --s2:oklch(14% .003 280);
+  --line:oklch(100% 0 0 / 10%); --ink:oklch(100% 0 0); --ink2:oklch(100% 0 0 / 80%);
+  --ink3:oklch(100% 0 0 / 55%); --fill:oklch(100% 0 0 / 8%);
+  --mock:oklch(75% .15 60);
+  --sans:-apple-system,"SF Pro Display","SF Pro Text",system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --gap:clamp(72px,10vw,140px);
+}
+*{box-sizing:border-box;margin:0}
+html,body{overflow-x:clip}
+body{background:var(--black);color:var(--ink);font:17px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
+.wrap{max-width:1120px;margin:0 auto;padding-inline:24px}
+
+/* rótulo do mockup, não vai pro site */
+.page-tag{font:12px var(--mono);color:var(--mock);border-top:1px dashed var(--mock);padding:10px 24px;margin-top:var(--gap)}
+
+/* barra de menus: o nav se divide em volta do notch, como no Mac */
+.menubar{position:relative;height:38px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding-inline:20px;font-size:14px}
+.menubar .l{display:flex;gap:22px}
+.menubar .r{display:flex;gap:22px;justify-content:flex-end;align-items:center}
+.menubar .brand{font-weight:600}
+.menubar a{color:var(--ink2)} .menubar a:hover{color:var(--ink)}
+.notch{width:200px;height:38px;background:var(--black);border-radius:0 0 14px 14px}
+.dl-mini{background:var(--ink);color:var(--black)!important;padding:4px 12px;border-radius:999px;font-weight:600;white-space:nowrap}
+@media (max-width:720px){.menubar .l a:not(.brand),.menubar .r a:not(.dl-mini){display:none}.notch{width:110px}}
+
+/* hero: o card sai do notch */
+.hero{text-align:center;padding-top:8px}
+.drop{width:min(560px,92vw);margin:0 auto;border-radius:0 0 30px 30px;overflow:hidden;
+  transform-origin:top center;animation:drop .9s cubic-bezier(.34,1.56,.64,1) .3s both}
+@keyframes drop{from{clip-path:inset(0 32% 88% 32% round 0 0 14px 14px)}to{clip-path:inset(0 0 0 0 round 0 0 30px 30px)}}
+@media (prefers-reduced-motion:reduce){.drop{animation:none}}
+.hero h1{font-size:clamp(2.5rem,1.4rem + 4.6vw,5rem);font-weight:600;letter-spacing:-.035em;line-height:1.05;margin-top:56px;overflow-wrap:anywhere}
+.hero p.sub{color:var(--ink2);font-size:clamp(1.1rem,1rem + .5vw,1.35rem);max-width:34ch;margin:18px auto 0}
+.ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:32px}
+.btn{height:48px;padding:0 26px;border-radius:999px;display:inline-flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap}
+.btn.primary{background:var(--ink);color:var(--black)}
+.btn.ghost{background:var(--fill);color:var(--ink)}
+.meta{font:13px var(--mono);color:var(--ink3);margin-top:14px}
+
+/* grupos: um screenshot grande, lista de nomes ao lado — não é grid de cards */
+.group{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:48px;align-items:center;margin-top:var(--gap)}
+.group.flip{grid-template-columns:minmax(0,7fr) minmax(0,5fr)}
+.group.flip .txt{order:2}
+.group h2{font-size:clamp(1.8rem,1.2rem + 2vw,2.75rem);letter-spacing:-.02em;line-height:1.1}
+.group p{color:var(--ink2);margin-top:14px;max-width:40ch}
+.group ul{list-style:none;padding:0;margin-top:24px;border-top:1px solid var(--line)}
+.group li a{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line);color:var(--ink2)}
+.group li a:hover{color:var(--ink)}
+.group li a::after{content:"→";color:var(--ink3)}
+figure.shot{border-radius:22px;overflow:hidden;background:var(--s1);padding:28px 20px;border:1px solid var(--line)}
+@media (max-width:820px){.group,.group.flip{grid-template-columns:minmax(0,1fr);gap:28px}.group.flip .txt{order:0}}
+
+/* instalar em 3 passos */
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:22px;overflow:hidden;margin-top:40px}
+.steps li{background:var(--black);padding:28px;list-style:none}
+.steps b{font:13px var(--mono);color:var(--ink3);display:block;margin-bottom:10px}
+.steps h3{font-size:1.2rem}
+.steps p{color:var(--ink2);font-size:15px;margin-top:6px}
+@media (max-width:820px){.steps{grid-template-columns:minmax(0,1fr)}}
+ol.steps{padding:0}
+.sec-h{font-size:clamp(1.8rem,1.2rem + 2vw,2.75rem);letter-spacing:-.02em;margin-top:var(--gap)}
+
+code,pre{font-family:var(--mono);font-size:14px}
+pre{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:16px 18px;overflow-x:auto;margin-top:16px;color:var(--ink2)}
+
+footer{margin-top:var(--gap);border-top:1px solid var(--line);padding:32px 0 48px;color:var(--ink3);font-size:14px}
+footer .wrap{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}
+footer nav{display:flex;gap:20px;flex-wrap:wrap}
+
+/* página de recurso */
+.crumb{font-size:14px;color:var(--ink3);margin-top:48px}
+.feat h1{font-size:clamp(2.2rem,1.4rem + 3vw,3.75rem);letter-spacing:-.03em;line-height:1.05;margin-top:12px}
+.feat .lede{font-size:1.25rem;color:var(--ink2);max-width:40ch;margin-top:16px}
+.feat figure{margin-top:40px}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:48px;margin-top:56px}
+.cols h2{font-size:1.25rem;margin-bottom:10px}
+.cols p,.cols li{color:var(--ink2)}
+.cols ol{padding-left:1.2em}
+@media (max-width:820px){.cols{grid-template-columns:minmax(0,1fr)}}
+.next{display:flex;justify-content:space-between;margin-top:56px;padding-top:20px;border-top:1px solid var(--line);color:var(--ink2);gap:16px;flex-wrap:wrap}
+
+/* instalar */
+.shot-ph{aspect-ratio:16/10;border:1px dashed var(--line);border-radius:14px;display:grid;place-items:center;color:var(--ink3);font:13px var(--mono);text-align:center;padding:16px;margin-top:16px}
+.install-step{display:grid;grid-template-columns:48px minmax(0,1fr);gap:20px;padding:36px 0;border-bottom:1px solid var(--line)}
+.install-step .n{font:600 1.5rem var(--sans);color:var(--ink3)}
+.install-step h2{font-size:1.4rem}
+.install-step p{color:var(--ink2);margin-top:8px;max-width:60ch}
+details{margin-top:40px;border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+summary{cursor:pointer;font-weight:600}
+</style>
+</head>
+<body>
+
+<!-- ============ / (home) ============ -->
+<header class="menubar">
+  <nav class="l"><a class="brand" href="#">Knobler</a><a href="#">Recursos</a><a href="#">Novidades</a></nav>
+  <div class="notch" aria-hidden="true"></div>
+  <nav class="r"><a href="#">Docs</a><a href="#">GitHub</a><a class="dl-mini" href="#">Baixar</a></nav>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <figure class="drop"><img src="img/music-expanded.png" alt="Notch aberto tocando Paranoid Android, com capa, controles e barra de progresso"></figure>
+    <h1>O notch do seu Mac,<br>finalmente útil.</h1>
+    <p class="sub">Música, volume, notificações, ditado e foco aparecem onde a câmera já estava.</p>
+    <div class="ctas">
+      <a class="btn primary" href="#">Baixar para Mac</a>
+      <a class="btn ghost" href="#">Ver recursos</a>
+    </div>
+    <p class="meta">Versão 0.35.2 · macOS 14.2 ou mais novo · grátis e de código aberto</p>
+  </section>
+
+  <section class="group">
+    <div class="txt">
+      <h2>O que já acontece no Mac, num lugar só.</h2>
+      <p>A música, o volume e as notificações do sistema passam a sair do notch, sem os balões espalhados pela tela.</p>
+      <ul>
+        <li><a href="#">Música tocando</a></li><li><a href="#">Volume, brilho e bateria</a></li>
+        <li><a href="#">Notificações</a></li><li><a href="#">AirPods</a></li><li><a href="#">Agenda</a></li>
+      </ul>
+    </div>
+    <figure class="shot"><img src="img/notification.png" alt="Card de notificação descendo do notch"></figure>
+  </section>
+
+  <section class="group flip">
+    <div class="txt">
+      <h2>Foco sem abrir outro app.</h2>
+      <p>Pomodoro, pausas programadas e lembretes ficam no notch, visíveis sem roubar a tela.</p>
+      <ul>
+        <li><a href="#">Pomodoro</a></li><li><a href="#">Descanso</a></li>
+        <li><a href="#">Lembretes da Apple</a></li><li><a href="#">Alertas programados</a></li>
+      </ul>
+    </div>
+    <figure class="shot"><img src="img/pomodoro-focus.png" alt="Pomodoro em foco no notch"></figure>
+  </section>
+
+  <section class="group">
+    <div class="txt">
+      <h2>Fale, guarde, anote.</h2>
+      <p>Dite em qualquer campo, arraste arquivos pro notch e desenhe por cima da tela numa apresentação.</p>
+      <ul>
+        <li><a href="#">Ditado</a></li><li><a href="#">Prateleira de arquivos</a></li><li><a href="#">Nota rápida</a></li>
+        <li><a href="#">Anotação de tela</a></li><li><a href="#">Texto da tela</a></li><li><a href="#">Conta-gotas</a></li>
+        <li><a href="#">Preview de link</a></li><li><a href="#">Espelho de câmera</a></li>
+      </ul>
+    </div>
+    <figure class="shot"><img src="img/expanded-shelf.png" alt="Prateleira com arquivos guardados no notch"></figure>
+  </section>
+
+  <section class="group flip">
+    <div class="txt">
+      <h2>Para quem automatiza.</h2>
+      <p>Qualquer script manda um card pro notch com uma linha. Serviços externos também, por webhook.</p>
+      <ul>
+        <li><a href="#">Mensagens entre Macs</a></li><li><a href="#">Webhooks</a></li>
+        <li><a href="#">API local</a></li><li><a href="#">Plugins</a></li>
+      </ul>
+    </div>
+    <div>
+      <figure class="shot"><img src="img/dictation-recording.png" alt="PLACEHOLDER: trocar pelo card que este comando gera"></figure>
+<pre>curl -X POST 127.0.0.1:4477/notify \
+  -d '{"title":"Build pronto","body":"main passou"}'</pre>
+    </div>
+  </section>
+
+  <h2 class="sec-h">Instalar leva um minuto.</h2>
+  <ol class="steps">
+    <li><b>1</b><h3>Baixe</h3><p>Abra o arquivo baixado e arraste o Knobler para Aplicativos.</p></li>
+    <li><b>2</b><h3>Libere a abertura</h3><p>O macOS pede uma confirmação em Privacidade e Segurança na primeira vez.</p></li>
+    <li><b>3</b><h3>Dê as permissões</h3><p>O próprio app te guia pelo que cada recurso precisa.</p></li>
+  </ol>
+  <div class="ctas" style="justify-content:flex-start"><a class="btn primary" href="#">Baixar para Mac</a><a class="btn ghost" href="#">Guia de instalação</a></div>
+</main>
+
+<footer><div class="wrap"><span>Knobler · licença MIT</span><nav><a href="#">Recursos</a><a href="#">Novidades</a><a href="#">Docs</a><a href="#">GitHub</a><a href="#">Instalar com Homebrew</a></nav></div></footer>
+
+<!-- ============ /recursos/pomodoro ============ -->
+<div class="page-tag">MOCKUP · página de recurso: /recursos/pomodoro</div>
+<main class="wrap feat">
+  <p class="crumb"><a href="#">Recursos</a> / Foco</p>
+  <h1>Pomodoro</h1>
+  <p class="lede">Ciclos de foco e pausa no notch, com o próximo compromisso da agenda à vista.</p>
+  <figure class="shot"><img src="img/pomodoro-focus.png" alt="Pomodoro em foco no notch"></figure>
+  <div class="cols">
+    <div><h2>Como funciona</h2><p>Foco, pausa curta, foco, pausa longa. No fim de cada fase o Knobler para e espera você começar a próxima, nunca avança sozinho.</p></div>
+    <div><h2>Como ligar</h2><ol><li>Abra os Ajustes do Knobler.</li><li>Em Pomodoro, ajuste a duração das fases.</li><li>Clique no notch e escolha Iniciar.</li></ol></div>
+  </div>
+  <div class="next"><a href="#">← Agenda</a><a href="#">Descanso →</a></div>
+</main>
+
+<!-- ============ /instalar ============ -->
+<div class="page-tag">MOCKUP · página /instalar</div>
+<main class="wrap feat">
+  <h1>Instalar o Knobler</h1>
+  <p class="lede">Três passos. O segundo aparece porque o Knobler ainda não passa pela verificação paga da Apple.</p>
+  <div class="ctas" style="justify-content:flex-start"><a class="btn primary" href="#">Baixar Knobler 0.35.2</a></div>
+  <p class="meta" style="text-align:left">Knobler-0.35.2.zip · macOS 14.2 ou mais novo</p>
+
+  <div class="install-step"><span class="n">1</span><div><h2>Mova para Aplicativos</h2><p>O Safari descompacta o arquivo sozinho. Arraste o Knobler da pasta Downloads para Aplicativos. Ele precisa estar lá para as permissões funcionarem.</p><div class="shot-ph">captura: Finder arrastando para Aplicativos</div></div></div>
+  <div class="install-step"><span class="n">2</span><div><h2>Libere a abertura</h2><p>Na primeira vez, o macOS diz que não pode verificar o app. Clique em OK, abra Ajustes do Sistema, vá em Privacidade e Segurança e clique em "Abrir Mesmo Assim" ao lado do Knobler.</p><div class="shot-ph">captura: alerta do macOS</div><div class="shot-ph">captura: Privacidade e Segurança com "Abrir Mesmo Assim"</div></div></div>
+  <div class="install-step"><span class="n">3</span><div><h2>Dê as permissões</h2><p>O Knobler abre um guia na primeira vez. Acessibilidade é a única obrigatória: sem ela o volume e as notificações continuam saindo pelo sistema.</p><div class="shot-ph">captura: painel de permissões do Knobler</div></div></div>
+
+  <details><summary>Prefere o Terminal? Instale com Homebrew</summary>
+<pre>brew tap luccas-silveira/knobler
+brew trust luccas-silveira/knobler
+brew install knobler</pre>
+  <p style="color:var(--ink2);margin-top:12px">Assim o passo 2 não aparece, e as atualizações chegam pelo <code>brew upgrade</code>.</p></details>
+</main>
+
+<footer><div class="wrap"><span>Knobler · licença MIT</span><nav><a href="#">Recursos</a><a href="#">Novidades</a><a href="#">Docs</a><a href="#">GitHub</a></nav></div></footer>
+</body>
+</html>
