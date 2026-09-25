@@ -161,6 +161,20 @@ clone o tap em outro lugar**: um clone paralelo não aparece na busca do script,
 e foi assim que os caveats reescritos na 0.10.0 ficaram fora do ar, commitados
 num clone que o release nunca tocou.
 
+## Site
+
+O site (knobler.appzoi.com.br) vive em `site/` (Astro) e lê versão, link de
+download, novidades e docs técnicos do repo a cada build.
+
+```bash
+cd site && npx astro dev          # servidor local
+node --test site/tests/*.test.mjs # testes (também rodam no tools/check.sh)
+site/deploy.sh --dry-run          # builda e lista o que subiria, sem enviar
+```
+
+O `tools/release.sh` chama `site/deploy.sh` depois de publicar o release. Se o
+deploy falhar, o release segue e o script só avisa.
+
 ## Checklist antes de entregar
 
 - código gerado não foi editado à mão;

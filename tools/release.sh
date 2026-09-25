@@ -241,6 +241,11 @@ else
 fi
 rm -f "$NOTES_FILE"
 
+# O site lê versão e novidades do repo: republica agora que o release existe.
+# Falha no site não desfaz um release já publicado — só avisa.
+echo "==> publicando o site"
+"$REPO_ROOT/site/deploy.sh" || echo "⚠️  deploy do site falhou; rode site/deploy.sh à mão" >&2
+
 echo "==> bumpando o cask ($TAP_DIR)"
 # Existe mais de um clone do tap na máquina (o de trabalho e o do `brew tap`);
 # sem isto, bumpar pelo clone atrasado só falha lá no push, com o cask já editado.
