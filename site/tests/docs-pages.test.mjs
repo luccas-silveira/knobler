@@ -55,7 +55,7 @@ test('Markdown renderizado, não cru', () => {
     const m = main(html(slug));
     assert.ok(!m.includes(']('), `${slug}: link Markdown cru`);
     assert.ok(!m.includes('```'), `${slug}: cerca de código crua`);
-    assert.ok(!/(^|>)\s*#{1,3} /m.test(m), `${slug}: título Markdown cru`);
+    assert.ok(!/(^|>)\s*#{1,3} /m.test(m.replace(/<pre[\s\S]*?<\/pre>/g, "")) /* comentário de shell em bloco de código não é título */, `${slug}: título Markdown cru`);
   }
 });
 
