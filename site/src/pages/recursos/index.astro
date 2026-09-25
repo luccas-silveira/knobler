@@ -1,0 +1,18 @@
+---
+import Base from '../../layouts/Base.astro';
+import { recursos, GRUPOS } from '../../data/recursos.mjs';
+---
+<Base title="Recursos · Knobler" description="Tudo o que o Knobler põe no notch.">
+  <main class="wrap feat">
+    <h1>Recursos</h1>
+    <p class="lede">Tudo o que o Knobler põe no notch, um por página.</p>
+    <div class="cols">
+      {Object.entries(GRUPOS).map(([g, nome]) => (
+        <div>
+          <h2>{nome}</h2>
+          <ul>{recursos.filter((r) => r.grupo === g).map((r) => <li><a href={`/recursos/${r.slug}`}>{r.titulo}</a></li>)}</ul>
+        </div>
+      ))}
+    </div>
+  </main>
+</Base>

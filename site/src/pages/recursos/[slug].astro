@@ -1,0 +1,34 @@
+---
+import { Image } from 'astro:assets';
+import Base from '../../layouts/Base.astro';
+import { recursos, GRUPOS } from '../../data/recursos.mjs';
+
+const imagens = import.meta.glob('../../assets/screenshots/*.png', { eager: true, import: 'default' });
+
+export function getStaticPaths() {
+  return recursos.map((r, i) => ({ params: { slug: r.slug }, props: { i } }));
+}
+
+const { i } = Astro.props;
+const r = recursos[i];
+const img = r.imagem && imagens[`../../assets/screenshots/${r.imagem}`];
+if (!r.imagemPendente && !(img && r.alt)) throw new Error(`recurso ${r.slug} sem imagem/alt`);
+const antes = recursos[i - 1];
+const depois = recursos[i + 1];
+---
+<Base title={`${r.titulo} · Knobler`} description={r.resumo}>
+  <main class="wrap feat">
+    <p class="crumb"><a href="/recursos">Recursos</a> / {GRUPOS[r.grupo]}</p>
+    <h1>{r.titulo}</h1>
+    <p class="lede">{r.resumo}</p>
+    {img && <figure class="shot"><Image src={img} alt={r.alt} loading="eager" /></figure>}
+    <div class="cols">
+      <div><h2>Como funciona</h2><p>{r.comoFunciona}</p></div>
+      <div><h2>Como ligar</h2><ol>{r.comoLigar.map((p) => <li>{p}</li>)}</ol></div>
+    </div>
+    <div class="next">
+      {antes ? <a href={`/recursos/${antes.slug}`}>← {antes.titulo}</a> : <span />}
+      {depois && <a href={`/recursos/${depois.slug}`}>{depois.titulo} →</a>}
+    </div>
+  </main>
+</Base>
