@@ -1,0 +1,11 @@
+---
+import { readFileSync } from 'node:fs';
+// Relativo ao cwd do build (site/): o import.meta.url muda depois do bundle.
+import { currentVersion, downloadUrl } from '../lib/changelog.mjs';
+const zip = downloadUrl(currentVersion(readFileSync('../CHANGELOG.md', 'utf8')));
+---
+<header class="menubar">
+  <nav class="l"><a class="brand" href="/">Knobler</a><a href="/recursos">Recursos</a><a href="/novidades">Novidades</a></nav>
+  <div class="notch" aria-hidden="true"></div>
+  <nav class="r"><a href="/docs/local-api">Docs</a><a href="https://github.com/luccas-silveira/knobler">GitHub</a><a class="dl-mini" href={zip}>Baixar</a></nav>
+</header>
