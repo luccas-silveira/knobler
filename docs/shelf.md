@@ -26,6 +26,10 @@ capturas antigas reindexadas pelo Spotlight ficam de fora.
   "tirar" ele de lá.
 - Screenshots caírem automaticamente na prateleira: Ajustes → Notch
   (`screenshotsToShelf`).
+- Print novo já copiado pro clipboard, sem ir até a prateleira: Ajustes →
+  Notch → Capturas de tela → "Copiar o print pro clipboard"
+  (`screenshotsToClipboard`, desligado de fábrica). Cola como imagem em
+  chat/browser e como arquivo no Finder.
 - A prateleira é uma **seção** do card aberto. Se ela não estiver em foco, o
   ícone de bandeja na faixa do rodapé mostra a **contagem de itens** — clicar
   traz a prateleira pra frente. Arquivo novo (arrastado ou screenshot

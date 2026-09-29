@@ -113,6 +113,11 @@ final class AppSettings: ObservableObject {
     @Published var screenshotsToShelf: Bool {
         didSet { UserDefaults.standard.set(screenshotsToShelf, forKey: "screenshotsToShelf") }
     }
+    /// Além de entrar na prateleira, o print novo vai direto pro clipboard
+    /// (imagem + arquivo). Opt-in: sobrescreve o que estava copiado.
+    @Published var screenshotsToClipboard: Bool {
+        didSet { UserDefaults.standard.set(screenshotsToClipboard, forKey: "screenshotsToClipboard") }
+    }
     /// Arrastar um item da prateleira pra fora e o destino aceitar tira o item
     /// da prateleira (o arquivo original não é tocado). Ligado de fábrica, como
     /// nas quatro concorrentes medidas no 002.
@@ -322,6 +327,7 @@ final class AppSettings: ObservableObject {
         formatEndpoint = defaults.string(forKey: "formatEndpoint") ?? "http://localhost:11434/v1/chat/completions"
         formatModel = defaults.string(forKey: "formatModel") ?? "gemma3:4b"
         screenshotsToShelf = flag("screenshotsToShelf")
+        screenshotsToClipboard = defaults.bool(forKey: "screenshotsToClipboard") // default false: opt-in
         shelfSaiAoArrastar = flag("shelfSaiAoArrastar")
         hideScreenshotPreview = flag("hideScreenshotPreview")
         annotationArmed = defaults.bool(forKey: "annotationArmed")

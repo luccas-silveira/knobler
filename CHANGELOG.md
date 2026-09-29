@@ -6,6 +6,9 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- Capturas de tela: opção de copiar todo print novo direto pro clipboard (imagem + arquivo), além de ele entrar na prateleira. Ligue em Ajustes › Notch › Capturas de tela.
+
 ## [0.35.2] - 2026-09-24
 
 ### Fixed
