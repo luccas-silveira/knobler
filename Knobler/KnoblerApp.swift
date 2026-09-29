@@ -526,8 +526,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             },
             ativado: { AppSettings.shared.webhookNotifications },
             registrarMudancaAjuste: { tick in
+                // @Published emite no willSet: ler o ajuste dentro do sink
+                // devolvia o valor ANTIGO (toggle invertido). Adiar pro
+                // próximo giro da main faz o `tick` ler o valor já gravado.
                 let cancellable = AppSettings.shared.$webhookNotifications
                     .dropFirst()
+                    .receive(on: DispatchQueue.main)
                     .sink { _ in tick() }
                 return { cancellable.cancel() }
             })
