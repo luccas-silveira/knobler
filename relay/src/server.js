@@ -187,22 +187,35 @@ function createServer({ db, hub, rateLimiter }) {
   }
 
   httpServer.on('upgrade', (req, socket, head) => {
-    const url = new URL(req.url, 'http://localhost');
-    const auth = req.headers['authorization'] || '';
-    const secret = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-    const dev = secret && db.findBySecretHash(sha256(secret));
-    if (url.pathname !== '/ws' || !dev) {
+    // exceção aqui não passa pelo try/catch do handler HTTP e mataria o
+    // processo — basta um `GET //[` sem autenticação.
+    let dev;
+    try {
+      const url = new URL(req.url, 'http://localhost');
+      const auth = req.headers['authorization'] || '';
+      const secret = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+      dev = url.pathname === '/ws' && secret && db.findBySecretHash(sha256(secret));
+    } catch (err) {
+      console.error('erro no upgrade:', err.message);
+      socket.destroy(); return;
+    }
+    if (!dev) {
       socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n'); socket.destroy(); return;
     }
     wss.handleUpgrade(req, socket, head, (ws) => {
       hub.add(dev.device_id, ws);
-      db.touchDevice({ deviceId: dev.device_id, now: Date.now() });
       ws.on('pong', () => hub.markAlive(dev.device_id));
       ws.on('close', () => hub.remove(dev.device_id, ws));
       ws.on('error', () => hub.remove(dev.device_id, ws));
-      // drena a fila offline acumulada
-      for (const payload of db.drainQueue({ deviceId: dev.device_id, now: Date.now() })) {
-        ws.send(JSON.stringify(payload));
+      try {
+        db.touchDevice({ deviceId: dev.device_id, now: Date.now() });
+        // drena a fila offline acumulada
+        for (const payload of db.drainQueue({ deviceId: dev.device_id, now: Date.now() })) {
+          ws.send(JSON.stringify(payload));
+        }
+      } catch (err) {
+        console.error('erro ao conectar ws:', err.message);
+        ws.terminate(); return;
       }
       console.log(`ws conectado device=${redact(dev.device_id)}`);
     });

@@ -259,3 +259,22 @@ test('mapping exige objeto e tipos válidos; rejeição preserva mapa e null lim
     await new Promise(r => srv.stop(r)); db.close();
   }
 });
+
+test('upgrade com URL inválida fecha o socket sem derrubar o processo', async () => {
+  const net = require('node:net');
+  const { srv, db, port, base } = await boot();
+  try {
+    await new Promise((resolve, reject) => {
+      const sock = net.connect(port, '127.0.0.1', () => {
+        sock.write('GET //[ HTTP/1.1\r\nHost: x\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n');
+      });
+      sock.on('close', resolve);
+      sock.on('error', () => {});
+      setTimeout(() => reject(new Error('socket não foi fechado')), 2000).unref();
+    });
+    // o servidor segue de pé
+    assert.strictEqual((await post(base, '/register')).status, 200);
+  } finally {
+    await new Promise(r => srv.stop(r)); db.close();
+  }
+});
