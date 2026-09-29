@@ -256,6 +256,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         screenshots.onScreenshot = { [weak self] url in
             guard let self else { return }
             self.shelf.add(url)
+            if AppSettings.shared.screenshotsToClipboard {
+                // mesmo item do arraste da prateleira: cola como imagem em
+                // chat/browser e como arquivo no Finder
+                let pb = NSPasteboard.general
+                pb.clearContents()
+                pb.writeObjects([DragThumbView.itemDeArquivo(url)])
+            }
             self.peekShelf()
         }
 

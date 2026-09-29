@@ -80,7 +80,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         switch self {
         case .geral: return ["HUD", "volume", "brilho", "bateria", "música", "visualizador", "calendário",
                              "reunião", "silenciar", "microfone", "atualizações", "login", "API", "prateleira",
-                             "capturas de tela", "tela cheia", "agentes", "Claude", "espelho", "câmera"]
+                             "capturas de tela", "clipboard", "tela cheia", "agentes", "Claude", "espelho", "câmera"]
         case .notch: return ["atalho", "teclado", "clique", "hover", "mouse", "atraso", "ordem", "seções", "esconder", "ações rápidas", "atalhos"]
         case .desenho: return ["anotação", "traço", "cor", "ferramenta", "quadro", "fundo", "desvanecer"]
         case .ditado: return ["microfone", "Control", "ativação", "motor", "IA", "formatação", "endpoint"]
@@ -543,6 +543,12 @@ struct NotchSettingsPane: View {
                     title: "Capturas vão pro shelf",
                     subtitle: "Todo print entra no shelf do notch automaticamente.",
                     isOn: $settings.screenshotsToShelf)
+                SettingToggle(
+                    title: "Copiar o print pro clipboard",
+                    subtitle: "Todo print novo já vai copiado — é só colar. "
+                        + "Substitui o que estava no clipboard.",
+                    isOn: $settings.screenshotsToClipboard)
+                    .disabled(!settings.screenshotsToShelf)
                 SettingToggle(
                     title: "Esconder o preview nativo do print",
                     subtitle: "Some com a miniatura flutuante — o shelf já mostra.",

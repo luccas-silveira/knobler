@@ -6,6 +6,9 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- Capturas de tela: opção de copiar todo print novo direto pro clipboard (imagem + arquivo), além de ele entrar na prateleira. Ligue em Ajustes › Notch › Capturas de tela.
+
 ### Fixed
 - API local: páginas abertas no navegador não conseguem mais chamar a API (travar o teclado, ligar a câmera, criar perguntas falsas no notch) nem ler as respostas por DNS rebinding. curl e scripts seguem funcionando igual.
 - Relay de webhooks: uma requisição de upgrade com URL malformada derrubava o servidor e desconectava todo mundo.

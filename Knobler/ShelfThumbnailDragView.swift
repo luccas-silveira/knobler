@@ -156,7 +156,8 @@ class DragThumbView: NSView, NSDraggingSource {
     /// O item de pasteboard de um arquivo: bytes da imagem + file-url no MESMO
     /// item — combo que browsers/Electron aceitam (imagem) e o Finder também
     /// (arquivo). Os bytes primeiro, pra o alvo preferir a imagem à URL textual.
-    private static func itemDeArquivo(_ url: URL) -> NSPasteboardItem {
+    /// Também é o que o print copiado pro clipboard escreve (`screenshotsToClipboard`).
+    static func itemDeArquivo(_ url: URL) -> NSPasteboardItem {
         let item = NSPasteboardItem()
         let type = UTType(filenameExtension: url.pathExtension)
         if let type, type.conforms(to: .image), let data = try? Data(contentsOf: url) {
