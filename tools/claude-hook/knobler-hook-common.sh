@@ -23,7 +23,9 @@ knobler_hook_poll() { # $1=url $2=deadline epoch [$3=bearer token]
     local state header=()
     [ -n "${3:-}" ] && header=(-H "Authorization: Bearer $3")
     while [ "$(date +%s)" -lt "$2" ]; do
-        state="$(curl -sf -m 2 "${header[@]}" "$1" 2>/dev/null)" || return 1
+        # `${header[@]+…}`: no bash 3.2 do macOS, array vazio com `set -u`
+        # aborta com "unbound variable" (o poll sem token do Ask sempre falhava)
+        state="$(curl -sf -m 2 ${header[@]+"${header[@]}"} "$1" 2>/dev/null)" || return 1
         if [ "$(printf '%s' "$state" | jq -r '(.answered // false) or (.cancelled // false) or ((.state // "pending") != "pending")' 2>/dev/null)" = "true" ]; then
             printf '%s' "$state"
             return 0

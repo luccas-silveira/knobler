@@ -1,5 +1,5 @@
 #!/bin/bash
-# Contract check for the Claude PermissionRequest adapter.
+# Contract check for the Claude PermissionRequest and AskUserQuestion adapters.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 FIXTURE="$ROOT/fixtures/permission-request.json"
@@ -24,6 +24,16 @@ action, payload, port_file = sys.argv[1:]
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args): pass
     def do_POST(self):
+        if self.path == "/ask":
+            size = int(self.headers["Content-Length"])
+            with open(payload, "wb") as out:
+                out.write(self.rfile.read(size))
+            self.send_response(200); self.end_headers(); self.wfile.write(b'{"ok":true}')
+            return
+        if self.path.startswith("/ask/"):  # cancel: o card seria cancelado
+            open(payload + ".cancelled", "w").close()
+            self.send_response(200); self.end_headers(); self.wfile.write(b'{"ok":true}')
+            return
         if self.path != "/agent-requests" or self.headers.get("Authorization") != "Bearer hook-test-token":
             self.send_error(401); return
         if action == "timeout":
@@ -34,6 +44,10 @@ class Handler(BaseHTTPRequestHandler):
             out.write(self.rfile.read(size))
         self.send_response(200); self.end_headers(); self.wfile.write(b'{"ok":true}')
     def do_GET(self):
+        if self.path.startswith("/ask/"):
+            body = json.dumps({"answered": True, "answers": {"Qual?": {"labels": [action]}}}).encode()
+            self.send_response(200); self.end_headers(); self.wfile.write(body)
+            return
         response = {"state": "resolved", "result": {"action": action, "responder": "nob", "state": "resolved"}}
         body = json.dumps(response).encode()
         self.send_response(200); self.end_headers(); self.wfile.write(body)
@@ -77,6 +91,20 @@ run_case() { # $1=action $2=expected JSON
 run_case allow '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}'
 run_case deny '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny"}}}'
 run_case allowForSession '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow","updatedPermissions":[{"type":"addRules","rules":[{"toolName":"Bash","ruleContent":"npm test"}],"behavior":"allow","destination":"session"}]}}}'
+
+# AskUserQuestion: poll SEM token (array de header vazio). Rodado pelo
+# shebang, ou seja, no /bin/bash 3.2 do macOS — onde `set -u` quebrava.
+ASK_PAYLOAD="$TMP/ask.json"
+start_api Sim "$ASK_PAYLOAD"
+ASK="$(printf '%s' '{"cwd":"/tmp/proj","tool_input":{"questions":[{"question":"Qual?","options":[{"label":"Sim"}]}]}}' \
+    | KNOBLER_PORT="$SERVER_PORT" "$ROOT/knobler-ask.sh")"
+kill "$SERVER_PID" 2>/dev/null || true
+wait "$SERVER_PID" 2>/dev/null || true
+unset SERVER_PID
+test ! -e "$ASK_PAYLOAD.cancelled"
+jq -e '.source == "proj" and (.questions | length) == 1' "$ASK_PAYLOAD" >/dev/null
+printf '%s' "$ASK" | jq -e '.hookSpecificOutput.permissionDecision == "allow"
+    and .hookSpecificOutput.updatedInput.answers == {"Qual?": "Sim"}' >/dev/null
 
 DOWN="$(KNOBLER_PORT=1 KNOBLER_AGENT_REQUEST_TOKEN="$TOKEN_FILE" "$ROOT/knobler-permission.sh" < "$FIXTURE")"
 test -z "$DOWN"
