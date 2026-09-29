@@ -6,6 +6,9 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Fixed
+- API local: páginas abertas no navegador não conseguem mais chamar a API (travar o teclado, ligar a câmera, criar perguntas falsas no notch) nem ler as respostas por DNS rebinding. curl e scripts seguem funcionando igual.
+
 ## [0.35.2] - 2026-09-24
 
 ### Fixed

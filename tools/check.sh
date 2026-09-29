@@ -63,6 +63,7 @@ swift_check() {
 echo "== self-checks Swift =="
 swift_check presentationcheck Knobler/NotchSectionOrder.swift Knobler/NotchPresentation.swift tools/presentationcheck.swift
 swift_check askcheck          Knobler/AskModels.swift Knobler/AskFeature.swift tools/askcheck.swift
+swift_check apiguardcheck      Knobler/NotchAPIGuard.swift tools/apiguardcheck.swift
 swift_check updatercheck      Knobler/Updater.swift tools/updatercheck.swift
 swift_check agentrequestcheck Knobler/AgentRequestModels.swift Knobler/AgentRequestStore.swift tools/agentrequestcheck.swift
 # backend vendorizado inteiro: o modelo do codenotch se amarra em quase tudo.

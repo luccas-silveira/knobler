@@ -12,7 +12,8 @@ struct AgentRequestAPICheckLauncher {
         compiler.arguments = [
             "swiftc", "-parse-as-library",
             "Knobler/AgentRequestModels.swift", "Knobler/AskModels.swift",
-            "Knobler/NotchAPIServer.swift", "tools/agentrequest-api-server-check.swift",
+            "Knobler/NotchAPIServer.swift", "Knobler/NotchAPIGuard.swift",
+            "tools/agentrequest-api-server-check.swift",
             "-o", "/tmp/agentrequest-api-check-inner",
         ]
         try compiler.run()

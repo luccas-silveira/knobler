@@ -14,6 +14,24 @@ agentes usam um token efêmero de sessão, gravado com modo `0600` em
 Ligue em Ajustes → Notch → API local. Desligar a opção fecha o listener e
 remove activities e perguntas pendentes.
 
+## Segurança: requisições de navegador
+
+Escutar só no loopback não impede que uma página aberta no navegador chame a
+API. Por isso o servidor recusa com `403` as requisições que só um navegador
+faria:
+
+- `Host` diferente de `127.0.0.1` ou `localhost` (com ou sem `:4477`). Isso
+  bloqueia DNS rebinding, em que um domínio externo passa a resolver para o
+  loopback.
+- `Origin` presente e diferente de `http://127.0.0.1:4477` ou
+  `http://localhost:4477`. Isso bloqueia CSRF: todo POST de navegador leva
+  `Origin`.
+- `Sec-Fetch-Site` diferente de `none` ou `same-origin`. Isso bloqueia o GET
+  cross-site, como `<img src="…/ask/<id>">`, que consumiria uma resposta.
+
+curl, scripts e hooks não mandam esses headers e continuam funcionando sem
+mudança.
+
 ## Ferramentas rápidas
 
 ```bash
@@ -251,6 +269,8 @@ Use esse endpoint para diagnóstico local, não como contrato de persistência.
 
 - `200` com `{"ok":true}` para comandos aceitos.
 - `400` para JSON inválido ou campos obrigatórios ausentes.
+- `403` para requisição de navegador (`Host`, `Origin` ou `Sec-Fetch-Site`
+  fora do loopback; veja acima).
 - `404` para endpoint desconhecido, Ask inexistente ou rota de plugin
   desinstalado (o corpo traz `plugin` com o id da peça).
 - O listener recebe até 64 KiB por requisição.

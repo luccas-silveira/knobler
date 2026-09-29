@@ -241,6 +241,11 @@ final class NotchAPIServer {
     }
 
     private func respond(to request: String) -> String {
+        let headers = request.range(of: "\r\n\r\n").map { String(request[..<$0.lowerBound]) } ?? request
+        if let motivo = NotchAPIGuard.rejeicao(headers: headers, porta: listenPort) {
+            return Self.forbidden(motivo)
+        }
+
         let json: [String: Any]? = request.range(of: "\r\n\r\n").flatMap {
             try? JSONSerialization.jsonObject(
                 with: Data(request[$0.upperBound...].utf8)) as? [String: Any]
@@ -584,6 +589,10 @@ final class NotchAPIServer {
 
     private static func badRequest(_ error: String) -> String {
         http(status: "400 Bad Request", body: #"{"ok":false,"error":"\#(error)"}"#)
+    }
+
+    private static func forbidden(_ error: String) -> String {
+        http(status: "403 Forbidden", body: #"{"ok":false,"error":"\#(error)"}"#)
     }
 
     private static func notFound(_ error: String) -> String {
