@@ -9,6 +9,7 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 ### Fixed
 - API local: páginas abertas no navegador não conseguem mais chamar a API (travar o teclado, ligar a câmera, criar perguntas falsas no notch) nem ler as respostas por DNS rebinding. curl e scripts seguem funcionando igual.
 - Relay de webhooks: uma requisição de upgrade com URL malformada derrubava o servidor e desconectava todo mundo.
+- Hook do Claude Code: perguntas (AskUserQuestion) nunca chegavam ao notch no bash padrão do macOS — o card aparecia e sumia na hora.
 
 ## [0.35.2] - 2026-09-24
 
