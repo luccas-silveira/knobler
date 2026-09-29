@@ -264,8 +264,12 @@ struct NotchView: View {
             if !inside, vm.notificationHeld, mode != .notification { vm.holdNotification(false) }
             if mode == .notification {
                 vm.holdNotification(inside)
+                // card aberto por hover por baixo da notificação: sem isto ele
+                // fica aberto pra sempre quando ela some (ninguém agenda o fechar)
+                if !inside { vm.setHover(false) }
             } else if mode == .message {
                 vm.holdIncoming(inside)
+                if !inside { vm.setHover(false) }
             } else if mode == .airpods || mode == .airpodsIsland {
                 // entrada promove sem acordar a música; saída também fecha a
                 // música pendente, senão ela assume quando os AirPods somem
