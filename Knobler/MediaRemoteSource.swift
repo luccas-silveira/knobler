@@ -100,7 +100,9 @@ final class MediaRemoteSource {
         proc.standardError = FileHandle.nullDevice
         pipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
-            guard !data.isEmpty else { return }
+            // EOF: o handler dispara sem parar com dado vazio (100% de CPU)
+            // até ser removido — o stream morreu, não há mais nada a ler.
+            guard !data.isEmpty else { handle.readabilityHandler = nil; return }
             DispatchQueue.main.async { self?.consume(data) }
         }
         proc.terminationHandler = { [weak self] _ in
