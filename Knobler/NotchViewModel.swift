@@ -511,6 +511,11 @@ final class NotchViewModel: ObservableObject {
     private let actionableDuration: TimeInterval = 30.0
     private let hudDuration: TimeInterval = 1.5
     private var queue: [NotchNotification] = []
+    /// Teto da fila de cards esperando a vez. Cada card fica 5 s na tela, então
+    /// uma rajada de webhooks — ou uma nota em edição esquecida aberta, que
+    /// segura tudo — empilhava sem limite. O que cai fora já está no Histórico:
+    /// o `enqueue` grava lá antes de enfileirar.
+    static let filaMaxima = 20
     private var dismissWork: DispatchWorkItem?
     private var hudWork: DispatchWorkItem?
 
@@ -671,7 +676,7 @@ final class NotchViewModel: ObservableObject {
         if activeNotification == nil, !protegeEdicao {
             show(notification)
         } else {
-            queue.append(notification)
+            queue.enfileirar(notification, teto: Self.filaMaxima)
         }
     }
 

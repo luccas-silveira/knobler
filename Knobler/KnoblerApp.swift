@@ -60,6 +60,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private struct ScreenNotch {
         let window: NotchWindow
         let viewModel: NotchViewModel
+        /// Assinaturas que só valem enquanto esta tela existe e morrem junto
+        /// com a entrada em `notches`. Num `Set` do AppDelegate (como era)
+        /// cada monitor desconectado deixava a sua pra trás, viva pra sempre.
+        var assinaturas = Set<AnyCancellable>()
     }
 
     private var notches: [CGDirectDisplayID: ScreenNotch] = [:]
@@ -73,6 +77,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let battery = BatteryMonitor()
     private let bluetooth = BluetoothMonitor()
     private let micMonitor = MicMonitor()
+    /// Amostra memória/CPU no lançamento e a cada 5 min (`desempenho.jsonl`).
+    private let desempenho = MonitorDeDesempenho()
     /// O token de agente nasce junto do servidor, no primeiro uso (dentro do
     /// `applicationDidFinishLaunching`), e não no init do delegate: gravar o
     /// arquivo é efeito que só a instância que venceu a `InstanciaUnica` pode
@@ -82,7 +88,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // Única fonte de estado da feature Ask, compartilhada por todas as telas.
     private var askStore: AskStore?
     private var agentRequestStore: AgentRequestStore?
-    private var lanCancellables = Set<AnyCancellable>()
     /// ponytail: `@EnvironmentObject` exige o tipo, não aceita opcional — sem a
     /// peça Mensagens instalada não há `MensagensServico`, então as views que
     /// recebem `.environmentObject(lanMessaging)`/`(messageStore)` ganham estas
@@ -648,6 +653,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         plugins.subir()
         // Só agora as janelas: ver o comentário no lugar de onde esta linha veio.
         placeWindows()
+        // Depois das janelas, pra primeira amostra já contar os notches.
+        desempenho.contexto = { [weak self] in
+            .init(notches: self?.notches.count ?? 0,
+                  displays: NSScreen.screens.count,
+                  janelas: NSApp.windows.count)
+        }
+        desempenho.iniciar()
         // espelho automático: abre 2min antes da call, fecha quando ela começa
         calendar.onMirrorMoment = { [weak self] imminent in
             guard let self, PluginHost.shared.estaInstalado(.espelho) else { return }
@@ -708,6 +720,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             status["plugins"] = PluginID.allCases
                 .filter(PluginHost.shared.estaInstalado)
                 .map(\.rawValue)
+            // a última amostra do registro de desempenho (lançamento ou ≤ 5 min)
+            status["desempenho"] = self?.desempenho.ultima?.json ?? [:]
             return status
         }
         apiCancellable = AppSettings.shared.objectWillChange
@@ -1272,8 +1286,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     guard let viewModel, viewModel.abertoPorTeclado, viewModel.mode == .music else { return }
                     viewModel.setExpandedDirect(false)
                 }
-                notch = ScreenNotch(window: panel, viewModel: viewModel)
-                notches[id] = notch
+                var novo = ScreenNotch(window: panel, viewModel: viewModel)
+                // Rede Local: liga o Bonjour quando Mensagens entra em foco no card
+                // (app ativo → prompt num momento sensato). start() é idempotente.
+                viewModel.$focus
+                    .filter { $0 == .mensagens }
+                    .sink { [weak self] _ in self?.mensagensServico?.lanMessaging.start() }
+                    .store(in: &novo.assinaturas)
+                notch = novo
+                notches[id] = novo
 
                 // botão do card → adia o lembrete (token = id dele) ou, quando o
                 // token é de um alerta interceptado, aciona o botão real do sistema.
@@ -1372,13 +1393,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     Updater.shared.skipCurrent()
                     self?.notches.values.forEach { $0.viewModel.updateCard = false }
                 }
-                // Rede Local: liga o Bonjour quando Mensagens entra em foco no card
-                // (app ativo → prompt num momento sensato). start() é idempotente.
-                viewModel.$focus
-                    .filter { $0 == .mensagens }
-                    .sink { [weak self] _ in self?.mensagensServico?.lanMessaging.start() }
-                    .store(in: &lanCancellables)
-
             }
 
             notch.viewModel.notchSize = Self.notchSize(of: screen)
@@ -1399,6 +1413,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             notch.viewModel.suspendPresentation()
             notch.window.allowsKeyboard = false
             notch.window.orderOut(nil)
+            // Fecha e solta o conteúdo: só tirar do dicionário deixava a janela
+            // e o grafo SwiftUI dela (com o view model) à mercê de qualquer
+            // referência perdida — e o monitor que volta ganha tudo novo.
+            notch.window.close()
+            notch.window.contentView = nil
             notches.removeValue(forKey: id)
         }
 

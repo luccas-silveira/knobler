@@ -122,6 +122,10 @@ swift_check tecladocheck         Knobler/TecladoBloqueado.swift tools/tecladoche
 # a decisão pura da instância única; o caminho AppKit de verdade é o
 # instancia-e2e, mais abaixo, que precisa de sessão gráfica.
 swift_check instanciacheck       Knobler/InstanciaUnica.swift tools/instanciacheck.swift
+# Registro de desempenho: formato da linha, cpu_pct e poda sem reescrita a cada amostra.
+swift_check desempenhocheck      Knobler/Desempenho.swift tools/desempenhocheck.swift
+# Avatar remoto: o cache guarda a miniatura (≤ 128 px), não a imagem cheia.
+swift_check avatarcheck          Knobler/RemoteAvatarLoader.swift tools/avatarcheck.swift
 # Diagnóstico passivo: a integração não pode sumir nem voltar a reconstruir a raiz.
 run cortedetectorcheck bash -c '
 grep -qF "SensorDeCorte(vigia: vigia" Knobler/NotchView.swift || exit 1

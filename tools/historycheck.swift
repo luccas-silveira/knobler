@@ -18,6 +18,7 @@ struct HistoryCheck {
         testWebhookSubstitui()
         testMesmoIDUmaVez()
         testTetoDeLinhas()
+        testTetoDaFila()
         testPersistencia()
         testSubtitleNoDisco()
         testApagar()
@@ -130,6 +131,18 @@ struct HistoryCheck {
         assert(h.items.count == 300, "teto de 300 linhas, veio \(h.items.count)")
         assert(h.items.first?.title == "399", "o topo continua sendo o mais recente")
         assert(h.items.last?.title == "100", "quem cai é o mais antigo")
+    }
+
+    /// A fila de cards do `NotchViewModel` (`enfileirar`): uma rajada não
+    /// empilha sem fim — ficam as `teto` mais novas, na ordem de chegada.
+    static func testTetoDaFila() {
+        var fila: [NotchNotification] = []
+        for i in 0..<50 {
+            fila.enfileirar(NotchNotification(appName: "Rajada", title: "\(i)", body: ""), teto: 20)
+        }
+        assert(fila.count == 20, "teto de 20 cards na fila, veio \(fila.count)")
+        assert(fila.first?.title == "30", "quem sai da fila é o mais antigo")
+        assert(fila.last?.title == "49", "o mais novo fica no fim")
     }
 
     /// O histórico virou o único destino de uma notificação silenciada em

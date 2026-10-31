@@ -313,6 +313,43 @@ suspeitar de defeito:
 
 Ver [Avisos do desenvolvedor](avisos.md).
 
+## Memória ou CPU subindo com o tempo
+
+O Knobler guarda um registro de desempenho próprio: uma amostra no lançamento e
+outra a cada 5 minutos, uma linha JSON por amostra, em
+`~/Library/Application Support/Knobler/desempenho.jsonl`. O arquivo cobre os
+últimos 7 dias (2016 amostras); a gravação comum é só um append, e a poda
+reescreve o arquivo uma vez a cada ~17 h, quando ele passa 10% desse teto.
+
+| Campo | O que é |
+|---|---|
+| `data` | ISO 8601, com fuso |
+| `versao`, `pid` | versão do app e processo — um `pid` novo é um relançamento |
+| `uptime_s` | segundos desde que o processo nasceu (conta o Mac dormindo) |
+| `footprint_mb` | `phys_footprint`, o número do Monitor de Atividade |
+| `residente_mb` | memória residente |
+| `cpu_s` | CPU acumulada (usuário + sistema) desde o lançamento |
+| `cpu_pct` | CPU desde a amostra anterior, em % de um núcleo (como o `top`); o intervalo não conta o Mac dormindo |
+| `threads` | threads do processo |
+| `notches`, `displays` | notches vivos e monitores que o macOS reporta — divergir é sintoma |
+| `janelas` | janelas do app; subir sem motivo é janela que não foi liberada |
+
+Como ler: memória que sobe e **estabiliza** é cache; memória que sobe em
+**rampa** com o `pid` igual é vazamento. Se a rampa acompanha `notches`,
+`displays` ou `janelas`, o culpado está na troca de monitor.
+
+```bash
+# footprint e CPU ao longo do tempo
+jq -r '[.data, .footprint_mb, .cpu_pct, .notches, .janelas] | @tsv' \
+  ~/Library/Application\ Support/Knobler/desempenho.jsonl | tail -50
+```
+
+A última amostra também sai no `GET /status`, no campo `desempenho` (ver
+[`local-api.md`](local-api.md)), e cada uma vai pro log unificado
+(`log stream --info --predicate 'subsystem == "com.zoi.knobler" && category == "desempenho"'`).
+Para um retrato por categoria (Malloc, Image IO, IOSurface) no instante, use
+`footprint -p $(pgrep -x Knobler)`.
+
 ## Logs úteis
 
 O app registra no log unificado do macOS com o subsystem `com.zoi.knobler`.
