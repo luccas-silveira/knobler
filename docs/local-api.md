@@ -157,7 +157,8 @@ Cria uma pergunta interativa. O formato é compatível com `AskUserQuestion`:
 
 `id` e `questions` não vazios são obrigatórios. Cada pergunta precisa de pelo
 menos uma opção com `label`. `source` é opcional e aparece como contexto no
-card. O resultado é mostrado no notch e consultado pelo caller via polling.
+card. O resultado é mostrado no notch e consultado pelo caller em
+`GET /ask/<id>`, de preferência em [long-poll](#long-poll-x-knobler-wait).
 
 ### `GET /ask/<id>`
 
@@ -189,6 +190,44 @@ for cancelado:
 Pergunta desconhecida retorna `404`. Perguntas pendentes expiram após 15
 minutos.
 
+### Long-poll (`X-Knobler-Wait`)
+
+`GET /ask/<id>` e `GET /agent-requests/<id>` aceitam o header
+`X-Knobler-Wait: <segundos>`. Com ele, se o estado ainda está pendente, o
+servidor segura a conexão e responde quando a pergunta ou a solicitação fica
+final (respondida, cancelada, resolvida, dispensada ou expirada) ou quando o
+prazo vence, o que vier primeiro. O JSON é o mesmo de um GET comum: prazo
+vencido devolve `{"answered":false}` ou `{"state":"pending"}`, e o estado final
+continua sendo lido uma única vez.
+
+- O prazo é limitado a 25 s. Header ausente, zero, negativo ou inválido
+  responde na hora, como sempre.
+- Estado já final, id desconhecido, `401` e `403` respondem na hora: o guarda
+  de navegador e o Bearer valem antes de segurar.
+- Cliente que desiste (Ctrl-C, timeout) libera a vaga na hora, sem consumir a
+  resposta. Acima de 64 conexões seguradas, o GET responde na hora.
+- Desligar a API derruba as conexões seguradas, como recusaria um GET novo.
+
+Por que existe: cada GET abre uma conexão TCP, e o Network.framework grava umas
+20 linhas por conexão no log do sistema. Esperar um card com polling a cada
+0,3 s enchia o log; com long-poll é uma conexão a cada 25 s.
+
+É header, e não query string, porque o app sem suporte (0.36.0 e anteriores)
+ignora o header e responde na hora. O cliente mantém o laço de sempre — GET com
+o header e, se ainda pendente, `sleep 0.3` — e funciona com as duas versões. O
+timeout do cliente precisa cobrir a espera, com folga:
+
+```bash
+while :; do
+  state="$(curl -sf -m 30 -H 'X-Knobler-Wait: 25' http://127.0.0.1:4477/ask/ask-123)" || break
+  case "$state" in *'"answered":true'* | *'"cancelled":true'*) echo "$state"; break ;; esac
+  sleep 0.3
+done
+```
+
+O CLI (`knobler ask`, `knobler agent-request wait`), os hooks do Claude e a
+ponte do Codex já esperam assim.
+
 ### `POST /ask/<id>/cancel`
 
 Cancela uma pergunta pendente. A operação é idempotente e retorna
@@ -218,10 +257,17 @@ entre uma e oito `actions`. As ações são `allow`, `allowForSession`, `deny`,
 }
 ```
 
-`GET /agent-requests/<id>` retorna `{"state":"pending"}` enquanto aguarda.
-Depois retorna uma única vez o estado final e `result`; a segunda leitura é
-`404`. `POST /agent-requests/<id>/resolve` recebe uma ação no mesmo formato e
-aceita apenas uma ação oferecida. `POST /agent-requests/<id>/dismiss` cancela.
+`GET /agent-requests/<id>` retorna `{"state":"pending"}` enquanto aguarda
+(aceita [long-poll](#long-poll-x-knobler-wait)). Depois retorna uma única vez o
+estado final e `result`; a segunda leitura é `404`. A ação em `result` vem no
+mesmo formato das `actions` — um objeto, não uma string:
+
+```json
+{"id":"permission-42","state":"resolved","result":{"action":{"action":"allow"},"responder":"nob","state":"resolved"}}
+```
+
+`POST /agent-requests/<id>/resolve` recebe uma ação nesse formato e aceita
+apenas uma ação oferecida. `POST /agent-requests/<id>/dismiss` cancela.
 Resoluções repetidas são no-op: a primeira ação válida vence.
 
 ### Claude `PermissionRequest`
@@ -247,7 +293,8 @@ não responde e o Codex mostra a aprovação nativa. Detalhes em
 
 Retorna diagnóstico do app. O schema é deliberadamente extensível; campos
 atuais incluem `notches`, `player`, `visualizerTapped`, `dictation`, `ask`,
-`micInUse`, `silenciando`, `lanMessaging` e `plugins` — este último é a lista de
+`agentRequests`, `micInUse`, `silenciando`, `lanMessaging` e `plugins` — este
+último é a lista de
 ids das peças instaladas (ver [`plugins.md`](plugins.md)), pra um script
 perguntar uma vez em vez de descobrir batendo em rota; campo de peça desligada
 simplesmente não aparece. `silenciando` é `true` quando a
@@ -259,7 +306,9 @@ identificador da seção que o card aberto está mostrando (`musica`, `atividade
 reporta em `annotation`: `axTrusted`, `tapExists`, `tapEnabled`, `isActive`,
 `tool`, `background` e `lineWidth`. O espelho reporta `cameraAuth`,
 `cameraDevice`, `mirrorSessionRunning`, `mirrorUseCount` e `mirrorFailed` —
-este último é `true` quando abrir o dispositivo de vídeo falhou.
+este último é `true` quando abrir o dispositivo de vídeo falhou. `ask` e
+`agentRequests` trazem `pending` e `waiting` — este último conta as conexões em
+long-poll seguradas agora.
 
 ```bash
 curl -sS http://127.0.0.1:4477/status | jq .
@@ -276,6 +325,8 @@ Use esse endpoint para diagnóstico local, não como contrato de persistência.
 - `404` para endpoint desconhecido, Ask inexistente ou rota de plugin
   desinstalado (o corpo traz `plugin` com o id da peça).
 - O listener recebe até 64 KiB por requisição.
+- O long-poll segura um GET por no máximo 25 s e no máximo 64 conexões ao
+  mesmo tempo.
 - Corpos de `/agent-requests` são limitados a 32 KiB e retornam `413` acima
   desse limite; JSON ou campos inválidos retornam `400`, e token ausente ou
   incorreto retorna `401`.

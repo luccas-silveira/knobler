@@ -38,7 +38,9 @@ if [ "$POLL_STATUS" -ne 0 ]; then
     exit 0
 fi
 
-case "$(printf '%s' "$STATE" | jq -r '.result.action // empty' 2>/dev/null)" in
+# o app devolve a ação no formato do resolve ({"action":"allow"}); string pura
+# também vale, pra não depender do formato
+case "$(printf '%s' "$STATE" | jq -r '(.result.action | if type == "object" then .action else . end) // empty' 2>/dev/null)" in
 allow)
     printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}'
     ;;

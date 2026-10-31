@@ -44,11 +44,16 @@ class Handler(BaseHTTPRequestHandler):
             out.write(self.rfile.read(size))
         self.send_response(200); self.end_headers(); self.wfile.write(b'{"ok":true}')
     def do_GET(self):
+        # long-poll: o hook precisa pedir espera em vez de bater a cada 0,3 s
+        if self.path != "/ready":
+            with open(payload + ".wait", "w") as out:
+                out.write(self.headers.get("X-Knobler-Wait", ""))
         if self.path.startswith("/ask/"):
             body = json.dumps({"answered": True, "answers": {"Qual?": {"labels": [action]}}}).encode()
             self.send_response(200); self.end_headers(); self.wfile.write(body)
             return
-        response = {"state": "resolved", "result": {"action": action, "responder": "nob", "state": "resolved"}}
+        # formato do app: a ação vem como no resolve, {"action": "..."}
+        response = {"state": "resolved", "result": {"action": {"action": action}, "responder": "nob", "state": "resolved"}}
         body = json.dumps(response).encode()
         self.send_response(200); self.end_headers(); self.wfile.write(body)
 server = HTTPServer(("127.0.0.1", 0), Handler)
@@ -80,6 +85,7 @@ run_case() { # $1=action $2=expected JSON
     wait "$SERVER_PID" 2>/dev/null || true
     unset SERVER_PID
     test "$output" = "$expected"
+    test "$(<"$payload.wait")" = 25
     expected_details="$(jq -c '{session_id, tool_name, tool_input, permission_suggestions}' "$FIXTURE")"
     jq -e --argjson details "$expected_details" '
         .agent == "claude" and .kind == "permission" and .source == "terminal"
@@ -102,6 +108,7 @@ kill "$SERVER_PID" 2>/dev/null || true
 wait "$SERVER_PID" 2>/dev/null || true
 unset SERVER_PID
 test ! -e "$ASK_PAYLOAD.cancelled"
+test "$(<"$ASK_PAYLOAD.wait")" = 25
 jq -e '.source == "proj" and (.questions | length) == 1' "$ASK_PAYLOAD" >/dev/null
 printf '%s' "$ASK" | jq -e '.hookSpecificOutput.permissionDecision == "allow"
     and .hookSpecificOutput.updatedInput.answers == {"Qual?": "Sim"}' >/dev/null

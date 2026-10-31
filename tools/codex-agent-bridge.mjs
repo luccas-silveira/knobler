@@ -25,6 +25,9 @@ const TOKEN_FILE = process.env.KNOBLER_AGENT_REQUEST_TOKEN
   ?? join(homedir(), "Library/Application Support/Knobler/agent-request-token");
 const TIMEOUT_MS = Number(process.env.KNOBLER_AGENT_REQUEST_TIMEOUT_MS ?? 570_000);
 const POLL_MS = 300;
+// Long-poll: o app segura o GET até a decisão (ou até WAIT_S segundos). O app
+// antigo ignora o header e responde na hora; aí o POLL_MS vira o polling de antes.
+const WAIT_S = 25;
 
 const fixtureFlag = process.argv.indexOf("--fixture");
 if (process.argv.includes("--check")) await runCheck();
@@ -109,12 +112,14 @@ async function mirror(message) {
 
   const deadline = Date.now() + TIMEOUT_MS;
   while (Date.now() < deadline) {
-    const state = await api("GET", `/agent-requests/${card.id}`, token);
+    // nunca pede espera além do prazo: o dismiss do timeout precisa caber
+    const wait = Math.max(1, Math.min(WAIT_S, Math.ceil((deadline - Date.now()) / 1000)));
+    const state = await api("GET", `/agent-requests/${card.id}`, token, undefined, wait);
     if (!state) {
       console.error("codex bridge: API local caiu no meio");
       return null;
     }
-    if ((state.state ?? "pending") !== "pending") return toResult(message, state.result?.action);
+    if ((state.state ?? "pending") !== "pending") return toResult(message, actionName(state.result?.action));
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));
   }
   await api("POST", `/agent-requests/${card.id}/dismiss`, token);
@@ -161,6 +166,12 @@ function toCard(message) {
   }
 }
 
+// O app devolve a ação no formato do resolve ({"action":"allow"}); string pura
+// também vale, pra não depender do formato.
+function actionName(action) {
+  return typeof action === "object" && action !== null ? action.action : action;
+}
+
 // A decisão vira o `result` de cada schema. Ação desconhecida ou ausente =
 // nenhuma resposta, e o Codex segue com a aprovação nativa.
 function toResult(message, action) {
@@ -201,13 +212,16 @@ async function loadToken() {
   }
 }
 
-async function api(method, path, token, body) {
+// `wait` (segundos) pede long-poll; o timeout cobre a espera com folga.
+async function api(method, path, token, body, wait) {
+  const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+  if (wait) headers["X-Knobler-Wait"] = String(wait);
   try {
     const response = await fetch(`http://127.0.0.1:${PORT}${path}`, {
       method,
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers,
       body: body ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(2000),
+      signal: AbortSignal.timeout(wait ? (wait + 5) * 1000 : 2000),
     });
     if (!response.ok) return null;
     return await response.json();

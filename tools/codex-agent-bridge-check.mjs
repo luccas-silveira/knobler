@@ -38,7 +38,8 @@ const api = createServer((req, res) => {
       return end(res, 200, {
         id,
         state: "resolved",
-        result: { action: decision, responder: "nob", state: "resolved" },
+        // formato do app: a ação vem como no resolve, {"action": "..."}
+        result: { action: { action: decision }, responder: "nob", state: "resolved" },
       });
     }
     return end(res, 404, { ok: false });

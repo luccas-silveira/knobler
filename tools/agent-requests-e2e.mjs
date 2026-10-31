@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // E2E dos adapters de solicitação de agente contra uma API que imita o
 // contrato do app: primeira resposta vence, resultado de leitura única,
-// 401/413/400. Nenhuma decisão pode ser inventada quando algo dá errado.
+// 401/413/400 e long-poll (X-Knobler-Wait). Nenhuma decisão pode ser
+// inventada quando algo dá errado.
 
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
@@ -42,7 +43,7 @@ const api = createServer((req, res) => {
       } catch {
         return end(res, 400, { ok: false });
       }
-      requests.set(card.id, { card, result: null, consumed: false });
+      requests.set(card.id, { card, result: null, consumed: false, waits: [] });
       return end(res, 200, { ok: true });
     }
     const entry = requests.get(id);
@@ -59,14 +60,28 @@ const api = createServer((req, res) => {
       return end(res, 200, { ok: true });
     }
     if (req.method === "GET" && !verb) {
-      if (!entry.result) return end(res, 200, { id, state: "pending" });
-      if (entry.consumed) return end(res, 404, { ok: false });
-      entry.consumed = true;
-      return end(res, 200, { id, state: entry.result.state, result: entry.result });
+      const wait = Math.min(25, Number(req.headers["x-knobler-wait"]) || 0);
+      entry.waits?.push(wait);
+      return answerRead(res, id, entry, Date.now() + wait * 1000);
     }
     return end(res, 404, { ok: false });
   });
 });
+
+// Long-poll como no app: pendente com X-Knobler-Wait segura a resposta até a
+// decisão ou o prazo; sem o header responde na hora.
+function answerRead(res, id, entry, deadline) {
+  if (!entry.result && Date.now() < deadline) {
+    setTimeout(() => answerRead(res, id, entry, deadline), 10);
+    return;
+  }
+  if (!entry.result) return end(res, 200, { id, state: "pending" });
+  if (entry.consumed) return end(res, 404, { ok: false });
+  entry.consumed = true;
+  // formato do app: a ação vem como no resolve, {"action": "..."}
+  const result = { ...entry.result, action: { action: entry.result.action } };
+  return end(res, 200, { id, state: entry.result.state, result });
+}
 await new Promise((resolve) => api.listen(0, "127.0.0.1", resolve));
 const PORT = api.address().port;
 
@@ -76,6 +91,7 @@ try {
   await testExpiryNeverAllows();
   await testHostileCommandIsInert();
   await testRejectedPayloads();
+  await testLongPoll();
   console.log("agent-requests e2e: OK");
 } catch (error) {
   console.error(`agent-requests e2e: ${error.message}`);
@@ -103,7 +119,7 @@ async function testRace() {
   assert(["terminal", "nob"].includes(entry.result.responder), "vencedor inesperado");
 
   const first = await read("race-1");
-  assert(first.state === "resolved" && first.result.action === entry.result.action, "resultado divergente");
+  assert(first.state === "resolved" && first.result.action.action === entry.result.action, "resultado divergente");
   const second = await read("race-1");
   assert(second === 404, "o resultado precisa ser consumido na primeira leitura");
 }
@@ -155,20 +171,39 @@ async function testRejectedPayloads() {
   assert(await post("/agent-requests", "x".repeat(MAX_BODY + 1), TOKEN) === 413, "corpo grande precisa dar 413");
 }
 
+// Decisão que demora no notch: o adapter espera num GET só, segurado pelo
+// app, em vez de bater a cada 0,3 s — e recebe a decisão assim que ela sai.
+async function testLongPoll() {
+  for (const agent of ["claude", "codex"]) {
+    const input = agent === "claude" ? claudePayload("hook-long-poll") : codexFixture("codex-long-poll");
+    const run = await publishThen(agent, (id) => {
+      setTimeout(() => {
+        requests.get(id).result = { action: "deny", responder: "nob", state: "resolved" };
+      }, 700);
+    }, input);
+    const answered = agent === "claude" ? run.stdout.includes('"behavior":"deny"') : run.stdout.includes('"decline"');
+    assert(answered, `${agent}: a decisão do long-poll não chegou (${run.stdout}${run.stderr})`);
+    const { waits } = requests.get(run.id);
+    assert(waits.length === 1, `${agent}: esperava 1 GET segurado, vieram ${waits.length}`);
+    assert(waits[0] >= 1 && waits[0] <= 25, `${agent}: X-Knobler-Wait ausente ou fora do teto (${waits[0]})`);
+  }
+}
+
 // Roda um adapter e resolve a solicitação assim que ela é publicada.
 async function publishThen(agent, decide, input) {
   const before = new Set(requests.keys());
   const run = agent === "claude" ? runHook(input, PORT) : runBridge(input, PORT);
   const deadline = Date.now() + 5_000;
+  let fresh;
   while (Date.now() < deadline) {
-    const fresh = [...requests.keys()].find((id) => !before.has(id));
+    fresh = [...requests.keys()].find((id) => !before.has(id));
     if (fresh) {
       decide(fresh);
       break;
     }
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
-  return run;
+  return { ...(await run), id: fresh };
 }
 
 function claudePayload(session, command = "npm test") {

@@ -282,12 +282,12 @@ Claude Code
                                           ├─ resolve -> AskStore effect
                                           │              └─ server.resolveAsk
                                           └─ cancel  -> server.cancelAsk
-Claude Code <── GET /ask/<id> (polling, leitura única)
+Claude Code <── GET /ask/<id> (long-poll, leitura única)
 ```
 
 O reducer é síncrono e puro: não conhece SwiftUI, Network, AppKit ou
 `DispatchQueue`. `AskStore` é `@MainActor`/`@Observable` e executa os efeitos
-assíncronos. O servidor continua dono do protocolo HTTP, do polling, da
+assíncronos. O servidor continua dono do protocolo HTTP, do long-poll, da
 primeira resposta vencedora e dos TTLs.
 
 Invariantes importantes:
