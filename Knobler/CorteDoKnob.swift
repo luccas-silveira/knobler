@@ -5,7 +5,17 @@
 //  Registro passivo de desvios da moldura e do host em relação ao topo.
 //  A apresentação tem identidade estável: nenhuma prova reconstrói views.
 //  Altura animada entra apenas como contexto, nunca como violação.
+//
+//  Só vira prova o desvio que alguém poderia ver: moldura com área, janela
+//  visível e desvio que sobrevive à `CorteDoKnob.espera`, contada também a
+//  partir da última reconfiguração de tela. O `setFrame` do AppKit roda uma
+//  passada de layout com a janela já no tamanho novo e o host ainda no velho
+//  (0×0 quando o host acabou de ser pendurado); a passada seguinte, no mesmo
+//  giro, acerta. Eram 48 de 48 linhas do `corte-do-knob.jsonl` até 30/10.
+//  Quando um corte gravado some, a cura vira linha também (`curou: true`).
 
+import AppKit
+import Combine
 import SwiftUI
 import os
 
@@ -27,11 +37,24 @@ enum CorteDoKnob {
     static func viola(lacuna: CGFloat) -> Bool {
         !lacuna.isFinite || abs(lacuna) > toleranciaPt
     }
+
+    /// Moldura sem área não foi medida: é o host recém-pendurado na janela
+    /// (0×0, com a janela já do tamanho da tela — a lacuna sai igual à altura
+    /// dela) ou nada desenhado. Não há o que cortar.
+    static func medida(_ moldura: CGRect) -> Bool {
+        !moldura.isNull && moldura.width > 0 && moldura.height > 0
+    }
+
+    /// Quanto um desvio precisa durar pra virar prova, em segundos — contado
+    /// do instante em que apareceu ou da última reconfiguração de tela, o que
+    /// vier depois. O defeito procurado persiste até um expandir/recolher;
+    /// o desvio de passagem do `setFrame` some na passada seguinte.
+    static let espera: TimeInterval = 1
 }
 
-/// O retrato do instante em que o invariante quebrou. Montado só na violação —
-/// no caminho normal nada disto é construído (ver o `@autoclosure` do
-/// `VigiaDoCorte.avaliar`).
+/// O retrato do instante em que o invariante quebrou (ou voltou a valer, na
+/// cura). Montado só quando um desvio aparece ou cura — no caminho normal nada
+/// disto é construído (ver o `@autoclosure` do `VigiaDoCorte.avaliar`).
 struct ContextoDoCorte {
     var mode: String
     var foco: String?
@@ -53,9 +76,15 @@ struct ProvaDoCorte {
     var contexto: ContextoDoCorte
     /// Quantas violações já tinham acontecido nesta sessão, contando esta.
     var violacao: Int
+    /// `false`: o corte acabou de assentar. `true`: um corte gravado sumiu —
+    /// a moldura e o contexto são os do instante em que voltou ao lugar.
     var curou: Bool
-    /// Violações que caíram dentro da janela desta prova e não viraram linha.
+    /// Medidas com desvio desde a linha anterior que não viraram linha.
     var suprimidas: Int = 0
+    /// Há quanto tempo o desvio existia quando esta linha foi escrita.
+    var duracao: TimeInterval = 0
+    /// Desvios desta sessão que sararam antes da `CorteDoKnob.espera`.
+    var transitorios: Int = 0
 
     var json: [String: Any] {
         [
@@ -73,6 +102,8 @@ struct ProvaDoCorte {
             "violacao": violacao,
             "violacoes_suprimidas": suprimidas,
             "curou": curou,
+            "duracao_s": (duracao * 100).rounded() / 100,
+            "transitorios": transitorios,
         ]
     }
 
@@ -120,7 +151,11 @@ final class RegistroDeProvas: @unchecked Sendable {
 
     func gravar(_ prova: ProvaDoCorte) {
         let linha = prova.linha
-        log.error("knob cortado: lacuna \(prova.lacunaPt, format: .fixed(precision: 1)) pt — \(linha, privacy: .public)")
+        if prova.curou {
+            log.notice("knob curado: lacuna \(prova.lacunaPt, format: .fixed(precision: 1)) pt — \(linha, privacy: .public)")
+        } else {
+            log.error("knob cortado: lacuna \(prova.lacunaPt, format: .fixed(precision: 1)) pt — \(linha, privacy: .public)")
+        }
         fila.async { [arquivo, maximo] in
             var linhas = (try? String(contentsOf: arquivo, encoding: .utf8))?
                 .split(separator: "\n").map(String.init) ?? []
@@ -133,36 +168,145 @@ final class RegistroDeProvas: @unchecked Sendable {
 }
 
 /// Diagnóstico passivo por monitor. Nunca altera identidade, foco ou conteúdo.
+///
+/// Um desvio passa por três estados: pendente (apareceu, ainda não assentou),
+/// cortado (durou a `espera` e virou linha) e curado (voltou ao lugar depois
+/// de gravado, e virou a segunda linha). Pendente que sara antes do prazo é
+/// transitório: conta, mas não grava.
 @MainActor
 final class VigiaDoCorte: ObservableObject {
+    private struct Pendente {
+        let desde: Date
+        /// O retrato do instante em que o desvio apareceu.
+        let contexto: ContextoDoCorte
+        /// A última medida com desvio — é a que a linha mostra.
+        var moldura: CGRect
+        var lacuna: CGFloat
+    }
+
+    /// Medidas julgáveis com desvio nesta sessão.
     private(set) var violacoes = 0
+    /// Desvios que sararam antes da `espera`; nunca viraram linha.
+    private(set) var transitorios = 0
     private(set) var ultimaProva: ProvaDoCorte?
-    let intervaloDeRegistro: TimeInterval = 2
-    private var ultimaGravacao: Date?
-    private var suprimidas = 0
+    /// Há corte gravado esperando a cura.
+    var cortado: Bool { cortadoDesde != nil }
+    /// Quando o desvio pendente vai ser julgado; `nil` sem pendência.
+    var prazo: Date? {
+        guard let pendente else { return nil }
+        return max(pendente.desde, ultimaReconfiguracao ?? .distantPast)
+            .addingTimeInterval(espera)
+    }
+
     private let registro: RegistroDeProvas
+    private let espera: TimeInterval
+    private let automatico: Bool
+    private var pendente: Pendente?
+    private var cortadoDesde: Date?
+    private var ultimaReconfiguracao: Date?
+    /// Medidas com desvio desde a última linha.
+    private var desvios = 0
+    private var relogioArmado = false
+    private var escutaDeTela: AnyCancellable?
 
-    init(registro: RegistroDeProvas = .shared) { self.registro = registro }
+    /// `automatico` liga o relógio que julga o desvio pendente e a escuta de
+    /// reconfiguração de tela. O gate desliga os dois e os dirige à mão, com
+    /// o relógio dele (`revisar(agora:)`, `telaMudou(agora:)`).
+    init(registro: RegistroDeProvas = .shared,
+         espera: TimeInterval = CorteDoKnob.espera,
+         automatico: Bool = true) {
+        self.registro = registro
+        self.espera = espera
+        self.automatico = automatico
+        guard automatico else { return }
+        // resolução, Dock, monitor entrando ou saindo: a janela muda de
+        // tamanho antes do host, e a geometria passa um tempo em trânsito
+        escutaDeTela = NotificationCenter.default
+            .publisher(for: NSApplication.didChangeScreenParametersNotification)
+            .sink { [weak self] _ in Task { @MainActor in self?.telaMudou() } }
+    }
 
+    /// Chamada a cada medida. O caminho normal são umas comparações — o
+    /// contexto só é montado quando um desvio aparece ou cura, por isso o
+    /// `@autoclosure`. Devolve se esta medida desvia.
     @discardableResult
     func avaliar(moldura: CGRect,
+                 visivel: Bool = true,
                  contexto: @autoclosure () -> ContextoDoCorte,
                  agora: Date = Date()) -> Bool {
-        let lacuna = CorteDoKnob.lacunaDeTopo(molduraMinY: moldura.minY)
-        guard CorteDoKnob.viola(lacuna: lacuna) else { return false }
-        violacoes += 1
-        guard agora.timeIntervalSince(ultimaGravacao ?? .distantPast) >= intervaloDeRegistro else {
-            suprimidas += 1
-            return true
+        // fora de vista ou sem medida não há o que julgar, e o pendente perde
+        // a testemunha: volta a contar se o desvio reaparecer à vista
+        guard visivel, CorteDoKnob.medida(moldura) else {
+            pendente = nil
+            return false
         }
-        let prova = ProvaDoCorte(data: agora, lacunaPt: Double(lacuna),
-                                 moldura: moldura, contexto: contexto(), violacao: violacoes,
-                                 curou: false, suprimidas: suprimidas)
-        ultimaProva = prova
-        ultimaGravacao = agora
-        suprimidas = 0
-        registro.gravar(prova)
+        let lacuna = CorteDoKnob.lacunaDeTopo(molduraMinY: moldura.minY)
+        guard CorteDoKnob.viola(lacuna: lacuna) else {
+            if pendente != nil {
+                pendente = nil
+                transitorios += 1
+            }
+            if let desde = cortadoDesde {
+                cortadoDesde = nil
+                gravar(ProvaDoCorte(data: agora, lacunaPt: Double(lacuna), moldura: moldura,
+                                    contexto: contexto(), violacao: violacoes, curou: true,
+                                    suprimidas: desvios, duracao: agora.timeIntervalSince(desde),
+                                    transitorios: transitorios))
+            }
+            return false
+        }
+        violacoes += 1
+        desvios += 1
+        // o mesmo corte, já gravado: só conta até curar
+        guard cortadoDesde == nil else { return true }
+        if pendente == nil {
+            pendente = Pendente(desde: agora, contexto: contexto(), moldura: moldura, lacuna: lacuna)
+        } else {
+            pendente?.moldura = moldura
+            pendente?.lacuna = lacuna
+        }
+        revisar(agora: agora)
         return true
+    }
+
+    /// Julga o desvio pendente: grava se ele durou até o prazo; senão arma o
+    /// relógio pro que falta. Chamada pelo relógio, por `avaliar` e pelo gate.
+    func revisar(agora: Date = Date()) {
+        guard let pendente, let prazo else { return }
+        guard agora >= prazo else {
+            armarRelogio(em: prazo.timeIntervalSince(agora))
+            return
+        }
+        self.pendente = nil
+        cortadoDesde = pendente.desde
+        gravar(ProvaDoCorte(data: agora, lacunaPt: Double(pendente.lacuna),
+                            moldura: pendente.moldura, contexto: pendente.contexto,
+                            violacao: violacoes, curou: false, suprimidas: max(0, desvios - 1),
+                            duracao: agora.timeIntervalSince(pendente.desde),
+                            transitorios: transitorios))
+    }
+
+    /// A tela mudou: o prazo do desvio pendente recomeça daqui.
+    func telaMudou(agora: Date = Date()) {
+        ultimaReconfiguracao = agora
+    }
+
+    private func gravar(_ prova: ProvaDoCorte) {
+        ultimaProva = prova
+        desvios = 0
+        registro.gravar(prova)
+    }
+
+    /// Um relógio por vez: o prazo só anda pra frente, então quem acordar
+    /// cedo demais rearma pro que falta.
+    private func armarRelogio(em segundos: TimeInterval) {
+        guard automatico, !relogioArmado else { return }
+        relogioArmado = true
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(max(0, segundos)))
+            self?.relogioArmado = false
+            self?.revisar()
+        }
     }
 }
 

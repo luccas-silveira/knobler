@@ -117,6 +117,9 @@ grep -qF "NotchHostingView(" Knobler/KnoblerApp.swift || exit 1
 xcrun swiftc -parse-as-library -swift-version 5 \
   Knobler/CorteDoKnob.swift tools/cortedetectorcheck.swift \
   -o /tmp/cortedetectorcheck && /tmp/cortedetectorcheck'
+# O host AppKit real na sequência do placeWindows: nascer e trocar de resolução
+# não gravam; corte e cura gravam. Abre um painel com alpha 0, fora da tela.
+swift_check cortehostcheck       Knobler/CorteDoKnob.swift Knobler/NotchWindow.swift tools/cortehostcheck.swift
 # Ganhou o mesmo bloco de arquivos do plugincheck na tarefa 8 (nota vira
 # peça): `extension QuickNote: PluginServico` (QuickNote.swift) precisa do
 # protocolo de Plugin.swift, que por sua vez arrasta os tipos que as outras

@@ -50,13 +50,22 @@ final class NotchWindow: NSPanel {
         aoPerderTeclado?()
     }
     override var canBecomeMain: Bool { false }
+
+    /// O `NotchHostingView` pendura aqui a medida do corte.
+    var aoAparecer: (() -> Void)?
+    override func orderFrontRegardless() {
+        super.orderFrontRegardless()
+        aoAparecer?()
+    }
 }
 
 /// Host fixo, ancorado no painel. A sonda SwiftUI vê apenas seu próprio espaço;
 /// esta medida também enxerga deslocamento do host e alteração de seus bounds.
 final class NotchHostingView<Content: View>: NSHostingView<Content> {
     var diagnosticContext: (() -> ContextoDoCorte)?
-    private let hostMonitor = VigiaDoCorte()
+    /// `var` só pro gate (`tools/cortehostcheck.swift`) trocar o registro e o
+    /// relógio; o app usa o padrão.
+    var hostMonitor = VigiaDoCorte()
 
     var topDisplacement: CGFloat {
         guard let window else { return 0 }
@@ -67,9 +76,24 @@ final class NotchHostingView<Content: View>: NSHostingView<Content> {
 
     override func layout() {
         super.layout()
+        medirCorte()
+    }
+
+    /// O painel nasce escondido e aparece no `orderFrontRegardless`, que não
+    /// garante passada de layout: sem este gancho, um desvio que já estava lá
+    /// quando ele apareceu só seria julgado na próxima mudança de geometria.
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        (window as? NotchWindow)?.aoAparecer = { [weak self] in self?.medirCorte() }
+    }
+
+    /// Painel escondido (nascendo, ou fora por tela cheia) não mostra corte
+    /// nenhum: o vigia descarta a medida e não deixa pendência.
+    func medirCorte() {
         guard let diagnosticContext else { return }
         hostMonitor.avaliar(moldura: CGRect(x: frame.minX, y: topDisplacement,
                                             width: bounds.width, height: bounds.height),
+                            visivel: window?.isVisible == true,
                             contexto: diagnosticContext())
     }
 }
