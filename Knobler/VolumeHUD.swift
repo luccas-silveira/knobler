@@ -56,7 +56,9 @@ final class VolumeHUDController {
     var onAXTrust: ((Bool) -> Void)?
     private var lastReportedTrust: Bool?
     /// Ring de últimos eventos de tecla vistos (diagnóstico) — um slot único
-    /// era sobrescrito por ruído de mouse antes de conseguirmos ler.
+    /// era sobrescrito por ruído de mouse antes de conseguirmos ler. Sai no
+    /// /status sem autenticação: tecla que produz texto nunca entra aqui
+    /// (ver `TeclaDiagnostico`).
     private var keyLog: [String] = []
     private static let logTime: DateFormatter = {
         let f = DateFormatter()
@@ -91,9 +93,12 @@ final class VolumeHUDController {
             [weak self] _ in self?.checkTapHealth()
         }
         // diagnóstico: teclas de brilho de teclado externo podem chegar como
-        // keyDown comum (F14/F15 etc.) em vez de NX systemDefined
+        // keyDown comum (F14/F15 etc.) em vez de NX systemDefined. O monitor vê
+        // tudo o que se digita em qualquer app e o keyLog sai no /status sem
+        // autenticação, então só tecla de função entra no anel.
         NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            self?.logKey("kb=\(event.keyCode)")
+            guard let entrada = TeclaDiagnostico.entrada(keyCode: event.keyCode) else { return }
+            self?.logKey(entrada)
         }
         NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             guard event.keyCode == 61 else { return }

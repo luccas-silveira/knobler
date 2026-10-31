@@ -71,7 +71,9 @@ swift_check agentescheck     $(find Vendor/Codenotch -name '*.swift') tools/agen
 swift_check airpodscheck      Knobler/AirPodsBattery.swift tools/airpods_selfcheck.swift
 swift_check monitorescheck    Knobler/MonitoresModel.swift tools/monitorescheck.swift
 swift_check monitoresservicecheck Knobler/MonitoresModel.swift Knobler/Monitores.swift tools/monitoresservicecheck.swift
-swift_check volumehudcheck    Knobler/VolumeHUD.swift tools/volumehudcheck.swift
+swift_check volumehudcheck    Knobler/VolumeHUD.swift Knobler/TeclaDiagnostico.swift tools/volumehudcheck.swift
+# keyLog do /status sai sem autenticação: só tecla de função entra no anel.
+swift_check keylogcheck       Knobler/TeclaDiagnostico.swift tools/keylogcheck.swift
 swift_check wirecheck         Knobler/Wire.swift tools/wirecheck/main.swift
 swift_check webhookcheck      Knobler/WebhookKeychainStore.swift Knobler/WebhookClient.swift \
   Knobler/NotchNotification.swift tools/webhookcheck.swift
