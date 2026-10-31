@@ -109,6 +109,8 @@ swift_check screenshotcheck       Knobler/ScreenshotWatcher.swift Knobler/Permis
 swift_check historycheck          Knobler/NotchNotification.swift Knobler/NotificationHistory.swift Knobler/NotchGesture.swift tools/historycheck.swift
 swift_check sectionordercheck    Knobler/NotchSectionOrder.swift tools/sectionordercheck.swift
 swift_check tecladocheck         Knobler/TecladoBloqueado.swift tools/tecladocheck.swift
+# Registro de desempenho: formato da linha, cpu_pct e poda sem reescrita a cada amostra.
+swift_check desempenhocheck      Knobler/Desempenho.swift tools/desempenhocheck.swift
 # Diagnóstico passivo: a integração não pode sumir nem voltar a reconstruir a raiz.
 run cortedetectorcheck bash -c '
 grep -qF "SensorDeCorte(vigia: vigia" Knobler/NotchView.swift || exit 1

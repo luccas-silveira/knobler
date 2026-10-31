@@ -63,6 +63,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let battery = BatteryMonitor()
     private let bluetooth = BluetoothMonitor()
     private let micMonitor = MicMonitor()
+    /// Amostra memória/CPU no lançamento e a cada 5 min (`desempenho.jsonl`).
+    private let desempenho = MonitorDeDesempenho()
     private let agentRequestToken = AppDelegate.makeAgentRequestToken()
     private lazy var apiServer = NotchAPIServer(agentRequestToken: agentRequestToken)
     // Única fonte de estado da feature Ask, compartilhada por todas as telas.
@@ -634,6 +636,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         plugins.subir()
         // Só agora as janelas: ver o comentário no lugar de onde esta linha veio.
         placeWindows()
+        // Depois das janelas, pra primeira amostra já contar os notches.
+        desempenho.contexto = { [weak self] in
+            .init(notches: self?.notches.count ?? 0,
+                  displays: NSScreen.screens.count,
+                  janelas: NSApp.windows.count)
+        }
+        desempenho.iniciar()
         // espelho automático: abre 2min antes da call, fecha quando ela começa
         calendar.onMirrorMoment = { [weak self] imminent in
             guard let self, PluginHost.shared.estaInstalado(.espelho) else { return }
@@ -694,6 +703,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             status["plugins"] = PluginID.allCases
                 .filter(PluginHost.shared.estaInstalado)
                 .map(\.rawValue)
+            // a última amostra do registro de desempenho (lançamento ou ≤ 5 min)
+            status["desempenho"] = self?.desempenho.ultima?.json ?? [:]
             return status
         }
         apiCancellable = AppSettings.shared.objectWillChange

@@ -245,7 +245,7 @@ não responde e o Codex mostra a aprovação nativa. Detalhes em
 
 Retorna diagnóstico do app. O schema é deliberadamente extensível; campos
 atuais incluem `notches`, `player`, `visualizerTapped`, `dictation`, `ask`,
-`micInUse`, `silenciando`, `lanMessaging` e `plugins` — este último é a lista de
+`micInUse`, `silenciando`, `lanMessaging`, `desempenho` e `plugins` — este último é a lista de
 ids das peças instaladas (ver [`plugins.md`](plugins.md)), pra um script
 perguntar uma vez em vez de descobrir batendo em rota; campo de peça desligada
 simplesmente não aparece. `silenciando` é `true` quando a
@@ -257,10 +257,16 @@ identificador da seção que o card aberto está mostrando (`musica`, `atividade
 reporta em `annotation`: `axTrusted`, `tapExists`, `tapEnabled`, `isActive`,
 `tool`, `background` e `lineWidth`. O espelho reporta `cameraAuth`,
 `cameraDevice`, `mirrorSessionRunning`, `mirrorUseCount` e `mirrorFailed` —
-este último é `true` quando abrir o dispositivo de vídeo falhou.
+este último é `true` quando abrir o dispositivo de vídeo falhou. `desempenho` é
+a última amostra do registro de desempenho (tirada no lançamento e a cada 5
+min, nunca mais velha que isso): `data`, `versao`, `pid`, `uptime_s`,
+`footprint_mb`, `residente_mb`, `cpu_s`, `cpu_pct`, `threads`, `notches`,
+`displays` e `janelas` — os campos e o histórico de 7 dias estão em
+[`troubleshooting.md`](troubleshooting.md#memória-ou-cpu-subindo-com-o-tempo).
 
 ```bash
 curl -sS http://127.0.0.1:4477/status | jq .
+curl -sS http://127.0.0.1:4477/status | jq .desempenho
 ```
 
 Use esse endpoint para diagnóstico local, não como contrato de persistência.
