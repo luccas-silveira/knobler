@@ -211,8 +211,10 @@ molas de abertura (0,42/0,76) e fechamento (0,30/0,95), blur e transições pelo
 topo; Reduzir Movimento usa fade de 150 ms sem mola geométrica.
 
 O detector de corte é passivo: registra limites do host AppKit e da moldura
-SwiftUI sem reconstruir a árvore. Ver [diagnóstico visual](diagnostico-visual.md)
-para limites da evidência e coleta de uma ocorrência ativa.
+SwiftUI sem reconstruir a árvore. Só grava desvio medido, com o painel visível,
+que dure 1 s (contado também da última reconfiguração de tela), e grava a cura
+quando ele some. Ver [diagnóstico visual](diagnostico-visual.md) para o que vira
+linha, limites da evidência e coleta de uma ocorrência ativa.
 
 Validação: `tools/check.sh` inclui `presentationcheck` (relógio determinístico,
 prioridades, teclado, medidas e isolamento de telas). Executar também

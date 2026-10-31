@@ -8,6 +8,47 @@ Atualização de 10/09: o bug lógico de fechar durante edição foi corrigido e
 nota recolhida por gesto. A investigação abaixo permanece como histórico:
 **o vínculo com o deslocamento visual continua sem comprovação**.
 
+## O que o detector de corte grava (30/10)
+
+De 22/10 a 30/10 o `corte-do-knob.jsonl` juntou 48 linhas, todas do host
+(`mode` `host:*`) e todas falsas:
+
+- **38 com moldura 0×0 e `y` igual à altura da tela** (1117, 1329, 1080, 1920).
+  É o host recém-pendurado no painel pelo `placeWindows`: acontece a cada
+  abertura do app e a cada monitor que reconecta, com ou sem notch.
+- **10 com a altura de outra tela** (host de 1329 numa tela de 1117, de 1920
+  numa de 1080, de 1053 com o Dock à vista etc.): troca de resolução, de Dock
+  ou rotação.
+
+O mecanismo das duas é o mesmo, e está reproduzido no
+[`tools/cortehostcheck.swift`](../tools/cortehostcheck.swift): o `setFrame` roda
+uma passada de layout com a janela já no tamanho novo e o host ainda no velho;
+a passada seguinte, no mesmo giro, acerta. O detector gravava a primeira.
+O campo `curou` saía `false` fixo desde que a cura por `.id` foi removida
+(`f6dbff6`): a volta ao lugar nunca era observada.
+
+Desde então ([`CorteDoKnob.swift`](../Knobler/CorteDoKnob.swift)):
+
+1. **Medida sem área não é julgada.** Não há o que cortar.
+2. **Painel escondido não é julgado** (nascendo, ou fora por tela cheia), e o
+   desvio pendente perde a testemunha. Quando o painel volta pra frente
+   (`orderFrontRegardless`), o host mede de novo sem esperar layout.
+3. **Desvio só vira linha se durar `CorteDoKnob.espera` (1 s)**, contado do
+   instante em que apareceu ou da última `didChangeScreenParametersNotification`,
+   o que vier depois. Um relógio julga o pendente sem precisar de medida nova.
+   O que sara antes disso é contado em `transitorios`, sem linha própria.
+4. **A cura é a segunda linha do corte**: quando um corte gravado volta ao
+   lugar, sai uma linha com `curou: true`, a moldura e o contexto do instante da
+   cura (o `mode` diz o que estava acontecendo quando ele sumiu).
+
+Campos novos: `duracao_s` (há quanto tempo o desvio existia quando a linha foi
+escrita) e `transitorios` (desvios da sessão que sararam antes da espera).
+`violacoes_suprimidas` agora conta as medidas com desvio desde a linha anterior
+que não viraram linha. O invariante não mudou: lacuna de topo acima de 2 pt.
+Um corte que dure menos de 1 s não vira linha, e o detector continua lendo
+layout, não pixels — o ponto cego descrito abaixo segue valendo. As linhas
+antigas do arquivo do usuário ficam até a poda de 50 linhas tirá-las.
+
 ## Reescrita da apresentação (10/09)
 
 A implementação atual substitui o controle de abertura e a composição da
