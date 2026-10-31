@@ -78,7 +78,9 @@ function answerRead(res, id, entry, deadline) {
   if (!entry.result) return end(res, 200, { id, state: "pending" });
   if (entry.consumed) return end(res, 404, { ok: false });
   entry.consumed = true;
-  return end(res, 200, { id, state: entry.result.state, result: entry.result });
+  // formato do app: a ação vem como no resolve, {"action": "..."}
+  const result = { ...entry.result, action: { action: entry.result.action } };
+  return end(res, 200, { id, state: entry.result.state, result });
 }
 await new Promise((resolve) => api.listen(0, "127.0.0.1", resolve));
 const PORT = api.address().port;
@@ -117,7 +119,7 @@ async function testRace() {
   assert(["terminal", "nob"].includes(entry.result.responder), "vencedor inesperado");
 
   const first = await read("race-1");
-  assert(first.state === "resolved" && first.result.action === entry.result.action, "resultado divergente");
+  assert(first.state === "resolved" && first.result.action.action === entry.result.action, "resultado divergente");
   const second = await read("race-1");
   assert(second === 404, "o resultado precisa ser consumido na primeira leitura");
 }

@@ -52,7 +52,8 @@ class Handler(BaseHTTPRequestHandler):
             body = json.dumps({"answered": True, "answers": {"Qual?": {"labels": [action]}}}).encode()
             self.send_response(200); self.end_headers(); self.wfile.write(body)
             return
-        response = {"state": "resolved", "result": {"action": action, "responder": "nob", "state": "resolved"}}
+        # formato do app: a ação vem como no resolve, {"action": "..."}
+        response = {"state": "resolved", "result": {"action": {"action": action}, "responder": "nob", "state": "resolved"}}
         body = json.dumps(response).encode()
         self.send_response(200); self.end_headers(); self.wfile.write(body)
 server = HTTPServer(("127.0.0.1", 0), Handler)

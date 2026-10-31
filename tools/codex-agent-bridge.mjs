@@ -119,7 +119,7 @@ async function mirror(message) {
       console.error("codex bridge: API local caiu no meio");
       return null;
     }
-    if ((state.state ?? "pending") !== "pending") return toResult(message, state.result?.action);
+    if ((state.state ?? "pending") !== "pending") return toResult(message, actionName(state.result?.action));
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));
   }
   await api("POST", `/agent-requests/${card.id}/dismiss`, token);
@@ -164,6 +164,12 @@ function toCard(message) {
     default:
       return null;
   }
+}
+
+// O app devolve a ação no formato do resolve ({"action":"allow"}); string pura
+// também vale, pra não depender do formato.
+function actionName(action) {
+  return typeof action === "object" && action !== null ? action.action : action;
 }
 
 // A decisão vira o `result` de cada schema. Ação desconhecida ou ausente =

@@ -257,8 +257,15 @@ entre uma e oito `actions`. As ações são `allow`, `allowForSession`, `deny`,
 
 `GET /agent-requests/<id>` retorna `{"state":"pending"}` enquanto aguarda
 (aceita [long-poll](#long-poll-x-knobler-wait)). Depois retorna uma única vez o
-estado final e `result`; a segunda leitura é `404`. `POST /agent-requests/<id>/resolve` recebe uma ação no mesmo formato e
-aceita apenas uma ação oferecida. `POST /agent-requests/<id>/dismiss` cancela.
+estado final e `result`; a segunda leitura é `404`. A ação em `result` vem no
+mesmo formato das `actions` — um objeto, não uma string:
+
+```json
+{"id":"permission-42","state":"resolved","result":{"action":{"action":"allow"},"responder":"nob","state":"resolved"}}
+```
+
+`POST /agent-requests/<id>/resolve` recebe uma ação nesse formato e aceita
+apenas uma ação oferecida. `POST /agent-requests/<id>/dismiss` cancela.
 Resoluções repetidas são no-op: a primeira ação válida vence.
 
 ### Claude `PermissionRequest`
