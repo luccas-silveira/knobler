@@ -8,13 +8,17 @@ O Knobler expõe um servidor HTTP opcional em `127.0.0.1:4477`. Ele aceita
 notificações transitórias, live activities, controle do espelho e perguntas
 interativas. O servidor escuta somente loopback. As rotas legadas, incluindo
 `/ask`, permanecem sem autenticação por compatibilidade. Solicitações de
-agentes usam um token efêmero de sessão, gravado com modo `0600` em
-`~/Library/Application Support/Knobler/agent-request-token`. Cada abertura do
-app grava um token novo, e só roda uma instância por vez (a mais nova encerra a
-anterior), então o arquivo sempre corresponde ao processo que está escutando.
+agentes usam um token efêmero de sessão, gravado com modo `0600` (pasta `0700`)
+em `~/Library/Application Support/Knobler/agent-request-token`. Cada abertura do
+app gera um token novo e o grava quando a porta liga de fato — enquanto ela
+estiver com outro processo, o arquivo continua com o token de quem a tem. Só
+roda uma instância por vez (a mais nova encerra a anterior), então o arquivo
+sempre corresponde ao processo que está escutando.
 
 Ligue em Ajustes → Notch → API local. Desligar a opção fecha o listener e
-remove activities e perguntas pendentes.
+remove activities e perguntas pendentes. Se a porta estiver ocupada quando a
+API sobe, ela tenta de novo sozinha — depois de 1 s, 2 s, 4 s… até uma vez por
+minuto — até ligar ou até a opção ser desligada.
 
 ## Segurança: requisições de navegador
 
@@ -215,11 +219,22 @@ Por que existe: cada GET abre uma conexão TCP, e o Network.framework grava umas
 É header, e não query string, porque o app sem suporte (0.36.0 e anteriores)
 ignora o header e responde na hora. O cliente mantém o laço de sempre — GET com
 o header e, se ainda pendente, `sleep 0.3` — e funciona com as duas versões. O
-timeout do cliente precisa cobrir a espera, com folga:
+timeout do cliente precisa cobrir a espera, com folga.
+
+**Timeout do cliente não quer dizer API fora.** O prazo do servidor corre no
+relógio que para quando o Mac dorme; o `-m` do curl (e o `AbortSignal.timeout`
+do Node) conta o sono. Um Mac que dorme mais de 5 s no meio da espera estoura o
+cliente com a pergunta ainda pendente. Trate o timeout (curl sai com 28) com
+uma leitura sem espera: se ela responde, siga o laço; se não, o app parou de
+verdade.
 
 ```bash
 while :; do
-  state="$(curl -sf -m 30 -H 'X-Knobler-Wait: 25' http://127.0.0.1:4477/ask/ask-123)" || break
+  rc=0
+  state="$(curl -sf -m 30 -H 'X-Knobler-Wait: 25' http://127.0.0.1:4477/ask/ask-123)" || rc=$?
+  # 28 = timeout: pode ser só o Mac que dormiu
+  [ "$rc" -eq 28 ] && { rc=0; state="$(curl -sf -m 2 http://127.0.0.1:4477/ask/ask-123)" || rc=$?; }
+  [ "$rc" -eq 0 ] || break
   case "$state" in *'"answered":true'* | *'"cancelled":true'*) echo "$state"; break ;; esac
   sleep 0.3
 done

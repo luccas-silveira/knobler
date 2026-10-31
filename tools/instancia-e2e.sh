@@ -106,18 +106,38 @@ sleep 1
 [ "$(vivos | wc -w | tr -d ' ')" = 1 ] || falha "mais de uma viva: $(vivos)"
 [ "$(montaram)" = 1 ] || falha "montaram $(montaram), esperava 1"
 
-echo "6. modo headless convive (o --download-model do cask, o --selfcheck)"
+echo "6. headless antes do app: convive (o --selfcheck faz check-in no LaunchServices)"
 reinicia
-"$BIN" --cli >/dev/null 2>&1 &
+"$BIN" --selfcheck >/dev/null 2>&1 &
 CLI=$!
-espera_ate 5 grep -q "^$CLI cli$" "$LOG" || falha "headless não subiu"
+espera_ate 5 grep -q "^$CLI selfcheck$" "$LOG" || falha "headless não subiu"
+t0=$(date +%s)
 sobe 1 open -n "$APP"
+dt=$(( $(date +%s) - t0 ))
+# sem o filtro pelo argv, a app tratava o headless como instância antiga e só
+# montava depois de esperar o quit (5 s) e derrubá-lo à força
+[ "$dt" -lt 4 ] || falha "a app levou ${dt}s pra montar: esperou o headless sair"
 sleep 1
 kill -0 "$CLI" 2>/dev/null || falha "a instância nova derrubou o processo headless"
 kill "$CLI" 2>/dev/null || true
 wait "$CLI" 2>/dev/null || true
 
-echo "7. sem bundle id (harness, binário solto): não derruba ninguém"
+echo "7. headless logo depois do app: a app não sai achando que ele é mais nova"
+reinicia
+open -n "$APP" &
+OPEN=$!
+"$BIN" --selfcheck >/dev/null 2>&1 &
+CLI=$!
+wait "$OPEN" 2>/dev/null || true
+sobe 1 true
+espera_ate 5 grep -q "^$CLI selfcheck$" "$LOG" || falha "headless não subiu"
+sleep 1
+kill -0 "$CLI" 2>/dev/null || falha "a app derrubou o headless"
+[ -n "$(vivos | tr ' ' '\n' | grep -vx "$CLI")" ] || falha "só o headless ficou vivo: a app saiu"
+kill "$CLI" 2>/dev/null || true
+wait "$CLI" 2>/dev/null || true
+
+echo "8. sem bundle id (harness, binário solto): não derruba ninguém"
 A=$(ultimo_montou)
 cp "$BIN" "$SOLTO"
 "$SOLTO" >/dev/null 2>&1 &

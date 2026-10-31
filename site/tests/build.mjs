@@ -5,10 +5,11 @@
 // o Astro volta a usar o .astro/ compartilhado e os builds colidem ali. O cache
 // do Vite também é por processo (KNOBLER_VITE_CACHE, lido no astro.config.mjs):
 // o padrão node_modules/.vite é um só, e o otimizador de dependências de um
-// build apagava o deps_temp que o outro estava renomeando.
+// build apagava o deps_temp que o outro estava renomeando. A pasta (dist e cache,
+// uns 5 MB) é apagada quando o processo sai: sem isso cada ./tools/check.sh
+// deixava sete delas em site/.test-dist, pra sempre.
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync } from 'node:fs';
-import { mkdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -20,6 +21,9 @@ export function build() {
     const base = join(fileURLToPath(site), '.test-dist');
     mkdirSync(base, { recursive: true });
     const pasta = mkdtempSync(join(base, 'build-'));
+    // `exit` é síncrono, e o rmSync também; cada arquivo do node --test roda
+    // no próprio processo e só lê o dist enquanto os testes dele correm
+    process.on('exit', () => rmSync(pasta, { recursive: true, force: true }));
     const out = join(pasta, 'dist');
     execFileSync('npx', ['astro', 'build', '--outDir', out], {
       cwd: fileURLToPath(site),

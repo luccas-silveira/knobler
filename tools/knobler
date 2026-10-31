@@ -15,7 +15,8 @@ PORT="${KNOBLER_PORT:-4477}"
 # Long-poll: o app segura o GET de estado até a resposta (ou até WAIT
 # segundos) em vez de responder na hora; o app antigo ignora o header e
 # responde na hora, e aí o sleep do laço vira o polling de antes.
-WAIT=25
+# `KNOBLER_LONGPOLL_WAIT` só existe pro e2e encurtar a espera.
+WAIT="${KNOBLER_LONGPOLL_WAIT:-25}"
 cmd="${1:-}"
 shift 2>/dev/null || true
 
@@ -41,10 +42,24 @@ agent_request() { # $1=method $2=path [$3=json]
             "http://127.0.0.1:$PORT$path"
     fi
 }
+# GET de estado em long-poll. Timeout do curl (28) não é "API caiu": o -m dele
+# conta o tempo em que o Mac dormiu e o prazo do app não, então um sono no
+# meio da espera estoura o curl com o card ainda pendente. Uma leitura sem
+# espera separa os dois casos — o app responde ou está travado de verdade.
+estado_longpoll() { # $1=url [cabeçalhos extras do curl...]
+    local url="$1" rc=0 out
+    shift
+    out="$(curl -sf -m "$((WAIT + 5))" -H "X-Knobler-Wait: $WAIT" "$@" "$url")" || rc=$?
+    if [ "$rc" -eq 28 ]; then
+        rc=0
+        out="$(curl -sf -m 2 "$@" "$url")" || rc=$?
+    fi
+    [ "$rc" -eq 0 ] || return "$rc"
+    printf '%s' "$out"
+}
 agent_request_wait() { # $1=path — GET de estado em long-poll
     agent_token
-    curl -sf -m "$((WAIT + 5))" -H "X-Knobler-Wait: $WAIT" \
-        -H "Authorization: Bearer $AGENT_TOKEN" "http://127.0.0.1:$PORT$1"
+    estado_longpoll "http://127.0.0.1:$PORT$1" -H "Authorization: Bearer $AGENT_TOKEN"
 }
 
 case "$cmd" in
@@ -73,7 +88,7 @@ import json, sys
 print(json.dumps([{"label": a, "description": ""} for a in sys.argv[1:]]))' "$@")"
     post /ask "{\"id\":\"$id\",\"source\":\"CLI\",\"questions\":[{\"question\":$(esc "$q"),\"header\":\"CLI\",\"multiSelect\":false,\"options\":$opts}]}"
     while :; do
-        state="$(curl -sf -m "$((WAIT + 5))" -H "X-Knobler-Wait: $WAIT" "localhost:$PORT/ask/$id")" \
+        state="$(estado_longpoll "localhost:$PORT/ask/$id")" \
             || { echo "knobler: API caiu no meio" >&2; exit 1; }
         case "$state" in
         *'"answered":true'* | *'"cancelled":true'*)

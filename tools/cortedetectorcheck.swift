@@ -210,6 +210,26 @@ enum Gate {
         exigir(real.ultimaProva?.curou == false && real.cortado,
                "o relógio não julgou o pendente sozinho")
 
+        // 5b. Escondido entre a medida e o prazo (o `orderOut` da tela cheia não
+        //     passa por layout): o relógio pergunta ao dono da janela e não
+        //     grava. Painel de volta à vista: a próxima medida julga de novo.
+        var vista = true
+        let escondido = vigiaManual()
+        escondido.aVista = { vista }
+        escondido.avaliar(moldura: cortado, contexto: contexto(), agora: agora)
+        exigir(escondido.prazo != nil, "o desvio à vista não ficou pendente")
+        vista = false
+        escondido.revisar(agora: agora.addingTimeInterval(CorteDoKnob.espera + 1))
+        exigir(escondido.ultimaProva == nil && !escondido.cortado && escondido.prazo == nil,
+               "painel escondido no prazo virou prova: \(escondido.ultimaProva?.linha ?? "pendente")")
+        escondido.avaliar(moldura: cortado, contexto: contexto(), agora: agora.addingTimeInterval(2))
+        exigir(escondido.prazo == nil && escondido.violacoes == 1,
+               "medida com o painel escondido foi julgada (violações \(escondido.violacoes))")
+        vista = true
+        escondido.avaliar(moldura: cortado, contexto: contexto(), agora: agora.addingTimeInterval(3))
+        escondido.revisar(agora: agora.addingTimeInterval(3 + CorteDoKnob.espera))
+        exigir(escondido.ultimaProva?.curou == false, "de volta à vista, o corte não foi julgado")
+
         // 6. A prova persiste, e o arquivo não cresce sem fim.
         let registroDaPoda = registroNovo("poda")
         for i in 0..<60 {

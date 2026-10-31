@@ -18,6 +18,10 @@ enum KnoblerMain {
     static let delegate = AppDelegate()
 
     static func main() {
+        // Os três modos headless abaixo são a lista `InstanciaUnica.flagsHeadless`:
+        // a guarda reconhece pelo argv quem os roda e não os trata como instância.
+        // Modo headless novo entra lá também.
+        assert(InstanciaUnica.flagsHeadless == [DictationModelProvisioner.flag, "--permissoes", "--selfcheck"])
         // Modo provisionamento (cask postflight): baixa o modelo e sai, sem UI.
         if CommandLine.arguments.contains(DictationModelProvisioner.flag) {
             DictationModelProvisioner.runAndExit()
@@ -47,8 +51,8 @@ enum KnoblerMain {
         // Depois do `NSApplication.shared` (o check-in no LaunchServices é o que
         // deixa um lançamento simultâneo nos ver) e ANTES do `delegate`: o init
         // do AppDelegate já cria serviços, e o resto abre janelas, a porta 4477
-        // e regrava o token de agente. Os modos headless acima ficam de fora de
-        // propósito — convivem com o app aberto.
+        // e grava o token de agente. Os modos headless acima ficam de fora de
+        // propósito — convivem com o app aberto, e a guarda os ignora.
         InstanciaUnica.garantir()
         app.delegate = delegate
         app.run()
@@ -80,11 +84,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Amostra memória/CPU no lançamento e a cada 5 min (`desempenho.jsonl`).
     private let desempenho = MonitorDeDesempenho()
     /// O token de agente nasce junto do servidor, no primeiro uso (dentro do
-    /// `applicationDidFinishLaunching`), e não no init do delegate: gravar o
-    /// arquivo é efeito que só a instância que venceu a `InstanciaUnica` pode
-    /// ter — uma segunda instância que o regravasse deixava a primeira
-    /// respondendo 401 a toda aprovação.
-    private lazy var apiServer = NotchAPIServer(agentRequestToken: AppDelegate.makeAgentRequestToken())
+    /// `applicationDidFinishLaunching`), e o ARQUIVO só é gravado no `.ready`
+    /// do listener (TokenDeAgente.swift): gravar é efeito de quem tem a porta.
+    /// Uma instância que o regravasse sem ter a porta — a segunda instância de
+    /// antes da `InstanciaUnica`, ou a nova com a antiga ainda segurando a
+    /// 4477 — deixava quem responde de verdade devolvendo 401 a toda aprovação.
+    private lazy var apiServer: NotchAPIServer = {
+        let token = TokenDeAgente.gerar()
+        if token == nil { log.error("não gerou token de solicitações") }
+        let server = NotchAPIServer(agentRequestToken: token)
+        if let token {
+            server.onReady = { AppDelegate.publicarTokenDeAgente(token) }
+        }
+        return server
+    }()
     // Única fonte de estado da feature Ask, compartilhada por todas as telas.
     private var askStore: AskStore?
     private var agentRequestStore: AgentRequestStore?
@@ -887,32 +900,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    /// Cria o segredo da sessão antes de o listener aceitar conexões. Ele não
-    /// vai para defaults, logs ou saída do CLI; adaptadores locais leem o arquivo.
-    private static func makeAgentRequestToken() -> String? {
-        var bytes = [UInt8](repeating: 0, count: 32)
-        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
-            log.error("não gerou token de solicitações")
-            return nil
-        }
-        let token = Data(bytes).base64EncodedString()
+    /// Grava o arquivo que os adaptadores locais leem. Chamado a cada `.ready`
+    /// (o mesmo token, então regravar é inócuo).
+    private static func publicarTokenDeAgente(_ token: String) {
         do {
-            let manager = FileManager.default
-            let support = try manager.url(
-                for: .applicationSupportDirectory, in: .userDomainMask,
-                appropriateFor: nil, create: true
-            ).appendingPathComponent("Knobler", isDirectory: true)
-            try manager.createDirectory(
-                at: support, withIntermediateDirectories: true,
-                attributes: [.posixPermissions: 0o700]
-            )
-            let tokenURL = support.appendingPathComponent("agent-request-token")
-            try Data(token.utf8).write(to: tokenURL, options: .atomic)
-            try manager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: tokenURL.path)
-            return token
+            try TokenDeAgente.gravar(token, em: TokenDeAgente.pastaPadrao())
         } catch {
             log.error("não gravou token de solicitações: \(error.localizedDescription, privacy: .public)")
-            return nil
         }
     }
 
@@ -1260,6 +1254,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     backing: .buffered,
                     defer: false
                 )
+                viewModel.painelAVista = { [weak panel] in panel?.isVisible == true }
                 let host = NotchHostingView(
                     rootView: NotchView(
                         vm: viewModel, askStore: askStore, agentRequestStore: agentRequestStore,

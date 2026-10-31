@@ -129,8 +129,19 @@ final class NotificationInterceptor {
         lastContentKey = key
         lastContentDate = Date()
 
-        // Qual app mandou ajuda a investigar; o título é conteúdo do usuário.
-        log.notice("interceptada: app=\(parsed.appName ?? "?", privacy: .public) título=\(parsed.title, privacy: .private)")
+        // Qual app mandou ajuda a investigar; o título é conteúdo do usuário. E o
+        // "app" também pode ser: ele sai de uma heurística sobre o texto do
+        // banner, e quando ela erra (banner sem rótulo, macOS antes do Tahoe) é
+        // o nome de quem mandou a mensagem. Só sai legível — como bundle id —
+        // quando bate com um app aberto; fora disso, um hash que ainda agrupa.
+        let appAberto = parsed.appName.flatMap { nome in
+            NSWorkspace.shared.runningApplications.first { $0.localizedName == nome }?.bundleIdentifier
+        }
+        if let appAberto {
+            log.notice("interceptada: app=\(appAberto, privacy: .public) título=\(parsed.title, privacy: .private)")
+        } else {
+            log.notice("interceptada: app=\(parsed.appName ?? "?", privacy: .private(mask: .hash)) título=\(parsed.title, privacy: .private)")
+        }
 
         // AirDrop tem dono próprio (AirDropCoordenador): o "Recebendo" acompanha a
         // transferência viva e não pode ser tocado — o anel do notch já mostra o

@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const BRIDGE = join(ROOT, "codex-agent-bridge.mjs");
 const HOOK = join(ROOT, "claude-hook", "knobler-permission.sh");
+const CLI = join(ROOT, "knobler");
 const TOKEN = "e2e-token";
 const MAX_BODY = 32 * 1024;
 const CANARIES = ["/tmp/knobler-e2e-semicolon", "/tmp/knobler-e2e-subshell", "/tmp/knobler-e2e-backtick"];
@@ -44,6 +45,9 @@ const api = createServer((req, res) => {
         return end(res, 400, { ok: false });
       }
       requests.set(card.id, { card, result: null, consumed: false, waits: [] });
+      // o sono simulado (abaixo) já nasce decidido: os adapters rodam em
+      // paralelo, e o publishThen não sabe de quem é cada id novo
+      if (card.id.includes("sleep")) requests.get(card.id).result = { action: "allow", responder: "nob", state: "resolved" };
       return end(res, 200, { ok: true });
     }
     const entry = requests.get(id);
@@ -62,6 +66,13 @@ const api = createServer((req, res) => {
     if (req.method === "GET" && !verb) {
       const wait = Math.min(25, Number(req.headers["x-knobler-wait"]) || 0);
       entry.waits?.push(wait);
+      // O Mac dormiu no meio do long-poll: o prazo do app para (relógio de
+      // Mach), o do cliente não. O primeiro GET segurado de um id "sleep"
+      // nunca responde — o cliente estoura o timeout dele com o card pendente.
+      if (wait > 0 && id.includes("sleep") && !entry.dormiu) {
+        entry.dormiu = true;
+        return;
+      }
       return answerRead(res, id, entry, Date.now() + wait * 1000);
     }
     return end(res, 404, { ok: false });
@@ -92,6 +103,8 @@ try {
   await testHostileCommandIsInert();
   await testRejectedPayloads();
   await testLongPoll();
+  await testDismissKeepsNative();
+  await testSleepIsNotApiDown();
   console.log("agent-requests e2e: OK");
 } catch (error) {
   console.error(`agent-requests e2e: ${error.message}`);
@@ -143,8 +156,44 @@ async function testExpiryNeverAllows() {
   const bridgeId = await publishThen("codex", (id) => {
     requests.get(id).result = { action: "cancel", responder: "system", state: "expired" };
   }, codexFixture("codex-expired"));
-  const responses = bridgeId.stdout.trim();
-  assert(responses === "" || !responses.includes("accept"), "expiração virou accept na ponte do Codex");
+  // nem accept nem cancel: o "cancel" do expirado interromperia o turno do Codex
+  assert(bridgeId.stdout.trim() === "", `expiração virou decisão na ponte do Codex: ${bridgeId.stdout.trim()}`);
+}
+
+// ✕ no card ("Manter no agente"): a decisão fica com o agente. O resultado vem
+// com action "cancel", e nenhum adapter pode tratá-lo como decisão.
+async function testDismissKeepsNative() {
+  for (const agent of ["claude", "codex"]) {
+    const input = agent === "claude" ? claudePayload("hook-dismissed") : codexFixture("codex-dismissed");
+    const run = await publishThen(agent, (id) => {
+      requests.get(id).result = { action: "cancel", responder: "nob", state: "dismissed" };
+    }, input);
+    assert(run.code === 0 && run.stdout.trim() === "",
+      `${agent}: o ✕ do card virou decisão: ${run.stdout.trim()}`);
+  }
+}
+
+// Sono no meio do long-poll: o cliente estoura o timeout com o card pendente.
+// Isso não pode virar "API caiu" — uma leitura sem espera acha a decisão.
+async function testSleepIsNotApiDown() {
+  const cliId = "cli-sleep";
+  requests.set(cliId, {
+    card: { id: cliId }, consumed: false, waits: [],
+    result: { action: "allow", responder: "nob", state: "resolved" },
+  });
+  const [hook, bridge, cli] = await Promise.all([
+    runHook(claudePayload("hook-sleep"), PORT),
+    runBridge(codexFixture("codex-sleep"), PORT),
+    capture("/bin/bash", [CLI, "agent-request", "wait", cliId], PORT),
+  ]);
+  assert(hook.stdout.includes('"behavior":"allow"'), `hook do Claude: o sono virou API caída (${hook.stdout}${hook.stderr})`);
+  assert(bridge.stdout.includes('"accept"'), `ponte do Codex: o sono virou API caída (${bridge.stdout}${bridge.stderr})`);
+  assert(cli.code === 0 && cli.stdout.includes('"state":"resolved"'),
+    `knobler agent-request wait: o sono virou API caída (${cli.stdout}${cli.stderr})`);
+  for (const marca of ["hook-sleep", "codex-sleep", cliId]) {
+    const id = [...requests.keys()].find((chave) => chave.includes(marca));
+    assert(id && requests.get(id).dormiu, `${marca}: o GET segurado não passou pelo sono simulado`);
+  }
 }
 
 // O comando é dado: atravessa como texto e nada dele é executado.
@@ -241,6 +290,8 @@ function capture(command, args, port, input) {
         KNOBLER_PORT: String(port),
         KNOBLER_AGENT_REQUEST_TOKEN: tokenFile,
         KNOBLER_AGENT_REQUEST_TIMEOUT_MS: "5000",
+        // espera de 1 s: o timeout do cliente (espera + 5 s) cabe no teste
+        KNOBLER_LONGPOLL_WAIT: "1",
       },
       stdio: ["pipe", "pipe", "pipe"],
     });

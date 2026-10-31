@@ -103,13 +103,20 @@ final class VolumeHUDController {
         // tudo o que se digita em qualquer app e o keyLog sai no /status sem
         // autenticação, então só tecla de função entra no anel.
         NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let entrada = TeclaDiagnostico.entrada(keyCode: event.keyCode) else { return }
-            self?.logKey(entrada)
+            self?.registrarKeyDown(keyCode: event.keyCode)
         }
         NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             guard event.keyCode == 61 else { return }
             self?.logKey("mon61=\(event.modifierFlags.rawValue & 0x40 != 0 ? 1 : 0)")
         }
+    }
+
+    /// O keyDown do monitor global. Só tecla de função entra no anel: tecla
+    /// que digita alguma coisa nunca (o volumehudcheck trava os dois lados, e
+    /// o tools/check.sh que o monitor passa por aqui).
+    func registrarKeyDown(keyCode: UInt16) {
+        guard let entrada = TeclaDiagnostico.entrada(keyCode: keyCode) else { return }
+        logKey(entrada)
     }
 
     /// Estado do tap pro GET /status da API local (diagnóstico).

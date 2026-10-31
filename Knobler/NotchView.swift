@@ -226,7 +226,7 @@ struct NotchView: View {
             }
         }
         // mede a lacuna de topo da moldura desenhada; não desenha nada
-        .background(SensorDeCorte(vigia: vigia, contexto: contextoDoCorte))
+        .background(SensorDeCorte(vigia: vigia, aVista: vm.painelAVista, contexto: contextoDoCorte))
         // folga invisível de hover ao redor do card aberto: jitter na borda
         // não fecha; e o hit-test cobre o retângulo todo, não só o desenhado.
         .padding(.horizontal, presentation.hoverPadding)

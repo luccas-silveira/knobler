@@ -36,6 +36,10 @@ final class NotchViewModel: ObservableObject {
     private var opening = NotchOpening()
     private var openingWork: DispatchWorkItem?
     var questionIsActive: () -> Bool = { false }
+    /// O painel desta tela está à vista? O AppDelegate liga ao `isVisible` da
+    /// janela; a sonda do corte (`SensorDeCorte`) não julga painel escondido.
+    /// O harness de snapshot fica no padrão.
+    var painelAVista: () -> Bool = { true }
     @Published var availableSize = CGSize(width: 900, height: 900)
     private(set) var presentation: NotchPresentation?
     private var sectionInputs = NotchSectionInputs()

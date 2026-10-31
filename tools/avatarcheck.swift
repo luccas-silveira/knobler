@@ -66,6 +66,17 @@ enum Gate {
         exigir(RemoteAvatarLoader.limiteDoCache > 0 && pior <= 8 * 1024 * 1024,
                "cache cheio passa de 8 MB: \(pior) bytes")
 
+        // O cache de verdade: o teto está ligado no NSCache, e o que vai pra ele
+        // (o mesmo caminho do download) é a miniatura, não a foto cheia.
+        exigir(RemoteAvatarLoader.limiteEfetivoDoCache == RemoteAvatarLoader.limiteDoCache,
+               "o NSCache está sem o teto: countLimit \(RemoteAvatarLoader.limiteEfetivoDoCache)")
+        let guardada = RemoteAvatarLoader.imagemDoCache(de: imagem(largura: 4000, altura: 3000, tipo: .jpeg))
+        // o CGImage por trás (a rep do NSImage reporta pixels na escala da tela)
+        let cg = guardada?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        exigir(cg != nil && max(cg!.width, cg!.height) <= RemoteAvatarLoader.ladoMaximo,
+               "o cache guarda a imagem cheia: \(cg?.width ?? 0)×\(cg?.height ?? 0)")
+        exigir(RemoteAvatarLoader.imagemDoCache(de: Data("<html>oi</html>".utf8)) == nil, "HTML foi pro cache")
+
         print("avatarcheck: ok")
     }
 }

@@ -11,9 +11,11 @@ execução de cada atualização.
 ![A página de novidades aberta na versão 0.25.0, com o print da própria página e o texto explicando a mudança](images/novidades.png)
 
 <!-- Captura: WKWebView não renderiza no tools/snapshot.sh, então a imagem é
-     manual. Build Release, instalar em ~/Applications (não sobrescreva o app
-     que já estiver rodando de /Applications — de /tmp o installIssue manda
-     pro painel Permissões e a página nem abre), rodar
+     manual. Mexe na máquina do usuário, peça antes: uma instância só, e a
+     mais nova vence — rodar o binário encerra o Knobler aberto (reabra-o
+     depois com `open -a /Applications/Knobler.app`). Build Release, instalar
+     em ~/Applications (de /tmp o installIssue manda pro painel Permissões e a
+     página nem abre), rodar
      `Knobler --novidades` (mostra tudo e não grava nada), achar o windowID em
      CGWindowListCopyWindowInfo (nome "Novidades do Knobler") e
      `screencapture -o -l<id>` — sai em @2x, sem sombra e sem halo, não
@@ -39,7 +41,8 @@ local já nascem ligados, e o que dá pra mudar mora em Ajustes.
   como visto — reler não altera o que a próxima versão vai mostrar.
 - **`Knobler --novidades`** (linha de comando): mesma coisa que o item de
   menu — mostra tudo, não grava. É o modo usado pra capturar screenshot sem
-  queimar o estado da máquina.
+  marcar nenhuma versão como vista. Como só roda uma instância por vez (a mais
+  nova vence), ele encerra o Knobler que estiver aberto: reabra-o depois.
 
 ⚠️ A janela é reusada: se ela abrir sozinha num launch e você abrir o item de
 menu logo em seguida, **antes de fechar a primeira**, continua vendo só as

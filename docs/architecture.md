@@ -46,7 +46,7 @@ depois do `NSApplication.shared` e antes do `AppDelegate` nascer — antes de
 qualquer serviço, janela, porta ou token:
 
 1. lista `NSRunningApplication.runningApplications(withBundleIdentifier:)`
-   menos o próprio processo e as já encerradas;
+   menos o próprio processo, as já encerradas e os modos headless (abaixo);
 2. se existe uma **mais nova** (dois lançamentos quase simultâneos), esta sai
    com `exit(0)` sem montar nada;
 3. senão, pede `terminate()` às mais antigas (quit normal, que passa pelo
@@ -62,7 +62,15 @@ A decisão é pura em `Knobler/InstanciaUnica.swift` (gate
 
 - **Modos headless** saem antes da guarda e convivem com o app aberto: o
   `--download-model` do postflight do cask, o `--selfcheck` do
-  `tools/check.sh` e o `--permissoes` não derrubam ninguém.
+  `tools/check.sh` e o `--permissoes` não derrubam ninguém. Eles não sobem o
+  `NSApplication`, mas fazem check-in no LaunchServices assim que tocam o
+  AppKit (`NSScreen.screens`, `NSPanel` — o `--selfcheck` toca os dois) e
+  entram na lista do passo 1. Quem os tira de lá é o argv do processo, lido no
+  kernel (`sysctl(KERN_PROCARGS2)`) e comparado com
+  `InstanciaUnica.flagsHeadless`: a guarda nem os encerra nem sai achando que
+  um deles é uma instância mais nova.
+- **PID ≤ 0** (o LaunchServices devolve -1 pra app sem PID) nunca vira alvo:
+  `kill(-1, …)` atingiria todos os processos do usuário.
 - **Sem bundle id** (harness, binário solto): a guarda não faz nada.
 - **`Updater.relaunch()`**: o shell espera o PID antigo morrer antes do
   `open -a`; a nova sobe sozinha. **`brew upgrade`** troca o bundle sem fechar o
@@ -75,9 +83,15 @@ A decisão é pura em `Knobler/InstanciaUnica.swift` (gate
   antiga se perde.
 
 O token de agente nasce junto do `NotchAPIServer` (lazy, no
-`applicationDidFinishLaunching`), não no init do delegate. A prova de ponta a
-ponta com o AppKit de verdade é `tools/instancia-e2e.sh`, que lança um
-app-brinquedo com bundle id próprio (roda em `./tools/check.sh --com-ambiente`).
+`applicationDidFinishLaunching`), não no init do delegate, e o arquivo dele só
+é gravado quando o listener fica `.ready` (`Knobler/TokenDeAgente.swift`): uma
+instância antiga que ainda segure a 4477 continua atendendo com o token que os
+clientes já leem. Porta ocupada não mata a API: o servidor tenta de novo
+sozinho, com espera de 1, 2, 4… até 60 s, até ligar ou até o `stop()`. A prova
+de ponta a ponta com o AppKit de verdade é `tools/instancia-e2e.sh`, que lança
+um app-brinquedo com bundle id próprio (roda em `./tools/check.sh
+--com-ambiente`) — inclusive um headless que toca `NSScreen.screens` antes e
+logo depois da app.
 
 **Nenhuma permissão é pedida no launch.** A abertura mostra a página de
 novidades (só as versões que esta instalação ainda não viu — ver

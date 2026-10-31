@@ -12,10 +12,13 @@
 //  • Modos headless (`--download-model` do postflight do cask, `--selfcheck`
 //    do tools/check.sh, `--permissoes` do suporte) saem ANTES desta guarda: são
 //    processos de linha de comando que convivem com o app aberto. Se a guarda
-//    viesse antes, rodar o check.sh derrubaria o Knobler de quem roda. E como
-//    não sobem `NSApplication`, não fazem check-in no LaunchServices: a lista
-//    abaixo não os vê, e um app aberto durante o download do modelo não o mata
-//    (tools/instancia-e2e.sh, passo 6).
+//    viesse antes, rodar o check.sh derrubaria o Knobler de quem roda. Eles
+//    não sobem `NSApplication`, mas FAZEM check-in no LaunchServices assim que
+//    tocam o AppKit (`NSScreen.screens`, `NSPanel` — o `--selfcheck` toca os
+//    dois) e aparecem na lista abaixo. Quem os tira de lá é o argv
+//    (`InstanciaUnica.flagsHeadless`, lido do kernel): sem esse filtro, um app
+//    aberto durante o selfcheck o derrubava, ou saía achando que ele era uma
+//    instância mais nova (tools/instancia-e2e.sh, passos 6 e 7).
 //  • Sem bundle id (harness compilado com swiftc, binário solto): não há com
 //    quem comparar — a guarda não faz nada.
 //  • `Updater.relaunch()`: o shell espera o PID antigo MORRER (com `kill -9` em
@@ -66,7 +69,10 @@ extension InstanciaUnica {
         // uma terceira cópia que faz check-in enquanto esperamos; um processo
         // que nem o SIGKILL tira não tem o que fazer além de registrar e seguir.
         for _ in 0..<3 {
+            // PID ≤ 0 (o LaunchServices devolve -1 pra app sem PID) nunca entra:
+            // um `kill(-1, SIGKILL)` mais abaixo mataria todo processo do usuário
             let apps = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+                .filter { $0.processIdentifier > 0 && !ehModoHeadless($0.processIdentifier) }
             let outras = apps.map { app in
                 InstanciaVista(pid: app.processIdentifier,
                                inicio: inicio(de: app.processIdentifier) ?? app.launchDate,
@@ -88,7 +94,9 @@ extension InstanciaUnica {
                 guard !teimosas.isEmpty else { continue }
                 log.error("instância anterior não saiu em \(Int(esperaPeloQuit)) s (pid \(teimosas.map(String.init).joined(separator: ", "), privacy: .public)); forçando")
                 for app in alvos where teimosas.contains(app.processIdentifier) {
-                    if !app.forceTerminate() { kill(app.processIdentifier, SIGKILL) }
+                    if !app.forceTerminate(), app.processIdentifier > 0 {
+                        kill(app.processIdentifier, SIGKILL)
+                    }
                 }
                 let sobreviventes = esperar(teimosas, por: esperaPeloKill)
                 if !sobreviventes.isEmpty {
@@ -111,11 +119,6 @@ extension InstanciaUnica {
             vivos = vivos.filter(estaVivo)
         }
         return vivos
-    }
-
-    /// O processo existe? `EPERM` = existe, mas é de outro usuário.
-    static func estaVivo(_ pid: pid_t) -> Bool {
-        kill(pid, 0) == 0 || errno == EPERM
     }
 
     /// Início do processo segundo o kernel. `nil` se o PID não existe mais.

@@ -51,11 +51,18 @@ final class NotchWindow: NSPanel {
     }
     override var canBecomeMain: Bool { false }
 
-    /// O `NotchHostingView` pendura aqui a medida do corte.
-    var aoAparecer: (() -> Void)?
+    /// O `NotchHostingView` pendura aqui a medida do corte. Aparecer e sumir
+    /// não garantem passada de layout: sem o gancho, um desvio que já estava
+    /// lá só seria julgado na próxima mudança de geometria, e um pendente
+    /// continuaria vivo com o painel escondido.
+    var aoMudarVisibilidade: (() -> Void)?
     override func orderFrontRegardless() {
         super.orderFrontRegardless()
-        aoAparecer?()
+        aoMudarVisibilidade?()
+    }
+    override func orderOut(_ sender: Any?) {
+        super.orderOut(sender)
+        aoMudarVisibilidade?()
     }
 }
 
@@ -65,7 +72,9 @@ final class NotchHostingView<Content: View>: NSHostingView<Content> {
     var diagnosticContext: (() -> ContextoDoCorte)?
     /// `var` só pro gate (`tools/cortehostcheck.swift`) trocar o registro e o
     /// relógio; o app usa o padrão.
-    var hostMonitor = VigiaDoCorte()
+    var hostMonitor = VigiaDoCorte() {
+        didSet { ligarVista() }
+    }
 
     var topDisplacement: CGFloat {
         guard let window else { return 0 }
@@ -82,9 +91,16 @@ final class NotchHostingView<Content: View>: NSHostingView<Content> {
     /// O painel nasce escondido e aparece no `orderFrontRegardless`, que não
     /// garante passada de layout: sem este gancho, um desvio que já estava lá
     /// quando ele apareceu só seria julgado na próxima mudança de geometria.
+    /// O `orderOut` também mede — escondido, o vigia descarta a pendência.
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        (window as? NotchWindow)?.aoAparecer = { [weak self] in self?.medirCorte() }
+        (window as? NotchWindow)?.aoMudarVisibilidade = { [weak self] in self?.medirCorte() }
+        ligarVista()
+    }
+
+    /// O relógio do vigia pergunta se o painel está à vista antes de gravar.
+    private func ligarVista() {
+        hostMonitor.aVista = { [weak self] in self?.window?.isVisible == true }
     }
 
     /// Painel escondido (nascendo, ou fora por tela cheia) não mostra corte

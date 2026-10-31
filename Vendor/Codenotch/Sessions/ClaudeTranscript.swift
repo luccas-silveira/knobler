@@ -159,7 +159,7 @@ final class ClaudeTranscriptReader {
     private let projects: URL
     private let fileManager: FileManager
     /// Where each session's transcript turned out to be. Sessions come and go;
-    /// this is bounded by how many have run since the app launched.
+    /// `reter(_:)` drops the ones that are gone.
     private var paths: [String: URL] = [:]
     private var cache: [String: Cached] = [:]
     /// When each session last changed what it was doing.
@@ -206,6 +206,23 @@ final class ClaudeTranscriptReader {
         // thing there is to when it happened.
         entered[sessionID] = (turn, modified)
         return (turn, modified)
+    }
+
+    /// Knobler: esquece as sessões fora de `vivas`. O `ClaudeSessionMonitor`
+    /// chama a cada leitura com as sessões ainda registradas, e as quatro
+    /// tabelas passam a guardar o que roda agora, não tudo o que já rodou
+    /// desde que o app abriu (~1,2 KB por sessão, sem teto).
+    func reter(_ vivas: Set<String>) {
+        paths = paths.filter { vivas.contains($0.key) }
+        cache = cache.filter { vivas.contains($0.key) }
+        entered = entered.filter { vivas.contains($0.key) }
+        scanned.formIntersection(vivas)
+    }
+
+    /// Knobler: as sessões de que o leitor ainda guarda alguma coisa. Só o
+    /// tools/agentescheck.swift lê.
+    var sessoesGuardadas: Set<String> {
+        Set(paths.keys).union(cache.keys).union(entered.keys).union(scanned)
     }
 
     private func path(sessionID: String, cwd: String) -> URL? {

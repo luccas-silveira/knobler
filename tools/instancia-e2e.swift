@@ -4,8 +4,10 @@
 //  id próprio (com.zoi.knobler.instanciateste): nunca encosta no Knobler.
 //  NÃO faz parte do alvo do app; o script compila e empacota.
 //
-//  Flags: --cli    modo headless (não sobe NSApplication), como o
-//                  `--download-model` do cask e o `--selfcheck`
+//  Flags: --selfcheck  modo headless como o `--selfcheck` do app: não sobe
+//                      NSApplication, mas toca `NSScreen.screens` (o selfcheck
+//                      real cria NSPanel), o que já faz check-in no
+//                      LaunchServices — a guarda tem que reconhecê-lo pelo argv
 //         --veta   applicationShouldTerminate recusa (o Descanso em curso)
 //         --adia   applicationShouldTerminate adia 1 s (restauração dos monitores)
 //
@@ -47,8 +49,9 @@ enum InstanciaE2E {
     static let delegado = Delegado()
 
     static func main() {
-        if CommandLine.arguments.contains("--cli") {
-            registra("cli"); sleep(20); exit(0)
+        if CommandLine.arguments.contains("--selfcheck") {
+            _ = NSScreen.screens  // check-in no LaunchServices, como o selfcheck real
+            registra("selfcheck"); sleep(20); exit(0)
         }
         let app = NSApplication.shared
         InstanciaUnica.garantir()

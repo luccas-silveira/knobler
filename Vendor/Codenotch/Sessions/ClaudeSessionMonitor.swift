@@ -165,15 +165,25 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
         /// Which directory each record came from: an adopted session's
         /// transcript stays where the session writes it, not where its ring is.
         var origin: [Int32: URL] = [:]
+        // Knobler: toda sessão registrada em qualquer fonte, ANTES do filtro de
+        // dono — um leitor de transcript pode ser de mais de um perfil, e podá-lo
+        // só com as sessões deste apagaria as do outro a cada leitura.
+        var registradas: Set<String> = []
 
         for source in sources {
             for record in records(in: source, ignoring: ignoring,
                                   ignoringDirectories: ignoringDirectories) {
+                if let id = record.sessionID { registradas.insert(id) }
                 if let ownership, !ownership.claims(record, foundIn: source) { continue }
                 live.append(record)
                 origin[record.pid] = source
             }
         }
+
+        // Knobler: os leitores guardam algo por sessão e nada os esvaziava —
+        // cresciam com toda sessão que já rodou desde que o app abriu.
+        transcripts?.reter(registradas)
+        for source in sources { ownership?.reader(for: source)?.reter(registradas) }
 
         return deduplicated(live)
             .map { record in

@@ -27,7 +27,8 @@ const TIMEOUT_MS = Number(process.env.KNOBLER_AGENT_REQUEST_TIMEOUT_MS ?? 570_00
 const POLL_MS = 300;
 // Long-poll: o app segura o GET até a decisão (ou até WAIT_S segundos). O app
 // antigo ignora o header e responde na hora; aí o POLL_MS vira o polling de antes.
-const WAIT_S = 25;
+// `KNOBLER_LONGPOLL_WAIT` só existe pro e2e encurtar a espera.
+const WAIT_S = Number(process.env.KNOBLER_LONGPOLL_WAIT ?? 25);
 
 const fixtureFlag = process.argv.indexOf("--fixture");
 if (process.argv.includes("--check")) await runCheck();
@@ -119,7 +120,12 @@ async function mirror(message) {
       console.error("codex bridge: API local caiu no meio");
       return null;
     }
-    if ((state.state ?? "pending") !== "pending") return toResult(message, actionName(state.result?.action));
+    const fase = state.state ?? "pending";
+    if (fase === "resolved") return toResult(message, actionName(state.result?.action));
+    // ✕ no card (dismissed) ou TTL do app (expired): ninguém decidiu no notch.
+    // A aprovação nativa continua valendo, como no hook do Claude — mapear o
+    // "cancel" que vem junto interromperia o turno inteiro do Codex.
+    if (fase !== "pending") return null;
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));
   }
   await api("POST", `/agent-requests/${card.id}/dismiss`, token);
@@ -225,7 +231,12 @@ async function api(method, path, token, body, wait) {
     });
     if (!response.ok) return null;
     return await response.json();
-  } catch {
+  } catch (error) {
+    // Timeout do long-poll não é "API caiu": o timer conta o tempo em que o
+    // Mac dormiu e o prazo do app não, então um sono no meio da espera estoura
+    // aqui com o card ainda pendente. Uma leitura sem espera separa os dois
+    // casos — o app responde (segue o laço) ou está travado (desiste).
+    if (wait && error?.name === "TimeoutError") return api(method, path, token, body);
     return null;
   }
 }

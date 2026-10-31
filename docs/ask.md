@@ -32,6 +32,11 @@ Para instalar o hook globalmente no Claude Code:
 Ele passa a valer na próxima sessão do Claude Code. O hook não torna o Ask
 obrigatório: se o Knobler estiver desligado, a pergunta continua no terminal.
 
+O instalador **copia** os scripts para `~/.claude/hooks`; atualizar o Knobler
+não mexe neles. Depois de atualizar o repositório, rode o `install.sh` de novo
+para levar as correções dos hooks (como a espera numa conexão só, em vez de
+perguntar ao app três vezes por segundo).
+
 ## Permissões do Claude
 
 O instalador também registra o hook nativo `PermissionRequest`. O pedido mostra

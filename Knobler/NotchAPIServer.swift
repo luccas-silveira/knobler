@@ -44,8 +44,18 @@ final class NotchAPIServer {
     var onAgentRequest: ((AgentRequest) -> Void)?
     var onAgentRequestResolved: ((String, AgentRequestAction, AgentRequestResponder) -> Void)?
     var onAgentRequestExpired: ((String) -> Void)?
+    /// O listener ficou `.ready`: a porta é desta instância. Chamado a cada
+    /// vez (inclusive depois de religar). O AppDelegate grava aqui o arquivo
+    /// do token de agente — antes disso ele não é de ninguém.
+    var onReady: (() -> Void)?
 
     private var listener: NWListener?
+    /// Nova tentativa agendada depois de um `.failed` (porta ocupada). O
+    /// `NWListener` que falha não volta sozinho, e sem isto a API ficava morta
+    /// até alguém desligar e religar a "API local" nos Ajustes.
+    private var religar: DispatchWorkItem?
+    /// Falhas seguidas desde o último `.ready` — dita a espera da próxima.
+    private(set) var falhasSeguidas = 0
     private var activities: [String: NotchActivity] = [:]
     private struct PendingAsk {
         enum State { case pending, answered([String: AskAnswer]), cancelled }
@@ -89,27 +99,43 @@ final class NotchAPIServer {
         self.listenPort = port
     }
 
+    /// Espera antes da tentativa seguinte a `falhas` falhas seguidas: 1, 2,
+    /// 4… até 60 s. Porta presa por uma instância que está saindo solta em
+    /// segundos; por outro programa, pode levar horas — o teto segura o log.
+    static func esperaParaReligar(falhas: Int) -> TimeInterval {
+        min(60, pow(2, Double(min(max(0, falhas), 6))))
+    }
+
     func start() {
-        guard listener == nil else { return }
+        // Com uma tentativa agendada, quem religa é ela: o AppDelegate chama
+        // start() a cada mudança de ajuste, e cada chamada viraria uma tentativa
+        // (e uma linha de log) fora do compasso da espera.
+        guard listener == nil, religar == nil else { return }
         let parameters = NWParameters.tcp
         parameters.requiredLocalEndpoint = NWEndpoint.hostPort(
             host: "127.0.0.1", port: NWEndpoint.Port(rawValue: listenPort)!)
         guard let listener = try? NWListener(using: parameters) else {
-            log.error("porta \(self.listenPort, privacy: .public) indisponível")
+            agendarReligar(motivo: "o listener não nasceu")
             return
         }
         // Porta ocupada não derruba o init: o NWListener só liga a porta no
         // `start()` e a falha chega aqui como `.failed`. Por isso o "escutando"
-        // sai no `.ready`, e não logo depois do `start()`.
+        // sai no `.ready`, e não logo depois do `start()`. Evento de listener
+        // que já não é o atual (cancelado pelo stop ou pela falha) é ignorado.
         let port = listenPort
-        listener.stateUpdateHandler = { state in
+        listener.stateUpdateHandler = { [weak self, weak listener] state in
+            guard let self, let listener, self.listener === listener else { return }
             switch state {
             case .ready:
+                self.falhasSeguidas = 0
                 log.notice("escutando em 127.0.0.1:\(port, privacy: .public)")
+                self.onReady?()
             case .waiting(let error):
                 log.notice("porta \(port, privacy: .public) esperando: \(String(describing: error), privacy: .public)")
             case .failed(let error):
-                log.error("porta \(port, privacy: .public) falhou: \(String(describing: error), privacy: .public)")
+                listener.cancel()
+                self.listener = nil
+                self.agendarReligar(motivo: String(describing: error))
             default:
                 break
             }
@@ -119,12 +145,34 @@ final class NotchAPIServer {
         }
         listener.start(queue: .main)
         self.listener = listener
-        expiryTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) {
-            [weak self] _ in self?.pruneExpired()
+        // um timer só, mesmo com o start() de cada nova tentativa
+        if expiryTimer == nil {
+            expiryTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) {
+                [weak self] _ in self?.pruneExpired()
+            }
         }
     }
 
+    /// O listener caiu (ou nem nasceu): tenta de novo sozinho, com espera
+    /// crescente, até o `.ready` ou o `stop()`.
+    private func agendarReligar(motivo: String) {
+        let espera = Self.esperaParaReligar(falhas: falhasSeguidas)
+        falhasSeguidas += 1
+        log.error("porta \(self.listenPort, privacy: .public) falhou (\(motivo, privacy: .public)); tentativa \(self.falhasSeguidas, privacy: .public), de novo em \(Int(espera), privacy: .public) s")
+        let item = DispatchWorkItem { [weak self] in
+            self?.religar = nil
+            self?.start()
+        }
+        religar?.cancel()
+        religar = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + espera, execute: item)
+    }
+
     func stop() {
+        // desligar a API vence a tentativa agendada
+        religar?.cancel()
+        religar = nil
+        falhasSeguidas = 0
         askGeneration &+= 1
         listener?.cancel()
         listener = nil

@@ -82,6 +82,12 @@ swift_check monitoresservicecheck Knobler/MonitoresModel.swift Knobler/Monitores
 swift_check volumehudcheck    Knobler/VolumeHUD.swift Knobler/TeclaDiagnostico.swift tools/volumehudcheck.swift
 # keyLog do /status sai sem autenticação: só tecla de função entra no anel.
 swift_check keylogcheck       Knobler/TeclaDiagnostico.swift tools/keylogcheck.swift
+# ...e o monitor global de keyDown do VolumeHUD passa pelo filtro: o
+# volumehudcheck testa o método, mas só o grep amarra o closure a ele.
+run keylogintegracao bash -c '
+grep -qF "self?.registrarKeyDown(keyCode: event.keyCode)" Knobler/VolumeHUD.swift || exit 1
+grep -qF "guard let entrada = TeclaDiagnostico.entrada(keyCode: keyCode)" Knobler/VolumeHUD.swift || exit 1
+! grep -qF "logKey(\"kb=" Knobler/VolumeHUD.swift'
 swift_check wirecheck         Knobler/Wire.swift tools/wirecheck/main.swift
 swift_check webhookcheck      Knobler/WebhookKeychainStore.swift Knobler/WebhookClient.swift \
   Knobler/NotchNotification.swift tools/webhookcheck.swift
@@ -122,13 +128,19 @@ swift_check tecladocheck         Knobler/TecladoBloqueado.swift tools/tecladoche
 # a decisão pura da instância única; o caminho AppKit de verdade é o
 # instancia-e2e, mais abaixo, que precisa de sessão gráfica.
 swift_check instanciacheck       Knobler/InstanciaUnica.swift tools/instanciacheck.swift
+# Arquivo do token de agente: pasta 0700 mesmo já existindo, arquivo 0600 desde o primeiro byte.
+swift_check tokencheck           Knobler/TokenDeAgente.swift tools/tokencheck.swift
 # Registro de desempenho: formato da linha, cpu_pct e poda sem reescrita a cada amostra.
 swift_check desempenhocheck      Knobler/Desempenho.swift tools/desempenhocheck.swift
 # Avatar remoto: o cache guarda a miniatura (≤ 128 px), não a imagem cheia.
 swift_check avatarcheck          Knobler/RemoteAvatarLoader.swift tools/avatarcheck.swift
+# Preview de link: o "voltar" não atravessa pra sessão anterior. WKWebView de
+# verdade contra um servidor HTTP no loopback, numa porta que o kernel escolhe.
+swift_check linkpreviewcheck     Knobler/LinkPreview.swift Knobler/LinkBrowser.swift tools/linkpreviewcheck.swift
 # Diagnóstico passivo: a integração não pode sumir nem voltar a reconstruir a raiz.
 run cortedetectorcheck bash -c '
-grep -qF "SensorDeCorte(vigia: vigia" Knobler/NotchView.swift || exit 1
+grep -qF "SensorDeCorte(vigia: vigia, aVista: vm.painelAVista" Knobler/NotchView.swift || exit 1
+grep -qF "viewModel.painelAVista = { [weak panel] in panel?.isVisible == true }" Knobler/KnoblerApp.swift || exit 1
 ! grep -qF "id(vigia.geracao)" Knobler/NotchView.swift || exit 1
 grep -qF "NotchHostingView(" Knobler/KnoblerApp.swift || exit 1
 xcrun swiftc -parse-as-library -swift-version 5 \

@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 
 // Dublês de serviço: eventos sintéticos nunca chegam a uma escrita física.
 enum MonitorCommand { case brightness, volume, mute }
@@ -61,6 +62,17 @@ enum NotchViewModel {
         Monitores.shared.accepted = false
         assert(passes(0, down: true))
         assert(passes(0, down: false))
+
+        // keyLog do /status (sem autenticação): o keyDown global só registra
+        // tecla de função. Tecla de texto não muda o anel; F14 entra.
+        func anel() -> [String] { controller.diagnostics["keyLog"] as? [String] ?? [] }
+        let antes = anel()
+        for tecla in [kVK_ANSI_A, kVK_ANSI_1, kVK_Return, kVK_Space, kVK_ANSI_KeypadEquals] {
+            controller.registrarKeyDown(keyCode: UInt16(tecla))
+        }
+        precondition(anel() == antes, "tecla de texto entrou no keyLog: \(anel())")
+        controller.registrarKeyDown(keyCode: UInt16(kVK_F14))
+        precondition(anel().last?.hasSuffix("kb=\(kVK_F14) F14") == true, "F14 não entrou no keyLog: \(anel())")
         print("volumehudcheck: ok")
     }
 }

@@ -70,6 +70,13 @@ são gerados por `tools/snapshot.sh` — são mantidos à mão — junto com
 
 ## Capturar os painéis de Ajustes
 
+⚠️ **Encerra o Knobler aberto — peça antes.** Uma instância só, e a mais nova
+vence: rodar qualquer `Knobler.app` (Debug, Release, `~/Applications` ou
+`/Applications`) manda o quit ao Knobler do usuário e, se ele recusar (Descanso
+em curso), o derruba à força em ~5 s, sem restaurar o gamma dos monitores. Ao
+terminar, feche a instância de captura e reabra a do usuário com
+`open -a /Applications/Knobler.app`.
+
 Rode `Knobler.app/Contents/MacOS/Knobler --ajustes=<painel>` (painéis: `geral
 notch desenho ditado pomodoro lembretes descanso webhooks mensagens
 permissoes`), tire o screenshot da janela real e salve em `docs/images/`.
@@ -89,11 +96,18 @@ Numa tela Retina o PNG sai em @2x: o corte equivalente é
 
 ## Capturar a janela de novidades
 
+⚠️ **Encerra o Knobler aberto — peça antes.** Uma instância só, e a mais nova
+vence: rodar qualquer `Knobler.app` (Debug, Release, `~/Applications` ou
+`/Applications`) manda o quit ao Knobler do usuário e, se ele recusar (Descanso
+em curso), o derruba à força em ~5 s, sem restaurar o gamma dos monitores. Ao
+terminar, feche a instância de captura e reabra a do usuário com
+`open -a /Applications/Knobler.app`.
+
 `docs/images/novidades.png` segue a mesma vala (`WKWebView` real): rode
-`Knobler --novidades` — a flag mostra **tudo** e não grava a versão vista, então
-tirar print não queima o estado da máquina. Rode de `/Applications` ou de
-`~/Applications`: de `/tmp` o `installIssue` manda direto pro painel Permissões
-e a página nem abre. Sai @2x mesmo (`screencapture -o -l<id>`, sem sombra e sem
+`Knobler --novidades` — a flag mostra **tudo** e não grava a versão vista (não
+marca nada como visto, mas encerra o Knobler aberto, ver o aviso acima). Rode
+de `/Applications` ou de `~/Applications`: de `/tmp` o `installIssue` manda
+direto pro painel Permissões e a página nem abre. Sai @2x mesmo (`screencapture -o -l<id>`, sem sombra e sem
 halo, não precisa recortar).
 
 ## Recapturar `expanded-shelf.png`

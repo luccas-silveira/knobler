@@ -22,10 +22,11 @@ knobler_hook_token() {
 # Long-poll: o app segura o GET até o estado ficar final ou o prazo do
 # X-Knobler-Wait vencer (teto de 25 s). O app antigo ignora o header e
 # responde na hora; aí o sleep do laço vira o polling de antes.
-KNOBLER_HOOK_WAIT=25
+# `KNOBLER_LONGPOLL_WAIT` só existe pro e2e encurtar a espera.
+KNOBLER_HOOK_WAIT="${KNOBLER_LONGPOLL_WAIT:-25}"
 
 knobler_hook_poll() { # $1=url $2=deadline epoch [$3=bearer token]
-    local state espera header=()
+    local state espera rc header=()
     [ -n "${3:-}" ] && header=(-H "Authorization: Bearer $3")
     while [ "$(date +%s)" -lt "$2" ]; do
         # nunca pede espera além do deadline: o cancel do timeout precisa caber
@@ -35,7 +36,18 @@ knobler_hook_poll() { # $1=url $2=deadline epoch [$3=bearer token]
         # `${header[@]+…}`: no bash 3.2 do macOS, array vazio com `set -u`
         # aborta com "unbound variable" (o poll sem token do Ask sempre falhava)
         state="$(curl -sf -m "$((espera + 5))" -H "X-Knobler-Wait: $espera" \
-            ${header[@]+"${header[@]}"} "$1" 2>/dev/null)" || return 1
+            ${header[@]+"${header[@]}"} "$1" 2>/dev/null)"
+        rc=$?
+        if [ "$rc" -eq 28 ]; then
+            # Timeout do curl não é "API caiu": o -m dele conta o tempo em que
+            # o Mac dormiu e o prazo do app não, então um sono no meio da espera
+            # estoura o curl com o card ainda pendente. Uma leitura sem espera
+            # separa os dois casos — o app responde (segue o laço) ou está
+            # travado de verdade (desiste, como antes).
+            state="$(curl -sf -m 2 ${header[@]+"${header[@]}"} "$1" 2>/dev/null)" || return 1
+        elif [ "$rc" -ne 0 ]; then
+            return 1
+        fi
         if [ "$(printf '%s' "$state" | jq -r '(.answered // false) or (.cancelled // false) or ((.state // "pending") != "pending")' 2>/dev/null)" = "true" ]; then
             printf '%s' "$state"
             return 0

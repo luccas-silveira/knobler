@@ -54,7 +54,9 @@ final class LinkPreview: ObservableObject {
             forMainFrameOnly: true))
 
         let web = WKWebView(frame: .zero, configuration: config)
-        web.allowsBackForwardNavigationGestures = true
+        // o swipe de voltar segue o `podeVoltar` (observer de `isLoading`): ligado
+        // direto, ele atravessaria a fronteira da sessão
+        web.allowsBackForwardNavigationGestures = false
         // fundo escuro combina com o card; sem isto pisca branco a cada página
         web.setValue(false, forKey: "drawsBackground")
         observar(web)
@@ -73,6 +75,15 @@ final class LinkPreview: ObservableObject {
     private var observers: [NSKeyValueObservation] = []
     private init() {}
 
+    /// Onde a sessão atual começa na lista de voltar/avançar da `webView`. A
+    /// `webView` é uma só pra sempre, e o `fechar()` só carrega about:blank:
+    /// sem a fronteira, o "voltar" da sessão seguinte nascia ativo e mostrava
+    /// uma página em branco e depois as páginas de um link já fechado.
+    /// ponytail: identidade do item, não contagem — a lista do WebKit tem teto
+    /// de 100 itens e para de crescer quando lota. Se a fronteira for
+    /// despejada, tudo o que vinha antes dela também foi.
+    private var fronteira: WKBackForwardListItem?
+
     /// `nonisolated`: o VM consulta isto de contexto síncrono (o mesmo motivo
     /// pelo qual `QuickNote.hosted` é barato). Só lê duas propriedades.
     nonisolated func hosted(by display: CGDirectDisplayID?) -> Bool {
@@ -82,6 +93,12 @@ final class LinkPreview: ObservableObject {
     /// Abre (ou troca) o link no card da tela indicada.
     func abrir(_ link: URL, on display: CGDirectDisplayID?) {
         guard LinkBrowser.isWebLink(link) else { return }
+        // sessão nova (nada aberto): o que já está na lista é de outra. Trocar
+        // de link com um aberto continua na mesma sessão — voltar leva ao anterior.
+        if url == nil {
+            fronteira = webView.backForwardList.currentItem
+            webView.allowsBackForwardNavigationGestures = false
+        }
         hostDisplayID = display
         url = link
         titulo = link.host ?? ""
@@ -149,8 +166,17 @@ final class LinkPreview: ObservableObject {
         self.atalhoMonitor = nil
     }
 
-    func voltar() { webView.goBack() }
-    var podeVoltar: Bool { webView.canGoBack }
+    func voltar() {
+        guard podeVoltar else { return }
+        webView.goBack()
+    }
+
+    /// Há página DESTA sessão pra voltar. `url` antes da `webView`: sem nada
+    /// aberto, não instancia o `WKWebView` (lazy) só pra responder "não".
+    var podeVoltar: Bool {
+        guard url != nil, let anterior = webView.backForwardList.backItem else { return false }
+        return anterior !== fronteira
+    }
 
     func abrirFora() {
         guard let atual = webView.url ?? url else { return }
@@ -161,7 +187,13 @@ final class LinkPreview: ObservableObject {
     private func observar(_ web: WKWebView) {
         observers = [
             web.observe(\.isLoading, options: [.new]) { [weak self] w, _ in
-                Task { @MainActor in self?.carregando = w.isLoading }
+                Task { @MainActor in
+                    self?.carregando = w.isLoading
+                    // ponytail: na primeira página da sessão o swipe fica todo
+                    // desligado, inclusive o de avançar — o WebKit não separa
+                    // os dois sentidos
+                    w.allowsBackForwardNavigationGestures = self?.podeVoltar ?? false
+                }
             },
             web.observe(\.estimatedProgress, options: [.new]) { [weak self] w, _ in
                 Task { @MainActor in self?.progresso = w.estimatedProgress }

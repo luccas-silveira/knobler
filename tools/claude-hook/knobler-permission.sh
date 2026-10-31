@@ -33,7 +33,10 @@ DEADLINE="$(knobler_hook_deadline 570)"
 STATE="$(knobler_hook_poll "http://127.0.0.1:$PORT/agent-requests/$ID" "$DEADLINE" "$KNOBLER_AGENT_TOKEN")"
 POLL_STATUS=$?
 if [ "$POLL_STATUS" -ne 0 ]; then
-    [ "$POLL_STATUS" -eq 2 ] && curl -sf -m 1 -X POST -H "Authorization: Bearer $KNOBLER_AGENT_TOKEN" \
+    # prazo (2) ou API que parou de responder no meio (1): a decisão volta pro
+    # prompt nativo, e o card sai do notch — se a API ainda ouvir — em vez de
+    # ficar órfão até o TTL, com um "Permitir" que não muda mais nada
+    curl -sf -m 1 -X POST -H "Authorization: Bearer $KNOBLER_AGENT_TOKEN" \
         "http://127.0.0.1:$PORT/agent-requests/$ID/dismiss" >/dev/null 2>&1 || true
     exit 0
 fi

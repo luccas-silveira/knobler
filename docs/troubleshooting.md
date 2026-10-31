@@ -117,8 +117,9 @@ liga em segundos — sem reabrir o app.
   ```
 
 - O log diz se a porta ligou (`escutando em 127.0.0.1:4477`) ou falhou
-  (`porta 4477 falhou: … Address already in use`). O app não tenta de novo
-  sozinho: libere a porta e reabra o Knobler.
+  (`porta 4477 falhou (… Address already in use); tentativa N, de novo em S s`).
+  O app tenta de novo sozinho — 1 s, 2 s, 4 s… até uma vez por minuto —, então
+  basta liberar a porta: a API sobe na tentativa seguinte, sem reabrir o app.
 
   ```bash
   /usr/bin/log show --last 1h \
@@ -379,7 +380,7 @@ embutido do shell e não lê nada disso.
 
 | Categoria | O que fica registrado |
 |---|---|
-| `api` | API local: `escutando em 127.0.0.1:4477` quando a porta liga de fato, `porta 4477 falhou: … Address already in use` quando outro processo a ocupa, falha ao gerar ou gravar o token das solicitações de agente |
+| `api` | API local: `escutando em 127.0.0.1:4477` quando a porta liga de fato, `porta 4477 falhou (… Address already in use); tentativa N, de novo em S s` quando outro processo a ocupa, falha ao gerar ou gravar o token das solicitações de agente |
 | `teclado` | taps de teclado (HUD de som e ⌥ direita do ditado; Control direito do desenho): indisponível, de volta, desligado pelo sistema; Acessibilidade concedida ou ausente |
 | `midia` | now playing: adapter quebrado, cada queda do stream com o status de saída, desistência depois de 5 tentativas |
 | `audio` | tap de áudio do visualizador: o status do Core Audio de cada passo que falha (o `AudioHardwareCreateProcessTap` falha sem a permissão de Áudio do sistema) |
@@ -389,7 +390,7 @@ embutido do shell e não lê nada disso.
 | `bluetooth` | leitura da bateria dos AirPods |
 | `espelho` | câmera indisponível |
 | `novidades` | janela de novidades que abriria em branco |
-| `notificacoes` | cada notificação interceptada (app de origem; o título sai privado) |
+| `notificacoes` | cada notificação interceptada: o bundle id do app de origem quando ele está aberto; senão o nome sai como hash (`<mask.hash: …>`), porque pode ser o remetente; o título sai privado |
 | `app` | item de login que não ligou ou não desligou |
 | `instancia` | instância única: a mais nova que assume e encerra a anterior, a anterior que não saiu a tempo e foi forçada |
 | `desempenho` | falha ao gravar ou podar o `desempenho.jsonl`; cada amostra sai como `info` (só ao vivo, no `log stream --info`) |

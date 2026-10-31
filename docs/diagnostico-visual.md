@@ -31,8 +31,12 @@ Desde então ([`CorteDoKnob.swift`](../Knobler/CorteDoKnob.swift)):
 
 1. **Medida sem área não é julgada.** Não há o que cortar.
 2. **Painel escondido não é julgado** (nascendo, ou fora por tela cheia), e o
-   desvio pendente perde a testemunha. Quando o painel volta pra frente
-   (`orderFrontRegardless`), o host mede de novo sem esperar layout.
+   desvio pendente perde a testemunha. Aparecer e sumir não passam por layout,
+   então o host mede de novo nos dois (`orderFrontRegardless` e `orderOut`), e o
+   relógio pergunta se o painel está à vista antes de gravar (`aVista`). A
+   sonda SwiftUI recebe a mesma pergunta da janela: o SwiftUI continua fazendo
+   layout com o painel fora da tela. Ela só mede de novo, quando o painel volta,
+   na próxima mudança de geometria — a volta é coberta pelo host.
 3. **Desvio só vira linha se durar `CorteDoKnob.espera` (1 s)**, contado do
    instante em que apareceu ou da última `didChangeScreenParametersNotification`,
    o que vier depois. Um relógio julga o pendente sem precisar de medida nova.

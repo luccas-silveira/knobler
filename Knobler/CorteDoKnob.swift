@@ -208,6 +208,12 @@ final class VigiaDoCorte: ObservableObject {
     private var desvios = 0
     private var relogioArmado = false
     private var escutaDeTela: AnyCancellable?
+    /// O painel está à vista agora? Consultado em toda medida e quando o
+    /// relógio acorda: o `orderOut` (tela cheia) não passa por layout, então
+    /// sem esta pergunta um desvio que ficou pendente com o painel à vista
+    /// virava linha 1 s depois, com ele já escondido. Quem é dono da janela
+    /// (o host AppKit, a `NotchView`) responde; o padrão serve ao gate.
+    var aVista: () -> Bool = { true }
 
     /// `automatico` liga o relógio que julga o desvio pendente e a escuta de
     /// reconfiguração de tela. O gate desliga os dois e os dirige à mão, com
@@ -236,7 +242,7 @@ final class VigiaDoCorte: ObservableObject {
                  agora: Date = Date()) -> Bool {
         // fora de vista ou sem medida não há o que julgar, e o pendente perde
         // a testemunha: volta a contar se o desvio reaparecer à vista
-        guard visivel, CorteDoKnob.medida(moldura) else {
+        guard visivel, aVista(), CorteDoKnob.medida(moldura) else {
             pendente = nil
             return false
         }
@@ -278,6 +284,8 @@ final class VigiaDoCorte: ObservableObject {
             return
         }
         self.pendente = nil
+        // escondido desde a última medida: a testemunha sumiu, como em `avaliar`
+        guard aVista() else { return }
         cortadoDesde = pendente.desde
         gravar(ProvaDoCorte(data: agora, lacunaPt: Double(pendente.lacuna),
                             moldura: pendente.moldura, contexto: pendente.contexto,
@@ -313,15 +321,24 @@ final class VigiaDoCorte: ObservableObject {
 /// A sonda. Mede a moldura no espaço da raiz e entrega ao vigia. Não desenha
 /// nada: é um `Color.clear` de fundo, e o `onChange` só corre quando o
 /// retângulo muda de verdade.
+///
+/// O SwiftUI continua fazendo layout com a janela fora da tela, então a sonda
+/// recebe de quem é dono da janela a pergunta "está à vista?" (`aVista`) e a
+/// entrega ao vigia. Limitação: quando o painel volta, a sonda só mede de
+/// novo na próxima mudança de geometria — quem cobre a volta é o host AppKit.
 struct SensorDeCorte: View {
     @ObservedObject var vigia: VigiaDoCorte
+    var aVista: () -> Bool = { true }
     let contexto: (CGRect) -> ContextoDoCorte
 
     var body: some View {
         GeometryReader { geo in
             let moldura = geo.frame(in: .named(CorteDoKnob.espacoRaiz))
             Color.clear
-                .onAppear { vigia.avaliar(moldura: moldura, contexto: contexto(moldura)) }
+                .onAppear {
+                    vigia.aVista = aVista
+                    vigia.avaliar(moldura: moldura, contexto: contexto(moldura))
+                }
                 .onChange(of: moldura) { _, novo in
                     vigia.avaliar(moldura: novo, contexto: contexto(novo))
                 }

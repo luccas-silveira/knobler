@@ -34,6 +34,14 @@ Dois hooks, instalados por `tools/claude-hook/install.sh`:
 o hook reescreve o destino dessas regras para `session` — nada é gravado em
 disco. Checagem: `bash tools/claude-hook/test.sh`.
 
+O `install.sh` **copia** os hooks para `~/.claude/hooks`, e atualizar o app (cask
+ou `release.sh`) não toca nessas cópias. Quem instalou os hooks numa versão
+anterior roda `./tools/claude-hook/install.sh` de novo (a partir de um clone
+atualizado) para receber as correções deles — até a 0.36.0, o hook de permissão
+ignorava a decisão tomada no notch e perguntava ao app três vezes por segundo.
+Hook antigo contra app novo continua funcionando como antes, só sem as
+correções.
+
 ## Codex
 
 O Codex não tem hook de aprovação: os hooks instalados cobrem ciclo de vida e
@@ -64,6 +72,12 @@ algum, a ponte imprime uma linha de diagnóstico e **não** intercepta nada.
 | Permitir na sessão | `acceptForSession` | perfil pedido, `scope: session` |
 | Negar | `decline` | perfil vazio, `scope: turn` |
 | Cancelar | `cancel` (interrompe o turno) | perfil vazio, `scope: turn` |
+| ✕ no card ("Manter no agente") ou prazo do app | nenhuma: aprovação nativa | nenhuma: aprovação nativa |
+
+Só o botão **Cancelar** interrompe o turno. O ✕ e o card expirado chegam à
+ponte com `state` `dismissed`/`expired` (e uma ação `cancel` de enchimento): a
+ponte não responde nada, e o cliente decide como sempre — o mesmo que o hook do
+Claude faz.
 
 As decisões oferecidas saem de `availableDecisions` quando o pedido traz o
 campo. Emendas de execpolicy e de política de rede ficam de fora de propósito:

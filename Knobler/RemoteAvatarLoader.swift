@@ -30,6 +30,16 @@ final class RemoteAvatarLoader: NSObject, ObservableObject, URLSessionDataDelega
     static let ladoMaximo = 128
     private static let maxBytes = 512 * 1024
 
+    /// O teto que o cache tem de fato — o gate confere que é `limiteDoCache`.
+    static var limiteEfetivoDoCache: Int { cache.countLimit }
+
+    /// O que vai pro cache (e pra tela) a partir dos bytes baixados: a
+    /// miniatura, nunca a imagem cheia. `nil` = bytes que não são imagem.
+    static func imagemDoCache(de dados: Data) -> NSImage? {
+        guard let cg = miniatura(de: dados) else { return nil }
+        return NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
+    }
+
     /// Decodifica direto na miniatura (o ImageIO lê o JPEG já reduzido, sem
     /// passar pela imagem cheia) e respeita a orientação do EXIF. Imagem menor
     /// que o teto sai do tamanho que veio. `nil` = bytes que não são imagem.
@@ -127,11 +137,10 @@ final class RemoteAvatarLoader: NSObject, ObservableObject, URLSessionDataDelega
         // linha do Histórico tem o próprio loader, e cada um os segurava
         defer { s.finishTasksAndInvalidate(); session = nil; received = Data() }
         guard error == nil, received.count <= Self.maxBytes,
-              let cg = Self.miniatura(de: received) else {
+              let img = Self.imagemDoCache(de: received) else {
             DispatchQueue.main.async { self.image = nil }   // falha → fallback, nunca stale
             return
         }
-        let img = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
         if let url = currentURL { Self.cache.setObject(img, forKey: url.absoluteString as NSString) }
         DispatchQueue.main.async { self.image = img }
     }

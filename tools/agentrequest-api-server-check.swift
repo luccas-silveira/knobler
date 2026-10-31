@@ -1,6 +1,8 @@
 // Self-check do NotchAPIServer de verdade, numa porta alternativa (nunca a
 // 4477): contrato autenticado de /agent-requests e o long-poll
 // (X-Knobler-Wait) de GET /ask/<id> e GET /agent-requests/<id>.
+// Também a porta ocupada (uma livre, escolhida pelo kernel): o listener que
+// cai tenta de novo sozinho.
 // O launcher tools/agentrequest-api-check.swift compila este arquivo; o
 // tools/check.sh compila direto:
 //
@@ -65,7 +67,86 @@ struct AgentRequestAPIServerCheck {
         longPollAsk(server)
         longPollAgentRequest(server)
         longPollStop(server) // por último: desliga o listener
+        portaOcupada()
         print("agentrequest-api-check: OK")
+    }
+
+    // MARK: - Porta ocupada
+
+    /// Porta ocupada quando a API sobe (a instância antiga que ainda não
+    /// soltou a 4477, outro programa): o listener cai em `.failed`, e antes
+    /// ficava morto pela sessão inteira — nem o start() seguinte religava.
+    /// Agora tenta de novo sozinho, só avisa `onReady` (que grava o token)
+    /// quando a porta é dele, e o stop() cancela a tentativa agendada.
+    static func portaOcupada() {
+        let esperadas: [TimeInterval] = [1, 2, 4, 8, 16, 32, 60, 60]
+        for (falhas, espera) in esperadas.enumerated() {
+            check(NotchAPIServer.esperaParaReligar(falhas: falhas) == espera, "espera da tentativa \(falhas)")
+        }
+        check(NotchAPIServer.esperaParaReligar(falhas: 10_000) == 60, "teto da espera")
+
+        // porta escolhida pelo kernel na hora: uma fixa podia estar em
+        // TIME_WAIT da rodada anterior, e o bind do ocupante falharia
+        let (ocupante, porta) = ocupar()
+        let server = NotchAPIServer(agentRequestToken: token, port: porta)
+        var prontos = 0
+        server.onReady = { prontos += 1 }
+        server.start()
+        spin(0.4)
+        // sem resposta HTTP: 0 (o URLSession desistiu) ou -1 (o prazo do finish
+        // venceu primeiro) — com a porta presa, quem aceita a conexão é o
+        // ocupante, que nunca responde
+        check(request("GET", "/ask/nada", porta: porta, timeout: 1).status <= 0,
+              "porta ocupada: a API não devia responder")
+        check(prontos == 0, "porta ocupada: onReady (que grava o token) rodou sem a porta")
+        // o AppDelegate chama start() a cada mudança de ajuste: com uma tentativa
+        // agendada, isso não vira tentativa (nem linha de log) extra
+        // (a 2ª tentativa sai em 1 s e a 3ª só 2 s depois dela: a janela abaixo
+        // cai entre as duas)
+        let falhas = server.falhasSeguidas
+        check(falhas >= 1, "preparo: a porta ocupada não contou falha")
+        for _ in 0..<5 { server.start() }
+        spin(0.2)
+        check(server.falhasSeguidas == falhas,
+              "start() com tentativa agendada virou \(server.falhasSeguidas - falhas) tentativas extras")
+        close(ocupante)
+        // primeira tentativa em 1 s
+        spin(until: 4) { request("GET", "/ask/nada", porta: porta, timeout: 0.5).status > 0 }
+        check(request("GET", "/ask/nada", porta: porta).status == 404,
+              "a API não religou sozinha depois que a porta soltou")
+        check(prontos == 1, "onReady rodou \(prontos) vezes, esperado 1")
+        check(server.falhasSeguidas == 0, "o .ready não zerou as falhas")
+        server.stop()
+
+        // stop() com tentativa agendada: desligar a API vence
+        let (outroOcupante, outra) = ocupar()
+        let desligada = NotchAPIServer(agentRequestToken: token, port: outra)
+        desligada.start()
+        spin(0.3)
+        desligada.stop()
+        close(outroOcupante)
+        spin(2.5)
+        check(request("GET", "/ask/nada", porta: outra, timeout: 0.5).status <= 0,
+              "a tentativa agendada religou uma API desligada")
+    }
+
+    /// Prende uma porta livre de 127.0.0.1 com um socket comum, como outro
+    /// programa faria. Sem SO_REUSEADDR: com ele o NWListener entra junto.
+    static func ocupar() -> (fd: Int32, porta: UInt16) {
+        let fd = socket(AF_INET, SOCK_STREAM, 0)
+        var addr = sockaddr_in()
+        addr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_port = 0
+        addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+        var tamanho = socklen_t(MemoryLayout<sockaddr_in>.size)
+        let ok = withUnsafeMutablePointer(to: &addr) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                bind(fd, $0, tamanho) == 0 && listen(fd, 1) == 0 && getsockname(fd, $0, &tamanho) == 0
+            }
+        }
+        check(fd >= 0 && ok, "não deu pra ocupar uma porta (errno \(errno))")
+        return (fd, UInt16(bigEndian: addr.sin_port))
     }
 
     // MARK: - Long-poll
@@ -222,11 +303,12 @@ struct AgentRequestAPIServerCheck {
     }
 
     private static func start(_ method: String, _ path: String, body: String? = nil,
-                              token: String? = nil, wait: String? = nil) -> EmVoo {
-        var request = URLRequest(url: URL(string: "http://127.0.0.1:\(port)\(path)")!)
+                              token: String? = nil, wait: String? = nil,
+                              porta: UInt16 = port, timeout: TimeInterval = 30) -> EmVoo {
+        var request = URLRequest(url: URL(string: "http://127.0.0.1:\(porta)\(path)")!)
         request.httpMethod = method
         request.httpBody = body?.data(using: .utf8)
-        request.timeoutInterval = 30
+        request.timeoutInterval = timeout
         if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
         if let wait { request.setValue(wait, forHTTPHeaderField: "X-Knobler-Wait") }
         let voo = EmVoo()
@@ -251,8 +333,10 @@ struct AgentRequestAPIServerCheck {
     }
 
     private static func request(_ method: String, _ path: String, body: String? = nil,
-                                token: String? = nil, wait: String? = nil) -> Resposta {
-        finish(start(method, path, body: body, token: token, wait: wait), timeout: 5)
+                                token: String? = nil, wait: String? = nil,
+                                porta: UInt16 = port, timeout: TimeInterval = 5) -> Resposta {
+        finish(start(method, path, body: body, token: token, wait: wait, porta: porta, timeout: timeout),
+               timeout: timeout)
     }
 
     private static func spin(_ seconds: TimeInterval) {

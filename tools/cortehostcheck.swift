@@ -144,8 +144,23 @@ enum Gate {
         p.orderFrontRegardless()
         exigir(vigia.prazo != nil, "o painel reapareceu com o host deslocado e ninguém mediu")
 
+        // Pendente à vista e o painel some (tela cheia) antes do prazo: o
+        // `orderOut` não passa por layout, e o relógio acordava e gravava
+        // `curou:false` com o painel já escondido.
+        let antes = vigia.ultimaProva
         p.orderOut(nil)
+        exigir(vigia.prazo == nil, "o orderOut não descartou o desvio pendente")
+        p.orderFrontRegardless()
+        exigir(vigia.prazo != nil, "o painel voltou com o host deslocado e ninguém mediu")
+        // sem o gancho do orderOut: só a pergunta do relógio segura
+        p.aoMudarVisibilidade = nil
+        p.orderOut(nil)
+        exigir(vigia.prazo != nil, "preparo: o desvio devia seguir pendente sem o gancho")
+        vigia.revisar(agora: Date().addingTimeInterval(CorteDoKnob.espera + 1))
+        exigir(vigia.ultimaProva?.data == antes?.data && !vigia.cortado,
+               "o relógio gravou o corte com o painel escondido: \(vigia.ultimaProva?.linha ?? "—")")
+
         pc.orderOut(nil)
-        print("cortehostcheck ok — nascimento e troca de resolução não gravam; corte e cura gravam")
+        print("cortehostcheck ok — nascimento e troca de resolução não gravam; corte e cura gravam; escondido não grava")
     }
 }
