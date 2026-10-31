@@ -49,8 +49,8 @@ Um comando roda todos os self-checks — é exatamente o que a CI executa:
 ./tools/check.sh --com-ambiente   # + gate do Codex (exige a CLI) e o instancia-e2e (sessão gráfica)
 ```
 
-São 25 gates hoje — a lista viva está no próprio `tools/check.sh`, que é a fonte
-canônica (uma cópia aqui só envelheceria). Sai com código 1 se qualquer um
+A lista viva dos gates está no próprio `tools/check.sh`, que é a fonte canônica
+(uma cópia ou contagem aqui só envelheceria). Sai com código 1 se qualquer um
 falhar. Ao adicionar um self-check novo, inclua-o no script, senão a CI não o vê.
 
 Um deles não é hermético no sentido usual: o `avisoscheck` também valida o

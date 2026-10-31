@@ -21,8 +21,15 @@ docs de usuário ficam em `docs/images/`.
 sem mudança nenhuma de código: `closed-music`, `closed-music-external`,
 `foco-atividade-indeterminada` e `update-installing` (visualizador animado,
 barra de progresso). Neles o snapshot é inspeção visual, não detector de
-regressão — não gaste tempo investigando o diff. O harness gera 57 PNGs no
-total; os outros 53 são byte-idênticos entre rodadas.
+regressão — não gaste tempo investigando o diff. Outros três dependem do
+relógio (`Date()` no cenário): `expanded-agentes`, `historico-linhas` e
+`lembretes-hoje` mudam quando duas rodadas caem em minutos diferentes. Pra
+comparar com um commit base, rode os dois binários em seguida e compare os
+PNGs da mesma rodada. O harness gera 96 PNGs no total.
+
+Com a tela bloqueada nenhuma janela vira key: o cenário `agenda-criar` ainda
+gera o PNG, mas pula o teste de teclado e avisa no terminal (`agenda: teclado
+NÃO testado`). Pra exercitar o teclado, rode com a sessão desbloqueada.
 
 ## O que não renderiza offscreen
 

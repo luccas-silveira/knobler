@@ -6,6 +6,24 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- O Knobler agora guarda um histórico do próprio consumo de memória e de processador, uma medição a cada 5 minutos dos últimos 7 dias, pra investigar quando o app fica pesado com o tempo.
+- API local: quem espera a resposta de um card pode pedir que o Knobler segure a pergunta por até 25 segundos (`X-Knobler-Wait`) e responda assim que você decidir, em vez de perguntar de novo várias vezes por segundo.
+
+### Fixed
+- Abrir o Knobler de novo com ele já aberto (outra cópia, um build de teste ou o app executado direto) não cria mais uma segunda cópia brigando com a primeira: a aberta por último assume e a anterior fecha sozinha. Antes disso, as aprovações de agentes no notch paravam de funcionar até reiniciar o app.
+- Aprovações do Claude Code e do Codex respondidas no notch agora valem. Antes a escolha era ignorada e o pedido voltava pro terminal.
+- O diagnóstico do Knobler não guarda mais as teclas que você digita. Só registra as teclas de função (F1 a F20), que servem pra investigar o brilho de teclado externo.
+- A leitura de uso do Claude ficou bem mais leve: não roda mais os hooks e plugins do Claude Code a cada 5 minutos, que geravam centenas de MB de escrita em disco por dia.
+- Enquanto espera você responder um card no notch, o Knobler não enche mais o log do sistema: o comando knobler, os hooks do Claude e a ponte do Codex esperam numa conexão só em vez de perguntar três vezes por segundo.
+- As falhas do app (API local que não sobe, teclado sem permissão, player de mídia que cai, captura de áudio que falha) agora ficam registradas no log do macOS e dá pra consultar depois.
+- Quando a porta da API local já está em uso por outro programa, o registro passa a dizer isso, em vez de anunciar que a API está no ar.
+- Fotos de remetente nas notificações ocupavam muita memória e nunca eram descartadas; agora ficam guardadas em tamanho pequeno e com limite.
+- Uma rajada de notificações não se acumula mais sem fim na fila do notch; as que sobram continuam no Histórico.
+- Desconectar e reconectar monitores não deixa mais restos na memória, e o áudio do último ditado é liberado assim que a transcrição começa.
+- O registro de diagnóstico do notch parou de anotar falsos problemas toda vez que o app abre, um monitor é conectado ou a resolução muda.
+- Quando o notch aparece cortado e depois volta ao normal, o registro de diagnóstico agora anota também o momento em que ele se corrigiu.
+
 ## [0.36.0] - 2026-09-29
 
 ### Added

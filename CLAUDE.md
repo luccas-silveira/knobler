@@ -24,6 +24,11 @@ O build local assina com a identidade `Knobler Local Signing`
 (`./tools/make-signing-cert.sh`, uma vez por máquina). Só compilar sem ela:
 acrescente `CODE_SIGNING_ALLOWED=NO` (é o que a CI faz).
 
+⚠️ Uma instância só, e a mais nova vence: rodar o `Knobler.app` de um build
+(DerivedData padrão ou `-derivedDataPath`) com o de `/Applications` aberto
+**encerra** o instalado. Reabra-o depois. Os modos sem UI (`--selfcheck`, `--download-model`,
+`--permissoes`) não encerram nada.
+
 ## Checks
 
 Não há XCTest. Cada área tem um harness `tools/*check*.swift` (ou `.mjs`) que
@@ -32,7 +37,7 @@ canônica** — é o que a CI executa.
 
 ```bash
 ./tools/check.sh                  # todos os gates herméticos
-./tools/check.sh --com-ambiente   # + gate do Codex (exige a CLI)
+./tools/check.sh --com-ambiente   # + gate do Codex (exige a CLI) e instancia-e2e (sessão gráfica)
 ```
 
 Gate isolado: a linha de compilação está no cabeçalho de cada

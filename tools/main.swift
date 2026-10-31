@@ -182,6 +182,14 @@ func configurarEditorAgenda(_ vm: NotchViewModel) {
     vm.agendaRascunho?.observacoes = "Alinhar os próximos passos com a equipe."
 }
 
+/// Com a tela bloqueada o window server não dá foco de teclado a janela
+/// nenhuma (o `makeKey()` vira no-op): o teste de teclado da agenda falharia
+/// e o trap derrubaria todos os cenários seguintes.
+func telaBloqueada() -> Bool {
+    let sessao = CGSessionCopyCurrentDictionary() as? [String: Any]
+    return (sessao?["CGSSessionScreenIsLocked"] as? Bool) ?? false
+}
+
 @MainActor
 func lembretesSinteticos() -> AppleRemindersStore {
     let store = AppleRemindersStore(snapshot: true)
@@ -902,7 +910,10 @@ for scenario in scenarios {
             fatalError("Não foi possível codificar a agenda")
         }
         png = data
-        if scenario.name == "agenda-criar" {
+        if scenario.name == "agenda-criar" && telaBloqueada() {
+            // O PNG acima já saiu; só o teste de teclado fica de fora.
+            print("agenda: teclado NÃO testado — tela bloqueada, nenhuma janela vira key")
+        } else if scenario.name == "agenda-criar" {
             precondition(window.allowsKeyboard && window.isKeyWindow, "Editor precisa aceitar teclado")
             guard let editor = window.firstResponder as? NSTextView else {
                 fatalError("Título não recebeu o foco de edição")

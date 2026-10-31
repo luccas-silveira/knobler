@@ -116,6 +116,15 @@ liga em segundos — sem reabrir o app.
   lsof -nP -iTCP:4477 -sTCP:LISTEN
   ```
 
+- O log diz se a porta ligou (`escutando em 127.0.0.1:4477`) ou falhou
+  (`porta 4477 falhou: … Address already in use`). O app não tenta de novo
+  sozinho: libere a porta e reabra o Knobler.
+
+  ```bash
+  /usr/bin/log show --last 1h \
+    --predicate 'subsystem == "com.zoi.knobler" && category == "api"'
+  ```
+
 - Teste o endpoint mínimo:
 
   ```bash
@@ -346,7 +355,7 @@ jq -r '[.data, .footprint_mb, .cpu_pct, .notches, .janelas] | @tsv' \
 
 A última amostra também sai no `GET /status`, no campo `desempenho` (ver
 [`local-api.md`](local-api.md)), e cada uma vai pro log unificado
-(`log stream --info --predicate 'subsystem == "com.zoi.knobler" && category == "desempenho"'`).
+(`/usr/bin/log stream --info --predicate 'subsystem == "com.zoi.knobler" && category == "desempenho"'`).
 Para um retrato por categoria (Malloc, Image IO, IOSurface) no instante, use
 `footprint -p $(pgrep -x Knobler)`.
 
@@ -382,6 +391,8 @@ embutido do shell e não lê nada disso.
 | `novidades` | janela de novidades que abriria em branco |
 | `notificacoes` | cada notificação interceptada (app de origem; o título sai privado) |
 | `app` | item de login que não ligou ou não desligou |
+| `instancia` | instância única: a mais nova que assume e encerra a anterior, a anterior que não saiu a tempo e foi forçada |
+| `desempenho` | falha ao gravar ou podar o `desempenho.jsonl`; cada amostra sai como `info` (só ao vivo, no `log stream --info`) |
 | `webhook`, `avisos`, `TextoDaTela`, `corte-do-knob` | relay de webhooks, avisos do desenvolvedor, Texto da tela e o detector do knob cortado |
 
 O painel de uso dos agentes (código vendorizado do Codenotch) registra noutro

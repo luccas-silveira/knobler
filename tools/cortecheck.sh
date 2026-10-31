@@ -10,8 +10,11 @@ FONTES=$(grep -v '^#' tools/notchview-fontes.txt)
 # medição 004 dirige `applyVisibility` contra o painel de verdade — nível
 # `.mainMenu + 3`, `isOpaque = false`, `.canJoinAllSpaces` —, e não contra uma
 # NSWindow comum.
+# `-F` das privadas só no linker: passado ao compilador, o clang acha o
+# Network.framework privado antes do SDK e o módulo `Network` não compila
+# (macOS 27). O MonitorControl.h declara os símbolos à mão, sem header privado.
 # shellcheck disable=SC2086
 swiftc -O -o build/cortecheck $FONTES -import-objc-header Vendor/MonitorControl/MonitorControl.h \
-  -F/System/Library/PrivateFrameworks -framework DisplayServices -framework CoreDisplay \
+  -Xlinker -F/System/Library/PrivateFrameworks -framework DisplayServices -framework CoreDisplay \
   Knobler/NotchWindow.swift tools/cortecheck/main.swift
 ./build/cortecheck

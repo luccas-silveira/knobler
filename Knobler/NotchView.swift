@@ -111,7 +111,8 @@ struct NotchView: View {
         }
     }
 
-    /// O retrato do instante da violação. Montado SÓ quando ela acontece.
+    /// O retrato do instante em que um desvio aparece ou cura (o `VigiaDoCorte`
+    /// pede só nesses dois momentos, nunca a cada medida).
     private func contextoDoCorte(_ moldura: CGRect) -> ContextoDoCorte {
         let ultimo = vm.eventos.max { $0.value < $1.value }
         return ContextoDoCorte(

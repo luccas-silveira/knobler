@@ -22,4 +22,8 @@ const midia = {
 export default defineConfig({
   site: "https://knobler.appzoi.com.br",
   integrations: [midia],
+  // tests/build.mjs builda um site por processo de teste, em paralelo: cada um
+  // passa o próprio cache do Vite, senão o otimizador de dependências disputa
+  // node_modules/.vite/deps (ENOTEMPTY/ENOENT ao renomear o deps_temp).
+  vite: process.env.KNOBLER_VITE_CACHE ? { cacheDir: process.env.KNOBLER_VITE_CACHE } : {},
 });
