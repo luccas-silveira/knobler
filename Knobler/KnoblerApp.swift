@@ -821,11 +821,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         askStore = AskStore(
             dependencies: .init(
                 // O servidor mantém API síncrona e o adaptador async apenas
-                // atende ao contrato de efeitos do AskStore.
-                resolve: { [weak server] id, answers in
+                // atende ao contrato de efeitos do AskStore. `@MainActor`: sem
+                // ele o efeito roda fora da main e disputa o estado do servidor
+                // (e as conexões em long-poll) com o listener.
+                resolve: { @MainActor [weak server] id, answers in
                     server?.resolveAsk(id: id, answers: answers)
                 },
-                cancel: { [weak server] id in
+                cancel: { @MainActor [weak server] id in
                     _ = server?.cancelAsk(id: id)
                 }
             )
@@ -892,10 +894,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard agentRequestStore == nil else { return }
         let server = apiServer
         agentRequestStore = AgentRequestStore(
-            resolveRemote: { [weak server] id, action in
+            // `@MainActor` pelo mesmo motivo do Ask: o servidor vive na main.
+            resolveRemote: { @MainActor [weak server] id, action in
                 server?.resolveAgentRequest(id: id, action: action, responder: .nob) ?? false
             },
-            dismissRemote: { [weak server] id in
+            dismissRemote: { @MainActor [weak server] id in
                 _ = server?.dismissAgentRequest(id: id, responder: .nob)
             }
         )

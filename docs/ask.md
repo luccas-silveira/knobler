@@ -49,8 +49,9 @@ O fluxo usa a API local documentada em [`docs/local-api.md`](local-api.md):
 2. o Knobler enfileira a pergunta no `AskStore` compartilhado por todos os
    monitores;
 3. a resposta ou o cancelamento é enviado ao servidor;
-4. o hook faz polling em `GET /ask/<id>` até obter uma resposta, cancelamento
-   ou falha de comunicação.
+4. o hook espera em `GET /ask/<id>` com long-poll (`X-Knobler-Wait`, ver
+   [`local-api.md`](local-api.md#long-poll-x-knobler-wait)) até obter uma
+   resposta, cancelamento ou falha de comunicação.
 
 O primeiro resultado vence. Respostas são consumidas uma única vez; perguntas
 órfãs expiram após 15 minutos. Desligar a API limpa a apresentação e invalida

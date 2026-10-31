@@ -12,6 +12,10 @@
 # usar em scripts de deploy sem quebrá-los (use `|| true` se preferir).
 set -euo pipefail
 PORT="${KNOBLER_PORT:-4477}"
+# Long-poll: o app segura o GET de estado até a resposta (ou até WAIT
+# segundos) em vez de responder na hora; o app antigo ignora o header e
+# responde na hora, e aí o sleep do laço vira o polling de antes.
+WAIT=25
 cmd="${1:-}"
 shift 2>/dev/null || true
 
@@ -36,6 +40,11 @@ agent_request() { # $1=method $2=path [$3=json]
         curl -sf -m 2 -X "$method" -H "Authorization: Bearer $AGENT_TOKEN" \
             "http://127.0.0.1:$PORT$path"
     fi
+}
+agent_request_wait() { # $1=path — GET de estado em long-poll
+    agent_token
+    curl -sf -m "$((WAIT + 5))" -H "X-Knobler-Wait: $WAIT" \
+        -H "Authorization: Bearer $AGENT_TOKEN" "http://127.0.0.1:$PORT$1"
 }
 
 case "$cmd" in
@@ -64,7 +73,7 @@ import json, sys
 print(json.dumps([{"label": a, "description": ""} for a in sys.argv[1:]]))' "$@")"
     post /ask "{\"id\":\"$id\",\"source\":\"CLI\",\"questions\":[{\"question\":$(esc "$q"),\"header\":\"CLI\",\"multiSelect\":false,\"options\":$opts}]}"
     while :; do
-        state="$(curl -sf -m 2 "localhost:$PORT/ask/$id")" \
+        state="$(curl -sf -m "$((WAIT + 5))" -H "X-Knobler-Wait: $WAIT" "localhost:$PORT/ask/$id")" \
             || { echo "knobler: API caiu no meio" >&2; exit 1; }
         case "$state" in
         *'"answered":true'* | *'"cancelled":true'*)
@@ -87,7 +96,7 @@ agent-request)
     wait)
         id="${1:?uso: knobler agent-request wait <id>}"
         while :; do
-            state="$(agent_request GET "/agent-requests/$id")" \
+            state="$(agent_request_wait "/agent-requests/$id")" \
                 || { echo "knobler: API caiu no meio" >&2; exit 1; }
             case "$state" in
             *'"state":"resolved"'* | *'"state":"dismissed"'* | *'"state":"expired"'*)

@@ -1,4 +1,6 @@
-// End-to-end self-check for the authenticated agent-request loopback API.
+// End-to-end self-check for the loopback API server: authenticated agent
+// requests and the X-Knobler-Wait long-poll. tools/check.sh runs the same
+// harness as `apiservercheck`.
 //
 //   swiftc tools/agentrequest-api-check.swift -o /tmp/agentrequest-api-check \
 //     && /tmp/agentrequest-api-check
@@ -13,6 +15,7 @@ struct AgentRequestAPICheckLauncher {
             "swiftc", "-parse-as-library",
             "Knobler/AgentRequestModels.swift", "Knobler/AskModels.swift",
             "Knobler/NotchAPIServer.swift", "Knobler/NotchAPIGuard.swift",
+            "Knobler/NotchAPILongPoll.swift",
             "tools/agentrequest-api-server-check.swift",
             "-o", "/tmp/agentrequest-api-check-inner",
         ]

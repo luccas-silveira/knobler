@@ -33,7 +33,7 @@ final class NotchAPIServer {
     /// POST /keyboard/lock e /keyboard/unlock — bloqueio de teclado pra limpeza.
     var onTeclado: ((Bool) -> Void)?
     /// Pergunta interativa (POST /ask): o hook do Claude Code cria, o card
-    /// no notch responde, o hook lê via GET /ask/<id> (polling).
+    /// no notch responde, o hook lê via GET /ask/<id> (long-poll).
     var onAsk: ((AskRequest) -> Void)?
     /// Cancelamento vindo do hook (timeout): tira o card da tela.
     var onAskDismiss: ((String) -> Void)?
@@ -66,6 +66,21 @@ final class NotchAPIServer {
     private var expiryTimer: Timer?
     private static let activityTTL: TimeInterval = 30 * 60
 
+    /// GET de estado segurado pelo `X-Knobler-Wait` (ver NotchAPILongPoll).
+    /// Ask e solicitação de agente têm ids em espaços separados.
+    private enum ChaveEspera: Hashable {
+        case ask(String)
+        case agentRequest(String)
+    }
+    private struct ConexaoEmEspera {
+        let connection: NWConnection
+        /// A requisição original: responder é rodá-la de novo, então o JSON
+        /// (e a leitura única) é exatamente o de um GET sem espera.
+        let request: String
+    }
+    /// Só a main mexe aqui: listener, conexões e timers rodam nela.
+    private var esperas = NotchAPILongPoll.Esperas<ChaveEspera, ConexaoEmEspera>()
+
     init(agentRequestToken: String? = nil, port: UInt16 = NotchAPIServer.port) {
         self.agentRequestToken = agentRequestToken
         self.listenPort = port
@@ -97,28 +112,34 @@ final class NotchAPIServer {
         listener = nil
         expiryTimer?.invalidate()
         expiryTimer = nil
+        // como o GET que chegasse agora: conexão recusada, o cliente desiste
+        for espera in esperas.retirarTodas() { espera.connection.cancel() }
         activities.removeAll()
         pendingAsks.removeAll()
         pendingAgentRequests.removeAll()
         emitActivity()
     }
 
-    private func pruneExpired() {
-        let cutoff = Date().addingTimeInterval(-Self.activityTTL)
+    /// `agora` injetável só pro harness simular o TTL sem esperar 15 min.
+    func pruneExpired(agora: Date = Date()) {
+        let cutoff = agora.addingTimeInterval(-Self.activityTTL)
         let before = activities.count
         activities = activities.filter { $0.value.updatedAt > cutoff }
         if activities.count != before { emitActivity() }
         // asks órfãos (hook morreu sem cancelar) também expiram
-        let askCutoff = Date().addingTimeInterval(-Self.askTTL)
+        let askCutoff = agora.addingTimeInterval(-Self.askTTL)
+        let asksVencidos = pendingAsks.filter { $0.value.updatedAt <= askCutoff }.map(\.key)
         pendingAsks = pendingAsks.filter { $0.value.updatedAt > askCutoff }
+        for id in asksVencidos { acordarEsperas(.ask(id)) } // leem 404, como no polling
 
-        let agentCutoff = Date().addingTimeInterval(-Self.agentRequestTTL)
+        let agentCutoff = agora.addingTimeInterval(-Self.agentRequestTTL)
         for (id, entry) in pendingAgentRequests where entry.updatedAt <= agentCutoff && entry.result == nil {
             pendingAgentRequests[id] = PendingAgentRequest(
                 request: entry.request,
                 result: AgentRequestResult(action: .cancel, responder: .system, state: .expired),
-                updatedAt: Date()
+                updatedAt: agora
             )
+            acordarEsperas(.agentRequest(id))
             onAgentRequestExpired?(id)
         }
         pendingAgentRequests = pendingAgentRequests.filter { $0.value.updatedAt > agentCutoff }
@@ -135,6 +156,7 @@ final class NotchAPIServer {
     func resolveAsk(id: String, answers: [String: AskAnswer]) {
         guard case .pending = pendingAsks[id]?.state else { return }
         pendingAsks[id] = PendingAsk(state: .answered(answers), updatedAt: Date())
+        acordarEsperas(.ask(id))
     }
 
     /// ✕ no card: o hook lê cancelled e deixa a pergunta cair no terminal.
@@ -142,11 +164,16 @@ final class NotchAPIServer {
     func cancelAsk(id: String) -> Bool {
         guard case .pending = pendingAsks[id]?.state else { return false }
         pendingAsks[id] = PendingAsk(state: .cancelled, updatedAt: Date())
+        acordarEsperas(.ask(id))
         return true
     }
 
+    /// `waiting`: conexões em long-poll seguradas agora.
     var askDiagnostics: [String: Any] {
-        ["pending": pendingAsks.count]
+        [
+            "pending": pendingAsks.count,
+            "waiting": esperas.quantidade { if case .ask = $0 { true } else { false } },
+        ]
     }
 
     var agentRequestDiagnostics: [String: Any] {
@@ -154,6 +181,7 @@ final class NotchAPIServer {
         return [
             "pending": entries.filter { $0.result == nil }.count,
             "completed": entries.filter { $0.result != nil }.count,
+            "waiting": esperas.quantidade { if case .agentRequest = $0 { true } else { false } },
         ]
     }
 
@@ -173,6 +201,7 @@ final class NotchAPIServer {
         entry.result = AgentRequestResult(action: action, responder: responder)
         entry.updatedAt = Date()
         pendingAgentRequests[id] = entry
+        acordarEsperas(.agentRequest(id))
         onAgentRequestResolved?(id, action, responder)
         return true
     }
@@ -184,6 +213,7 @@ final class NotchAPIServer {
         entry.result = AgentRequestResult(action: .cancel, responder: responder, state: .dismissed)
         entry.updatedAt = Date()
         pendingAgentRequests[id] = entry
+        acordarEsperas(.agentRequest(id))
         onAgentRequestResolved?(id, .cancel, responder)
         return true
     }
@@ -230,7 +260,101 @@ final class NotchAPIServer {
                 self.send(Self.badRequest("HTTP inválido"), on: connection)
                 return
             }
-            self.send(self.respond(to: request), on: connection)
+            // Cliente que já fechou a escrita não deixa ver a desconexão:
+            // sem como liberar a vaga cedo, responde na hora.
+            if !isComplete, let (chave, segundos) = self.esperaPedida(request) {
+                self.segurar(connection, request: request, ate: chave, segundos: segundos)
+            } else {
+                self.send(self.respond(to: request), on: connection)
+            }
+        }
+    }
+
+    // MARK: - Long-poll (X-Knobler-Wait)
+
+    /// Segura só o GET de estado que pediu espera, passou pelo guard (e pelo
+    /// Bearer, no caso de agente) e ainda está pendente. Todo o resto — sem
+    /// header, já final, desconhecido, 401, 403 — cai no `respond` de sempre.
+    private func esperaPedida(_ request: String) -> (ChaveEspera, TimeInterval)? {
+        let headers = request.range(of: "\r\n\r\n").map { String(request[..<$0.lowerBound]) } ?? request
+        guard let segundos = NotchAPILongPoll.segundos(cabecalhos: headers),
+              NotchAPIGuard.rejeicao(headers: headers, porta: listenPort) == nil
+        else { return nil }
+
+        let chave: ChaveEspera
+        if let route = Self.agentRequestRoute(in: request) {
+            guard case .read(let id) = route,
+                  !Self.agentRequestBodyIsTooLarge(request),
+                  let agentRequestToken,
+                  Self.hasValidAgentToken(in: request, token: agentRequestToken)
+            else { return nil }
+            chave = .agentRequest(id)
+        } else if request.hasPrefix("GET /ask/") {
+            // mesmo recorte do id que o `respond` usa
+            chave = .ask(String(request.dropFirst("GET /ask/".count).prefix { $0 != " " }))
+        } else {
+            return nil
+        }
+        return estaPendente(chave) ? (chave, segundos) : nil
+    }
+
+    private func estaPendente(_ chave: ChaveEspera) -> Bool {
+        switch chave {
+        case .ask(let id):
+            guard case .pending = pendingAsks[id]?.state else { return false }
+            return true
+        case .agentRequest(let id):
+            return pendingAgentRequests[id].map { $0.result == nil } ?? false
+        }
+    }
+
+    private func segurar(_ connection: NWConnection, request: String, ate chave: ChaveEspera, segundos: TimeInterval) {
+        let espera = ConexaoEmEspera(connection: connection, request: request)
+        guard let token = esperas.registrar(chave, espera) else {
+            send(respond(to: request), on: connection) // teto atingido: polling de sempre
+            return
+        }
+        vigiarDesconexao(connection, token: token)
+        // prazo vencido: responde o estado atual (pendente, em geral)
+        DispatchQueue.main.asyncAfter(deadline: .now() + segundos) { [weak self] in
+            guard let self, let espera = self.esperas.remover(token) else { return }
+            self.send(self.respond(to: espera.request), on: espera.connection)
+        }
+    }
+
+    /// Ctrl-C no cliente ou `curl -m` vencido: libera a vaga sem esperar o prazo.
+    private func vigiarDesconexao(_ connection: NWConnection, token: UInt64) {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 1024) {
+            [weak self] data, _, isComplete, error in
+            guard let self, self.esperas.contem(token) else { return }
+            guard isComplete || error != nil || data == nil else {
+                self.vigiarDesconexao(connection, token: token) // bytes a mais: ignora
+                return
+            }
+            guard let espera = self.esperas.remover(token) else { return }
+            if error == nil {
+                // FIN pode ser só meia-conexão fechada: responde o estado
+                // atual em vez de deixar um cliente vivo sem resposta.
+                self.send(self.respond(to: espera.request), on: connection)
+            } else {
+                connection.cancel()
+            }
+        }
+    }
+
+    /// Estado da chave pode ter virado final: responde quem esperava por ela.
+    /// Chamado em todo ponto onde Ask ou solicitação muda de estado; acordar
+    /// sem mudança real é no-op.
+    private func acordarEsperas(_ chave: ChaveEspera) {
+        // O AppDelegate chama os mutadores na main; isto só mantém o registro
+        // na main se um chamador novo esquecer.
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in self?.acordarEsperas(chave) }
+            return
+        }
+        guard !estaPendente(chave) else { return }
+        for espera in esperas.retirar(chave) {
+            send(respond(to: espera.request), on: espera.connection)
         }
     }
 

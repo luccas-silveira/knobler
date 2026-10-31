@@ -126,6 +126,9 @@ xcrun swiftc -parse-as-library -swift-version 5 \
   Knobler/AgentRequestModels.swift Knobler/AgentRequestStore.swift \
   tools/agentrequestcheck.swift -o /tmp/agentrequestcheck && /tmp/agentrequestcheck
 xcrun swiftc tools/agentrequest-api-check.swift -o /tmp/api-check && /tmp/api-check
+xcrun swiftc -parse-as-library -swift-version 5 \
+  Knobler/NotchAPILongPoll.swift tools/longpollcheck.swift \
+  -o /tmp/longpollcheck && /tmp/longpollcheck
 bash tools/claude-hook/test.sh
 node tools/codex-agent-bridge-check.mjs
 node tools/codex-integration-check.mjs
@@ -136,6 +139,7 @@ node tools/agent-requests-e2e.mjs
 |---|---|
 | Reducer: fila FIFO, resolução idempotente, terminal vence o notch | `agentrequestcheck.swift` |
 | API: `401`, `413`, `400`, resultado de leitura única, publish duplicado em `409` | `agentrequest-api-check.swift` (servidor real) |
+| Long-poll: segura o GET pendente, acorda no estado final, prazo, desconexão, Bearer antes de segurar | `longpollcheck.swift` (lógica) e `agentrequest-api-check.swift` (servidor real) |
 | Hook do Claude: allow/deny, sessão sem gravar em disco, API fora e timeout | `claude-hook/test.sh` |
 | Ponte do Codex: as quatro decisões nos três schemas, fallback, comando não executado | `codex-agent-bridge-check.mjs` |
 | Superfícies e capacidade da versão instalada | `codex-integration-check.mjs` |

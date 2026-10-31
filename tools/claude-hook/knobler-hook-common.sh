@@ -19,13 +19,23 @@ knobler_hook_token() {
     [ -n "$KNOBLER_AGENT_TOKEN" ]
 }
 
+# Long-poll: o app segura o GET até o estado ficar final ou o prazo do
+# X-Knobler-Wait vencer (teto de 25 s). O app antigo ignora o header e
+# responde na hora; aí o sleep do laço vira o polling de antes.
+KNOBLER_HOOK_WAIT=25
+
 knobler_hook_poll() { # $1=url $2=deadline epoch [$3=bearer token]
-    local state header=()
+    local state espera header=()
     [ -n "${3:-}" ] && header=(-H "Authorization: Bearer $3")
     while [ "$(date +%s)" -lt "$2" ]; do
+        # nunca pede espera além do deadline: o cancel do timeout precisa caber
+        espera=$(( $2 - $(date +%s) ))
+        if [ "$espera" -gt "$KNOBLER_HOOK_WAIT" ]; then espera="$KNOBLER_HOOK_WAIT"; fi
+        if [ "$espera" -lt 1 ]; then espera=1; fi
         # `${header[@]+…}`: no bash 3.2 do macOS, array vazio com `set -u`
         # aborta com "unbound variable" (o poll sem token do Ask sempre falhava)
-        state="$(curl -sf -m 2 ${header[@]+"${header[@]}"} "$1" 2>/dev/null)" || return 1
+        state="$(curl -sf -m "$((espera + 5))" -H "X-Knobler-Wait: $espera" \
+            ${header[@]+"${header[@]}"} "$1" 2>/dev/null)" || return 1
         if [ "$(printf '%s' "$state" | jq -r '(.answered // false) or (.cancelled // false) or ((.state // "pending") != "pending")' 2>/dev/null)" = "true" ]; then
             printf '%s' "$state"
             return 0
