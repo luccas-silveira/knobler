@@ -43,6 +43,13 @@ enum KnoblerMain {
             exit(ok ? 0 : 1)
         }
         let app = NSApplication.shared
+        // Uma instância só, e a mais nova vence (InstanciaUnicaPartida.swift).
+        // Depois do `NSApplication.shared` (o check-in no LaunchServices é o que
+        // deixa um lançamento simultâneo nos ver) e ANTES do `delegate`: o init
+        // do AppDelegate já cria serviços, e o resto abre janelas, a porta 4477
+        // e regrava o token de agente. Os modos headless acima ficam de fora de
+        // propósito — convivem com o app aberto.
+        InstanciaUnica.garantir()
         app.delegate = delegate
         app.run()
     }
@@ -66,8 +73,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let battery = BatteryMonitor()
     private let bluetooth = BluetoothMonitor()
     private let micMonitor = MicMonitor()
-    private let agentRequestToken = AppDelegate.makeAgentRequestToken()
-    private lazy var apiServer = NotchAPIServer(agentRequestToken: agentRequestToken)
+    /// O token de agente nasce junto do servidor, no primeiro uso (dentro do
+    /// `applicationDidFinishLaunching`), e não no init do delegate: gravar o
+    /// arquivo é efeito que só a instância que venceu a `InstanciaUnica` pode
+    /// ter — uma segunda instância que o regravasse deixava a primeira
+    /// respondendo 401 a toda aprovação.
+    private lazy var apiServer = NotchAPIServer(agentRequestToken: AppDelegate.makeAgentRequestToken())
     // Única fonte de estado da feature Ask, compartilhada por todas as telas.
     private var askStore: AskStore?
     private var agentRequestStore: AgentRequestStore?

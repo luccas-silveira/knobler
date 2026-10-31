@@ -26,10 +26,58 @@ KnoblerMain
              └─ NotchView e cards SwiftUI
 ```
 
-`KnoblerMain` trata apenas os modos headless (`--selfcheck` e
-`--download-model`) antes de subir o `NSApplication`. `AppDelegate` compõe os
+`KnoblerMain` trata os modos headless (`--selfcheck`, `--permissoes` e
+`--download-model`) antes de subir o `NSApplication` e, logo depois dele,
+garante que esta é a única instância (abaixo). `AppDelegate` compõe os
 serviços, conecta callbacks e cria as janelas; ele não deve virar o lugar onde
 regras de domínio novas são implementadas.
+
+### Uma instância por vez: a mais nova vence
+
+Duas instâncias vivas disputam tudo que é único na máquina — a porta 4477, o
+token de solicitações de agente, o tap de teclado, o escurecimento dos
+monitores, as janelas do notch. A segunda nascia com `open -n`, executando o
+binário direto ou abrindo um build do DerivedData com a cópia de
+`/Applications` aberta, e regravava o token: a primeira passava a responder
+`401` a toda aprovação de agente.
+
+A regra é **a instância mais nova vence**, e roda no `KnoblerMain.main()`
+depois do `NSApplication.shared` e antes do `AppDelegate` nascer — antes de
+qualquer serviço, janela, porta ou token:
+
+1. lista `NSRunningApplication.runningApplications(withBundleIdentifier:)`
+   menos o próprio processo e as já encerradas;
+2. se existe uma **mais nova** (dois lançamentos quase simultâneos), esta sai
+   com `exit(0)` sem montar nada;
+3. senão, pede `terminate()` às mais antigas (quit normal, que passa pelo
+   `applicationShouldTerminate`), espera até 5 s e usa `forceTerminate()` na
+   que não saiu.
+
+"Mais nova" compara o início do processo segundo o kernel (`sysctl`), que
+existe até para binário executado sem o LaunchServices (ele fica sem
+`launchDate`), com desempate pelo PID — a mesma ordem vista dos dois lados.
+A decisão é pura em `Knobler/InstanciaUnica.swift` (gate
+`tools/instanciacheck.swift`); os efeitos estão em
+`Knobler/InstanciaUnicaPartida.swift`, que também documenta os casos:
+
+- **Modos headless** saem antes da guarda e convivem com o app aberto: o
+  `--download-model` do postflight do cask, o `--selfcheck` do
+  `tools/check.sh` e o `--permissoes` não derrubam ninguém.
+- **Sem bundle id** (harness, binário solto): a guarda não faz nada.
+- **`Updater.relaunch()`**: o shell espera o PID antigo morrer antes do
+  `open -a`; a nova sobe sozinha. **`brew upgrade`** troca o bundle sem fechar o
+  app; se o novo for aberto com o velho vivo, o novo o substitui.
+- **Login Item**: sobe uma vez; outra cópia aberta depois vence.
+- **Quit recusado ou adiado** pela antiga: com o Descanso em curso ela recusa,
+  com monitores escurecidos ela adia até restaurar. Passados 5 s vem o
+  `forceTerminate()`, que pula a restauração do gamma e o
+  `applicationWillTerminate`. Ditado gravando não recusa o quit: o áudio da
+  antiga se perde.
+
+O token de agente nasce junto do `NotchAPIServer` (lazy, no
+`applicationDidFinishLaunching`), não no init do delegate. A prova de ponta a
+ponta com o AppKit de verdade é `tools/instancia-e2e.sh`, que lança um
+app-brinquedo com bundle id próprio (roda em `./tools/check.sh --com-ambiente`).
 
 **Nenhuma permissão é pedida no launch.** A abertura mostra a página de
 novidades (só as versões que esta instalação ainda não viu — ver

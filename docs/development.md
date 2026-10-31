@@ -46,7 +46,7 @@ Um comando roda todos os self-checks — é exatamente o que a CI executa:
 
 ```bash
 ./tools/check.sh                  # gates herméticos (o que a CI roda)
-./tools/check.sh --com-ambiente   # inclui o gate do Codex, que exige a CLI
+./tools/check.sh --com-ambiente   # + gate do Codex (exige a CLI) e o instancia-e2e (sessão gráfica)
 ```
 
 São 25 gates hoje — a lista viva está no próprio `tools/check.sh`, que é a fonte
@@ -111,6 +111,12 @@ pelas notificações externas e deve ser validado separadamente.
   postflight do cask.
 - `Knobler --ajustes` — abre Ajustes.
 - `Knobler --ajustes=pomodoro` — abre um painel específico para screenshots.
+
+Só uma instância roda por vez, e a mais nova vence: abrir um build do
+DerivedData (com ou sem flag) com o Knobler de `/Applications` aberto **encerra**
+o de `/Applications`. Os modos que saem sem UI (`--selfcheck`,
+`--download-model`, `--permissoes`) não encerram nada. Detalhes em
+`docs/architecture.md`.
 
 ## Logs
 

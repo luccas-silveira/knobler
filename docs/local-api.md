@@ -9,7 +9,9 @@ notificações transitórias, live activities, controle do espelho e perguntas
 interativas. O servidor escuta somente loopback. As rotas legadas, incluindo
 `/ask`, permanecem sem autenticação por compatibilidade. Solicitações de
 agentes usam um token efêmero de sessão, gravado com modo `0600` em
-`~/Library/Application Support/Knobler/agent-request-token`.
+`~/Library/Application Support/Knobler/agent-request-token`. Cada abertura do
+app grava um token novo, e só roda uma instância por vez (a mais nova encerra a
+anterior), então o arquivo sempre corresponde ao processo que está escutando.
 
 Ligue em Ajustes → Notch → API local. Desligar a opção fecha o listener e
 remove activities e perguntas pendentes.
