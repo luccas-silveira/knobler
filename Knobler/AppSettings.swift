@@ -12,6 +12,9 @@ import Collaboration
 import Security
 import ServiceManagement
 import SwiftUI
+import os
+
+private let log = Logger(subsystem: "com.zoi.knobler", category: "app")
 
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()
@@ -292,7 +295,7 @@ final class AppSettings: ObservableObject {
                 if newValue { try SMAppService.mainApp.register() }
                 else { try SMAppService.mainApp.unregister() }
             } catch {
-                NSLog("knobler login item: %@", error.localizedDescription)
+                log.error("item de login não \(newValue ? "ligou" : "desligou", privacy: .public): \(error.localizedDescription, privacy: .public)")
             }
             objectWillChange.send()
         }

@@ -16,6 +16,9 @@
 
 import Foundation
 import Network
+import os
+
+private let log = Logger(subsystem: "com.zoi.knobler", category: "api")
 
 final class NotchAPIServer {
     static let port: UInt16 = 4477
@@ -77,8 +80,24 @@ final class NotchAPIServer {
         parameters.requiredLocalEndpoint = NWEndpoint.hostPort(
             host: "127.0.0.1", port: NWEndpoint.Port(rawValue: listenPort)!)
         guard let listener = try? NWListener(using: parameters) else {
-            NSLog("knobler api: porta \(listenPort) indisponível")
+            log.error("porta \(self.listenPort, privacy: .public) indisponível")
             return
+        }
+        // Porta ocupada não derruba o init: o NWListener só liga a porta no
+        // `start()` e a falha chega aqui como `.failed`. Por isso o "escutando"
+        // sai no `.ready`, e não logo depois do `start()`.
+        let port = listenPort
+        listener.stateUpdateHandler = { state in
+            switch state {
+            case .ready:
+                log.notice("escutando em 127.0.0.1:\(port, privacy: .public)")
+            case .waiting(let error):
+                log.notice("porta \(port, privacy: .public) esperando: \(String(describing: error), privacy: .public)")
+            case .failed(let error):
+                log.error("porta \(port, privacy: .public) falhou: \(String(describing: error), privacy: .public)")
+            default:
+                break
+            }
         }
         listener.newConnectionHandler = { [weak self] connection in
             self?.handle(connection)
@@ -88,7 +107,6 @@ final class NotchAPIServer {
         expiryTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) {
             [weak self] _ in self?.pruneExpired()
         }
-        NSLog("knobler api: escutando em 127.0.0.1:\(listenPort)")
     }
 
     func stop() {

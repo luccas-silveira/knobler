@@ -113,3 +113,5 @@ Registrados em `.mcp.json` (escopo de projeto):
 
 - Comentários e strings de UI em **pt-BR** (ver `project.yml` e o código).
 - Marque simplificações deliberadas com `// ponytail:`.
+- Log com `os.Logger` (subsystem `com.zoi.knobler`), nunca `NSLog` — regras em
+  `docs/development.md` (seção Logs).

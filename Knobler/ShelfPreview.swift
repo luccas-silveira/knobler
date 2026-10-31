@@ -12,6 +12,9 @@ import AVFoundation
 import AppKit
 import Combine
 import ImageIO
+import os
+
+private let log = Logger(subsystem: "com.zoi.knobler", category: "shelf")
 
 @MainActor
 final class ShelfPreview: ObservableObject {
@@ -82,7 +85,10 @@ final class ShelfPreview: ObservableObject {
                 self.outputBytes = urls.first.flatMap(Self.bytes(of:))
                 self.outputPixelSize = urls.first.flatMap(Self.pixelSize(of:))
             case .failure(let error):
-                NSLog("knobler: preview de conversão falhou (\(self.source.lastPathComponent)): \(error)")
+                // Nome do arquivo e a descrição do erro (que repete o caminho)
+                // são do usuário; domínio e código bastam pra investigar.
+                let ns = error as NSError
+                log.error("preview de conversão falhou (\(self.source.lastPathComponent, privacy: .private)): \(ns.domain, privacy: .public) \(ns.code, privacy: .public) — \(ns.localizedDescription, privacy: .private)")
                 self.failed = true
                 self.output = nil
                 self.outputBytes = nil
@@ -111,7 +117,8 @@ final class ShelfPreview: ObservableObject {
                 saved.append(destination)
             } catch {
                 remaining.append(url)
-                NSLog("knobler: preview não conseguiu salvar \(url.lastPathComponent): \(error)")
+                let ns = error as NSError
+                log.error("preview não conseguiu salvar \(url.lastPathComponent, privacy: .private): \(ns.domain, privacy: .public) \(ns.code, privacy: .public) — \(ns.localizedDescription, privacy: .private)")
             }
         }
         written = remaining

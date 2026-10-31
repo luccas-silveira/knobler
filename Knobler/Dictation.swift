@@ -12,6 +12,9 @@ import AppKit
 import ApplicationServices
 import AVFoundation
 import FluidAudio
+import os
+
+private let log = Logger(subsystem: "com.zoi.knobler", category: "ditado")
 
 // MARK: - Engines
 
@@ -530,7 +533,7 @@ final class DictationController {
                     self.flash(.error("Sem destino — texto copiado"))
                 }
             } catch {
-                NSLog("knobler ditado: %@", error.localizedDescription)
+                log.error("transcrição falhou: \(error.localizedDescription, privacy: .public)")
                 self.transcribing = false
                 self.flash(.error("Falha na transcrição"))
             }

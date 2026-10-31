@@ -16,6 +16,9 @@
 
 import Foundation
 import FluidAudio
+import os
+
+private let log = Logger(subsystem: "com.zoi.knobler", category: "ditado")
 
 enum DictationModelProvisioner {
     /// Flag de linha de comando que dispara o modo headless.
@@ -72,6 +75,8 @@ enum DictationModelProvisioner {
             } catch {
                 // stdout (não stderr) pra sobreviver ao print_stderr:false do cask.
                 print("Knobler: download do modelo falhou: \(error.localizedDescription)")
+                // o terminal do `brew install` some; o log unificado fica.
+                log.error("download do modelo falhou: \(error.localizedDescription, privacy: .public)")
                 code = 1
             }
             sem.signal()

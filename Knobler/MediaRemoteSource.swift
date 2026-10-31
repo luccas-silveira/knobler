@@ -9,6 +9,9 @@
 //
 
 import AppKit
+import os
+
+private let log = Logger(subsystem: "com.zoi.knobler", category: "midia")
 
 final class MediaRemoteSource {
     /// Estado consolidado após o merge dos diffs. Campo ausente = nil.
@@ -61,14 +64,17 @@ final class MediaRemoteSource {
         test.terminationHandler = { [weak self] proc in
             DispatchQueue.main.async {
                 guard proc.terminationStatus == 0 else {
-                    NSLog("MediaRemoteSource: adapter quebrado (test → %d); now playing desligado",
-                          proc.terminationStatus)
+                    log.error("adapter quebrado (test → \(proc.terminationStatus, privacy: .public)); now playing desligado")
                     return
                 }
                 self?.startStream()
             }
         }
-        try? test.run()
+        do {
+            try test.run()
+        } catch {
+            log.error("teste do adapter não rodou: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     func stop() {
@@ -105,26 +111,28 @@ final class MediaRemoteSource {
             guard !data.isEmpty else { handle.readabilityHandler = nil; return }
             DispatchQueue.main.async { self?.consume(data) }
         }
-        proc.terminationHandler = { [weak self] _ in
-            DispatchQueue.main.async { self?.streamDied() }
+        proc.terminationHandler = { [weak self] proc in
+            let status = proc.terminationStatus
+            DispatchQueue.main.async { self?.streamDied(status: status) }
         }
         do {
             try proc.run()
             process = proc
         } catch {
-            NSLog("MediaRemoteSource: falha ao lançar o stream: \(error)")
+            log.error("falha ao lançar o stream: \(error.localizedDescription, privacy: .public)")
         }
     }
 
-    private func streamDied() {
+    private func streamDied(status: Int32) {
         process = nil
         guard !stopped else { return }
         restartAttempts += 1
         guard restartAttempts <= 5 else {
-            NSLog("MediaRemoteSource: stream morreu %d×; desistindo", restartAttempts)
+            log.error("stream morreu \(self.restartAttempts, privacy: .public)× (status \(status, privacy: .public)); desistindo")
             onUpdate?(nil)
             return
         }
+        log.notice("stream morreu (status \(status, privacy: .public)); tentativa \(self.restartAttempts, privacy: .public) de 5")
         DispatchQueue.main.asyncAfter(deadline: .now() + Double(restartAttempts) * 2) { [weak self] in
             self?.startStream()
         }

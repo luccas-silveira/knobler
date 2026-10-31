@@ -13,6 +13,9 @@
 import AppKit
 import AudioToolbox
 import CoreAudio
+import os
+
+private let log = Logger(subsystem: "com.zoi.knobler", category: "teclado")
 
 final class VolumeHUDController {
     var onHUD: ((NotchViewModel.HUDState) -> Void)?
@@ -52,6 +55,9 @@ final class VolumeHUDController {
     private var runLoopSource: CFRunLoopSource?
     private var healthTimer: Timer?
     private var trustedAtCreation = false
+    /// O health-check tenta recriar o tap a cada 3 s: sem esta trava, um tap
+    /// que não sobe com a Acessibilidade concedida encheria o log.
+    private var tapFalhaRegistrada = false
     /// Avisa quando a Acessibilidade é concedida ou revogada (só na mudança).
     var onAXTrust: ((Bool) -> Void)?
     private var lastReportedTrust: Bool?
@@ -117,6 +123,7 @@ final class VolumeHUDController {
         // quem observa (badge da barra de menus) pega carona neste timer —
         // conceder/revogar Acessibilidade não notifica ninguém no macOS.
         if trusted != lastReportedTrust {
+            log.notice("Acessibilidade: \(trusted ? "concedida" : "ausente", privacy: .public)")
             lastReportedTrust = trusted
             onAXTrust?(trusted)
         }
@@ -168,8 +175,15 @@ final class VolumeHUDController {
         )
 
         guard let eventTap else {
-            NSLog("knobler: CGEventTap indisponível (Acessibilidade?) — HUD de som desligado")
+            if !tapFalhaRegistrada {
+                tapFalhaRegistrada = true
+                log.error("tap de teclado indisponível (axTrusted=\(self.trustedAtCreation, privacy: .public)) — HUD de som e ⌥ direita do ditado sem efeito")
+            }
             return
+        }
+        if tapFalhaRegistrada {
+            tapFalhaRegistrada = false
+            log.notice("tap de teclado de volta")
         }
         runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
         CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
@@ -178,6 +192,7 @@ final class VolumeHUDController {
 
     func handle(_ cgEvent: CGEvent) -> Unmanaged<CGEvent>? {
         if cgEvent.type == .tapDisabledByTimeout || cgEvent.type == .tapDisabledByUserInput {
+            log.notice("tap de teclado desligado pelo sistema (\(cgEvent.type == .tapDisabledByTimeout ? "timeout" : "entrada do usuário", privacy: .public)); religando")
             if let eventTap { CGEvent.tapEnable(tap: eventTap, enable: true) }
             return Unmanaged.passRetained(cgEvent)
         }

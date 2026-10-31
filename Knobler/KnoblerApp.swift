@@ -8,6 +8,9 @@ import Carbon.HIToolbox
 import Combine
 import Security
 import SwiftUI
+import os
+
+private let log = Logger(subsystem: "com.zoi.knobler", category: "api")
 
 @main
 @MainActor
@@ -862,7 +865,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private static func makeAgentRequestToken() -> String? {
         var bytes = [UInt8](repeating: 0, count: 32)
         guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
-            NSLog("knobler api: não gerou token de solicitações")
+            log.error("não gerou token de solicitações")
             return nil
         }
         let token = Data(bytes).base64EncodedString()
@@ -881,7 +884,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             try manager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: tokenURL.path)
             return token
         } catch {
-            NSLog("knobler api: não gravou token de solicitações: \(error.localizedDescription)")
+            log.error("não gravou token de solicitações: \(error.localizedDescription, privacy: .public)")
             return nil
         }
     }

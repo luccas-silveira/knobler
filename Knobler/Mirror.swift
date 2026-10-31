@@ -9,6 +9,9 @@
 
 import AVFoundation
 import SwiftUI
+import os
+
+private let log = Logger(subsystem: "com.zoi.knobler", category: "espelho")
 
 final class MirrorController: ObservableObject {
     static let shared = MirrorController()
@@ -36,7 +39,7 @@ final class MirrorController: ObservableObject {
             guard let device = Self.preferredDevice(),
                   let input = try? AVCaptureDeviceInput(device: device),
                   session.canAddInput(input) else {
-                NSLog("knobler mirror: câmera indisponível")
+                log.error("câmera indisponível")
                 DispatchQueue.main.async { self?.falhou = true }
                 return
             }

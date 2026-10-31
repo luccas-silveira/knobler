@@ -306,10 +306,51 @@ Ver [Avisos do desenvolvedor](avisos.md).
 
 ## Logs úteis
 
+O app registra no log unificado do macOS com o subsystem `com.zoi.knobler`.
+Use o caminho completo `/usr/bin/log`: no zsh, `log` sozinho é um comando
+embutido do shell e não lê nada disso.
+
 ```bash
-log stream --style compact --info \
-  --predicate 'process == "Knobler"'
+# o que aconteceu na última hora
+/usr/bin/log show --last 1h --predicate 'subsystem == "com.zoi.knobler"'
+
+# ao vivo, enquanto reproduz o problema
+/usr/bin/log stream --predicate 'subsystem == "com.zoi.knobler"'
+
+# uma área só
+/usr/bin/log show --last 1h \
+  --predicate 'subsystem == "com.zoi.knobler" && category == "api"'
 ```
+
+| Categoria | O que fica registrado |
+|---|---|
+| `api` | API local: `escutando em 127.0.0.1:4477` quando a porta liga de fato, `porta 4477 falhou: … Address already in use` quando outro processo a ocupa, falha ao gerar ou gravar o token das solicitações de agente |
+| `teclado` | taps de teclado (HUD de som e ⌥ direita do ditado; Control direito do desenho): indisponível, de volta, desligado pelo sistema; Acessibilidade concedida ou ausente |
+| `midia` | now playing: adapter quebrado, cada queda do stream com o status de saída, desistência depois de 5 tentativas |
+| `audio` | tap de áudio do visualizador: o status do Core Audio de cada passo que falha (o `AudioHardwareCreateProcessTap` falha sem a permissão de Áudio do sistema) |
+| `ditado` | falha de transcrição; falha no download do modelo (`--download-model`) |
+| `shelf` | prateleira: item arrastado que não foi guardado, preview de conversão que falhou ou não salvou |
+| `airdrop` | AirDrop indisponível para os itens |
+| `bluetooth` | leitura da bateria dos AirPods |
+| `espelho` | câmera indisponível |
+| `novidades` | janela de novidades que abriria em branco |
+| `notificacoes` | cada notificação interceptada (app de origem; o título sai privado) |
+| `app` | item de login que não ligou ou não desligou |
+| `webhook`, `avisos`, `TextoDaTela`, `corte-do-knob` | relay de webhooks, avisos do desenvolvedor, Texto da tela e o detector do knob cortado |
+
+O painel de uso dos agentes (código vendorizado do Codenotch) registra noutro
+subsystem, `com.vinz.codenotch`.
+
+Falha sai como `error` e evento que vale guardar como `notice`, os dois níveis
+que o macOS guarda e o `log show` mostra sem flag extra; `info` e `debug` só
+aparecem ao vivo, no `log stream --info`/`--debug`. Nome de arquivo,
+título de notificação e outro conteúdo do usuário saem como `<private>`, de
+propósito: o trecho pode ir num relatório de bug sem expor nada.
+
+Até a 0.36.0 essas mensagens saíam por `NSLog`, que no macOS 27 chega ao log
+unificado com o texto inteiro trocado por `<private>` (a linha aparece como
+`(Foundation) <private>`): nessas versões dá pra ver que algo foi registrado,
+mas não o quê.
 
 Para um relatório de bug, inclua versão do app, macOS, feature afetada,
 resultado de `/status`, comando reproduzível e se o problema ocorre em um ou
