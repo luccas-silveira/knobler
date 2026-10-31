@@ -11,6 +11,9 @@
 
 import Foundation
 import IOBluetooth
+import os
+
+private let log = Logger(subsystem: "com.zoi.knobler", category: "bluetooth")
 
 final class BluetoothMonitor: NSObject {
     /// Connect novo ou bateria cruzando o limite baixo → card transitório.
@@ -146,7 +149,7 @@ final class BluetoothMonitor: NSObject {
                 task.waitUntilExit()
                 battery = AirPodsBattery.parse(from: data)
             } catch {
-                NSLog("knobler bluetooth: %@", error.localizedDescription)
+                log.error("leitura da bateria falhou: \(error.localizedDescription, privacy: .public)")
             }
             DispatchQueue.main.async { completion(battery) }
         }

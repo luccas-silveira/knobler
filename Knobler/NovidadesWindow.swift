@@ -20,6 +20,9 @@
 
 import AppKit
 import WebKit
+import os
+
+private let log = Logger(subsystem: "com.zoi.knobler", category: "novidades")
 
 /// O que a página pode pedir ao app. Enum fechado: string que não casa é
 /// ignorada, nunca vira chamada.
@@ -77,7 +80,7 @@ final class NovidadesWindow: NSObject {
     /// todos os caminhos passam por este acessor.
     private static var pasta: URL? {
         guard let url = Bundle.main.url(forResource: "Novidades", withExtension: nil) else {
-            NSLog("knobler novidades: pasta Novidades ausente do bundle — página em branco")
+            log.error("pasta Novidades ausente do bundle — página em branco")
             return nil
         }
         return url
@@ -206,8 +209,7 @@ final class NovidadesWindow: NSObject {
         store.compileContentRuleList(forIdentifier: "novidades-sem-rede",
                                      encodedContentRuleList: regra) { lista, erro in
             if let erro {
-                NSLog("knobler novidades: bloqueio de rede não compilou — %@",
-                      erro.localizedDescription)
+                log.error("bloqueio de rede não compilou — \(erro.localizedDescription, privacy: .public)")
             }
             // A API não documenta em que fila o completion chega, então o salto
             // é explícito em vez de `MainActor.assumeIsolated` — que abortaria
@@ -261,12 +263,12 @@ extension NovidadesWindow: WKNavigationDelegate {
     func webView(_ webView: WKWebView,
                  didFailProvisionalNavigation navigation: WKNavigation!,
                  withError error: Error) {
-        NSLog("knobler novidades: carga do shell falhou — %@", error.localizedDescription)
+        log.error("carga do shell falhou — \(error.localizedDescription, privacy: .public)")
     }
 
     func webView(_ webView: WKWebView,
                  didFail navigation: WKNavigation!,
                  withError error: Error) {
-        NSLog("knobler novidades: navegação falhou — %@", error.localizedDescription)
+        log.error("navegação falhou — \(error.localizedDescription, privacy: .public)")
     }
 }

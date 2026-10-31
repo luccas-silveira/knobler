@@ -159,6 +159,9 @@ swift_check eventoscheck          Knobler/NotchViewModel.swift Knobler/NotchPres
   Knobler/Reminders.swift Knobler/Peer.swift Knobler/LANMessaging.swift \
   Knobler/MessageStore.swift Knobler/Permissions.swift Knobler/Plugin.swift \
   Knobler/WebhookClient.swift Knobler/WebhookKeychainStore.swift Knobler/TecladoBloqueado.swift tools/eventoscheck.swift
+# No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
+# (docs/development.md, seção Logs).
+run semnslog bash -c '! grep -rn "NSLog(" Knobler'
 # Reminders traz o próprio @main atrás de -D (molde do Pomodoro), sem harness.
 run reminderscheck bash -c "xcrun swiftc -parse-as-library -swift-version 5 \
   -D REMINDERS_SELFCHECK Knobler/Reminders.swift -o /tmp/reminderscheck && /tmp/reminderscheck"

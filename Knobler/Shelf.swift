@@ -11,6 +11,9 @@
 import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
+import os
+
+private let log = Logger(subsystem: "com.zoi.knobler", category: "shelf")
 
 /// Espera TODOS os providers de arquivo de um drop e entrega as URLs de uma vez
 /// (tickets 006 e 007).
@@ -156,7 +159,8 @@ struct ShelfDropDelegate: DropDelegate {
             let url = try escrever()
             DispatchQueue.main.async { [weak shelf] in shelf?.add(url) }
         } catch {
-            NSLog("knobler: não deu pra guardar o item arrastado: \(error)")
+            let ns = error as NSError
+            log.error("não deu pra guardar o item arrastado: \(ns.domain, privacy: .public) \(ns.code, privacy: .public) — \(ns.localizedDescription, privacy: .private)")
             NSSound.beep()
         }
     }

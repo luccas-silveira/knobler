@@ -14,6 +14,9 @@ import AudioToolbox
 import Combine
 import CoreAudio
 import Foundation
+import os
+
+private let log = Logger(subsystem: "com.zoi.knobler", category: "audio")
 
 final class SystemAudioLevels: ObservableObject {
     /// 6 bandas (graves → agudos), 0…1, publicadas a ~30Hz. nil = sem tap.
@@ -61,11 +64,12 @@ final class SystemAudioLevels: ObservableObject {
         )
         var qualifier = pid
         var size = UInt32(MemoryLayout<AudioObjectID>.size)
-        guard AudioObjectGetPropertyData(
+        let lookup = AudioObjectGetPropertyData(
             AudioObjectID(kAudioObjectSystemObject), &address,
             UInt32(MemoryLayout<pid_t>.size), &qualifier, &size, &processObj
-        ) == noErr, processObj != kAudioObjectUnknown else {
-            NSLog("knobler tap: processo de áudio não encontrado para pid %d", pid)
+        )
+        guard lookup == noErr, processObj != kAudioObjectUnknown else {
+            log.error("processo de áudio não encontrado para pid \(pid, privacy: .public) (status \(lookup, privacy: .public))")
             return
         }
 
@@ -76,9 +80,9 @@ final class SystemAudioLevels: ObservableObject {
 
         // Gravação de áudio do sistema não expõe status de permissão: criar o tap
         // é o único jeito de descobrir. O painel de Permissões lê esse registro.
-        guard AudioHardwareCreateProcessTap(description, &tapID) == noErr,
-              tapID != kAudioObjectUnknown else {
-            NSLog("knobler tap: AudioHardwareCreateProcessTap falhou (permissão?)")
+        let tapStatus = AudioHardwareCreateProcessTap(description, &tapID)
+        guard tapStatus == noErr, tapID != kAudioObjectUnknown else {
+            log.error("AudioHardwareCreateProcessTap falhou (status \(tapStatus, privacy: .public); permissão?)")
             Permission.record(.audioSistema, worked: false)
             return
         }
@@ -97,9 +101,9 @@ final class SystemAudioLevels: ObservableObject {
                 ]
             ],
         ]
-        guard AudioHardwareCreateAggregateDevice(aggregate as CFDictionary, &aggregateID) == noErr
-        else {
-            NSLog("knobler tap: aggregate device falhou")
+        let aggregateStatus = AudioHardwareCreateAggregateDevice(aggregate as CFDictionary, &aggregateID)
+        guard aggregateStatus == noErr else {
+            log.error("aggregate device falhou (status \(aggregateStatus, privacy: .public))")
             teardown()
             return
         }
@@ -110,18 +114,19 @@ final class SystemAudioLevels: ObservableObject {
             self?.process(inputData)
         }
         guard status == noErr, let ioProcID else {
-            NSLog("knobler tap: IOProc falhou")
+            log.error("IOProc falhou (status \(status, privacy: .public))")
             teardown()
             return
         }
-        guard AudioDeviceStart(aggregateID, ioProcID) == noErr else {
-            NSLog("knobler tap: start falhou")
+        let startStatus = AudioDeviceStart(aggregateID, ioProcID)
+        guard startStatus == noErr else {
+            log.error("start falhou (status \(startStatus, privacy: .public))")
             teardown()
             return
         }
 
         running = true
-        NSLog("knobler tap: capturando áudio do pid %d", pid)
+        log.notice("capturando áudio do pid \(pid, privacy: .public)")
     }
 
     func stop() {

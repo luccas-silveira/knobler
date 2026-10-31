@@ -1,6 +1,9 @@
 import AppKit
 import Combine
 import SwiftUI
+import os
+
+private let log = Logger(subsystem: "com.zoi.knobler", category: "teclado")
 
 @MainActor
 final class AnnotationOverlayState: ObservableObject {
@@ -133,6 +136,8 @@ final class AnnotationController: NSObject, ObservableObject {
     private var eventSource: CFRunLoopSource?
     private var healthTimer: Timer?
     private var trustedAtCreation = false
+    /// Mesma trava do `VolumeHUD`: o health-check de 3 s não pode encher o log.
+    private var tapFalhaRegistrada = false
     private var keyMonitor: Any?
     @Published private(set) var isActive = false
     /// O Control só desenha com isto ligado — o botão "Desenhar" do card é a
@@ -352,6 +357,7 @@ final class AnnotationController: NSObject, ObservableObject {
                 let controller = Unmanaged<AnnotationController>
                     .fromOpaque(refcon).takeUnretainedValue()
                 if event.type == .tapDisabledByTimeout || event.type == .tapDisabledByUserInput {
+                    log.notice("tap do desenho desligado pelo sistema (\(event.type == .tapDisabledByTimeout ? "timeout" : "entrada do usuário", privacy: .public)); religando")
                     DispatchQueue.main.async { controller.enableEventTap() }
                     return Unmanaged.passRetained(event)
                 }
@@ -364,8 +370,15 @@ final class AnnotationController: NSObject, ObservableObject {
             },
             userInfo: refcon)
         guard let eventTap else {
-            NSLog("knobler: annotation CGEventTap indisponível (Acessibilidade?)")
+            if !tapFalhaRegistrada {
+                tapFalhaRegistrada = true
+                log.error("tap do desenho indisponível (axTrusted=\(self.trustedAtCreation, privacy: .public)) — Control direito sem efeito")
+            }
             return
+        }
+        if tapFalhaRegistrada {
+            tapFalhaRegistrada = false
+            log.notice("tap do desenho de volta")
         }
         eventSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
         if let eventSource { CFRunLoopAddSource(CFRunLoopGetMain(), eventSource, .commonModes) }

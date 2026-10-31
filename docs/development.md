@@ -112,6 +112,37 @@ pelas notificações externas e deve ser validado separadamente.
 - `Knobler --ajustes` — abre Ajustes.
 - `Knobler --ajustes=pomodoro` — abre um painel específico para screenshots.
 
+## Logs
+
+Log do app usa `os.Logger`, nunca `NSLog`: no macOS 27 o `NSLog` chega ao log
+unificado com o texto inteiro trocado por `<private>`, e o gate `semnslog` do
+`tools/check.sh` barra a volta dele.
+`print` só vale onde a saída é o terminal — os modos de linha de comando
+(`--download-model`, `--permissoes`, `--selfcheck`) e os self-checks.
+
+```swift
+import os
+
+private let log = Logger(subsystem: "com.zoi.knobler", category: "midia")
+```
+
+- Um logger por arquivo, `private` no topo, com a categoria da área (lista em
+  [Troubleshooting › Logs úteis](troubleshooting.md#logs-úteis)). No escopo do
+  arquivo ele não colide com o `log` de outro fonte, dispensa `self.` em
+  closure e não obriga os harnesses que compilam o arquivo isolado a arrastar
+  um fonte a mais.
+- Nível: falha é `.error`; evento que vale guardar é `.notice`. `.info` e
+  `.debug` não persistem — não use para nada que precise ser lido depois.
+- Privacidade: valor técnico (porta, pid, status, código, `localizedDescription`
+  de erro do sistema) com `privacy: .public`; conteúdo do usuário (nome de
+  arquivo, título de notificação, URL vinda de payload) com `.private`. Erro de
+  operação em arquivo do usuário registra `domain` e `code` públicos e a
+  `localizedDescription` privada, porque ela repete o nome do arquivo.
+- A mensagem é autoclosure: dentro de classe, propriedade interpolada precisa de
+  `self.` explícito.
+- Falha que se repete num timer registra uma vez e de novo só quando volta ao
+  normal (`tapFalhaRegistrada` em `VolumeHUD.swift`), senão enche o log.
+
 ## Instalação local do build
 
 ```bash

@@ -11,6 +11,9 @@
 
 import AppKit
 import ApplicationServices
+import os
+
+private let log = Logger(subsystem: "com.zoi.knobler", category: "notificacoes")
 
 final class NotificationInterceptor {
     private static let ncBundleID = "com.apple.notificationcenterui"
@@ -126,7 +129,8 @@ final class NotificationInterceptor {
         lastContentKey = key
         lastContentDate = Date()
 
-        NSLog("knobler intercepted: title=%@", parsed.title)
+        // Qual app mandou ajuda a investigar; o título é conteúdo do usuário.
+        log.notice("interceptada: app=\(parsed.appName ?? "?", privacy: .public) título=\(parsed.title, privacy: .private)")
 
         // AirDrop tem dono próprio (AirDropCoordenador): o "Recebendo" acompanha a
         // transferência viva e não pode ser tocado — o anel do notch já mostra o

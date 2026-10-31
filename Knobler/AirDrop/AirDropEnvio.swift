@@ -7,6 +7,9 @@
 //
 
 import AppKit
+import os
+
+private let log = Logger(subsystem: "com.zoi.knobler", category: "airdrop")
 
 /// O que o notch consegue saber de um envio por AirDrop.
 ///
@@ -37,7 +40,7 @@ enum AirDropEnvio {
               let service = NSSharingService(named: .sendViaAirDrop),
               service.canPerform(withItems: items)
         else {
-            NSLog("knobler: AirDrop indisponível para \(urls.count) item(ns)")
+            log.error("AirDrop indisponível para \(urls.count, privacy: .public) item(ns)")
             NSSound.beep()
             onState?(.falhou("AirDrop indisponível"))
             return
