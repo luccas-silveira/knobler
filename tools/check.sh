@@ -3,8 +3,10 @@
 # abrir PR pra ver o mesmo resultado localmente.
 #
 # Uso: ./tools/check.sh [--com-ambiente]
-#   --com-ambiente: inclui os gates que dependem de ferramenta externa
-#                   (hoje: codex CLI). Sem a flag, eles são pulados.
+#   --com-ambiente: inclui os gates que dependem de ferramenta externa ou da
+#                   sessão gráfica (hoje: codex CLI e o instancia-e2e, que
+#                   lança um app-brinquedo com `open -n`). Sem a flag, eles
+#                   são pulados.
 set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
@@ -109,6 +111,9 @@ swift_check screenshotcheck       Knobler/ScreenshotWatcher.swift Knobler/Permis
 swift_check historycheck          Knobler/NotchNotification.swift Knobler/NotificationHistory.swift Knobler/NotchGesture.swift tools/historycheck.swift
 swift_check sectionordercheck    Knobler/NotchSectionOrder.swift tools/sectionordercheck.swift
 swift_check tecladocheck         Knobler/TecladoBloqueado.swift tools/tecladocheck.swift
+# a decisão pura da instância única; o caminho AppKit de verdade é o
+# instancia-e2e, mais abaixo, que precisa de sessão gráfica.
+swift_check instanciacheck       Knobler/InstanciaUnica.swift tools/instanciacheck.swift
 # Diagnóstico passivo: a integração não pode sumir nem voltar a reconstruir a raiz.
 run cortedetectorcheck bash -c '
 grep -qF "SensorDeCorte(vigia: vigia" Knobler/NotchView.swift || exit 1
@@ -192,8 +197,10 @@ if [ "$WITH_ENV" -eq 1 ]; then
   else
     SKIPPED+=("codex-integration (codex CLI não instalado)")
   fi
+  run instancia-e2e bash tools/instancia-e2e.sh
 else
   SKIPPED+=("codex-integration (rode com --com-ambiente)")
+  SKIPPED+=("instancia-e2e (rode com --com-ambiente)")
 fi
 
 echo
