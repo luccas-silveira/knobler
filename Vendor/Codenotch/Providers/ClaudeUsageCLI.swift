@@ -51,7 +51,22 @@ struct ClaudeUsageCLI: Sendable {
     /// `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` also stop the feature-gate
     /// fetch, and the per-model weekly line (`Current week (Fable)`) is behind
     /// one of those gates: with either set, `/usage` no longer prints it.
-    static let arguments = ["--print", "--no-session-persistence", "--strict-mcp-config", "/usage"]
+    ///
+    /// knobler: `--settings '{"disableAllHooks":true}'` desliga os hooks nesta
+    /// chamada. Sem ele, cada leitura (uma a cada 5 min) subia o Claude Code
+    /// completo e rodava os hooks globais e de plugin do usuário — SessionStart,
+    /// SessionEnd —, que escreviam no `usage-scratch` (um deles instala ali um
+    /// painel com `node_modules`) e punham até ~400 MB/dia de escrita em disco na
+    /// conta do Knobler. `/usage` é comando local e não precisa de hook nenhum.
+    /// O que vem por `--settings` vence as configurações do usuário e do projeto,
+    /// e `disableAllHooks` barra também os hooks de plugin (o `--debug` registra
+    /// "Skipping plugin hooks"). Medido no Claude Code 2.1.314: a saída é a mesma
+    /// linha por linha e um hook de SessionStart de teste deixa de rodar.
+    /// `--settings` recebe um valor só — não é variádica como `--mcp-config` —,
+    /// então não engole o `/usage`. Se a CLI recusar a flag, o processo sai com
+    /// erro e o provider cai no caminho do token, como em qualquer falha.
+    static let arguments = ["--print", "--no-session-persistence", "--strict-mcp-config",
+                            "--settings", #"{"disableAllHooks":true}"#, "/usage"]
 
     /// Where `/usage` is run from: one directory, kept for the life of the
     /// install.

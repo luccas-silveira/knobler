@@ -196,14 +196,23 @@ curl -sS http://127.0.0.1:4477/status | jq '{axTrusted, tapExists, tapEnabled, d
 | --- | --- |
 | `axTrusted: false` | Sem Acessibilidade — **é a causa em quase todos os casos** |
 | `tapExists`/`tapEnabled: false` | O `CGEventTap` não existe; nenhuma tecla chega ao app |
-| `keyLog: []` após teclar | Confirma que o tap está morto, não que o ditado está |
+| `keyLog` sem `tap61=1`/`tap61=0` depois de apertar e soltar a ⌥ direita | Confirma que o tap está morto, não que o ditado está |
 | `dictation.enabled: false` | O recurso está desligado em Ajustes → Ditado |
 | `dictation.modelReady: false` | O Parakeet ainda está baixando ou falhou |
 
+O `keyLog` guarda as últimas 12 teclas que o diagnóstico enxerga, com horário: a
+⌥ direita vista pelo tap (`tap61=`) e pelo monitor global (`mon61=`), tecla de
+mídia ou brilho que chega como evento NX (`nx=<código>`, por exemplo apertando
+volume), outros eventos de sistema (`sd<subtipo>`) e F1–F20 que chegam como
+tecla comum (`kb=<keyCode> F14`). Tecla que digita texto **nunca** entra — o
+`/status` responde sem autenticação a qualquer processo local —, então teclar
+num campo de texto não prova nada. Para testar o tap, aperte e solte a ⌥ direita
+(ou uma tecla de volume) e leia o `keyLog` de novo.
+
 Se `dictation` está `enabled: true` e `modelReady: true` mas `axTrusted` é
 `false`, o ditado está sadio e o problema é só a permissão: sem ela o
-`CGEventTap` (`VolumeHUD.swift:142`) nem é criado, então o `flagsChanged` da
-⌥ direita nunca chega ao `rightOptionChanged`.
+`CGEventTap` (`setupEventTap` em `VolumeHUD.swift`) nem é criado, então o
+`flagsChanged` da ⌥ direita nunca chega ao `rightOptionChanged`.
 
 ### Reconceder a Acessibilidade
 
@@ -222,7 +231,7 @@ por ele, ou adicione `/Applications/Knobler.app` à lista com o botão **+**
 (remova a entrada antiga com **−** antes, se ainda estiver lá).
 
 Não é preciso reiniciar de novo depois de conceder: o `checkTapHealth`
-(`VolumeHUD.swift:107`) roda em timer, percebe a mudança e recria o tap
+(`VolumeHUD.swift`) roda em timer, percebe a mudança e recria o tap
 sozinho. Confirme:
 
 ```bash

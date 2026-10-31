@@ -33,6 +33,29 @@ enum AgentesCheck {
         check(janelas.first?.usedFraction == 0.42, "42% vira 0.42")
         check((try? CodexUsage.windows(from: Data("lixo".utf8))) == nil, "resposta inválida lança")
 
+        // `/usage` sem hooks: a cada 5 min o app sobe a CLI, e cada subida rodava
+        // os hooks globais e de plugin do usuário (escrita em disco na conta do
+        // Knobler). O JSON de `--settings` é o valor seguinte à flag, e o
+        // `/usage` tem que continuar sendo o último argumento.
+        let args = ClaudeUsageCLI.arguments
+        check(args.last == "/usage", "/usage é o último argumento")
+        for flag in ["--print", "--no-session-persistence", "--strict-mcp-config"] {
+            check(args.contains(flag), "\(flag) continua nos argumentos")
+        }
+        let iSettings = args.firstIndex(of: "--settings")
+        check(iSettings.map { $0 + 1 < args.count - 1 } == true, "--settings tem valor antes do /usage")
+        let settings = iSettings.flatMap {
+            try? JSONSerialization.jsonObject(with: Data(args[$0 + 1].utf8)) as? [String: Any]
+        }
+        check(settings?["disableAllHooks"] as? Bool == true, "--settings desliga os hooks")
+        // Saída real do Claude Code 2.1.314 com esses argumentos (rodapé encurtado).
+        let usage = try! String(contentsOf: URL(fileURLWithPath: "tools/fixtures/agentes/claude-usage.txt"),
+                                encoding: .utf8)
+        let lidas = (try? ClaudeUsageCLI.parse(usage)) ?? []
+        check(lidas.map(\.id) == ["session", "weekly_all", "weekly_fable"], "janelas do /usage: \(lidas.map(\.id))")
+        check(lidas.first?.usedFraction == 0.06, "sessão 6% vira 0.06")
+        check(lidas.allSatisfy { $0.resetsAt != nil }, "horário de reset lido nas três janelas")
+
         // busy -> waiting dispara um evento; repetir o estado não dispara.
         var w = SessionCompletionWatcher()
         let s = { (st: AgentSession.State) in
