@@ -173,3 +173,12 @@ struct NotchNotification: Identifiable, Equatable, Codable {
         self.date = date
     }
 }
+
+extension Array where Element == NotchNotification {
+    /// Entra no fim; passando do `teto`, saem as mais antigas. É a fila de
+    /// cards do `NotchViewModel` — quem sai não se perde, já foi pro Histórico.
+    mutating func enfileirar(_ notification: NotchNotification, teto: Int) {
+        append(notification)
+        if count > teto { removeFirst(count - teto) }
+    }
+}

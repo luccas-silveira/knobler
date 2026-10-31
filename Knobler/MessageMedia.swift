@@ -92,7 +92,11 @@ enum MessageMedia {
 
     // ponytail: cache do formato — o SwiftUI pergunta a cada render e ler o
     // header do arquivo toda vez seria desperdício. Arquivo nunca muda de tamanho.
+    // Chave por caminho, e o arquivo some quando sai das 20 últimas do peer:
+    // sem teto, a sessão guardava uma entrada por mídia que já passou por ela.
+    // Esvaziar no teto custa só reler o header das que ainda estão na tela.
     private static var aspectCache: [String: CGFloat] = [:]
+    private static let aspectCacheMaximo = 256
 
     /// Proporção largura/altura da imagem (1 se não der pra ler o header).
     static func aspect(_ url: URL) -> CGFloat {
@@ -101,6 +105,7 @@ enum MessageMedia {
               let p = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
               let w = p[kCGImagePropertyPixelWidth] as? CGFloat,
               let h = p[kCGImagePropertyPixelHeight] as? CGFloat, h > 0 else { return 1 }
+        if aspectCache.count >= aspectCacheMaximo { aspectCache.removeAll() }
         aspectCache[url.path] = w / h
         return w / h
     }

@@ -258,6 +258,9 @@ final class MicRecorder {
         cleanup()
         samplesLock.lock()
         let captured = samples
+        // a gravação inteira (64 KB por segundo) ficava presa aqui até o
+        // próximo ditado; quem precisa dela agora é só o `captured`
+        samples = []
         samplesLock.unlock()
         return captured
     }

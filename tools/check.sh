@@ -111,6 +111,8 @@ swift_check sectionordercheck    Knobler/NotchSectionOrder.swift tools/sectionor
 swift_check tecladocheck         Knobler/TecladoBloqueado.swift tools/tecladocheck.swift
 # Registro de desempenho: formato da linha, cpu_pct e poda sem reescrita a cada amostra.
 swift_check desempenhocheck      Knobler/Desempenho.swift tools/desempenhocheck.swift
+# Avatar remoto: o cache guarda a miniatura (≤ 128 px), não a imagem cheia.
+swift_check avatarcheck          Knobler/RemoteAvatarLoader.swift tools/avatarcheck.swift
 # Diagnóstico passivo: a integração não pode sumir nem voltar a reconstruir a raiz.
 run cortedetectorcheck bash -c '
 grep -qF "SensorDeCorte(vigia: vigia" Knobler/NotchView.swift || exit 1
