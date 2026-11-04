@@ -1,0 +1,849 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WhatsApp no notch — mockup do Knobler</title>
+<link rel="icon" href="data:,">
+<style>
+/* Tokens. Os do notch saem do DESIGN.md do projeto (preto absoluto, escada de
+   opacidade do branco, três cores de estado). Os da página são só moldura. */
+:root{
+  --notch:#000; --ink:#fff;
+  --ink-2:rgba(255,255,255,.85); --ink-card:rgba(255,255,255,.75); --ink-3:rgba(255,255,255,.62); --ink-meta:rgba(255,255,255,.56);
+  --ink-icon:rgba(255,255,255,.55); --ink-muted:rgba(255,255,255,.45); --ink-placeholder:rgba(255,255,255,.5);
+  --fill-strong:rgba(255,255,255,.25); --fill:rgba(255,255,255,.15); --fill-subtle:rgba(255,255,255,.08); --fill-faint:rgba(255,255,255,.06);
+  --bubble-in:rgba(255,255,255,.10); --bubble-out:rgba(255,255,255,.22); --field-card:rgba(255,255,255,.10);
+  --avatar:rgba(142,142,147,.35); --scrim:rgba(0,0,0,.55);
+  --rec:#FF3B30; --warn:#FF9500;
+  --qr-light:#fff; --qr-dark:#000;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro",system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;
+  --t-display:22px; --t-title:15px; --t-body:13px; --t-callout:12px; --t-sub:11px; --t-foot:10px; --t-badge:7px;
+  --s-1:2px; --s-2:4px; --s-xs:6px; --s-sm:8px; --s-10:10px; --s-md:12px; --s-lg:14px; --s-xl:16px; --s-20:20px; --s-2xl:22px; --s-24:24px; --s-3xl:32px; --s-4xl:40px; --s-5xl:64px;
+  --r-xs:5px; --r-media:6px; --r-md:7px; --r-lg:8px; --r-preview:12px; --r-card:16px; --r-card-lg:18px;
+  --r-notch-top:14px; --r-notch-bottom:30px; --r-closed-top:6px; --r-closed-bottom:12px; --r-pill:999px;
+  --shadow-float:0 5px 12px rgba(0,0,0,.35); --shadow-float-filter:drop-shadow(0 5px 12px rgba(0,0,0,.35)); --shadow-window:0 12px 32px rgba(0,0,0,.28);
+  --z-base:0; --z-raised:1; --z-pop:10;
+  --ease-out:cubic-bezier(0.16,1,0.3,1); --ease-open:cubic-bezier(0.34,1.36,0.64,1);
+  --dur-fast:120ms; --dur-in:240ms; --dur-out:160ms; --dur-open:420ms; --dur-reduced:150ms;
+  /* moldura da página */
+  --page-bg:#ececef; --page-surface:#fff; --page-ink:#1d1d1f; --page-ink-2:#4f4f56; --page-line:rgba(0,0,0,.14); --page-line-strong:rgba(0,0,0,.32);
+  --page-focus:#0a58ca; --desk:#c9cdd4;
+  /* janela de Ajustes (macOS escuro, fora do notch) */
+  --win-bg:#1e1e1e; --win-card:#2c2c2e; --win-ink:#fff; --win-ink-2:rgba(255,255,255,.66); --win-pill:rgba(255,255,255,.12); --win-dot:rgba(255,255,255,.22);
+  --win-accent:#0060c8; --tile-mensagens:#30d158; --tile-whatsapp:#5e5ce6; /* .green e .indigo do sistema, modo escuro */
+  --tile-sheen:rgba(255,255,255,.16); /* aproxima o Color.gradient: topo um pouco mais claro */
+  /* medidas do código (NotchPresentation.swift / NotchMetrics) */
+  --top-inset:32px; --w-wide:780px; --w-std:430px; --w-msg:360px; --w-notif:380px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--page-bg);color:var(--page-ink);font-family:var(--font);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+.i{width:1em;height:1em;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-.125em}
+.i-fill{fill:currentColor}
+.num{font-variant-numeric:tabular-nums}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- página ---------- */
+.page{max-width:1400px;margin:0 auto;padding:var(--s-3xl) var(--s-xl) var(--s-5xl)}
+.top h1{font-size:28px;font-weight:600;letter-spacing:-.01em;line-height:1.15}
+.top .lead{font-size:16px;line-height:1.55;color:var(--page-ink-2);max-width:60ch;margin-top:var(--s-sm)}
+.bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--s-md);margin-top:var(--s-2xl)}
+.tabs,.scale{display:flex;flex-wrap:wrap;gap:var(--s-sm)}
+.tab,.pbtn{min-height:44px;padding:0 var(--s-xl);border-radius:var(--r-pill);border:1px solid var(--page-line);background:var(--page-surface);font-size:15px;font-weight:500;transition:border-color var(--dur-fast) var(--ease-out),background-color var(--dur-fast) var(--ease-out)}
+.tab:hover,.pbtn:hover{border-color:var(--page-line-strong)}
+.tab:active,.pbtn:active{background:var(--page-bg)}
+.tab[aria-selected="true"],.pbtn[aria-pressed="true"]{background:var(--page-ink);border-color:var(--page-ink);color:var(--page-surface)}
+.tab:focus-visible,.pbtn:focus-visible{outline:2px solid var(--page-focus);outline-offset:2px}
+.panel{margin-top:var(--s-3xl)}
+.panel.enter{animation:panelIn var(--dur-in) var(--ease-out)}
+@keyframes panelIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.panel h2{font-size:20px;font-weight:600;line-height:1.25}
+.panel .lead{font-size:16px;line-height:1.55;color:var(--page-ink-2);max-width:60ch;margin-top:var(--s-xs)}
+.grid{display:grid;gap:var(--s-3xl) var(--s-xl);margin-top:var(--s-24);grid-template-columns:repeat(auto-fill,minmax(min(100%,var(--col,510px)),1fr))}
+.shot{min-width:0}
+.stage{overflow-x:auto;overflow-y:hidden;border-radius:var(--r-preview);background:var(--desk)}
+.scaler{margin:0 auto}
+.desk{display:flex;justify-content:center;align-items:flex-start;padding:0 var(--s-4xl) var(--s-4xl);margin:0 auto}
+.desk.tall{padding-top:var(--s-4xl)}
+.shot figcaption h3{font-size:16px;font-weight:600;margin-top:var(--s-md);line-height:1.3}
+.shot figcaption p{font-size:15px;line-height:1.5;color:var(--page-ink-2);max-width:60ch;margin-top:var(--s-2)}
+
+.replay{margin-top:var(--s-md)}
+
+/* ---------- notch ---------- */
+.notch{position:relative;isolation:isolate;color:var(--ink);font-size:var(--t-body);line-height:1.3}
+/* NotchShape: a moldura tem a largura W; as abas de cima ocupam os 14 pt de cada
+   ponta e o corpo preto fica com W - 28, como em NotchShape.swift */
+.nbg{position:absolute;z-index:-1;top:0;bottom:0;left:var(--r-notch-top);right:var(--r-notch-top);background:var(--notch);border-radius:0 0 var(--r-notch-bottom) var(--r-notch-bottom);box-shadow:var(--shadow-float)}
+.notch::before,.notch::after{content:"";position:absolute;z-index:-1;top:0;width:var(--r-notch-top);height:var(--r-notch-top)}
+.notch::before{left:0;background:radial-gradient(circle at 0 100%,transparent calc(var(--r-notch-top) - .5px),var(--notch) var(--r-notch-top))}
+.notch::after{right:0;background:radial-gradient(circle at 100% 100%,transparent calc(var(--r-notch-top) - .5px),var(--notch) var(--r-notch-top))}
+/* Onde o navegador desenha shape(), a moldura é a própria NotchShape: as mesmas
+   curvas quadráticas do path, e o preto fica no .notch (o conteúdo é recortado
+   pela forma, como o .mask(shape) do app). A sombra vai num filtro do palco,
+   porque o recorte cortaria uma box-shadow. Sem shape(), vale o .nbg acima. */
+@supports (clip-path: shape(from 0 0, curve to 1px 1px with 1px 0, close)) {
+  .notch{background:var(--notch);clip-path:shape(from 0 0,
+    curve to var(--r-notch-top) var(--r-notch-top) with var(--r-notch-top) 0,
+    vline to calc(100% - var(--r-notch-bottom)),
+    curve to calc(var(--r-notch-top) + var(--r-notch-bottom)) 100% with var(--r-notch-top) 100%,
+    hline to calc(100% - var(--r-notch-top) - var(--r-notch-bottom)),
+    curve to calc(100% - var(--r-notch-top)) calc(100% - var(--r-notch-bottom)) with calc(100% - var(--r-notch-top)) 100%,
+    vline to var(--r-notch-top),
+    curve to 100% 0 with calc(100% - var(--r-notch-top)) 0,
+    close)}
+  .nbg,.notch::before,.notch::after{display:none}
+  .desk:has(>.notch){filter:var(--shadow-float-filter)}
+}
+.n-wide{width:var(--w-wide);height:452px}
+.n-std{width:var(--w-std);height:364px}
+.nc{position:absolute;top:calc(var(--top-inset) + var(--s-sm));left:var(--s-2xl);right:var(--s-2xl);bottom:var(--s-lg);display:flex;flex-direction:column;gap:var(--s-sm)}
+.sec{flex:1;min-height:0;display:flex;flex-direction:column;gap:var(--s-xs)}
+.ink-3{color:var(--ink-3)}
+
+/* faixa de atalhos */
+.strip{flex:none;height:22px;display:flex;justify-content:center;gap:var(--s-1)}
+.sb{position:relative;min-width:28px;height:22px;display:grid;place-items:center;border:0;background:transparent;color:var(--ink-icon);font-size:9px;border-radius:var(--r-xs)}
+.sb .i{stroke-width:2.4}
+.sb.on{color:rgba(255,255,255,.9)}
+.sb:hover{color:var(--ink)}
+.sb .cnt{position:absolute;left:calc(50% + 4px);top:1px;font-size:var(--t-badge);font-weight:700;color:rgba(255,255,255,.9);line-height:1}
+
+/* seletor de conta */
+.seg{display:flex;gap:var(--s-xs);flex:none}
+.acct{display:inline-flex;align-items:center;gap:var(--s-xs);height:24px;padding:0 var(--s-sm);border:0;border-radius:var(--r-lg);background:var(--fill-subtle);color:var(--ink-2);font-size:var(--t-sub);font-weight:600;white-space:nowrap}
+.acct:hover{background:var(--fill)}
+.acct:active{background:var(--fill-strong)}
+.acct[aria-pressed="true"]{background:var(--fill-strong);color:var(--ink)}
+.acct .i{font-size:12px}
+.acct .off{font-weight:500;color:var(--ink-3)}
+.acct-list{display:flex;flex-direction:column;gap:var(--s-1);flex:none}
+.acct-list .acct{width:100%;height:28px;justify-content:flex-start}
+.acct-list .acct .grow{flex:1;text-align:left}
+.count{display:inline-block;min-width:16px;height:16px;padding:0 5px;border-radius:var(--r-pill);background:var(--fill-strong);color:var(--ink);font-size:var(--t-foot);font-weight:700;line-height:16px;text-align:center;font-variant-numeric:tabular-nums;flex:none}
+.hair{height:1px;background:var(--fill-subtle);flex:none;margin:var(--s-1) 0}
+
+/* lista */
+.list{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:var(--s-2);scrollbar-width:none}
+.row{display:flex;align-items:center;gap:var(--s-sm);width:100%;padding:5px var(--s-sm);border:0;border-radius:var(--r-lg);background:var(--fill-faint);text-align:left;flex:none}
+.row:hover{background:var(--fill-subtle)}
+.row:active{background:var(--fill)}
+.row.sel{background:var(--fill)}
+.row-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.row-top,.row-bot{display:flex;align-items:center;gap:var(--s-xs)}
+.row-name{flex:1;min-width:0;font-size:var(--t-foot);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row-time{font-size:var(--t-foot);color:var(--ink-meta)}
+.row-prev{flex:1;min-width:0;font-size:var(--t-foot);color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row-prev .i{font-size:10px;margin-right:2px}
+.row.unread .row-name{font-weight:700}
+.row.unread .row-time,.row.unread .row-prev{color:var(--ink-2)}
+.pv-from{color:var(--ink-2)}
+.pv-draft{font-weight:600;color:var(--ink)}
+.pv-del{font-style:italic}
+.av{display:grid;place-items:center;flex:none;border-radius:50%;background:var(--avatar);color:var(--ink);font-weight:600}
+.av-22{width:22px;height:22px;font-size:var(--t-foot)}
+.av-28{width:28px;height:28px;font-size:var(--t-sub)}
+.av-30{width:30px;height:30px;font-size:var(--t-callout)}
+.av .i{font-size:.95em}
+
+/* variante A */
+.colA{display:grid;grid-template-columns:260px 1fr;gap:var(--s-md);flex:1;min-height:0}
+.colA>div{min-height:0;display:flex;flex-direction:column;gap:var(--s-xs)}
+.colA .right{padding-left:var(--s-md);border-left:1px solid var(--fill-faint)}
+
+/* conversa */
+.ch{display:flex;align-items:center;gap:var(--s-sm);height:28px;flex:none}
+.ch-txt{flex:1;min-width:0;display:flex;flex-direction:column}
+.ch-name{font-size:var(--t-foot);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch-sub{font-size:var(--t-foot);color:var(--ink-meta);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ib{width:24px;height:24px;display:grid;place-items:center;flex:none;border:0;border-radius:var(--r-lg);background:transparent;color:var(--ink-2);font-size:14px}
+.ib:hover{background:var(--fill-subtle);color:var(--ink)}
+.ib:active{background:var(--fill)}
+.ib:disabled{color:var(--ink-muted);background:transparent;cursor:default}
+.chip-btn{display:inline-flex;align-items:center;gap:var(--s-2);height:22px;padding:0 var(--s-sm);border:0;border-radius:var(--r-lg);background:var(--fill-subtle);font-size:var(--t-sub);font-weight:500;white-space:nowrap;flex:none}
+.chip-btn:hover{background:var(--fill)}
+.chip-btn:active{background:var(--fill-strong)}
+.notch :focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+.win :focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+.msgs{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:var(--s-2);scrollbar-width:none;padding:var(--s-1) 0}
+.msgs>:first-child{margin-top:auto}
+.day{align-self:center;font-size:var(--t-foot);color:var(--ink-meta);padding:var(--s-1) var(--s-sm)}
+.msg{display:flex;flex-direction:column;align-items:flex-start;flex:none}
+.msg.out{align-items:flex-end}
+.from{font-size:var(--t-foot);font-weight:600;color:var(--ink-3);margin:var(--s-2) 0 var(--s-1) var(--s-sm)}
+.bw{position:relative;max-width:78%}
+.bw.has-rx{margin-bottom:var(--s-10)}
+.bubble{display:flex;flex-direction:column;gap:var(--s-2);padding:5px var(--s-sm);border-radius:var(--r-lg);background:var(--bubble-in);font-size:var(--t-foot);line-height:1.35;overflow-wrap:anywhere}
+.out .bubble{background:var(--bubble-out)}
+.bubble.del{background:transparent;border:1px solid var(--fill)}
+.bubble.bare{background:transparent;padding:0}
+.tx::after{content:"";display:table;clear:both}
+.meta{float:right;display:inline-flex;align-items:center;gap:3px;margin:3px 0 0 var(--s-sm);font-size:var(--t-foot);color:var(--ink-meta);white-space:nowrap}
+.meta.solo{float:none;align-self:flex-end;margin:0}
+.tk{display:inline-grid;place-items:center;font-size:12px;color:var(--ink-2)}
+.tk.read{height:12px;padding:0 3px;border-radius:var(--r-pill);background:var(--ink);color:var(--notch)}
+.tk.read .i{stroke-width:3;font-size:10px}
+.q{position:relative;display:flex;flex-direction:column;gap:1px;padding:var(--s-2) var(--s-sm) var(--s-2) var(--s-10);border-radius:var(--r-xs);background:var(--fill-subtle)}
+.q-bar{position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:var(--r-xs) 0 0 var(--r-xs);background:var(--ink-3)}
+.q-name{font-size:var(--t-foot);font-weight:600;color:var(--ink-2)}
+.q-text{font-size:var(--t-foot);color:var(--ink-3);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rx{position:absolute;bottom:calc(-1 * var(--s-10) - 4px);left:var(--s-xs);border-radius:var(--r-pill);background:var(--notch);padding:var(--s-1)}
+.out .rx{left:auto;right:var(--s-xs)}
+.rx span{display:flex;align-items:center;height:16px;padding:0 5px;border-radius:var(--r-pill);background:var(--fill);font-size:var(--t-sub)}
+.acts{position:absolute;top:50%;left:calc(100% + var(--s-2));transform:translateY(-50%);display:flex;gap:var(--s-1);opacity:0;pointer-events:none;transition:opacity var(--dur-out) var(--ease-out)}
+.out .acts{left:auto;right:calc(100% + var(--s-2))}
+.bw:hover .acts,.bw:focus-within .acts,.bw.show .acts{opacity:1;pointer-events:auto;transition-duration:var(--dur-in)}
+.acts .ib{width:22px;height:22px;font-size:13px;background:var(--fill-subtle)}
+.acts .ib:hover{background:var(--fill)}
+.pk{position:absolute;bottom:calc(100% + var(--s-2));left:0;z-index:var(--z-pop);border-radius:var(--r-pill);background:var(--notch)}
+.out .pk{left:auto;right:0}
+.pk-in{display:flex;gap:var(--s-1);padding:3px;border-radius:inherit;background:var(--fill)}
+.pk button{width:26px;height:26px;border:0;border-radius:50%;background:transparent;font-size:15px;line-height:1}
+.pk button:hover{background:var(--fill-subtle)}
+.pk button[aria-pressed="true"]{background:var(--fill-strong)}
+.ph{position:relative;display:block;width:200px;max-width:100%;aspect-ratio:16/10;border-radius:var(--r-media);overflow:hidden}
+.ph svg{display:block;width:100%;height:100%}
+.n-std .ph{width:170px}
+.n-std .media-off{height:44px}
+.play{position:absolute;inset:0;margin:auto;width:34px;height:34px;border-radius:50%;background:var(--scrim);display:grid;place-items:center;color:var(--ink);font-size:14px}
+.dur{position:absolute;left:var(--s-xs);bottom:var(--s-xs);padding:1px 5px;border-radius:var(--r-pill);background:var(--scrim);font-size:var(--t-foot);color:var(--ink)}
+.doc{display:flex;align-items:center;gap:var(--s-sm);min-width:210px}
+.doc-ic{width:30px;height:30px;display:grid;place-items:center;border-radius:var(--r-md);background:var(--fill-subtle);font-size:15px;color:var(--ink-2);flex:none}
+.doc-txt{flex:1;min-width:0;display:flex;flex-direction:column}
+.doc-name{font-size:var(--t-foot);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.doc-sz{font-size:var(--t-foot);color:var(--ink-meta)}
+.aud{display:flex;align-items:center;gap:var(--s-sm);min-width:210px}
+.aud-play{width:26px;height:26px;display:grid;place-items:center;flex:none;border:0;border-radius:50%;background:var(--ink);color:var(--notch);font-size:11px}
+.aud-play:hover{background:var(--ink-2)}
+.wave{flex:1;height:22px;display:block}
+.wave rect{fill:var(--ink-3)}
+.wave rect.p{fill:var(--ink)}
+.aud-dur{font-family:var(--mono);font-size:var(--t-foot);color:var(--ink-meta)}
+.sticker{display:block;font-size:56px;line-height:1.05}
+.del-tx{display:flex;align-items:center;gap:5px;font-style:italic;color:var(--ink-3)}
+.media-off{display:flex;align-items:center;justify-content:center;gap:var(--s-xs);width:200px;height:56px;border-radius:var(--r-media);background:var(--fill-faint);color:var(--ink-3);font-size:var(--t-foot)}
+.fail{display:flex;align-items:center;gap:var(--s-2);margin-top:3px;font-size:var(--t-foot);color:var(--warn)}
+.link-btn{border:0;background:none;padding:0;color:inherit;text-decoration:underline;text-underline-offset:2px}
+.link-btn:hover{text-decoration-thickness:2px}
+
+/* compositor */
+.cmpw{display:flex;flex-direction:column;gap:var(--s-xs);flex:none}
+.cmp{display:flex;align-items:center;gap:var(--s-xs)}
+.field{flex:1;min-width:0;position:relative;display:flex;align-items:center;height:26px;border-radius:var(--r-lg);background:var(--fill-subtle)}
+.field:focus-within,.field.focus{outline:2px solid var(--ink-3);outline-offset:1px}
+.field input{flex:1;min-width:0;height:100%;border:0;background:transparent;padding:0 var(--s-sm);font-size:var(--t-foot);outline:none}
+.field input::placeholder{color:var(--ink-placeholder)}
+.cmp .b-send{display:none}
+.cmp.has-text .b-send{display:grid}
+.cmp.has-text .b-mic{display:none}
+.qs{display:flex;align-items:center;gap:var(--s-sm);padding:var(--s-2) var(--s-2) var(--s-2) 0;border-radius:var(--r-lg);background:var(--fill-faint);overflow:hidden}
+.qs-bar{width:3px;align-self:stretch;background:var(--ink-3);flex:none}
+.qs-txt{flex:1;min-width:0;display:flex;flex-direction:column}
+.qs-name{font-size:var(--t-foot);font-weight:600;color:var(--ink-2)}
+.qs-text{font-size:var(--t-foot);color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recbox{flex:1;min-width:0;display:flex;align-items:center;gap:var(--s-sm);height:26px;padding:0 var(--s-10);border-radius:var(--r-lg);background:var(--fill-subtle)}
+.rec-dot{width:8px;height:8px;border-radius:50%;background:var(--rec);flex:none;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+.rec-l{font-size:var(--t-foot);font-weight:600}
+.rec-t{font-family:var(--mono);font-size:var(--t-foot);color:var(--ink-2)}
+.lvl{width:64px;height:6px;border-radius:var(--r-pill);background:var(--fill-strong);overflow:hidden;margin-left:auto;flex:none}
+.lvl span{display:block;height:100%;width:60%;border-radius:inherit;background:var(--ink)}
+.dict{display:inline-flex;align-items:center;gap:5px;padding-right:var(--s-sm);font-size:var(--t-foot);font-weight:600;color:var(--ink-2);flex:none}
+
+/* estados */
+.state{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:var(--s-xs);padding:0 var(--s-xl)}
+.state .big{font-size:22px;color:var(--ink-3)}
+.st-title{font-size:var(--t-body);font-weight:500}
+.st-sub{font-size:var(--t-sub);line-height:1.4;color:var(--ink-3);max-width:330px}
+.cmd{display:flex;align-items:center;gap:var(--s-xs);max-width:100%;margin-top:var(--s-2);padding:var(--s-2) var(--s-2) var(--s-2) var(--s-10);border-radius:var(--r-md);background:var(--fill-subtle)}
+.cmd code{font-family:var(--mono);font-size:var(--t-sub);color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pair{flex:1;min-height:0;display:flex;align-items:center;gap:var(--s-xl)}
+.qr{position:relative;flex:none;width:128px;height:128px;padding:var(--s-xs);border-radius:var(--r-lg);background:var(--qr-light)}
+.qr>svg{display:block;width:100%;height:100%}
+.qr>svg rect{fill:var(--qr-dark)}
+.qr.exp{background:var(--fill-faint)}
+.qr.exp>svg rect{fill:var(--fill)}
+.qr-ov{position:absolute;inset:0;border-radius:inherit;background:var(--scrim);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--s-xs)}
+.qr-ov b{font-size:var(--t-callout);font-weight:600}
+.pair-txt{display:flex;flex-direction:column;gap:var(--s-xs);font-size:var(--t-sub);line-height:1.45;color:var(--ink-2)}
+.pair-txt b{color:var(--ink);font-weight:600}
+.sk{display:flex;align-items:center;gap:var(--s-sm);padding:5px var(--s-sm);flex:none}
+.sk-av{width:28px;height:28px;border-radius:50%;background:var(--fill-subtle);flex:none}
+.sk-ls{flex:1;display:flex;flex-direction:column;gap:var(--s-xs)}
+.sk-l{height:8px;border-radius:var(--r-xs);background:var(--fill-subtle)}
+.w40{width:40%}.w55{width:55%}.w70{width:70%}.w85{width:85%}
+.loading .sk{animation:skp 1.4s ease-in-out infinite}
+@keyframes skp{50%{opacity:.5}}
+.spin{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loadline{display:flex;align-items:center;justify-content:center;gap:var(--s-xs);font-size:var(--t-sub);color:var(--ink-3);flex:none}
+
+/* card de chegada e notificação */
+.n-card{width:var(--w-msg);padding:var(--top-inset) var(--s-20) var(--s-md)}
+.n-notif{width:var(--w-notif);height:88px;padding:var(--top-inset) var(--s-24) 0}
+.cm{display:flex;flex-direction:column;gap:var(--s-xs)}
+.cm-acct{display:flex;align-items:center;gap:5px;font-size:var(--t-foot);color:var(--ink-meta)}
+.cm-acct .t{margin-left:auto}
+.cm-head{display:flex;align-items:center;gap:var(--s-sm)}
+.cm-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.cm-name{font-size:var(--t-foot);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cm-body{font-size:var(--t-foot);color:var(--ink-card);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cm-body b{font-weight:600;color:var(--ink)}
+.cm-thumb{height:120px;border-radius:var(--r-lg);overflow:hidden}
+.cm-thumb svg{display:block;width:100%;height:100%}
+.n-card .field{background:var(--field-card)}
+.nt{display:flex;align-items:center;gap:var(--s-md);height:56px}
+.nt-ic{width:32px;height:32px;display:grid;place-items:center;border-radius:var(--r-md);background:var(--fill);font-size:17px;flex:none}
+.nt-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:var(--s-1)}
+.nt-top{display:flex;align-items:baseline;gap:var(--s-xs)}
+.nt-title{flex:1;font-size:var(--t-sub);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nt-time{font-size:var(--t-foot);color:var(--ink-meta)}
+.nt-body{font-size:var(--t-foot);color:var(--ink-3)}
+.drop{animation:dropIn var(--dur-open) var(--ease-open) both}
+@keyframes dropIn{from{opacity:0;transform:translateY(-14px) scale(.96)}to{opacity:1;transform:none}}
+.closed{width:200px;height:32px;background:var(--notch);border-radius:0 0 var(--r-closed-bottom) var(--r-closed-bottom);position:relative}
+
+/* legenda e faixa ampliada */
+.legend{display:flex;flex-wrap:wrap;gap:var(--s-md) var(--s-xl);margin-top:var(--s-md);padding:var(--s-sm) var(--s-md);border-radius:var(--r-preview);background:var(--notch);color:var(--ink-2);font-size:var(--t-callout);width:fit-content;max-width:100%}
+.legend span{display:inline-flex;align-items:center;gap:var(--s-xs)}
+.zoomstrip{background:var(--notch);border-radius:var(--r-preview);padding:var(--s-sm) var(--s-xl);zoom:3}
+
+/* janela de Ajustes */
+.win{width:600px;border-radius:var(--r-preview);background:var(--win-bg);color:var(--win-ink);overflow:hidden;box-shadow:var(--shadow-window);font-size:var(--t-body)}
+.win-bar{height:28px;display:flex;align-items:center;gap:var(--s-sm);padding:0 var(--s-md)}
+.win-bar i{width:12px;height:12px;border-radius:50%;background:var(--win-dot)}
+.win-bar b{margin-left:var(--s-sm);font-size:var(--t-body);font-weight:600}
+.win-body{padding:var(--s-2xl)}
+.win-h{font-size:var(--t-title);font-weight:700;margin-bottom:var(--s-10)}
+.pgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--s-md)}
+.pcard{display:flex;flex-direction:column;gap:var(--s-10);padding:var(--s-md);border-radius:var(--r-card-lg);background:var(--win-card)}
+.ptile{height:84px;display:grid;place-items:center;border-radius:var(--r-card);font-size:34px;color:var(--ink)}
+.ptile .i{stroke-width:2.2}
+.t-lan{background:linear-gradient(var(--tile-sheen),transparent) var(--tile-mensagens)}
+.t-wa{background:linear-gradient(var(--tile-sheen),transparent) var(--tile-whatsapp)}
+.pname{font-size:var(--t-body);font-weight:600}
+.pdesc{font-size:var(--t-sub);color:var(--win-ink-2);min-height:2.6em;line-height:1.3}
+.pact{display:flex;align-items:center;gap:var(--s-xs)}
+.pill{height:22px;padding:0 var(--s-md);border:0;border-radius:var(--r-pill);background:var(--win-pill);color:var(--win-ink-2);font-size:var(--t-sub);font-weight:600}
+.pill:hover{background:var(--fill)}
+.pill.full{padding:0 var(--s-lg);background:var(--win-accent);color:var(--ink);font-weight:700}
+.pill.full:hover{background:var(--page-focus)}
+.pill.dots{width:24px;padding:0;display:grid;place-items:center}
+
+@media (prefers-reduced-motion:reduce){
+  .panel.enter{animation:fadeOnly var(--dur-reduced) ease-out}
+  .drop{animation:fadeOnly var(--dur-reduced) ease-out both}
+  .rec-dot,.loading .sk,.spin{animation:none}
+  .acts{transition:opacity var(--dur-reduced) ease-out}
+}
+@keyframes fadeOnly{from{opacity:0}to{opacity:1}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-wa" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><g transform="translate(7.3 7.3) scale(.4)" stroke-width="4.6"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></g></symbol>
+    <symbol id="i-messages-square" viewBox="0 0 24 24"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></symbol>
+    <symbol id="i-paperclip" viewBox="0 0 24 24"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-check-check" viewBox="0 0 24 24"><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/></symbol>
+    <symbol id="i-file-text" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+    <symbol id="i-sticker" viewBox="0 0 24 24"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v4a2 2 0 0 0 2 2h4"/><path d="M8 13h.01"/><path d="M16 13h.01"/><path d="M10 16s.8 1 2 1c1.3 0 2-1 2-1"/></symbol>
+    <symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></symbol>
+    <symbol id="i-image-off" viewBox="0 0 24 24"><path d="M2 2l20 20"/><path d="M10.41 10.41a2 2 0 1 1-2.83-2.83"/><path d="M13.5 13.5 6 21"/><path d="m18 12 3 3"/><path d="M3.59 3.59A1.99 1.99 0 0 0 3 5v14a2 2 0 0 0 2 2h14c.55 0 1.05-.22 1.41-.59"/><path d="M21 15V5a2 2 0 0 0-2-2H9"/></symbol>
+    <symbol id="i-smile-plus" viewBox="0 0 24 24"><path d="M22 11v1a10 10 0 1 1-9-10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/><path d="M16 5h6"/><path d="M19 2v6"/></symbol>
+    <symbol id="i-reply" viewBox="0 0 24 24"><path d="M9 17 4 12l5-5"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></symbol>
+    <symbol id="i-circle-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+    <symbol id="i-unplug" viewBox="0 0 24 24"><path d="m19 5 3-3"/><path d="m2 22 3-3"/><path d="M6.3 20.3a2.4 2.4 0 0 0 3.4 0L12 18l-6-6-2.3 2.3a2.4 2.4 0 0 0 0 3.4Z"/><path d="M7.5 13.5 10 11"/><path d="M10.5 16.5 13 14"/><path d="m12 6 6 6 2.3-2.3a2.4 2.4 0 0 0 0-3.4l-2.6-2.6a2.4 2.4 0 0 0-3.4 0Z"/></symbol>
+    <symbol id="i-key-round" viewBox="0 0 24 24"><path d="M2.59 17.41A2 2 0 0 0 2 18.83V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.17a2 2 0 0 0 1.42-.59l.81-.81a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+    <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+    <symbol id="i-square-pen" viewBox="0 0 24 24"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.4 2.6a1 1 0 0 1 3 3l-9 9a2 2 0 0 1-.85.5l-2.87.84a.5.5 0 0 1-.62-.62l.84-2.87a2 2 0 0 1 .5-.85z"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M6 3l14 9-14 9z"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></symbol>
+    <symbol id="i-loader" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></symbol>
+    <symbol id="i-briefcase" viewBox="0 0 24 24"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><path d="M5 12h.01"/><path d="M12 12h.01"/><path d="M19 12h.01"/></symbol>
+  </defs>
+</svg>
+
+<main class="page">
+  <header class="top">
+    <h1>WhatsApp no notch</h1>
+    <p class="lead">Mockup da seção nova do Knobler, no estilo atual do app. As duas variantes mudam só o formato. Tudo está em escala 1:1 de pontos; numa tela mais estreita que o notch, “Ajustar à largura” reduz o palco, e “Tamanho real” mantém 1:1 e deixa o palco rolar de lado dentro dele.</p>
+    <div class="bar">
+      <div class="tabs" role="tablist" aria-label="Partes do mockup">
+        <button class="tab" role="tab" id="t-a" aria-controls="p-a" aria-selected="true">Variante A</button>
+        <button class="tab" role="tab" id="t-b" aria-controls="p-b" aria-selected="false" tabindex="-1">Variante B</button>
+        <button class="tab" role="tab" id="t-c" aria-controls="p-c" aria-selected="false" tabindex="-1">Card de chegada</button>
+        <button class="tab" role="tab" id="t-e" aria-controls="p-e" aria-selected="false" tabindex="-1">Estados de conexão</button>
+        <button class="tab" role="tab" id="t-v" aria-controls="p-v" aria-selected="false" tabindex="-1">Vitrine</button>
+      </div>
+      <div class="scale" role="group" aria-label="Escala do palco">
+        <button class="pbtn" data-scale="fit" aria-pressed="true">Ajustar à largura</button>
+        <button class="pbtn" data-scale="real" aria-pressed="false">Tamanho real</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="panel" id="p-a" role="tabpanel" aria-labelledby="t-a">
+    <h2>Variante A — larga, duas colunas (780 pt)</h2>
+    <p class="lead">Mesma largura do card de Link. Lista à esquerda com o seletor de conta no topo, conversa à direita. Clique nas conversas e nas contas; passe o mouse numa bolha para reagir ou citar.</p>
+    <div class="legend" data-legend></div>
+    <div class="grid" style="--col:860px" data-frames="a"></div>
+  </section>
+
+  <section class="panel" id="p-b" role="tabpanel" aria-labelledby="t-b" hidden>
+    <h2>Variante B — padrão (430 pt), lista e conversa alternando</h2>
+    <p class="lead">Mesma moldura de Mensagens: 430 pt de largura e 272 pt de conteúdo. A conversa abre por cima da lista, com voltar. Os quadros são interativos.</p>
+    <div class="legend" data-legend></div>
+    <div class="grid" style="--col:510px" data-frames="b"></div>
+  </section>
+
+  <section class="panel" id="p-c" role="tabpanel" aria-labelledby="t-c" hidden>
+    <h2>Card de chegada</h2>
+    <p class="lead">Desce do notch fechado pela fila de notificação, com 360 pt como o card de Mensagens. Mensagens seguidas da mesma conversa viram um card só.</p>
+    <button class="pbtn replay" data-replay>Ver a descida de novo</button>
+    <div class="grid" style="--col:440px" data-frames="c"></div>
+  </section>
+
+  <section class="panel" id="p-e" role="tabpanel" aria-labelledby="t-e" hidden>
+    <h2>Estados de conexão</h2>
+    <p class="lead">Na largura da variante B. Na variante A a mesma mensagem ocupa a coluna da direita e o seletor continua à esquerda (quadro “Conta desconectada” da aba Variante A).</p>
+    <div class="grid" style="--col:510px" data-frames="e"></div>
+  </section>
+
+  <section class="panel" id="p-v" role="tabpanel" aria-labelledby="t-v" hidden>
+    <h2>Vitrine e atalho</h2>
+    <p class="lead">O card da peça nos Ajustes, ao lado de Mensagens (LAN), e a faixa de atalhos ampliada. Cor e ícone não se confundem: Mensagens é verde com dois balões quadrados; WhatsApp é índigo com um balão redondo e telefone, o mesmo símbolo da faixa de atalhos.</p>
+    <div class="grid" style="--col:680px" data-frames="v"></div>
+  </section>
+</main>
+
+<script>
+/* ---------- ícones ---------- */
+const I = (n, c = '') => `<svg class="i ${c}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+
+/* ---------- dados fictícios ---------- */
+const ACC = {
+  biz: { name: 'ZOI Business · 4143', icon: 'briefcase', unread: 5 },
+  pes: { name: 'Pessoal · 8292', icon: 'user', unread: 2 },
+};
+const CHATS = {
+  opz:   { acct: 'biz', group: true, name: 'Operacional ZOI', members: 'Ana Ribeiro, Diego Martins, Júlia Souza e você', unread: 3, time: '14:41',
+           prev: { t: 'audio', from: 'Diego', dur: '0:37' }, msgs: ['g1','g2','g3','g4','g5','g6','g7','g8','g9'] },
+  marina:{ acct: 'biz', name: 'Marina Duarte', unread: 2, time: '14:32',
+           prev: { t: 'text', text: 'Fechado! Mando o briefing até sexta.' }, alt: { t: 'photo', time: '14:52', unread: 3, msgs: ['m9'] }, msgs: ['m1','m2','m3','m4','m5','m6','m7','m8'] },
+  carlos:{ acct: 'biz', name: 'Carlos (Seller Veículos)', unread: 0, time: '11:47', draft: 'Carlos, ajustei o orçamento de dezembro e…',
+           prev: { t: 'text', text: 'Dá uma olhada quando puder.' }, alt: { t: 'doc', name: 'Proposta-Seller-nov26-v2.pdf', time: '14:47', unread: 1, msgs: ['c3'] }, msgs: ['c1','c2'] },
+  familia:{ acct: 'pes', group: true, name: 'Família', members: 'Tia Lúcia, Mãe, Rafa Lima e você', unread: 1, time: '13:05',
+           prev: { t: 'sticker', from: 'Tia Lúcia' }, msgs: ['f1','f2'] },
+  rafa:  { acct: 'pes', name: 'Rafa Lima', unread: 1, time: '12:20', prev: { t: 'video', dur: '0:18' }, msgs: ['r1','r2'] },
+  mae:   { acct: 'pes', name: 'Mãe', unread: 0, time: 'Ontem', day: 'Ontem', prev: { t: 'deleted' }, msgs: ['e1','e2','e3'] },
+};
+const ME = 'Você';
+const MSG = {
+  m1: { dir: 'in', kind: 'text', text: 'Oi! Conseguiu ver as artes da campanha de Natal?', time: '14:02' },
+  m2: { dir: 'out', kind: 'text', text: 'Vi sim, ficaram ótimas. Só ajustaria o CTA do carrossel.', time: '14:05', status: 'read' },
+  m3: { dir: 'in', kind: 'text', text: 'Pode deixar, troco para “Agende sua visita”.', time: '14:08', quote: { name: ME, text: 'Só ajustaria o CTA do carrossel.' }, reaction: '👍' },
+  m4: { dir: 'in', kind: 'photo', scene: 'praia', text: 'Versão nova do post 3', time: '14:20' },
+  m5: { dir: 'out', kind: 'text', text: 'Perfeito. Sobe hoje às 18h?', time: '14:22', status: 'delivered', edited: true },
+  m6: { dir: 'out', kind: 'text', text: 'Já te mando o relatório de outubro.', time: '14:25', status: 'sent' },
+  m7: { dir: 'in', kind: 'text', text: 'Fechado! Mando o briefing até sexta.', time: '14:32' },
+  m8: { dir: 'out', kind: 'text', text: 'Combinado!', time: '14:33', status: 'sending' },
+  m9: { dir: 'in', kind: 'photo', scene: 'praia', text: 'Prévia do carrossel', time: '14:52' },
+  g1: { dir: 'in', from: 'Ana Ribeiro', kind: 'text', text: 'Bom dia, pessoal! A pauta da semana está no drive.', time: '09:12' },
+  g2: { dir: 'in', from: 'Ana Ribeiro', kind: 'doc', name: 'Pauta-semana-45.pdf', size: 'PDF · 820 KB', time: '09:13' },
+  g3: { dir: 'in', from: 'Diego Martins', kind: 'video', scene: 'estudio', dur: '0:42', text: 'Bastidores da gravação na Seller', time: '09:40' },
+  g4: { dir: 'out', kind: 'text', text: 'Ficou muito bom. Dá para cortar uma versão de 15 s?', time: '09:44', status: 'read', reaction: '❤️' },
+  g5: { dir: 'in', from: 'Diego Martins', kind: 'sticker', emoji: '🎬', label: 'claquete', time: '09:46' },
+  g6: { dir: 'in', from: 'Júlia Souza', kind: 'deleted', time: '10:02' },
+  g7: { dir: 'in', from: 'Júlia Souza', kind: 'unavailable', time: '10:05' },
+  g8: { dir: 'in', from: 'Diego Martins', kind: 'audio', dur: '0:37', time: '14:41' },
+  g9: { dir: 'out', kind: 'text', text: 'Ouço daqui a pouco e respondo.', time: '14:43', failed: true },
+  c1: { dir: 'in', kind: 'doc', name: 'Proposta-Seller-nov26.pdf', size: 'PDF · 1,2 MB', time: '11:40' },
+  c2: { dir: 'in', kind: 'text', text: 'Dá uma olhada quando puder.', time: '11:47' },
+  c3: { dir: 'in', kind: 'doc', name: 'Proposta-Seller-nov26-v2.pdf', size: 'PDF · 1,3 MB', time: '14:47' },
+  f1: { dir: 'in', from: 'Tia Lúcia', kind: 'text', text: 'Domingo tem almoço aqui em casa, hein!', time: '12:58' },
+  f2: { dir: 'in', from: 'Tia Lúcia', kind: 'sticker', emoji: '🥳', label: 'festa', time: '13:05' },
+  r1: { dir: 'in', kind: 'video', scene: 'mar', dur: '0:18', text: 'Olha o mar hoje cedo na Joaquina', time: '12:20' },
+  r2: { dir: 'out', kind: 'text', text: 'Que mar! Sábado eu vou.', time: '12:24', status: 'read' },
+  e1: { dir: 'in', kind: 'text', text: 'Filho, chegou bem?', time: '21:10' },
+  e2: { dir: 'out', kind: 'text', text: 'Cheguei sim, mãe. Beijo!', time: '21:14', status: 'read' },
+  e3: { dir: 'in', kind: 'deleted', time: '21:15' },
+};
+const REACTIONS = ['👍','❤️','😂','😮','😢','🙏'];
+
+/* ---------- cenas (conteúdo de foto/vídeo, cor do conteúdo) ---------- */
+const SCENES = {
+  praia: `<rect width="200" height="125" fill="#9db7c6"/><circle cx="152" cy="36" r="13" fill="#efdcb4"/><path d="M0 72Q50 58 100 70T200 64V125H0Z" fill="#4c7a90"/><path d="M0 98Q60 88 120 97T200 93V125H0Z" fill="#d6c4a0"/><rect x="18" y="16" width="70" height="9" rx="2" fill="#fff" opacity=".85"/><rect x="18" y="30" width="46" height="6" rx="2" fill="#fff" opacity=".6"/>`,
+  estudio: `<rect width="200" height="125" fill="#2b2e34"/><rect x="22" y="18" width="46" height="62" rx="3" fill="#d8d2c4" opacity=".75"/><path d="M45 80v34M45 114l-12 8M45 114l12 8" stroke="#8a8f99" stroke-width="2"/><circle cx="128" cy="62" r="20" fill="#565b66"/><rect x="108" y="82" width="40" height="34" rx="6" fill="#474b55"/><rect x="150" y="28" width="30" height="20" rx="3" fill="#6d7380"/>`,
+  mar: `<rect width="200" height="125" fill="#b9c9cf"/><path d="M0 60Q40 50 80 58T160 54T200 56V125H0Z" fill="#3f6b80"/><path d="M0 84Q30 74 60 84T120 82T200 80V125H0Z" fill="#5d8ea3"/><path d="M10 84q12-8 24 0M70 82q14-9 28 0M140 80q12-7 24 0" stroke="#e9eef0" stroke-width="2" fill="none"/>`,
+  jardim: `<rect width="200" height="125" fill="#d7dccf"/><rect x="0" y="92" width="200" height="33" fill="#9a8a72"/><path d="M78 92l6-26h32l6 26z" fill="#b5754e"/><path d="M100 66C96 46 84 36 72 34M100 66c4-22 18-30 30-32M100 66c0-18 2-30 0-42" stroke="#58784d" stroke-width="3" fill="none"/><circle cx="72" cy="33" r="7" fill="#e7c7d9"/><circle cx="131" cy="34" r="7" fill="#e7c7d9"/><circle cx="100" cy="23" r="7" fill="#f1dbe7"/>`,
+};
+const scene = (k) => `<svg viewBox="0 0 200 125" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${SCENES[k]}</svg>`;
+
+/* ---------- peças ---------- */
+function seeded(seed) { let s = seed >>> 0; return () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+function wave(seed, played) {
+  const r = seeded(seed); let bars = '';
+  for (let i = 0; i < 30; i++) { const h = 4 + Math.round(r() * 16); bars += `<rect class="${i < played ? 'p' : ''}" x="${i * 4}" y="${(22 - h) / 2}" width="2" height="${h}" rx="1"/>`; }
+  return `<svg class="wave" viewBox="0 0 118 22" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>`;
+}
+function qr(seed) {
+  const n = 25, r = seeded(seed), cells = [];
+  const finder = (x, y) => { for (let i = 0; i < 7; i++) for (let j = 0; j < 7; j++) { const edge = i === 0 || i === 6 || j === 0 || j === 6; const core = i >= 2 && i <= 4 && j >= 2 && j <= 4; if (edge || core) cells.push([x + i, y + j]); } };
+  const inFinder = (x, y) => (x < 8 && y < 8) || (x > n - 9 && y < 8) || (x < 8 && y > n - 9);
+  finder(0, 0); finder(n - 7, 0); finder(0, n - 7);
+  for (let x = 0; x < n; x++) for (let y = 0; y < n; y++) {
+    if (inFinder(x, y)) continue;
+    if (y === 6 || x === 6) { if ((x + y) % 2 === 0) cells.push([x, y]); continue; }
+    if (r() > .52) cells.push([x, y]);
+  }
+  return `<svg viewBox="0 0 ${n} ${n}" shape-rendering="crispEdges" aria-hidden="true">${cells.map(([x, y]) => `<rect x="${x}" y="${y}" width="1" height="1"/>`).join('')}</svg>`;
+}
+const av = (c, s) => `<span class="av av-${s}" aria-hidden="true">${c.group ? I('users') : c.name[0]}</span>`;
+function tick(st) {
+  if (st === 'sending') return `<span class="tk" role="img" aria-label="enviando" title="enviando">${I('clock')}</span>`;
+  if (st === 'sent') return `<span class="tk" role="img" aria-label="enviada" title="enviada">${I('check')}</span>`;
+  if (st === 'delivered') return `<span class="tk" role="img" aria-label="entregue" title="entregue">${I('check-check')}</span>`;
+  if (st === 'read') return `<span class="tk read" role="img" aria-label="lida" title="lida">${I('check-check')}</span>`;
+  return '';
+}
+function preview(p) {
+  const f = p.from ? `<span class="pv-from">${p.from}:</span> ` : '';
+  switch (p.t) {
+    case 'text': return f + p.text;
+    case 'photo': return f + I('camera') + 'Foto';
+    case 'video': return f + I('video') + `Vídeo · <span class="num">${p.dur}</span>`;
+    case 'audio': return f + I('mic') + `Áudio · <span class="num">${p.dur}</span>`;
+    case 'doc': return f + I('file-text') + p.name;
+    case 'sticker': return f + I('sticker') + 'Figurinha';
+    case 'deleted': return f + I('ban') + '<span class="pv-del">Mensagem apagada</span>';
+  }
+}
+function strip(st) {
+  const wa = st ? acctUnread('biz', st) + acctUnread('pes', st) : 7;
+  const items = [['music','Música'],['inbox','Prateleira'],['messages-square','Mensagens'],['wa','WhatsApp',wa,true],['bell','Histórico'],['square-pen','Nota']];
+  return `<div class="strip" role="toolbar" aria-label="Seções do notch">${items.map(([ic, t, n, on]) =>
+    `<button class="sb ${on ? 'on' : ''}" title="${t}" aria-label="${t}${n ? `, ${n} não lidas` : ''}"${on ? ' aria-current="true"' : ''}>${I(ic)}${n ? `<span class="cnt num" aria-hidden="true">${n}</span>` : ''}</button>`).join('')}</div>`;
+}
+function unreadOf(id, st) { const c = CHATS[id]; return st.read.has(id) ? 0 : (st.alt && c.alt ? c.alt.unread : c.unread); }
+function acctUnread(a, st) { return Object.keys(CHATS).filter(k => CHATS[k].acct === a).reduce((s, k) => s + unreadOf(k, st), 0); }
+function acctBtn(a, st, wide) {
+  const A = ACC[a], off = st.off.includes(a), n = acctUnread(a, st);
+  const tail = off ? `<span class="off">desconectada</span>` : (n ? `<span class="count" aria-label="${n} não lidas">${n}</span>` : '');
+  return `<button class="acct" data-acct="${a}" aria-pressed="${st.acct === a}" aria-label="${A.name}${off ? ', desconectada' : n ? `, ${n} não lidas` : ''}">${I(off ? 'unplug' : A.icon)}<span class="${wide ? 'grow' : ''}">${A.name}</span>${tail}</button>`;
+}
+const seg = (st) => `<div class="seg" role="group" aria-label="Conta">${acctBtn('biz', st)}${acctBtn('pes', st)}</div>`;
+const acctList = (st) => `<div class="acct-list" role="group" aria-label="Conta">${acctBtn('biz', st, true)}${acctBtn('pes', st, true)}</div>`;
+
+function row(id, st) {
+  const c = CHATS[id], n = unreadOf(id, st), sel = st.open === id && st.v === 'a';
+  const p = st.alt && c.alt ? c.alt : c.prev;
+  const prev = c.draft && !(st.alt && c.alt) ? `<span class="pv-draft">Rascunho:</span> ${st.drafts[id] ?? c.draft}` : preview(p);
+  return `<button class="row ${n ? 'unread' : ''} ${sel ? 'sel' : ''}" data-open="${id}" ${sel ? 'aria-current="true"' : ''}>${av(c, 28)}
+    <span class="row-main"><span class="row-top"><span class="row-name">${c.name}</span><span class="row-time num">${p.time || c.time}</span></span>
+    <span class="row-bot"><span class="row-prev">${prev}</span>${n ? `<span class="count" aria-label="${n} não lidas">${n}</span>` : ''}</span></span></button>`;
+}
+const list = (st) => `<div class="list">${Object.keys(CHATS).filter(k => CHATS[k].acct === st.acct).map(k => row(k, st)).join('')}</div>`;
+
+function bubble(id, c, st, showFrom) {
+  const m = MSG[id], out = m.dir === 'out';
+  const status = st.status[id] || m.status, failed = m.failed && !st.status[id];
+  const rx = id in st.reacts ? st.reacts[id] : m.reaction;
+  const meta = (solo) => `<span class="meta ${solo ? 'solo' : ''}">${m.edited ? 'editada · ' : ''}<span class="num">${m.time}</span>${out && !failed ? tick(status) : ''}</span>`;
+  const txt = (t) => `<span class="tx">${t}${meta()}</span>`;
+  let inner = '', cls = '';
+  if (m.quote) inner += `<span class="q"><span class="q-bar"></span><span class="q-name">${m.quote.name}</span><span class="q-text">${m.quote.text}</span></span>`;
+  switch (m.kind) {
+    case 'text': inner += txt(m.text); break;
+    case 'photo': inner += `<span class="ph" role="img" aria-label="Foto">${scene(m.scene)}</span>` + (m.text ? txt(m.text) : meta(true)); break;
+    case 'video': inner += `<span class="ph" role="img" aria-label="Vídeo de ${m.dur}">${scene(m.scene)}<span class="play">${I('play','i-fill')}</span><span class="dur num">${m.dur}</span></span>` + (m.text ? txt(m.text) : meta(true)); break;
+    case 'doc': inner += `<span class="doc"><span class="doc-ic">${I('file-text')}</span><span class="doc-txt"><span class="doc-name">${m.name}</span><span class="doc-sz">${m.size}</span></span><button class="ib" aria-label="Baixar ${m.name}">${I('download')}</button></span>` + meta(true); break;
+    case 'audio': inner += `<span class="aud"><button class="aud-play" aria-label="Tocar áudio de ${m.dur}">${I('play','i-fill')}</button>${wave(id.charCodeAt(1) * 7, 9)}<span class="aud-dur">${m.dur}</span></span>` + meta(true); break;
+    case 'sticker': cls = 'bare'; inner += `<span class="sticker" role="img" aria-label="Figurinha: ${m.label}">${m.emoji}</span>` + meta(true); break;
+    case 'deleted': cls = 'del'; inner += txt(`<span class="del-tx">${I('ban')}Mensagem apagada</span>`); break;
+    case 'unavailable': inner += `<span class="media-off">${I('image-off')}mídia indisponível</span>` + meta(true); break;
+  }
+  const canAct = !['deleted'].includes(m.kind) && !failed;
+  const acts = canAct ? `<span class="acts"><button class="ib" data-act="react" data-id="${id}" aria-label="Reagir" title="Reagir">${I('smile-plus')}</button><button class="ib" data-act="quote" data-id="${id}" aria-label="Responder citando" title="Responder citando">${I('reply')}</button></span>` : '';
+  const pk = st.picker === id ? `<span class="pk" role="group" aria-label="Reações"><span class="pk-in">${REACTIONS.map(e => `<button data-react="${e}" data-id="${id}" aria-pressed="${rx === e}" aria-label="Reagir com ${e}">${e}</button>`).join('')}</span></span>` : '';
+  const from = !out && c.group && showFrom ? `<span class="from">${m.from}</span>` : '';
+  const fail = failed ? `<span class="fail" role="status">${I('circle-alert')}não enviada · <button class="link-btn" data-retry="${id}">tentar de novo</button></span>` : '';
+  return `<div class="msg ${out ? 'out' : 'in'}">${from}<div class="bw ${rx ? 'has-rx' : ''} ${st.hover === id || st.picker === id ? 'show' : ''}">${pk}<div class="bubble ${cls}">${inner}</div>${rx ? `<span class="rx" aria-label="Reação ${rx}"><span>${rx}</span></span>` : ''}${acts}</div>${fail}</div>`;
+}
+function msgs(id, st) {
+  const c = CHATS[id], sliced = st.open === st.sliceOf && st.slice;
+  const ids = sliced ? st.slice : c.msgs.concat(st.alt && c.alt ? c.alt.msgs : []);
+  // o separador de dia é da fatia do quadro; conversa aberta por clique usa o dia dela
+  const day = sliced ? st.day : (c.day || 'Hoje');
+  let html = day ? `<span class="day">${day}</span>` : '', last = null;
+  for (const m of ids) { const M = MSG[m]; html += bubble(m, c, st, M.dir === 'in' && M.from !== last); last = M.dir === 'in' ? M.from : null; }
+  return `<div class="msgs" data-scroll>${html}</div>`;
+}
+function head(id, st, back) {
+  const c = CHATS[id], n = unreadOf(id, st);
+  return `<div class="ch">${back ? `<button class="ib" data-back aria-label="Voltar para a lista">${I('chevron-left')}</button>` : ''}${av(c, 22)}
+    <span class="ch-txt"><span class="ch-name">${c.name}</span>${c.group ? `<span class="ch-sub">${c.members}</span>` : ''}</span>
+    ${n ? `<button class="chip-btn" data-read="${id}">${I('check-check')}Marcar como lida</button>` : ''}</div>`;
+}
+function composer(id, st) {
+  const c = CHATS[id], q = st.quote ? MSG[st.quote] : null;
+  const qName = q ? (q.dir === 'out' ? 'você' : (q.from || c.name)) : '';
+  const qText = q ? (q.text || { photo: 'Foto', video: 'Vídeo', doc: q.name, audio: 'Áudio', sticker: 'Figurinha', unavailable: 'Mídia' }[q.kind]) : '';
+  const qs = q ? `<div class="qs"><span class="qs-bar"></span><span class="qs-txt"><span class="qs-name">Respondendo a ${qName}</span><span class="qs-text">${qText}</span></span><button class="ib" data-unquote aria-label="Cancelar citação">${I('x')}</button></div>` : '';
+  const attach = `<button class="ib" aria-label="Anexar foto, vídeo ou documento" title="Anexar">${I('paperclip')}</button>`;
+  const label = `aria-label="Mensagem para ${c.name}"`;
+  let rowHtml;
+  if (st.mode === 'recording') {
+    rowHtml = `<div class="cmp"><button class="ib" data-stoprec aria-label="Cancelar gravação" title="Cancelar">${I('trash')}</button>
+      <span class="recbox" role="status" aria-label="Gravando áudio, 0:12"><span class="rec-dot"></span><span class="rec-l">Gravando</span><span class="rec-t">0:12</span><span class="lvl" aria-hidden="true"><span></span></span></span>
+      <button class="ib" data-stoprec aria-label="Enviar áudio" title="Enviar">${I('send')}</button></div>`;
+  } else if (st.mode === 'dictating') {
+    rowHtml = `<div class="cmp has-text">${attach}<span class="field focus"><input ${label} value="Pode subir o corte de 15 s ainda hoje"><span class="dict" role="status"><span class="rec-dot"></span>Ouvindo</span></span>
+      <button class="ib b-send" aria-label="Enviar">${I('send')}</button></div>`;
+  } else {
+    const v = st.drafts[id] ?? (c.draft || '');
+    rowHtml = `<div class="cmp ${v ? 'has-text' : ''}">${attach}<span class="field"><input data-draft="${id}" placeholder="Mensagem" ${label} value="${v}"></span>
+      <button class="ib b-mic" data-rec aria-label="Gravar áudio" title="Gravar áudio">${I('mic')}</button><button class="ib b-send" aria-label="Enviar" title="Enviar">${I('send')}</button></div>`;
+  }
+  return `<div class="cmpw">${qs}${rowHtml}</div>`;
+}
+const conv = (id, st, back) => head(id, st, back) + msgs(id, st) + composer(id, st);
+
+/* ---------- estados ---------- */
+function stateView(k, st) {
+  switch (k) {
+    case 'bridge': return `<div class="state" role="alert"><span class="big">${I('unplug')}</span><span class="st-title">A ponte do WhatsApp não está respondendo.</span>
+      <span class="st-sub">O Knobler tenta de novo sozinho. Para religar agora, rode no Terminal:</span>
+      <span class="cmd"><code>~/Code/whatsapp-mcp/whatsapp-bridge/servico.sh</code><button class="ib" aria-label="Copiar comando" title="Copiar">${I('copy')}</button></span>
+      <span class="st-sub">Enquanto isso, os cards voltam a vir do WhatsApp Desktop.</span></div>`;
+    case 'key': return `<div class="state" role="alert"><span class="big">${I('key-round')}</span><span class="st-title">A chave da ponte não confere.</span>
+      <span class="st-sub">A ponte recusou a chave que o Knobler leu. Os dois precisam ler o mesmo arquivo de chave; confira o arquivo e tente de novo.</span>
+      <button class="chip-btn" data-noop>${I('refresh')}Tentar de novo</button></div>`;
+    case 'qr': case 'qr-exp': {
+      const exp = k === 'qr-exp';
+      return `<div class="pair"><span class="qr ${exp ? 'exp' : ''}" role="img" aria-label="${exp ? 'QR expirado' : 'QR para parear Pessoal · 8292'}">${qr(8292)}${exp ? `<span class="qr-ov"><b>QR expirado</b><button class="chip-btn" data-noop>${I('refresh')}Gerar outro</button></span>` : ''}</span>
+        <span class="pair-txt"><span><b>Pessoal · 8292 desconectada</b> — escaneie o QR no celular: WhatsApp › Aparelhos conectados › Conectar aparelho</span>
+        <span class="ink-3">${exp ? 'O código vale por cerca de 160 s. Gere outro e escaneie de novo.' : 'O código troca sozinho enquanto espera. ZOI Business · 4143 segue funcionando.'}</span></span></div>`;
+    }
+    case 'loading': return `<div class="list loading" aria-hidden="true">${['w70','w55','w85','w40'].map(w => `<div class="sk"><span class="sk-av"></span><span class="sk-ls"><span class="sk-l w40"></span><span class="sk-l ${w}"></span></span></div>`).join('')}</div>
+      <div class="loadline" role="status">${I('loader','spin')}Carregando conversas…</div>`;
+    case 'empty': return `<div class="state"><span class="big">${I('wa')}</span><span class="st-title">Nenhuma conversa ainda</span><span class="st-sub">A primeira mensagem que chegar nesta conta aparece aqui.</span></div>`;
+  }
+}
+
+/* ---------- seções ---------- */
+function sectionB(st) {
+  if (st.state === 'bridge' || st.state === 'key') return stateView(st.state, st);
+  if (st.state) return seg(st) + stateView(st.state, st);
+  if (st.open) return conv(st.open, st, true);
+  return seg(st) + list(st);
+}
+function sectionA(st) {
+  const left = acctList(st) + `<div class="hair"></div>` + (st.off.includes(st.acct) ? `<p class="st-sub">As conversas desta conta voltam depois de parear.</p>` : list(st));
+  const right = st.state ? stateView(st.state, st) : (st.open ? conv(st.open, st, false) : stateView('empty', st));
+  return `<div class="colA"><div>${left}</div><div class="right">${right}</div></div>`;
+}
+const NBG = '<span class="nbg" aria-hidden="true"></span>';
+const expanded = (cls, inner, st) => `<div class="notch ${cls}">${NBG}<div class="nc"><div class="sec">${inner}</div>${strip(st)}</div></div>`;
+
+function arrivalCard(o) {
+  const c = o.chat;
+  return `<div class="notch n-card drop">${NBG}<div class="cm">
+    <div class="cm-acct">${I('wa')}<span>${ACC[c.acct].name}</span><span class="t">agora</span></div>
+    <div class="cm-head">${av(c, 30)}<span class="cm-txt"><span class="cm-name">${c.name}</span><span class="cm-body">${o.body}</span></span>
+      <button class="ib" aria-label="Fechar" title="Fechar">${I('x')}</button></div>
+    ${o.scene ? `<div class="cm-thumb" role="img" aria-label="Foto">${scene(o.scene)}</div>` : ''}
+    <div class="cmp ${o.reply ? 'has-text' : ''}"><span class="field ${o.focus ? 'focus' : ''}"><input placeholder="Responder…" aria-label="Responder a ${c.name}" value="${o.reply || ''}"></span>
+      <button class="ib" aria-label="Enviar resposta" title="Enviar">${I('send')}</button></div>
+  </div></div>`;
+}
+const notif = () => `<div class="notch n-notif drop">${NBG}<div class="nt"><span class="nt-ic" aria-hidden="true">${I('calendar')}</span><span class="nt-txt">
+  <span class="nt-top"><span class="nt-title">Reunião com Seller Veículos</span><span class="nt-time">agora</span></span>
+  <span class="nt-body">Começa em 10 minutos.</span></span></div></div>`;
+
+function vitrine() {
+  return `<div class="win" role="img" aria-label="Janela de Ajustes, painel Plugins"><div class="win-bar"><i></i><i></i><i></i><b>Plugins</b></div><div class="win-body">
+    <div class="win-h">Plugins</div><div class="pgrid">
+      <div class="pcard"><div class="ptile t-lan">${I('messages-square')}</div><div class="pname">Mensagens</div><div class="pdesc">Recados entre Macs na mesma rede.</div>
+        <div class="pact"><button class="pill">ABRIR</button><button class="pill dots" aria-label="Mais opções">${I('more')}</button></div></div>
+      <div class="pcard"><div class="ptile t-wa">${I('wa')}</div><div class="pname">WhatsApp</div><div class="pdesc">Suas duas contas no notch, pela ponte local.</div>
+        <div class="pact"><button class="pill full">INSTALAR</button></div></div>
+    </div></div></div>`;
+}
+
+/* ---------- quadros ---------- */
+const base = (o) => Object.assign({ v: 'b', acct: 'biz', open: null, slice: null, sliceOf: null, hover: null, picker: null, quote: null, mode: 'normal',
+  state: null, off: [], read: new Set(), reacts: {}, status: {}, drafts: {}, alt: false, day: null }, o);
+const sl = (open, ids, extra = {}) => Object.assign({ open, slice: ids, sliceOf: open }, extra);
+
+const FRAMES = {
+  a: [
+    { t: 'Lista e conversa individual', n: 'Seletor com as duas contas e não lidas por conta. Conversa com Marina: enviada e lida (tiques preenchidos), recebida com citação dentro da bolha e reação embaixo, foto com legenda. O mouse sobre a bolha citada mostra reagir e responder citando. “Marcar como lida” aparece porque há não lidas: abrir a conversa não marca sozinho.',
+      st: base({ v: 'a', day: 'Hoje', ...sl('marina', ['m2','m3','m4'], { hover: 'm3' }) }) },
+    { t: 'Envio, edição e barra de reações', n: 'Editada e entregue (dois tiques), enviada (um tique), enviando (relógio). Barra de 6 reações aberta sobre a mensagem da Marina, e o compositor citando essa mensagem, com a faixa do trecho e o fechar acima do campo.',
+      st: base({ v: 'a', ...sl('marina', ['m5','m6','m7','m8'], { picker: 'm7', quote: 'm7' }) }) },
+    { t: 'Grupo: remetentes, documento, vídeo, gravando', n: 'Nome do remetente acima das bolhas recebidas. Documento com ícone, nome e tamanho; vídeo com play e duração. Na lista, minutos depois: chegaram uma foto da Marina (14:52) e um PDF do Carlos (14:47). Compositor gravando áudio: ponto vermelho de 8 pt como a pílula do ditado, tempo, nível, cancelar e enviar.',
+      st: base({ v: 'a', alt: true, mode: 'recording', ...sl('opz', ['g1','g2','g3']) }) },
+    { t: 'Grupo: reação, figurinha e mensagem apagada', n: 'Reação numa mensagem enviada e lida, figurinha sem bolha, mensagem apagada.',
+      st: base({ v: 'a', alt: true, ...sl('opz', ['g4','g5','g6']) }) },
+    { t: 'Grupo: mídia indisponível, áudio, falha, ditando', n: 'Mídia indisponível; áudio com play, forma de onda e duração. Envio que falhou: sem bolha vermelha, ícone e texto “não enviada · tentar de novo” em laranja de estado. Ditado escrevendo no campo do WhatsApp: a pílula não toma o lugar do campo.',
+      st: base({ v: 'a', alt: true, mode: 'dictating', ...sl('opz', ['g7','g8','g9']) }) },
+    { t: 'Conta desconectada', n: 'Pessoal · 8292 marcada como desconectada no seletor (ícone e texto, não só cor), com o QR para parear de novo na coluna da direita. ZOI Business · 4143 segue com as não lidas.',
+      st: base({ v: 'a', acct: 'pes', off: ['pes'], state: 'qr' }) },
+  ],
+  b: [
+    { t: 'Lista — ZOI Business · 4143', n: 'Seletor de conta no topo. Grupo com prévia de áudio e duração, individual com texto, conversa com rascunho pendente. Clique numa conversa para abrir.', st: base({}) },
+    { t: 'Lista — Pessoal · 8292', n: 'Prévias de vídeo com duração, figurinha em grupo e mensagem apagada.', st: base({ acct: 'pes' }) },
+    { t: 'Conversa individual (abre por cima da lista)', n: 'Voltar à esquerda, “Marcar como lida” à direita. Lida em tiques preenchidos, citação dentro da bolha, reação embaixo; o mouse sobre a última bolha mostra reagir e citar.',
+      st: base({ ...sl('marina', ['m1','m2','m3'], { hover: 'm3' }) }) },
+    { t: 'Conversa individual — foto e entrega', n: 'Foto com legenda, mensagem editada e entregue (dois tiques), enviada (um tique).',
+      st: base({ ...sl('marina', ['m4','m5','m6']) }) },
+    { t: 'Reações e citando', n: 'Barra de 6 reações aberta, enviando (relógio) e o compositor citando a mensagem.',
+      st: base({ ...sl('marina', ['m7','m8'], { picker: 'm7', quote: 'm7' }) }) },
+    { t: 'Grupo — documento, gravando', n: 'Remetente acima das bolhas recebidas, documento com ícone, nome e tamanho. Gravação de áudio no lugar do campo.',
+      st: base({ mode: 'recording', ...sl('opz', ['g1','g2']) }) },
+    { t: 'Grupo — vídeo e reação', n: 'Vídeo com play e duração; reação numa mensagem enviada e lida.',
+      st: base({ ...sl('opz', ['g3','g4']) }) },
+    { t: 'Grupo — figurinha e apagada', n: 'Figurinha sem bolha e mensagem apagada.',
+      st: base({ ...sl('opz', ['g5','g6']) }) },
+    { t: 'Grupo — mídia indisponível, áudio, falha e ditado', n: 'Mídia indisponível, áudio com forma de onda, envio que falhou com “tentar de novo” e o ditado escrevendo no campo.',
+      st: base({ mode: 'dictating', ...sl('opz', ['g7','g8','g9']) }) },
+  ],
+  c: [
+    { t: 'Individual, texto', n: 'Conta, remetente, prévia do texto e o campo “Responder…”. Responder por aqui marca a conversa como lida.', card: { chat: CHATS.marina, body: 'Fechado! Mando o briefing até sexta.' } },
+    { t: 'Grupo', n: 'O grupo é o título; quem mandou vem na prévia.', card: { chat: CHATS.opz, body: '<b>Diego Martins:</b> Subi o corte de 15 s no drive.' } },
+    { t: 'Prévia com foto', n: 'Miniatura da foto acima do campo.', card: { chat: CHATS.mae, body: 'As orquídeas floresceram!', scene: 'jardim' } },
+    { t: 'Agrupado', n: 'Três mensagens seguidas da mesma conversa viram um card só, com a última embaixo.', card: { chat: CHATS.rafa, body: '<b>3 mensagens novas</b> · Bora pedalar sábado cedo?' } },
+    { t: 'Campo em uso: a fila espera', n: 'Com o campo “Responder…” em uso, nenhum card toma a tela. A notificação comum fica na fila.', card: { chat: CHATS.marina, body: 'Fechado! Mando o briefing até sexta.', reply: 'Perfeito, obrigado!', focus: true } },
+    { t: 'Depois: a notificação da fila desce', n: 'Quando o campo perde o foco, a notificação comum desce como hoje. O app não tem indicador de fila, então o mockup não inventa um.', notif: true },
+  ],
+  e: [
+    { t: 'Ponte fora do ar', n: 'Diz o que falhou e como sair, com o comando para religar e o botão de copiar.', st: base({ state: 'bridge' }) },
+    { t: 'Chave não confere', n: 'Separado de “ponte fora do ar”: a ponte responde, mas recusa a chave.', st: base({ state: 'key' }) },
+    { t: 'Conta desconectada, QR para parear', n: 'QR desenhado em SVG, sem imagem externa. A outra conta segue funcionando.', st: base({ acct: 'pes', off: ['pes'], state: 'qr' }) },
+    { t: 'QR expirado', n: 'A janela de pareamento fecha em cerca de 160 s; “Gerar outro” pede um QR novo.', st: base({ acct: 'pes', off: ['pes'], state: 'qr-exp' }) },
+    { t: 'Carregando conversas', n: 'Linhas de espera no lugar da lista, com o texto do que está acontecendo.', st: base({ state: 'loading' }) },
+    { t: 'Lista vazia', n: 'Conta conectada sem nenhuma conversa ainda.', st: base({ acct: 'pes', state: 'empty', read: new Set(['familia','rafa','mae']) }) },
+  ],
+  v: [
+    { t: 'Ajustes › Plugins', n: 'WhatsApp em estado Instalar, ao lado de Mensagens (LAN). O card só aparece quando a ponte responde com a chave certa. Ícone no app: phone.bubble.fill, o mesmo da faixa de atalhos e do card de chegada. Cor: .indigo do sistema, com o gradiente do CardPeca.', vit: true },
+    { t: 'Faixa de atalhos, 3×', n: 'Mensagens (dois balões quadrados, sem contagem) e WhatsApp (balão redondo com telefone, o mesmo símbolo da peça) com o sinal de não lidas, no mesmo padrão de contagem da Prateleira e do Histórico.', zoom: true },
+  ],
+};
+
+/* ---------- montagem ---------- */
+const FW = { a: 860, b: 510, e: 510 };
+function frameInner(tab, f) {
+  if (f.card) return arrivalCard(f.card);
+  if (f.notif) return notif();
+  if (f.vit) return vitrine();
+  if (f.zoom) return `<div class="zoomstrip">${strip()}</div>`;
+  return tab === 'a' ? expanded('n-wide', sectionA(f.st), f.st) : expanded('n-std', sectionB(f.st), f.st);
+}
+function deskWidth(tab, f) { if (f.card) return 440; if (f.notif) return 460; if (f.vit) return 680; if (f.zoom) return 680; return FW[tab]; }
+function renderFrame(el) {
+  const tab = el.dataset.tab, f = FRAMES[tab][+el.dataset.i];
+  const desk = el.querySelector('.desk');
+  desk.innerHTML = frameInner(tab, f);
+  desk.querySelectorAll('[data-scroll]').forEach(s => { s.scrollTop = s.scrollHeight; });
+}
+function build() {
+  document.querySelectorAll('[data-frames]').forEach(g => {
+    const tab = g.dataset.frames;
+    g.innerHTML = FRAMES[tab].map((f, i) => {
+      const w = deskWidth(tab, f), tall = f.vit || f.zoom;
+      return `<figure class="shot" data-tab="${tab}" data-i="${i}"><div class="stage"><div class="scaler" data-w="${w}"><div class="desk ${tall ? 'tall' : ''}" style="width:${w}px"></div></div></div>
+        <figcaption><h3>${f.t}</h3><p>${f.n}</p></figcaption></figure>`;
+    }).join('');
+    g.querySelectorAll('.shot').forEach(renderFrame);
+  });
+  const legend = `<span>${tick('sending')} enviando</span><span>${tick('sent')} enviada</span><span>${tick('delivered')} entregue</span><span>${tick('read')} lida</span>`;
+  document.querySelectorAll('[data-legend]').forEach(l => { l.innerHTML = `<span class="sr">Legenda de entrega:</span>${legend}`; });
+}
+
+let scaleMode = 'fit';
+function fit() {
+  document.querySelectorAll('.scaler').forEach(s => {
+    const w = +s.dataset.w, avail = s.parentElement.clientWidth;
+    s.style.zoom = scaleMode === 'fit' && avail ? Math.min(1, avail / w) : 1;
+  });
+}
+
+/* ---------- interação ---------- */
+function frameOf(el) { const f = el.closest('.shot'); return f ? { el: f, f: FRAMES[f.dataset.tab][+f.dataset.i] } : null; }
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('button'); if (!t) return;
+  if (t.matches('[role="tab"]')) return selectTab(t);
+  if (t.dataset.scale) { scaleMode = t.dataset.scale; document.querySelectorAll('[data-scale]').forEach(b => b.setAttribute('aria-pressed', b === t)); return fit(); }
+  if (t.dataset.replay !== undefined) { document.querySelectorAll('#p-c .drop').forEach(n => { n.classList.remove('drop'); void n.offsetWidth; n.classList.add('drop'); }); return; }
+  const fr = frameOf(t); if (!fr || !fr.f.st) return;
+  const st = fr.f.st, d = t.dataset;
+  if (d.open) { st.open = d.open; st.state = null; st.hover = st.picker = st.quote = null; st.mode = 'normal'; if (st.sliceOf !== d.open) { st.slice = null; st.day = null; } }
+  else if (d.back !== undefined) { st.open = null; st.hover = st.picker = st.quote = null; }
+  else if (d.acct) {
+    st.acct = d.acct; st.hover = st.picker = st.quote = null;
+    st.state = st.off.includes(d.acct) ? (st.state === 'qr-exp' ? 'qr-exp' : 'qr') : (st.state === 'qr' || st.state === 'qr-exp' ? null : st.state);
+    if (st.v === 'a') st.open = st.off.includes(d.acct) ? null : (Object.keys(CHATS).find(k => CHATS[k].acct === d.acct)); else st.open = null;
+    st.slice = null; st.day = null;
+  }
+  else if (d.act === 'react') { st.picker = st.picker === d.id ? null : d.id; }
+  else if (d.act === 'quote') { st.quote = d.id; st.picker = null; }
+  else if (d.react) { st.reacts[d.id] = (st.reacts[d.id] ?? MSG[d.id].reaction) === d.react ? null : d.react; st.picker = null; }
+  else if (d.unquote !== undefined) { st.quote = null; }
+  else if (d.retry) { st.status[d.retry] = 'sending'; }
+  else if (d.read) { st.read.add(d.read); }
+  else if (d.rec !== undefined) { st.mode = 'recording'; }
+  else if (d.stoprec !== undefined) { st.mode = 'normal'; }
+  else return;
+  renderFrame(fr.el); fit();
+});
+document.addEventListener('input', (e) => {
+  const inp = e.target.closest('input'); if (!inp) return;
+  const cmp = inp.closest('.cmp'); if (cmp) cmp.classList.toggle('has-text', inp.value.trim() !== '');
+  const fr = frameOf(inp); if (fr && fr.f.st && inp.dataset.draft) fr.f.st.drafts[inp.dataset.draft] = inp.value;
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { const fr = frameOf(e.target); if (fr && fr.f.st && (fr.f.st.picker || fr.f.st.quote)) { fr.f.st.picker = null; fr.f.st.quote = null; renderFrame(fr.el); } return; }
+  const tab = e.target.closest('[role="tab"]'); if (!tab) return;
+  const tabs = [...document.querySelectorAll('[role="tab"]')]; let i = tabs.indexOf(tab);
+  if (e.key === 'ArrowRight') i = (i + 1) % tabs.length; else if (e.key === 'ArrowLeft') i = (i - 1 + tabs.length) % tabs.length;
+  else if (e.key === 'Home') i = 0; else if (e.key === 'End') i = tabs.length - 1; else return;
+  e.preventDefault(); selectTab(tabs[i]); tabs[i].focus();
+});
+function selectTab(t) {
+  document.querySelectorAll('[role="tab"]').forEach(b => { const on = b === t; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1;
+    const p = document.getElementById(b.getAttribute('aria-controls')); p.hidden = !on; if (on) { p.classList.remove('enter'); void p.offsetWidth; p.classList.add('enter'); } });
+  const p = document.getElementById(t.getAttribute('aria-controls'));
+  p.querySelectorAll('.drop').forEach(n => { n.classList.remove('drop'); void n.offsetWidth; n.classList.add('drop'); });
+  fit();
+  p.querySelectorAll('[data-scroll]').forEach(sc => { sc.scrollTop = sc.scrollHeight; });
+  const id = t.id.slice(2); if (history.replaceState) history.replaceState(null, '', '#' + id);
+}
+build();
+const start = document.getElementById('t-' + (location.hash.slice(1) || 'a'));
+selectTab(start || document.getElementById('t-a'));
+new ResizeObserver(fit).observe(document.querySelector('.page'));
+</script>
+</body>
+</html>
