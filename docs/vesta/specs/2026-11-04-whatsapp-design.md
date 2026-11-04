@@ -126,9 +126,12 @@ Segue o `DESIGN.md`: hierarquia por camadas de branco, sem segunda cor de
 fundo. Envio que falha não vira bolha vermelha: ícone e texto "não enviada"
 em cor de estado, com "tentar de novo". Os estados de entrega usam tiques
 (um, dois, dois preenchidos para lido), diferentes pela forma, não só pela
-cor. O formato da seção (largo em duas colunas, ~780 pt como o Link, ou
-padrão de 430 pt alternando lista e conversa) é decidido no mockup, que traz
-os dois. Cor e ícone da peça não se confundem com a de Mensagens LAN.
+cor. Formato aprovado no mockup (`docs/vesta/mockups/2026-11-04-whatsapp/`,
+variante A): largo em duas colunas, 780 pt como o card de Link, conteúdo de
+360 pt de altura; coluna esquerda de 260 pt com o seletor de conta no topo e
+a lista; conversa à direita. Peça em índigo do sistema, ícone próprio
+(`phone.bubble.fill`, com reserva se não existir no 14.2), distinto do verde
+de Mensagens LAN.
 
 ## Fluxo de dados
 
@@ -325,3 +328,5 @@ usuário).
 - Demais achados (A13, A14, A17, A25, A27, A28, A40, A43–A46, A86, A87, A93
   a A97) são detalhes de implementação ou referências visuais que vão para o
   mockup e o plano, sem mudar a spec.
+- **Mockup** — aprovada a variante A (larga, duas colunas, 780 pt). Motivo:
+  troca de conversa num clique e espaço para grupo com mídia.
