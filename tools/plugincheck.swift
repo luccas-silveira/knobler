@@ -122,8 +122,9 @@ struct PluginCheck {
         let d = defaultsLimpo("plugincheck.novo")
         assert(PluginsInstalados.ler(d).isEmpty, "defaults não estava limpo")
         PluginsInstalados.migrarSePreciso(d)
-        assert(PluginsInstalados.ler(d) == Set(PluginID.allCases).subtracting([.monitores, .textoDaTela]),
+        assert(PluginsInstalados.ler(d) == Set(PluginID.allCases).subtracting([.monitores, .textoDaTela, .whatsapp]),
                "migração alterou as peças legadas: \(PluginsInstalados.ler(d))")
+        assert(!PluginsInstalados.ler(d).contains(.whatsapp), "WhatsApp precisa começar desinstalada")
         assert(!PluginsInstalados.ler(d).contains(.textoDaTela), "Texto da tela precisa começar desinstalada")
         assert(!PluginsInstalados.ler(d).contains(.monitores), "Monitores precisa começar desinstalada")
     }
@@ -363,13 +364,16 @@ struct PluginCheck {
                    "\(peca.nome) ofereceu desinstalar sem nunca ter nascido")
         }
 
-        // As 11 peças convertidas mais Monitores, Agentes e Texto da tela:
-        // nenhuma mostra mais "Em breve" — se um dia deixar de ser verdade, é
-        // este assert que avisa.
-        assert(PluginRegistry.todos.filter(\.pronta).map(\.id) ==
+        // As 11 peças convertidas mais Monitores, Agentes, Texto da tela e
+        // WhatsApp: nenhuma mostra mais "Em breve" — se um dia deixar de ser
+        // verdade, é este assert que avisa. O WhatsApp entra pronto onde a
+        // ficha estiver em `todos`; as outras mantêm a ordem.
+        let prontas = PluginRegistry.todos.filter(\.pronta).map(\.id)
+        assert(prontas.filter { $0 != .whatsapp } ==
                [.monitores, .pomodoro, .lembretes, .descanso, .mensagens, .webhooks, .ditado, .espelho, .anotacao,
                 .notaRapida, .previewLink, .conversao, .agentes, .textoDaTela],
-               "mudou quem está convertido: \(PluginRegistry.todos.filter(\.pronta).map(\.id))")
+               "mudou quem está convertido: \(prontas)")
+        assert(prontas.filter { $0 == .whatsapp }.count == 1, "WhatsApp fora das prontas: \(prontas)")
     }
 
     // MARK: - Tarefa 1: Lembretes

@@ -224,6 +224,16 @@ WA_NUCLEO="Knobler/WhatsApp/WhatsAppModelos.swift Knobler/WhatsApp/WhatsAppChave
   Knobler/WhatsApp/WhatsAppEstado.swift Knobler/WhatsApp/WhatsAppStore.swift"
 # singleton inerte até start: cliente + canal + estado, carga, envio, lida, stop
 swift_teste tools/whatsappstorecheck.swift $WA_NUCLEO
+# seção .whatsapp: enum, ordem, atalhos, largura 780 e altura 360
+swift_teste tools/whatsappsecaocheck.swift Knobler/NotchSectionOrder.swift Knobler/NotchPresentation.swift
+# peça escondida: desinstalada em instalação nova, fora da vitrine sem a ponte
+# (mesmas fontes do plugincheck; a vitrine recebe o booleano, sem WhatsAppSonda)
+swift_teste tools/whatsappescondidacheck.swift Knobler/Plugin.swift Knobler/Pomodoro.swift \
+  Knobler/Reminders.swift Knobler/Descanso.swift Knobler/NotchSectionOrder.swift \
+  Knobler/Peer.swift Knobler/Wire.swift Knobler/LANMessaging.swift Knobler/MessageStore.swift \
+  Knobler/Permissions.swift Knobler/WebhookClient.swift Knobler/WebhookKeychainStore.swift \
+  Knobler/NotchNotification.swift Knobler/FileConverter.swift Knobler/ImageConverter.swift \
+  Knobler/DocumentConverter.swift Knobler/VideoConverter.swift
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
