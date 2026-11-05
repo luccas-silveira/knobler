@@ -248,6 +248,8 @@ VM_FONTES="Knobler/NotchViewModel.swift Knobler/NotchPresentation.swift Knobler/
 # fila de notificação com o campo do WhatsApp: precedência, supressão da
 # conversa aberta, junção por conversa, card de chegada 360 × 96 (+126), 20 s
 swift_teste tools/whatsappfilacheck.swift $VM_FONTES
+# card de chegada: texto, conta, grupo, mídia, agrupamento por conversa, idade máxima
+swift_teste tools/whatsappcartaocheck.swift Knobler/WhatsApp/WhatsAppModelos.swift Knobler/NotchNotification.swift Knobler/WhatsApp/WhatsAppCartao.swift
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
