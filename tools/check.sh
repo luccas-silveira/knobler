@@ -283,6 +283,9 @@ swift_teste tools/whatsappditadocheck.swift Knobler/DictationDestination.swift $
 # a ligação que só o app compila: enum fora do Dictation.swift, case .whatsapp
 # copiando na recusa, escolher/campoEmUso/receberDitado no AppDelegate
 bash_teste tools/whatsappditadoligacaocheck.sh
+# nota de voz: CRC do Ogg, OpusHead/OpusTags, duração pelo TOC, páginas relidas
+# por um leitor próprio, e 2 s de seno codificados de verdade (AVAudioFile em 26+)
+swift_teste tools/whatsappoggcheck.swift Knobler/WhatsApp/OggOpus.swift Knobler/WhatsApp/CodificadorOpus.swift
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
