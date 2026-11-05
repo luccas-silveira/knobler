@@ -1,0 +1,27 @@
+{
+ "ferramenta": "medição de pixel no render nativo (tools/snapshot.sh)",
+ "detector_impeccable": "não se aplica: tela SwiftUI nativa, sem DOM",
+ "escala_do_arquivo": "2x",
+ "medidas": [
+  {
+   "arquivo": "whatsapp-vitrine.png",
+   "pixels": [
+    728,
+    472
+   ],
+   "escala": 2,
+   "cor_tile_base_rgb": [
+    94,
+    85,
+    236
+   ],
+   "cor_tile_topo_rgb": [
+    130,
+    120,
+    255
+   ],
+   "indigo_esperado": "#5E5CE6 (94,92,230) com gradiente branco 16% no topo"
+  }
+ ],
+ "alarmes": []
+}
