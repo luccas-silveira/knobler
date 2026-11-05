@@ -211,6 +211,8 @@ swift_teste tools/whatsappclientecheck.swift Knobler/WhatsApp/WhatsAppModelos.sw
 bash_teste tools/whatsappatscheck.sh
 # sondagem de GET /v1/ponte: só com o arquivo da chave, janela de 30 s
 swift_teste tools/whatsappsondacheck.swift Knobler/WhatsApp/WhatsAppModelos.swift Knobler/WhatsApp/WhatsAppChave.swift Knobler/WhatsApp/WhatsAppCliente.swift Knobler/WhatsApp/WhatsAppSonda.swift
+# canal ao vivo por WebSocket: cursor/desde, reconexão, sinal de vida, wake, App Nap
+swift_teste tools/whatsappcanalcheck.swift Knobler/WhatsApp/WhatsAppModelos.swift Knobler/WhatsApp/WhatsAppChave.swift Knobler/WhatsApp/WhatsAppCanal.swift
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
