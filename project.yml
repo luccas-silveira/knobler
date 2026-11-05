@@ -56,7 +56,7 @@ targets:
         NSRemindersFullAccessUsageDescription: Knobler consulta, cria e modifica seus lembretes e listas da Apple quando você solicita.
         NSCalendarsFullAccessUsageDescription: Knobler mostra sua agenda, cria eventos quando você salva e avisa sobre o próximo compromisso no notch.
         NSCameraUsageDescription: Knobler mostra sua câmera no notch como espelho antes de reuniões.
-        NSMicrophoneUsageDescription: Knobler grava sua voz enquanto você segura a tecla de ditado, para transcrever onde o cursor estiver.
+        NSMicrophoneUsageDescription: Knobler grava sua voz no ditado, para transcrever onde o cursor estiver, e nas mensagens de áudio que você grava no notch.
         # A ponte do WhatsApp fala em http://127.0.0.1 (loopback). Sem esta
         # exceção, o ATS do macOS 14+ recusa IP com -1022.
         NSAppTransportSecurity:

@@ -50,7 +50,7 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Knobler troca mensagens com outros Macs na sua rede local.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Knobler grava sua voz enquanto você segura a tecla de ditado, para transcrever onde o cursor estiver.</string>
+	<string>Knobler grava sua voz no ditado, para transcrever onde o cursor estiver, e nas mensagens de áudio que você grava no notch.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
 	<string>Knobler consulta, cria e modifica seus lembretes e listas da Apple quando você solicita.</string>
 </dict>

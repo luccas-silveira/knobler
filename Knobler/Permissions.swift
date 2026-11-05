@@ -57,7 +57,7 @@ enum Permission: String, CaseIterable, Identifiable {
         case .acessibilidade:
             return "Lê as teclas de volume e brilho pros HUDs, detecta a ⌥ direita do ditado e cola o texto transcrito onde o cursor estiver. Sem ela o ditado não tem como nem começar."
         case .microfone:
-            return "Grava sua voz enquanto você segura a ⌥ direita."
+            return "Grava sua voz no ditado (segurando a ⌥ direita) e nas mensagens de áudio que você grava no notch."
         case .camera:
             return "Mostra o espelho no notch antes de reuniões."
         case .calendario:
