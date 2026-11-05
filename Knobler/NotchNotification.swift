@@ -51,6 +51,10 @@ struct NotchNotification: Identifiable, Equatable, Codable {
     /// Card do AirDrop: clique revela a pasta de download (caminho do sistema,
     /// não uma URL — `openURL` aceita payload de webhook e não pode abrir file://).
     var revealsDownloads = false
+    /// Card de chegada do WhatsApp: conversa, conta e o que o card desenha.
+    /// Só no card vivo, fora do Codable como a `thumbnail` — o histórico guarda
+    /// o texto da mensagem, não o handle da conversa.
+    var whatsapp: CartaoWhatsApp? = nil
     /// ID de dedupe do webhook: mesmo id substitui em vez de empilhar (progresso).
     var webhookID: String? = nil
     /// `var` pelo mesmo motivo do `id`: a poda por idade depende de restaurar
@@ -150,7 +154,8 @@ struct NotchNotification: Identifiable, Equatable, Codable {
         actionURLs: [String] = [],
         revealsDownloads: Bool = false,
         webhookID: String? = nil,
-        date: Date = Date()
+        date: Date = Date(),
+        whatsapp: CartaoWhatsApp? = nil
     ) {
         self.id = id
         self.appName = appName
@@ -171,7 +176,22 @@ struct NotchNotification: Identifiable, Equatable, Codable {
         self.revealsDownloads = revealsDownloads
         self.webhookID = webhookID
         self.date = date
+        self.whatsapp = whatsapp
     }
+}
+
+/// O que o card de chegada do WhatsApp precisa saber da mensagem. Só `String`,
+/// `Bool` e `Int`: o `NotchViewModel` não conhece tipo nenhum de `WhatsApp/`.
+struct CartaoWhatsApp: Equatable {
+    /// `"conta|jid"`: a mesma chave de `whatsappConversaAberta`.
+    let chave: String
+    let conta: String
+    let jid: String
+    let rotuloDaConta: String
+    let grupo: String?
+    let contagem: Int
+    let temMiniatura: Bool
+    let mensagemID: String
 }
 
 extension Array where Element == NotchNotification {

@@ -142,7 +142,51 @@ final class NotchViewModel: ObservableObject {
     @Published private(set) var agendaConfirmacao: String?
 
     var editandoAgenda: Bool { expanded && focus == .agenda && agendaRascunho != nil }
-    private var protegeEdicao: Bool { typingNote || editandoAgenda || editandoLembretes }
+    private var protegeEdicao: Bool { typingNote || editandoAgenda || editandoLembretes || editandoWhatsApp }
+
+    // MARK: - WhatsApp (por tela)
+
+    /// Conta escolhida na seção desta tela (o número, ex.: "554791744143").
+    @Published var whatsappContaSelecionada: String?
+    /// Conversa aberta na seção desta tela, como `"conta|jid"`. Fechar o card
+    /// não a esquece: reabrir volta pra mesma conversa.
+    @Published var whatsappConversaAberta: String?
+    /// Campo de resposta com o teclado, na seção ou no card de chegada.
+    @Published var whatsappEditando = false
+    /// O campo só conta onde ele está na tela: a seção aberta em foco ou o card
+    /// de chegada ativo. O rascunho mora no estado do WhatsApp, então perder a
+    /// edição (fechar o card) não perde texto.
+    var editandoWhatsApp: Bool {
+        whatsappEditando && ((expanded && focus == .whatsapp) || activeNotification?.whatsapp != nil)
+    }
+    /// Card de chegada do WhatsApp fica mais que a notificação comum: dá tempo
+    /// de ler e responder, o mesmo prazo do card LAN com resposta.
+    static let whatsappDuracao: TimeInterval = 20
+
+    func atualizarEdicaoWhatsApp(_ editando: Bool) {
+        whatsappEditando = editando
+        if editando {
+            // o card em resposta não some sozinho no meio da digitação
+            if editandoWhatsApp { dismissWork?.cancel() }
+        } else {
+            resumePendingNotifications()
+            if activeNotification != nil, !notificationHeld { scheduleDismiss() }
+        }
+    }
+
+    /// Medida do card de chegada: a NotchView só chama isto, não decide nada.
+    func aplicarCartaoWhatsApp(em layout: inout NotchPresentation.Layout) {
+        layout.notificationWhatsApp = activeNotification?.whatsapp != nil
+        layout.notificationMiniatura = activeNotification?.whatsapp?.temMiniatura == true
+    }
+
+    /// Abre a conversa na seção do WhatsApp desta tela, no molde de `openThread`.
+    func abrirWhatsApp(chave: String, conta: String) {
+        if activeNotification?.whatsapp?.chave == chave { dismissActiveNotification() }
+        whatsappContaSelecionada = conta
+        whatsappConversaAberta = chave
+        pedirFoco(.whatsapp)
+    }
 
     func novoEventoAgenda() {
         guard agendaRascunho == nil else { return }
@@ -506,12 +550,13 @@ final class NotchViewModel: ObservableObject {
                           hud: hud != nil, update: updateCard && update != nil,
                           airpods: airpodsCard, airpodsIsland: airpodsIsland, expanded: expanded, pomodoro: pomodoro != nil,
                           focus: focus, tecladoBloqueado: TecladoBloqueado.shared.ativo,
-                          pelaTecla: abertoPorTeclado)
+                          pelaTecla: abertoPorTeclado, editingWhatsApp: editandoWhatsApp,
+                          whatsappCard: activeNotification?.whatsapp != nil)
     }
 
     var mode: Mode { contentState().mode }
     var isHovering: Bool { opening.hovering }
-    var atrasoDeFechar: TimeInterval { typingNote ? NotchOpening.typingDelay : NotchOpening.closeDelay }
+    var atrasoDeFechar: TimeInterval { typingNote || editandoWhatsApp ? NotchOpening.typingDelay : NotchOpening.closeDelay }
     private let notificationDuration: TimeInterval = 5.0
     /// O alerta do sistema vive ~30s; o card espelhado acompanha.
     private let actionableDuration: TimeInterval = 30.0
@@ -537,7 +582,7 @@ final class NotchViewModel: ObservableObject {
         // fora sem ele ter saído: a saída logo depois ganha o prazo longo, e
         // voltar o mouse pro card cancela o fechamento
         let settings = AppSettings.shared
-        opening.hover(inside, typing: typingNote || now - focoTrocadoEm < 1, now: now,
+        opening.hover(inside, typing: typingNote || editandoWhatsApp || now - focoTrocadoEm < 1, now: now,
                       openDelay: settings.notchAtrasoHover, openOnHover: !settings.notchAbrirComClique)
         guard let request = opening.pending else { return }
         let work = DispatchWorkItem { [weak self] in
@@ -581,6 +626,7 @@ final class NotchViewModel: ObservableObject {
         if !value {
             abertoPorTeclado = false
             if typingNote { QuickNote.shared.editing = false }
+            whatsappEditando = false
             monitoresArrastando = false
             mirrorOn = false
             focoAoFechar = focusLocked ? focus.map { (NotchSectionOrder.focoParaGuardar($0, secoes: secoes), ProcessInfo.processInfo.systemUptime) } : nil
@@ -663,7 +709,12 @@ final class NotchViewModel: ObservableObject {
     // MARK: - Notificações
 
     func enqueue(_ notification: NotchNotification) {
+        // cada mensagem do WhatsApp vira uma linha: o card chega sem webhookID,
+        // que apagaria do histórico as linhas anteriores da conversa
         NotificationHistory.shared.record(notification)
+        // a conversa já está aberta nesta tela: o card seria eco do que se lê
+        if let c = notification.whatsapp, expanded, focus == .whatsapp,
+           whatsappConversaAberta == c.chave { return }
         // progresso: mesmo webhookID substitui a ativa ou a enfileirada
         if let wid = notification.webhookID {
             if activeNotification?.webhookID == wid {
@@ -672,6 +723,18 @@ final class NotchViewModel: ObservableObject {
                 return
             }
             if let i = queue.firstIndex(where: { $0.webhookID == wid }) {
+                queue[i] = notification
+                return
+            }
+        }
+        // mesma conversa do WhatsApp: a mensagem nova substitui o card, sem empilhar
+        if let c = notification.whatsapp {
+            if activeNotification?.whatsapp?.chave == c.chave {
+                activeNotification = notification
+                scheduleDismiss()
+                return
+            }
+            if let i = queue.firstIndex(where: { $0.whatsapp?.chave == c.chave }) {
                 queue[i] = notification
                 return
             }
@@ -725,13 +788,15 @@ final class NotchViewModel: ObservableObject {
 
     private func scheduleDismiss() {
         dismissWork?.cancel()
+        // campo de resposta em uso: o card espera; soltar o campo reagenda
+        guard !editandoWhatsApp else { return }
         let work = DispatchWorkItem { [weak self] in
             self?.dismissActiveNotification()
         }
         dismissWork = work
         // card com botões espera uma decisão: 5s não dá tempo nem de ler
-        let duration = activeNotification?.actionTitles.isEmpty == false
-            ? actionableDuration : notificationDuration
+        let duration = activeNotification?.whatsapp != nil ? Self.whatsappDuracao
+            : activeNotification?.actionTitles.isEmpty == false ? actionableDuration : notificationDuration
         DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: work)
     }
 

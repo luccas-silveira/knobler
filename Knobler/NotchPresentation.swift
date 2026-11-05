@@ -27,11 +27,17 @@ struct NotchContentState {
     var tecladoBloqueado = false
     /// Card aberto pelo atalho global: aceita teclado pra navegar sem mouse.
     var pelaTecla = false
+    /// Campo de resposta do WhatsApp em uso, na seção ou no card de chegada.
+    var editingWhatsApp = false
+    /// O card de notificação ativo é o de chegada do WhatsApp (tem resposta).
+    var whatsappCard = false
 
     var mode: NotchMode {
         if tecladoBloqueado { return .tecladoBloqueado }
         if question { return .question }
         if incoming { return .message }
+        // o campo segura o lugar: só o próprio card de chegada fica na frente
+        if editingWhatsApp { return whatsappCard && notification ? .notification : .music }
         if dictation { return .dictation }
         if typingNote || editingAgenda || editingReminders { return .music }
         if notification { return .notification }
@@ -48,6 +54,7 @@ struct NotchContentState {
         switch mode {
         case .question: return true
         case .message: return reply
+        case .notification: return whatsappCard
         case .music: return expanded && (pelaTecla || [.nota, .mensagens, .whatsapp, .link, .monitores].contains(focus) || editingAgenda || editingReminders)
         default: return false
         }
@@ -135,6 +142,10 @@ struct NotchPresentation: Equatable {
         /// Altura a mais do card de notificação: subtítulo e, com o mouse em
         /// cima, o texto inteiro. Medida pela NotchView; teto em `notificationExtraMax`.
         var notificationExtra: CGFloat = 0
+        /// Card de chegada do WhatsApp: medida própria, com ou sem miniatura.
+        /// Decidido por `NotchViewModel.aplicarCartaoWhatsApp(em:)`.
+        var notificationWhatsApp = false
+        var notificationMiniatura = false
         var mediaHeight: CGFloat = 0
         var questionSize = CGSize(width: 460, height: 120)
         var contentID = ""
@@ -158,6 +169,10 @@ struct NotchPresentation: Equatable {
         case .music:
             target = CGSize(width: layout.sectionWidth,
                             height: topInset + layout.sectionHeight + 60)
+        case .notification where layout.notificationWhatsApp:
+            target = CGSize(width: NotchMetrics.whatsappCartaoLargura,
+                            height: topInset + NotchMetrics.whatsappCartaoAltura
+                            + (layout.notificationMiniatura ? NotchMetrics.whatsappCartaoMiniatura : 0))
         case .notification:
             target = CGSize(width: 380, height: topInset + (layout.notificationActions ? 92 : 56)
                             + min(max(layout.notificationExtra, 0), Self.notificationExtraMax))
