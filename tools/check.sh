@@ -277,6 +277,12 @@ bash_teste tools/whatsappmicrofoneligacaocheck.sh
 # citar o WhatsApp): project.yml, Info.plist e Permission.microfone.why; o
 # permissioncheck (mais acima) segue valendo pro resto do Permissions.swift
 bash_teste tools/whatsappmicpermissaocheck.sh
+# ditado no campo do WhatsApp em uso: Ask vence, depois o campo, depois o app
+# da frente; receberDitado só na conversa do campo, com um espaço só
+swift_teste tools/whatsappditadocheck.swift Knobler/DictationDestination.swift $WA_NUCLEO
+# a ligação que só o app compila: enum fora do Dictation.swift, case .whatsapp
+# copiando na recusa, escolher/campoEmUso/receberDitado no AppDelegate
+bash_teste tools/whatsappditadoligacaocheck.sh
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
