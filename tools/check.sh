@@ -267,6 +267,12 @@ swift_teste tools/whatsappbannercheck.swift Knobler/NotificationRules.swift
 # a ligação que só o app compila: propriedade e chamada no interceptor entre o
 # AirDrop e os botões, estado da ponte entregue pelo AppDelegate
 bash_teste tools/whatsappbannerligacaocheck.sh
+# silêncio por microfone desconta o uso do próprio Knobler (ditado e gravação
+# de áudio); o sharingcheck (mais acima) segue provando o limiar antigo
+swift_teste tools/whatsappmicrofonecheck.swift Knobler/NotificationRules.swift Knobler/UsoProprioDoMicrofone.swift
+# a ligação que só o app compila: marca no MicRecorder depois do engine abrir,
+# entregue pelo AppDelegate à regra, frase antiga fora do docs/notifications.md
+bash_teste tools/whatsappmicrofoneligacaocheck.sh
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
