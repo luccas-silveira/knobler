@@ -234,6 +234,20 @@ swift_teste tools/whatsappescondidacheck.swift Knobler/Plugin.swift Knobler/Pomo
   Knobler/Permissions.swift Knobler/WebhookClient.swift Knobler/WebhookKeychainStore.swift \
   Knobler/NotchNotification.swift Knobler/FileConverter.swift Knobler/ImageConverter.swift \
   Knobler/DocumentConverter.swift Knobler/VideoConverter.swift
+# o VM inteiro, isolado: a mesma lista do eventoscheck (o VM não conhece tipo
+# nenhum de Knobler/WhatsApp/, só String/Bool)
+VM_FONTES="Knobler/NotchViewModel.swift Knobler/NotchPresentation.swift Knobler/NotchSectionOrder.swift \
+  Knobler/Pomodoro.swift Knobler/AirPodsBattery.swift Knobler/NotchNotification.swift \
+  Knobler/NotificationHistory.swift Knobler/QuickNote.swift Knobler/Wire.swift \
+  Knobler/LinkPreview.swift Knobler/LinkBrowser.swift Knobler/Updater.swift \
+  Knobler/AnnotationModel.swift Knobler/AnnotationController.swift Knobler/CalendarAviso.swift \
+  Knobler/AppSettings.swift Knobler/Descanso.swift Knobler/Mirror.swift \
+  Knobler/Reminders.swift Knobler/Peer.swift Knobler/LANMessaging.swift \
+  Knobler/MessageStore.swift Knobler/Permissions.swift Knobler/Plugin.swift \
+  Knobler/WebhookClient.swift Knobler/WebhookKeychainStore.swift Knobler/TecladoBloqueado.swift"
+# fila de notificação com o campo do WhatsApp: precedência, supressão da
+# conversa aberta, junção por conversa, card de chegada 360 × 96 (+126), 20 s
+swift_teste tools/whatsappfilacheck.swift $VM_FONTES
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
