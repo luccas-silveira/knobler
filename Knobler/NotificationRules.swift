@@ -44,11 +44,18 @@ enum NotificationRules {
     /// ou gravar um áudio de WhatsApp acende o microfone por segundos — silenciar
     /// por causa disso engoliria card sem motivo. `desde` é o instante em que o
     /// microfone acendeu; `nil` = apagado.
+    ///
+    /// O uso do próprio Knobler (ditado, gravação de áudio no notch) não conta:
+    /// com `proprioAtivo` nunca é chamada, e depois que ele termina o limiar
+    /// conta de `proprioTerminouEm` — uma chamada de verdade que seguiu depois
+    /// da gravação volta a silenciar passado o limiar.
     static func micIndicaChamada(
-        desde: Date?, agora: Date, limiar: TimeInterval = 20
+        desde: Date?, agora: Date, limiar: TimeInterval = 20,
+        proprioAtivo: Bool = false, proprioTerminouEm: Date? = nil
     ) -> Bool {
-        guard let desde else { return false }
-        return agora.timeIntervalSince(desde) >= limiar
+        guard !proprioAtivo, let desde else { return false }
+        let inicio = max(desde, proprioTerminouEm ?? desde)
+        return agora.timeIntervalSince(inicio) >= limiar
     }
 
     // MARK: - Conteúdo do banner

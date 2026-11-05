@@ -113,6 +113,9 @@ final class MicRecorder {
     // Array sob mutação concorrente é UB, então serializamos com este lock.
     private let samplesLock = NSLock()
     var onLevel: ((Float) -> Void)?
+    // marca o uso próprio do microfone só se o engine abriu, pra o stop()
+    // não desmarcar um uso que nunca começou
+    private var marcouUso = false
 
     func start() throws {
         samplesLock.lock()
@@ -163,6 +166,10 @@ final class MicRecorder {
         } catch {
             cleanup()
             throw error
+        }
+        if !marcouUso {
+            UsoProprioDoMicrofone.shared.comecou()
+            marcouUso = true
         }
     }
 
@@ -259,6 +266,10 @@ final class MicRecorder {
 
     func stop() -> [Float] {
         cleanup()
+        if marcouUso {
+            UsoProprioDoMicrofone.shared.terminou()
+            marcouUso = false
+        }
         samplesLock.lock()
         let captured = samples
         // a gravação inteira (64 KB por segundo) ficava presa aqui até o

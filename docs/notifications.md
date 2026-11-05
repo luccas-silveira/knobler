@@ -65,8 +65,9 @@ não — senão um aniversário calaria o notch o dia todo.
 não está na agenda: Meet mandado no chat, FaceTime, Discord, ligação de
 WhatsApp. Os 20 s existem porque abrir uma aba de reunião, testar o microfone nos
 Ajustes ou gravar um áudio acende o microfone por segundos, e silenciar por causa
-disso engoliria card à toa. O ditado do próprio Knobler também acende o
-microfone, mas dura menos que o limiar.
+disso engoliria card à toa. O uso do próprio Knobler (ditado e gravação de
+áudio no notch) não conta: enquanto ele grava o notch não silencia, e os 20 s
+voltam a contar quando a gravação termina.
 
 As duas opções são **opt-in** e independentes. A de reuniões depende da contagem
 do calendário estar ligada, que é quem sabe o que está em curso; a de chamadas

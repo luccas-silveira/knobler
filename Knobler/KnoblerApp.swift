@@ -1743,14 +1743,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Silêncio em curso: reunião no calendário, ou microfone aceso há tempo o
     /// bastante pra ser uma chamada. Cada gatilho tem o seu interruptor.
     ///
-    /// ponytail: o ditado do próprio Knobler também acende o microfone, e não há
-    /// código aqui pra descontar isso — ele dura segundos, fica abaixo do limiar,
-    /// e mesmo se passasse o card iria pro Histórico do mesmo jeito.
+    /// O uso do próprio Knobler (ditado e gravação de áudio no notch) é
+    /// descontado: enquanto grava não silencia, e o limiar volta a contar do
+    /// fim da gravação.
     private var silenciando: Bool {
         let settings = AppSettings.shared
         if emReuniao, settings.silenciarEmReuniao { return true }
         return settings.silenciarComMicrofone
-            && NotificationRules.micIndicaChamada(desde: micDesde, agora: Date())
+            && NotificationRules.micIndicaChamada(
+                desde: micDesde, agora: Date(),
+                proprioAtivo: UsoProprioDoMicrofone.shared.ativo,
+                proprioTerminouEm: UsoProprioDoMicrofone.shared.terminouEm)
     }
 
     /// Aviso do desenvolvedor → card. O `actionToken` aqui não é o handle do
