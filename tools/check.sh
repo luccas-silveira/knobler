@@ -273,6 +273,10 @@ swift_teste tools/whatsappmicrofonecheck.swift Knobler/NotificationRules.swift K
 # a ligação que só o app compila: marca no MicRecorder depois do engine abrir,
 # entregue pelo AppDelegate à regra, frase antiga fora do docs/notifications.md
 bash_teste tools/whatsappmicrofoneligacaocheck.sh
+# texto de permissão do microfone genérico (ditado e gravação de áudio, sem
+# citar o WhatsApp): project.yml, Info.plist e Permission.microfone.why; o
+# permissioncheck (mais acima) segue valendo pro resto do Permissions.swift
+bash_teste tools/whatsappmicpermissaocheck.sh
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
