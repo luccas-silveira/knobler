@@ -146,3 +146,9 @@ Vendor/Codenotch/Sessions/SessionFocus.swift
 Vendor/Codenotch/Sessions/TerminalTabFocus.swift
 Knobler/TextoDaTela.swift
 Knobler/TextoDaTelaServico.swift
+Knobler/WhatsApp/WhatsAppModelos.swift
+Knobler/WhatsApp/WhatsAppChave.swift
+Knobler/WhatsApp/WhatsAppCliente.swift
+Knobler/WhatsApp/WhatsAppCanal.swift
+Knobler/WhatsApp/WhatsAppEstado.swift
+Knobler/WhatsApp/WhatsAppStore.swift

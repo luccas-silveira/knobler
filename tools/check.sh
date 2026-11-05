@@ -217,6 +217,13 @@ swift_teste tools/whatsappcanalcheck.swift Knobler/WhatsApp/WhatsAppModelos.swif
 swift_teste tools/whatsappestadocheck.swift Knobler/WhatsApp/WhatsAppModelos.swift Knobler/WhatsApp/WhatsAppEstado.swift
 # bolha de envio: enviando/enviada/entregue/lida/falhou casada pelo ref, retry manual
 swift_teste tools/whatsappbolhacheck.swift Knobler/WhatsApp/WhatsAppModelos.swift Knobler/WhatsApp/WhatsAppEstado.swift
+# núcleo do estado: todo gate que compila o WhatsAppStore usa esta lista
+# (as próximas etapas acrescentam arquivos nela)
+WA_NUCLEO="Knobler/WhatsApp/WhatsAppModelos.swift Knobler/WhatsApp/WhatsAppChave.swift \
+  Knobler/WhatsApp/WhatsAppCliente.swift Knobler/WhatsApp/WhatsAppCanal.swift \
+  Knobler/WhatsApp/WhatsAppEstado.swift Knobler/WhatsApp/WhatsAppStore.swift"
+# singleton inerte até start: cliente + canal + estado, carga, envio, lida, stop
+swift_teste tools/whatsappstorecheck.swift $WA_NUCLEO
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).

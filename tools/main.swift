@@ -842,6 +842,9 @@ for scenario in scenarios {
     QuickNote.shared.active = false
     TecladoBloqueado.shared._simularAtivo(false)
     Monitores.shared.displays = []
+    // o WhatsApp também é singleton: sem isso o estado de um cenário vaza pro
+    // seguinte. O harness nunca chama start(), então não toca a ponte real.
+    WhatsAppStore.shared._zerar()
     // anéis desenhados já no nível final: o ImageRenderer não roda a entrada
     BatteryRingView.animaEntrada = false
     scenario.configure(vm, media, askStore)
