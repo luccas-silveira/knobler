@@ -691,6 +691,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         apiServer.onTeclado = { [weak self] on in
             if on { self?.bloquearTeclado() } else { TecladoBloqueado.shared.desligar() }
         }
+        apiServer.onDitado = { [weak self] in
+            self?.dictation?.toggleFromAPI()
+        }
         apiServer.onMirror = { [weak self] on in
             guard let self else { return }
             if on {

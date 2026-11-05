@@ -123,6 +123,17 @@ Bloqueia o teclado inteiro (teclas, modificadores, mídia) pra limpeza; o notch 
 curl -X POST http://127.0.0.1:4477/keyboard/lock
 ```
 
+### `POST /dictation/toggle`
+
+Liga ou desliga a gravação do ditado, o mesmo que segurar e soltar a ⌥ direita. A
+primeira chamada começa a gravar; a segunda para e transcreve. Sem corpo. Respeita o
+toggle de ditado em Ajustes: desligado, não começa a gravar. Como não instala o monitor
+de teclas, digitar durante a gravação não cancela.
+
+```bash
+curl -X POST http://127.0.0.1:4477/dictation/toggle
+```
+
 ### `POST /mirror` (plugin: espelho)
 
 Liga o espelho no notch do monitor sob o ponteiro ou desliga o espelho em todos

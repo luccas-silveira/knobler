@@ -35,6 +35,8 @@ final class NotchAPIServer {
     var onMirror: ((Bool) -> Void)?
     /// POST /keyboard/lock e /keyboard/unlock — bloqueio de teclado pra limpeza.
     var onTeclado: ((Bool) -> Void)?
+    /// POST /dictation/toggle — liga ou desliga o ditado, como segurar e soltar a ⌥ direita.
+    var onDitado: (() -> Void)?
     /// Pergunta interativa (POST /ask): o hook do Claude Code cria, o card
     /// no notch responde, o hook lê via GET /ask/<id> (long-poll).
     var onAsk: ((AskRequest) -> Void)?
@@ -515,6 +517,11 @@ final class NotchAPIServer {
             return Self.ok
         }
 
+        if request.hasPrefix("POST /dictation/toggle") {
+            DispatchQueue.main.async { [weak self] in self?.onDitado?() }
+            return Self.ok
+        }
+
         // ordem importa: "POST /ask " (com espaço) não colide com "POST /ask/<id>/cancel"
         if request.hasPrefix("POST /ask ") {
             guard let json,
@@ -610,7 +617,7 @@ final class NotchAPIServer {
 
         return Self.http(
             status: "404 Not Found",
-            body: #"{"ok":false,"usage":["POST /notify {title, body?, app?, supacodeWorktree?, supacodeTab?}","POST /activity {id?, title, detail?, progress?, done?}","POST /mirror {on?} (plugin: espelho)","POST /keyboard/lock","POST /keyboard/unlock","POST /ask {id, questions}","GET /ask/<id>","POST /ask/<id>/cancel","GET /status"]}"#
+            body: #"{"ok":false,"usage":["POST /notify {title, body?, app?, supacodeWorktree?, supacodeTab?}","POST /activity {id?, title, detail?, progress?, done?}","POST /mirror {on?} (plugin: espelho)","POST /keyboard/lock","POST /keyboard/unlock","POST /dictation/toggle","POST /ask {id, questions}","GET /ask/<id>","POST /ask/<id>/cancel","GET /status"]}"#
         )
     }
 

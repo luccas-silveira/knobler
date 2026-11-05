@@ -415,6 +415,17 @@ final class DictationController {
         }
     }
 
+    /// POST /dictation/toggle: começa ou termina a gravação sem precisar segurar ⌥.
+    /// Não instala o monitor de teclas, então digitar durante a gravação não cancela.
+    func toggleFromAPI() {
+        if recording {
+            finish()
+            return
+        }
+        guard AppSettings.shared.dictation else { return }
+        begin(watchKeys: false)
+    }
+
     var diagnostics: [String: Any] {
         [
             "enabled": AppSettings.shared.dictation,
@@ -425,7 +436,7 @@ final class DictationController {
         ]
     }
 
-    private func begin() {
+    private func begin(watchKeys: Bool = true) {
         guard !recording, !transcribing else { return }
         // O microfone é pedido aqui, no primeiro ⌥ segurado — não no launch.
         // Pré-aquecer o modelo local baixa 600MB e não toca no microfone, então
@@ -470,6 +481,7 @@ final class DictationController {
             }
         }
         setState(.recording(level: 0))
+        guard watchKeys else { return }
         // outra tecla durante o hold = combo ⌥+tecla de verdade → cancela e
         // deixa o evento passar; Esc (53) também cai aqui
         keyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) {
