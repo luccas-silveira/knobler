@@ -62,6 +62,10 @@ swift_check() {
   run "$name" bash -c "xcrun swiftc $flags $* -o /tmp/$name && /tmp/$name"
 }
 
+# Gate cujo nome É o nome do arquivo de teste: a falha cita o arquivo.
+swift_teste() { local t="$1"; shift; swift_check "$(basename "$t" .swift)" "$@" "$t"; }
+bash_teste()  { local t="$1"; shift; run "$(basename "$t" .sh)" bash "$t" "$@"; }
+
 echo "== self-checks Swift =="
 swift_check presentationcheck Knobler/NotchSectionOrder.swift Knobler/NotchPresentation.swift tools/presentationcheck.swift
 swift_check askcheck          Knobler/AskModels.swift Knobler/AskFeature.swift tools/askcheck.swift
@@ -194,6 +198,10 @@ swift_check eventoscheck          Knobler/NotchViewModel.swift Knobler/NotchPres
 # Ajudantes swift_teste/bash_teste, bloco do WhatsApp e os gates
 # whatsappgatescheck/notchfontescheck, cada um provado num repo falso.
 run gateajudantescheck bash tools/gateajudantescheck.sh
+# --- WhatsApp (docs/whatsapp.md) ---
+bash_teste tools/whatsappgatescheck.sh
+bash_teste tools/notchfontescheck.sh
+# --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
 run semnslog bash -c '! grep -rn "NSLog(" Knobler'
