@@ -48,6 +48,9 @@ struct WAEstado: Equatable {
     /// Por conta: apelido (LID, telefone) → jid canônico.
     private var apelidos: [String: [String: String]] = [:]
 
+    /// `ref` trocados por `retentar`: a confirmação atrasada deles é ignorada.
+    private var refsAbandonados: Set<String> = []
+
     // MARK: - Contas
 
     mutating func substituirContas(_ novas: [WAConta]) {
@@ -167,8 +170,8 @@ struct WAEstado: Equatable {
     @discardableResult
     mutating func aplicar(_ e: WAEventoNumerado, conta: String) -> WAEfeito {
         switch e {
-        case let .mensagem(m, cv, _):
-            return aplicarMensagem(m, cv, conta: conta)
+        case let .mensagem(m, cv, ref):
+            return aplicarMensagem(m, cv, ref: ref, conta: conta)
 
         case let .recibo(conversa, ids, recibo, _, _):
             let alvo: WAStatus
@@ -238,7 +241,8 @@ struct WAEstado: Equatable {
         }
     }
 
-    private mutating func aplicarMensagem(_ m: WAMensagem, _ cv: WAConversa, conta: String) -> WAEfeito {
+    private mutating func aplicarMensagem(_ m: WAMensagem, _ cv: WAConversa, ref: String?,
+                                          conta: String) -> WAEfeito {
         let marca = "\(conta)|\(cv.jid)|\(m.id)"
         guard !vistos.contains(marca) else { return .nada }
         vistos.insert(marca)
@@ -253,14 +257,25 @@ struct WAEstado: Equatable {
         let k = WAChave(conta: conta, jid: cv.jid)
         if var lista = bolhasPorChave[k] {
             if let i = lista.firstIndex(where: { $0.id == m.id }) {
+                // o recibo pode ter chegado antes: o status não volta
+                let status = Self.maiorStatus(lista[i].mensagem.status, m.status)
                 lista[i].mensagem = m
+                lista[i].mensagem.status = status
                 lista[i].envio = nil
+            } else if let ref, let i = lista.firstIndex(where: { $0.envio == .enviando(ref: ref) }) {
+                // o evento chegou antes da resposta do envio: troca a bolha local
+                lista[i] = WABolha(mensagem: m)
             } else {
                 lista.append(WABolha(mensagem: m))
             }
             bolhasPorChave[k] = Self.ordenadas(lista)
         }
         return .mensagemNova(m, cv)
+    }
+
+    private static func maiorStatus(_ a: WAStatus?, _ b: WAStatus?) -> WAStatus? {
+        guard let a, let b else { return a ?? b }
+        return max(a, b)
     }
 
     // MARK: - Rascunho
@@ -285,5 +300,88 @@ struct WAEstado: Equatable {
         vistos = []
         filaDeVistos = []
         apelidos = [:]
+        refsAbandonados = []
+    }
+}
+
+// MARK: - Envio
+
+/// Como a bolha se desenha: o envio local manda; depois, o status do contrato.
+enum WAEstadoDaBolha: Equatable {
+    case enviando, enviada, entregue, lida, falhou, recebida
+}
+
+// Bolha local "enviando" casada com a mensagem real pelo `ref` que a ponte
+// devolve na resposta e no evento `mensagem` (docs/whatsapp-ponte.md:272-275),
+// chegue um ou outro primeiro. Falha não reenvia sozinha: só `retentar`.
+extension WAEstado {
+    /// Põe a bolha local no fim da conversa (carregando-a se preciso) e devolve
+    /// o `id` dela, `"local-<ref>"`.
+    @discardableResult
+    mutating func comecarEnvio(chave: WAChave, texto: String, tipo: WATipoMensagem = .texto,
+                               citacao: WACitacao?, ref: String, agora: Int,
+                               remetente: String) -> String {
+        let id = "local-\(ref)"
+        let m = WAMensagem(id: id, conversa: chave.jid, remetente: remetente,
+                           remetenteNome: nil, deMim: true, ts: agora, tipo: tipo,
+                           texto: texto, midia: nil, citacao: citacao, reacoes: [],
+                           editada: nil, apagada: nil, status: nil)
+        var lista = bolhas(de: chave).filter { $0.id != id }
+        lista.append(WABolha(mensagem: m, envio: .enviando(ref: ref)))
+        bolhasPorChave[chave] = Self.ordenadas(lista)
+        return id
+    }
+
+    /// Resposta do envio. Troca a bolha local pela real; se o evento já trouxe a
+    /// real, só tira o pendente sem voltar o status; sem nenhuma das duas
+    /// (evento perdido), insere a real.
+    mutating func confirmarEnvio(ref: String, mensagem m: WAMensagem, chave: WAChave) {
+        guard !refsAbandonados.contains(ref), var lista = bolhasPorChave[chave] else { return }
+        if let i = lista.firstIndex(where: { $0.id == m.id }) {
+            lista[i].mensagem.status = Self.maiorStatus(lista[i].mensagem.status, m.status)
+            lista[i].envio = nil
+            lista.removeAll { $0.envio == .enviando(ref: ref) }
+        } else if let i = lista.firstIndex(where: { $0.envio == .enviando(ref: ref) }) {
+            lista[i] = WABolha(mensagem: m)
+        } else if lista.contains(where: { $0.envio == .falhou(ref: ref) }) {
+            // ponytail: a falha já foi mostrada; só `retentar` mexe nessa bolha
+            return
+        } else {
+            lista.append(WABolha(mensagem: m))
+        }
+        bolhasPorChave[chave] = Self.ordenadas(lista)
+    }
+
+    /// Envio recusado: a bolha local fica no lugar, sem status, até `retentar`.
+    mutating func falharEnvio(ref: String, chave: WAChave) {
+        guard var lista = bolhasPorChave[chave],
+              let i = lista.firstIndex(where: { $0.envio == .enviando(ref: ref) }) else { return }
+        lista[i].envio = .falhou(ref: ref)
+        lista[i].mensagem.status = nil
+        bolhasPorChave[chave] = lista
+    }
+
+    /// Volta a bolha que falhou a `.enviando` com um `ref` novo, no mesmo lugar.
+    mutating func retentar(idLocal: String, novoRef: String, chave: WAChave) {
+        guard var lista = bolhasPorChave[chave],
+              let i = lista.firstIndex(where: { $0.id == idLocal }),
+              case let .falhou(velho)? = lista[i].envio else { return }
+        refsAbandonados.insert(velho)
+        lista[i].envio = .enviando(ref: novoRef)
+        bolhasPorChave[chave] = lista
+    }
+
+    func estadoDaBolha(_ b: WABolha) -> WAEstadoDaBolha {
+        switch b.envio {
+        case .enviando?: return .enviando
+        case .falhou?: return .falhou
+        case nil: break
+        }
+        guard b.mensagem.deMim else { return .recebida }
+        switch b.mensagem.status ?? .enviada {
+        case .enviada: return .enviada
+        case .entregue: return .entregue
+        case .lida: return .lida
+        }
     }
 }
