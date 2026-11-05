@@ -261,6 +261,12 @@ swift_teste tools/whatsapppecacheck.swift Knobler/Plugin.swift Knobler/Pomodoro.
 # a ligação que só o app compila: efeitos antes do subir(), sonda depois,
 # conformidade isolada em WhatsAppPeca.swift, card índigo na vitrine
 bash_teste tools/whatsapppecaligacaocheck.sh
+# banner do WhatsApp Desktop: some só com a ponte conectada; o sharingcheck
+# (mais acima) compila o mesmo NotificationRules.swift e segue valendo
+swift_teste tools/whatsappbannercheck.swift Knobler/NotificationRules.swift
+# a ligação que só o app compila: propriedade e chamada no interceptor entre o
+# AirDrop e os botões, estado da ponte entregue pelo AppDelegate
+bash_teste tools/whatsappbannerligacaocheck.sh
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
