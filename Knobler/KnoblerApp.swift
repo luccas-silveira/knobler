@@ -643,6 +643,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // como o `PluginServico` (conformidade em `QuickNote.swift`); não há
         // `start()` pra chamar.
         plugins.notaRapidaEfeitos = NotaRapidaEfeitos(nascer: { QuickNote.shared })
+        // O WhatsApp: `WhatsAppStore` é `.shared` e nasce inerte; `ligar()` só
+        // dispara a conexão com a ponte (conformidade em `WhatsAppPeca.swift`).
+        plugins.whatsappEfeitos = WhatsAppEfeitos(nascer: { WhatsAppPeca.ligar() })
         // A décima conversão (tarefa 9), a terceira sem painel: `LinkPreview`
         // é `.shared` (singleton — `Shelf`/`NotchView` seguem lendo direto) e
         // já nasce dormente (nenhum link aberto), então `nascer` só devolve o
@@ -664,6 +667,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         })
         // O nascimento das peças instaladas. Quem está desligado nem é visitado.
         plugins.subir()
+        // A sonda da ponte decide se o card do WhatsApp aparece na vitrine. Sem o
+        // arquivo da chave ela nem abre conexão.
+        Task { @MainActor in await WhatsAppSonda.shared.sondar() }
         // Só agora as janelas: ver o comentário no lugar de onde esta linha veio.
         placeWindows()
         // Depois das janelas, pra primeira amostra já contar os notches.

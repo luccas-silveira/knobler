@@ -1040,6 +1040,35 @@ for scenario in scenarios {
     print("ok \(path)")
 }
 
+// Dois cards da vitrine de Ajustes › Plugins (Mensagens e WhatsApp), lado a
+// lado como na grade do painel. O painel inteiro é um ScrollView (sai preto
+// offscreen); o card sozinho renderiza.
+@MainActor func renderCardsDaVitrine(_ name: String) {
+    let card = { (id: PluginID, pilula: Pilula) -> AnyView in
+        let ficha = PluginRegistry.ficha(id)!
+        return AnyView(CardPeca(nome: ficha.nome, descricao: ficha.descricao,
+                                simbolo: ficha.simbolo, cor: corDaPeca(id)) { pilula }
+            .frame(width: 160))
+    }
+    let view = HStack(alignment: .top, spacing: 12) {
+        card(.mensagens, Pilula(texto: "ABRIR"))
+        card(.whatsapp, Pilula(texto: "INSTALAR", cheia: true))
+    }
+    .padding(16)
+    .background(Color(white: 0.93))
+    .environment(\.colorScheme, .light)
+    let renderer = ImageRenderer(content: view)
+    renderer.scale = 2
+    guard let nsImage = renderer.nsImage,
+          let tiff = nsImage.tiffRepresentation,
+          let rep = NSBitmapImageRep(data: tiff),
+          let png = rep.representation(using: .png, properties: [:])
+    else { print("FALHOU: \(name)"); exit(1) }
+    let path = "\(outputDir)/\(name).png"
+    try? png.write(to: URL(fileURLWithPath: path))
+    print("ok \(path)")
+}
+
 // Overlay do Descanso (bloqueio forçado) — render à parte, não usa NotchView.
 @MainActor func renderOverlay(_ name: String, label: String, hold: Double) {
     let model = BreakOverlayModel()
@@ -1098,6 +1127,7 @@ renderMessageScenario("messages-incoming", realNotch: true) { vm, _, _ in
 // com AppleRemindersStore(snapshot: true), dados sintéticos e captura do ID da
 // janela pelo macOS; não consultar nem modificar lembretes pessoais.
 
+renderCardsDaVitrine("whatsapp-vitrine")
 renderOverlay("descanso", label: "Almoço", hold: 0)
 renderOverlay("descanso-hold", label: "Almoço", hold: 0.6)
 renderHistoryRows("historico-linhas", [

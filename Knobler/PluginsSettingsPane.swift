@@ -23,7 +23,7 @@ import SwiftUI
 /// A cor de cada peça. Mora aqui, e não na ficha, porque `Plugin.swift` é
 /// Foundation puro de propósito (é o que deixa o `plugincheck` compilar a
 /// máquina de peças sem arrastar SwiftUI).
-private func corDaPeca(_ id: PluginID) -> Color {
+func corDaPeca(_ id: PluginID) -> Color {
     switch id {
     case .pomodoro: return .red
     case .lembretes: return .orange
@@ -49,7 +49,7 @@ private let coresDeFabrica: [Color] = [.pink, .red, .brown, .gray]
 
 // MARK: - O card
 
-private struct CardPeca<Botao: View>: View {
+struct CardPeca<Botao: View>: View {
     let nome: String
     let descricao: String
     let simbolo: String
@@ -92,7 +92,7 @@ private struct CardPeca<Botao: View>: View {
 
 /// A pílula. Só duas aparências: a cheia (INSTALAR, a ação que se quer) e a
 /// apagada (ABRIR e "Incluído", que não disputam atenção).
-private struct Pilula: View {
+struct Pilula: View {
     let texto: String
     var cheia = false
 
