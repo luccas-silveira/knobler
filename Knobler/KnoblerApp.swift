@@ -588,21 +588,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self?.notches.values.forEach { $0.viewModel.dictation = phase }
             }
             d.destinationProvider = { [weak self] in
-                if let id = self?.askStore?.state.active?.id {
-                    return .ask(id: id)
-                }
-                guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier else {
-                    return nil
-                }
-                return .application(pid: pid)
+                DictationDestination.escolher(askAtivo: self?.askStore?.state.active?.id,
+                                              campoWhatsApp: WhatsAppStore.shared.campoEmUso?.texto,
+                                              pidDaFrente: NSWorkspace.shared.frontmostApplication?.processIdentifier)
             }
             d.transcriptSink = { [weak self] text, destination in
-                guard case .ask(let id) = destination,
-                      self?.askStore?.state.active?.id == id else {
+                switch destination {
+                case .ask(let id):
+                    guard self?.askStore?.state.active?.id == id else { return false }
+                    self?.askStore?.send(.appendText(id: id, text: text))
+                    return true
+                case .whatsapp(let chave):
+                    return WhatsAppStore.shared.receberDitado(text, chave: chave)
+                case .application:
                     return false
                 }
-                self?.askStore?.send(.appendText(id: id, text: text))
-                return true
             }
             d.start()
             return d

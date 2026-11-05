@@ -282,11 +282,6 @@ final class MicRecorder {
 
 // MARK: - Controller
 
-enum DictationDestination: Equatable {
-    case ask(id: String)
-    case application(pid: pid_t)
-}
-
 /// Conformidade da peça (ficha em `Plugin.swift`, `montarDitado`). Mora aqui
 /// e não lá porque este arquivo já importa `FluidAudio`; `Plugin.swift` é
 /// Foundation puro (constraint 1) e não pode referenciar o tipo diretamente.
@@ -549,6 +544,11 @@ final class DictationController {
                     if self.transcriptSink?(trimmed, .ask(id: id)) != true {
                         Self.copy(trimmed)
                         self.flash(.error("Pergunta mudou — texto copiado"))
+                    }
+                case .some(.whatsapp(let chave)):
+                    if self.transcriptSink?(trimmed, .whatsapp(chave: chave)) != true {
+                        Self.copy(trimmed)
+                        self.flash(.error("Campo mudou — texto copiado"))
                     }
                 case .some(.application(let pid)):
                     if !Self.insert(trimmed, expectedPID: pid) {

@@ -25,6 +25,10 @@ final class WhatsAppStore: ObservableObject {
     @Published private(set) var estado = WAEstado()
     @Published private(set) var conexao: WAConexao = .inerte
     @Published private(set) var canalAberto = false
+    /// Conversa cujo campo de texto (seção ou card) tem o foco agora. Quem liga
+    /// e desliga são as views, quando o campo ganha e perde foco. Um só: o foco
+    /// de teclado está numa tela de cada vez, e o ditado global escreve aqui.
+    @Published var campoEmUso: WAChave?
 
     /// Canal aberto **e** alguma conta conectada.
     var ponteConectada: Bool {
@@ -351,6 +355,24 @@ final class WhatsAppStore: ObservableObject {
         estado.definirRascunho(texto, para: k)
     }
 
+    /// Texto do ditado para o campo `chave` (`WAChave.texto`). Só escreve se
+    /// esse é o campo em uso; junta ao rascunho com um espaço. `false` = o
+    /// campo mudou no meio, e o ditado copia o texto (como no Ask).
+    func receberDitado(_ texto: String, chave: String) -> Bool {
+        guard let k = campoEmUso, k.texto == chave else { return false }
+        let atual = rascunho(k)
+        let novo: String
+        if atual.isEmpty {
+            novo = texto
+        } else if atual.last?.isWhitespace == true {
+            novo = atual + texto
+        } else {
+            novo = atual + " " + texto
+        }
+        definirRascunho(novo, para: k)
+        return true
+    }
+
     // MARK: - Harness
 
     /// Só testes e snapshot: põe o estado direto, sem canal.
@@ -365,5 +387,6 @@ final class WhatsAppStore: ObservableObject {
         stop()
         estado = WAEstado()
         abertas = [:]
+        campoEmUso = nil
     }
 }
