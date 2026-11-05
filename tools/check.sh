@@ -205,6 +205,10 @@ bash_teste tools/notchfontescheck.sh
 swift_teste tools/whatsappmodeloscheck.swift Knobler/WhatsApp/WhatsAppModelos.swift
 # chave da ponte, porta configurável e conclusão da sonda de GET /
 swift_teste tools/whatsappchavecheck.swift Knobler/WhatsApp/WhatsAppModelos.swift Knobler/WhatsApp/WhatsAppChave.swift
+# cliente HTTP da ponte: rotas, chave, releitura no 401 e erros do contrato
+swift_teste tools/whatsappclientecheck.swift Knobler/WhatsApp/WhatsAppModelos.swift Knobler/WhatsApp/WhatsAppChave.swift Knobler/WhatsApp/WhatsAppCliente.swift
+# exceção de ATS só para 127.0.0.1, no Info.plist e no project.yml
+bash_teste tools/whatsappatscheck.sh
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
