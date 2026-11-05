@@ -21,6 +21,7 @@ import Foundation
 enum PluginID: String, CaseIterable {
     case pomodoro, lembretes, descanso, mensagens, webhooks, ditado
     case espelho, anotacao, notaRapida, previewLink, conversao, monitores, agentes, textoDaTela
+    case whatsapp
 }
 
 /// Um serviço vivo. A peça devolve isto ao nascer; soltar a referência é o que
@@ -202,6 +203,13 @@ struct TextoDaTelaEfeitos {
     var nascer: () -> PluginServico? = { nil }
 }
 
+/// Os efeitos do WhatsApp. Mesmo desenho do `NotaRapidaEfeitos`: os tipos do
+/// WhatsApp ficam fora deste arquivo (Foundation puro). O padrão devolve `nil`
+/// — instalar a peça não abre conexão nenhuma até o app ligar o `nascer`.
+struct WhatsAppEfeitos {
+    var nascer: () -> PluginServico? = { nil }
+}
+
 /// O que a peça recebe pra nascer: a pergunta "a outra peça está instalada?"
 /// (a única dependência plugin→plugin é Pomodoro→Descanso, e "não" é caminho
 /// normal) e os efeitos que o app empresta.
@@ -220,6 +228,7 @@ struct PluginDeps {
     var monitores = MonitoresEfeitos()
     var agentes = AgentesEfeitos()
     var textoDaTela = TextoDaTelaEfeitos()
+    var whatsapp = WhatsAppEfeitos()
 }
 
 /// A ficha da peça. Tudo aqui é dado, menos `nascer`.
@@ -303,6 +312,14 @@ enum PluginRegistry {
                rotas: [], permissao: nil, pronta: true,
                nascer: montarMensagens),
 
+        // Some da vitrine sem a ponte identificada (`naVitrine`); a ficha
+        // fica no registro sempre, senão o gate `completo` quebra.
+        Plugin(id: .whatsapp, nome: "WhatsApp",
+               descricao: "Suas duas contas no notch, pela ponte local.",
+               simbolo: "phone.bubble.fill", secao: "whatsapp", painel: nil,
+               rotas: [], permissao: nil, pronta: true,
+               nascer: montarWhatsApp),
+
         Plugin(id: .webhooks, nome: "Notificações externas",
                descricao: "Seus sistemas avisam pelo notch.",
                simbolo: "bell.and.waves.left.and.right.fill",
@@ -380,6 +397,12 @@ enum PluginRegistry {
         todos.first { $0.id == id }
     }
 
+    /// O que a vitrine mostra: o WhatsApp só aparece com a ponte identificada.
+    /// Esconder é filtro aqui, nunca tirar a ficha de `todos`.
+    static func naVitrine(ponteIdentificada: Bool) -> [Plugin] {
+        todos.filter { $0.id != .whatsapp || ponteIdentificada }
+    }
+
     /// As superfícies que sumiram junto com as peças desinstaladas. Devolve o
     /// nome cru (o `rawValue` de `NotchSection`/`SettingsPane`) — quem chama
     /// converte, pra este arquivo seguir Foundation puro.
@@ -408,11 +431,13 @@ enum PluginsInstalados {
     /// regra "todos instalados" mudar. Hoje: 1.
     static let versaoMigracao = 1
 
-    /// Todo mundo atravessa com as peças instaladas, menos Monitores — quem
-    /// atualiza e quem instala do zero. Roda uma vez só.
+    /// Todo mundo atravessa com as peças instaladas, menos Monitores, Texto da
+    /// tela e WhatsApp — quem atualiza e quem instala do zero. Roda uma vez só.
+    /// O WhatsApp não tem passo de acréscimo como Agentes: quem já migrou não
+    /// ganha a peça.
     static func migrarSePreciso(_ d: UserDefaults = .standard) {
         guard d.integer(forKey: chaveMigracao) < versaoMigracao else { return }
-        d.set(PluginID.allCases.filter { $0 != .monitores && $0 != .textoDaTela }.map(\.rawValue), forKey: chave)
+        d.set(PluginID.allCases.filter { ![.monitores, .textoDaTela, .whatsapp].contains($0) }.map(\.rawValue), forKey: chave)
         d.set(versaoMigracao, forKey: chaveMigracao)
     }
 
@@ -490,6 +515,7 @@ final class PluginHost: ObservableObject {
     var monitoresEfeitos = MonitoresEfeitos()
     var agentesEfeitos = AgentesEfeitos()
     var textoDaTelaEfeitos = TextoDaTelaEfeitos()
+    var whatsappEfeitos = WhatsAppEfeitos()
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -506,7 +532,8 @@ final class PluginHost: ObservableObject {
                    webhooks: webhooksEfeitos, ditado: ditadoEfeitos, anotacao: anotacaoEfeitos,
                    espelho: espelhoEfeitos, notaRapida: notaRapidaEfeitos,
                    previewLink: previewLinkEfeitos, monitores: monitoresEfeitos,
-                   agentes: agentesEfeitos, textoDaTela: textoDaTelaEfeitos)
+                   agentes: agentesEfeitos, textoDaTela: textoDaTelaEfeitos,
+                   whatsapp: whatsappEfeitos)
     }
 
     /// O launch inteiro. Peça desligada nem é visitada — custo zero de verdade.
@@ -806,6 +833,12 @@ func montarNotaRapida(_ deps: PluginDeps) -> PluginServico? {
 /// do `montarNotaRapida`: a montagem inteira mora em `deps.previewLink.nascer`.
 func montarPreviewLink(_ deps: PluginDeps) -> PluginServico? {
     deps.previewLink.nascer()
+}
+
+/// A peça do WhatsApp, no molde do `montarNotaRapida`: a montagem inteira mora
+/// em `deps.whatsapp.nascer`, que ninguém liga ainda.
+func montarWhatsApp(_ deps: PluginDeps) -> PluginServico? {
+    deps.whatsapp.nascer()
 }
 
 /// A décima primeira e última conversão (tarefa 10) — e a única sem serviço de

@@ -12,7 +12,7 @@ import Foundation
 /// Uma seção do card expandido. O `rawValue` é o que vai pro UserDefaults e
 /// pro `GET /status`, então renomear um caso quebra ordem salva de usuário.
 enum NotchSection: String, CaseIterable {
-    case musica, atividade, pomodoro, shelf, espelho, mensagens, historico, nota, link,
+    case musica, atividade, pomodoro, shelf, espelho, mensagens, whatsapp, historico, nota, link,
          anotacao, agenda, lembretesApple, monitores, agentes, acoesRapidas, cor
 
     /// Rótulo em pt-BR pros Ajustes e o `aria` da faixa.
@@ -24,6 +24,7 @@ enum NotchSection: String, CaseIterable {
         case .shelf: return "Prateleira"
         case .espelho: return "Espelho"
         case .mensagens: return "Mensagens"
+        case .whatsapp: return "WhatsApp"
         case .historico: return "Histórico"
         case .nota: return "Nota rápida"
         case .link: return "Link"
@@ -46,6 +47,8 @@ enum NotchSection: String, CaseIterable {
         case .shelf: return "tray.full.fill"
         case .espelho: return "person.crop.square"
         case .mensagens: return "bubble.left.and.bubble.right.fill"
+        // macOS 14.0 no name_availability.plist do CoreGlyphs: cabe no target 14.2
+        case .whatsapp: return "phone.bubble.fill"
         case .historico: return "bell.fill"
         case .nota: return "square.and.pencil"
         case .link: return "globe"
@@ -74,8 +77,8 @@ struct NotchSectionState: Equatable {
 enum NotchSectionOrder {
     /// Ordem de fábrica, usada quando não há nada salvo nos Ajustes.
     static let padrao: [NotchSection] = [
-        .musica, .atividade, .agentes, .pomodoro, .shelf, .espelho, .mensagens, .historico, .nota,
-        .link, .anotacao, .agenda, .lembretesApple, .monitores, .acoesRapidas, .cor,
+        .musica, .atividade, .agentes, .pomodoro, .shelf, .espelho, .mensagens, .whatsapp, .historico,
+        .nota, .link, .anotacao, .agenda, .lembretesApple, .monitores, .acoesRapidas, .cor,
     ]
 
     /// Quanto tempo um evento continua promovendo a seção dele.
@@ -94,6 +97,19 @@ enum NotchSectionOrder {
             vistos.append(s)
         }
         return vistos
+    }
+
+    /// Linhas do editor de atalhos do Ações rápidas: os marcados primeiro, na
+    /// ordem deles, depois o resto na ordem do enum. Seção desinstalada ou
+    /// escondida (WhatsApp sem ponte) some até quando marcada (A26).
+    static func atalhosOferecidos(marcados: [NotchSection],
+                                  desinstaladas: Set<NotchSection>,
+                                  escondidas: Set<NotchSection>) -> [NotchSection] {
+        let fora = desinstaladas.union(escondidas)
+        let topo = marcados.filter { !fora.contains($0) }
+        return topo + NotchSection.allCases.filter {
+            $0 != .acoesRapidas && !marcados.contains($0) && !fora.contains($0)
+        }
     }
 
     static func atalhosVisiveis(_ atalhos: [NotchSection],

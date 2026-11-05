@@ -326,6 +326,8 @@ struct NotchSettingsPane: View {
     @ObservedObject var settings = AppSettings.shared
     /// Desinstalar Agentes some com o toggle na hora.
     @ObservedObject private var host = PluginHost.shared
+    /// Sem a ponte identificada o WhatsApp não é oferecido como atalho.
+    @ObservedObject private var sonda = WhatsAppSonda.shared
 
     /// A ordem salva menos as seções de peça desinstalada.
     private var visiveis: [NotchSection] {
@@ -424,7 +426,11 @@ struct NotchSettingsPane: View {
                     .foregroundStyle(.secondary)
                 cabecalhoColunas(["Atalho"])
                 let marcados = settings.acoesRapidas
-                let linhas = marcados + NotchSection.allCases.filter { $0 != .acoesRapidas && !marcados.contains($0) }
+                let linhas = NotchSectionOrder.atalhosOferecidos(
+                    marcados: marcados, desinstaladas: NotchSection.desinstaladas(),
+                    escondidas: sonda.identificada ? [] : [.whatsapp])
+                // marcado escondido não vira linha: o arrasto só vale entre os visíveis
+                let marcadosVisiveis = Array(linhas.prefix { marcados.contains($0) })
                 List {
                     ForEach(linhas, id: \.self) { s in
                         let marcado = marcados.contains(s)
@@ -448,15 +454,18 @@ struct NotchSettingsPane: View {
                     }
                     .onMove { origem, destino in
                         // só os marcados se reordenam: soltar abaixo deles cola no fim.
-                        guard origem.allSatisfy({ $0 < marcados.count }) else { return }
-                        var nova = marcados
-                        nova.move(fromOffsets: origem, toOffset: min(destino, marcados.count))
-                        settings.acoesRapidas = nova
+                        guard origem.allSatisfy({ $0 < marcadosVisiveis.count }) else { return }
+                        var nova = marcadosVisiveis
+                        nova.move(fromOffsets: origem, toOffset: min(destino, marcadosVisiveis.count))
+                        // os escondidos seguem marcados, no fim
+                        settings.acoesRapidas = nova + marcados.filter { !nova.contains($0) }
                     }
                 }
                 .scrollDisabled(true)
                 .frame(height: Self.alturaLista(linhas.count))
             }
+            // olhar o arquivo da chave não custa conexão: Mac sem ponte não sonda
+            .task { await sonda.sondarSeVelha() }
             if host.estaInstalado(.agentes) {
                 Section("Agentes") {
                     SettingToggle(

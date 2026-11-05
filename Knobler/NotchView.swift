@@ -875,6 +875,8 @@ struct NotchView: View {
                 case .historico: HistoryListView(history: history,
                                                  onOpen: { vm.setExpandedDirect(false) })
                 case .mensagens: MessagesView(vm: vm)
+                // ponytail: troca pela WhatsAppSecaoView quando a seção existir
+                case .whatsapp: vazio("phone.bubble.fill", "WhatsApp")
                 case .espelho: if vm.mirrorOn { mirrorSection } else { espelhoDesligado }
                 case .shelf: ShelfRowView(shelf: shelf, vm: vm, onAirDrop: vm.onAirDrop)
                 case .link: if linkPreview.hosted(by: vm.displayID) { LinkPreviewView(preview: linkPreview) }
@@ -997,7 +999,7 @@ struct NotchView: View {
             if agentes.sessoes.first?.state == .waiting {
                 Circle().fill(.orange).frame(width: 3, height: 3).offset(x: 6, y: -6)
             }
-        case .espelho, .mensagens, .agenda, .lembretesApple, .monitores, .acoesRapidas, .cor:
+        case .espelho, .mensagens, .whatsapp, .agenda, .lembretesApple, .monitores, .acoesRapidas, .cor:
             EmptyView()
         }
     }

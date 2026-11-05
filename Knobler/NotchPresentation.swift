@@ -48,7 +48,7 @@ struct NotchContentState {
         switch mode {
         case .question: return true
         case .message: return reply
-        case .music: return expanded && (pelaTecla || [.nota, .mensagens, .link, .monitores].contains(focus) || editingAgenda || editingReminders)
+        case .music: return expanded && (pelaTecla || [.nota, .mensagens, .whatsapp, .link, .monitores].contains(focus) || editingAgenda || editingReminders)
         default: return false
         }
     }
@@ -214,11 +214,23 @@ enum NotchMetrics {
     static var linkWebHeight: CGFloat { (linkContentWidth * 9 / 16).rounded() }
     static let linkHeaderHeight: CGFloat = 24
 
-    /// Largura do card por seção em foco: só o link foge do padrão — e só
-    /// quando tem página. A barra de endereço sozinha não pede 780 pt.
+    /// Quadro "Lista e conversa individual" da variante A do mockup do
+    /// WhatsApp (relatorio.md, "Medidas"): 780 × (32 + 360 + 60).
+    static let whatsappLargura: CGFloat = 780
+    static let whatsappAltura: CGFloat = 360
+    static let whatsappListaLargura: CGFloat = 260
+    static let whatsappCartaoLargura: CGFloat = 360
+    static let whatsappCartaoAltura: CGFloat = 96
+    /// Miniatura de 120 + 6 de espaço (`.cm-thumb{height:120px}` do mockup).
+    static let whatsappCartaoMiniatura: CGFloat = 126
+
+    /// Largura do card por seção em foco: o link foge do padrão só quando tem
+    /// página (a barra de endereço sozinha não pede 780 pt); o WhatsApp sempre,
+    /// porque lista e conversa ficam lado a lado.
     static func larguraDoCard(_ focus: NotchSection?, padrao: CGFloat,
                               linkAberto: Bool = true) -> CGFloat {
-        focus == .link && linkAberto ? linkCardWidth : padrao
+        if focus == .whatsapp { return whatsappLargura }
+        return focus == .link && linkAberto ? linkCardWidth : padrao
     }
 
     /// A prateleira é a seção com mais alturas: a linha de itens, o preview de
@@ -249,6 +261,7 @@ enum NotchMetrics {
                                     : (pilhaAberta ? shelfPilhaHeight : 76)
         case .espelho: return espelhoLigado ? 202 : espelhoDesligadoHeight
         case .mensagens: return 272
+        case .whatsapp: return whatsappAltura
         case .historico: return historyHeight + 12
         case .nota: return Self.noteEditorHeight + 28  // +8 do padding da zona de escrita
         case .link: return linkAberto ? linkWebHeight + linkHeaderHeight : espelhoDesligadoHeight

@@ -71,6 +71,8 @@ struct Scenario {
     let resolveAgentRequest: (AgentRequestAction, AgentRequestResponder)?
     let terminalFirstRace: Bool
     let frameHeight: CGFloat
+    /// O card do WhatsApp mede 780: os 560 de sempre cortariam a moldura.
+    let frameWidth: CGFloat
 
     init(
         name: String,
@@ -80,6 +82,7 @@ struct Scenario {
         resolveAgentRequest: (AgentRequestAction, AgentRequestResponder)? = nil,
         terminalFirstRace: Bool = false,
         frameHeight: CGFloat = 240,
+        frameWidth: CGFloat = 560,
         configure: @escaping @MainActor (NotchViewModel, MediaController, AskStore) -> Void
     ) {
         self.name = name
@@ -89,6 +92,7 @@ struct Scenario {
         self.resolveAgentRequest = resolveAgentRequest
         self.terminalFirstRace = terminalFirstRace
         self.frameHeight = frameHeight
+        self.frameWidth = frameWidth
         self.configure = configure
     }
 }
@@ -388,6 +392,12 @@ let scenarios: [Scenario] = [
         vm.setExpandedDirect(true)
         vm.secoes = [.cor]
         vm.focus = .cor
+    },
+    // moldura do quadro A do mockup: 780 × (32 + 360 + 60), ainda com o vazio
+    Scenario(name: "whatsapp-moldura", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        vm.setExpandedDirect(true)
+        vm.secoes = [.whatsapp]
+        vm.focus = .whatsapp
     },
     Scenario(name: "expanded-cor", realNotch: true) { vm, _, _ in
         CoresRecentes.shared.carregar(["#FF3B30", "#34C759", "#0A84FF", "#FFD60A", "#BF5AF2"])
@@ -888,7 +898,7 @@ for scenario in scenarios {
             // conversa; sem injetar, o SwiftUI derruba o harness
             .environmentObject(MessageStore(carregando: false))
     }
-    .frame(width: 560, height: scenario.frameHeight)
+    .frame(width: scenario.frameWidth, height: scenario.frameHeight)
 
     let png: Data
     if scenario.name.hasPrefix("agenda-") || scenario.name.hasPrefix("lembretes-") || scenario.name.hasPrefix("monitores-") {
@@ -896,7 +906,7 @@ for scenario in scenarios {
         // janela sintética permite capturar a lista real, sem eventos pessoais.
         _ = NSApplication.shared
         let host = NSHostingView(rootView: view.transaction { $0.disablesAnimations = true; $0.animation = nil })
-        let window = NotchWindow(contentRect: NSRect(x: 100, y: 100, width: 560, height: scenario.frameHeight),
+        let window = NotchWindow(contentRect: NSRect(x: 100, y: 100, width: scenario.frameWidth, height: scenario.frameHeight),
                                  styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         agendaWindow = window
         vm.onAgendaKeyboard = { [weak window] in window?.makeKey() }

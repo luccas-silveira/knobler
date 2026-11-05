@@ -296,6 +296,8 @@ final class NotchViewModel: ObservableObject {
             .shelf: hasShelf,
             .espelho: mirrorOn,
             .mensagens: hasMensagens,
+            // página fixa, como a Agenda: o aviso de ponte fora também é conteúdo
+            .whatsapp: true,
             .historico: hasHistory,
             .nota: hasNota,
             .link: hasLink,

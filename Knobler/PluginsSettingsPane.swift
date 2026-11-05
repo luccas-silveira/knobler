@@ -39,6 +39,7 @@ private func corDaPeca(_ id: PluginID) -> Color {
     case .monitores: return .cyan
     case .agentes: return .pink
     case .textoDaTela: return .orange
+    case .whatsapp: return .indigo
     }
 }
 
@@ -112,6 +113,8 @@ private struct Pilula: View {
 struct PluginsSettingsPane: View {
     @ObservedObject var router: SettingsRouter
     @ObservedObject private var host = PluginHost.shared
+    /// O WhatsApp só entra na vitrine com a ponte identificada.
+    @ObservedObject private var sonda = WhatsAppSonda.shared
 
     private let colunas = [GridItem(.adaptive(minimum: 190), spacing: 12)]
 
@@ -131,7 +134,7 @@ struct PluginsSettingsPane: View {
                 }
 
                 secao("Plugins") {
-                    ForEach(PluginRegistry.todos, id: \.id) { peca in
+                    ForEach(PluginRegistry.naVitrine(ponteIdentificada: sonda.identificada), id: \.id) { peca in
                         CardPeca(nome: peca.nome, descricao: peca.descricao,
                                  simbolo: peca.simbolo, cor: corDaPeca(peca.id)) {
                             acao(peca)
@@ -141,6 +144,8 @@ struct PluginsSettingsPane: View {
             }
             .padding(22)
         }
+        // olhar o arquivo da chave não custa conexão: Mac sem ponte não sonda
+        .task { await sonda.sondarSeVelha() }
     }
 
     private func secao<Conteudo: View>(_ titulo: String,
@@ -233,6 +238,12 @@ struct PluginsSettingsPane: View {
                 if let vm = KnoblerMain.delegate.viewModelPrincipal() {
                     vm.setExpandedDirect(true)
                     vm.focar(.agentes)
+                }
+            case .whatsapp:
+                // Sem painel, como Agentes: o ABRIR mostra a seção no notch.
+                if let vm = KnoblerMain.delegate.viewModelPrincipal() {
+                    vm.setExpandedDirect(true)
+                    vm.focar(.whatsapp)
                 }
             default:
                 break
