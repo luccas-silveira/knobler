@@ -201,6 +201,8 @@ run gateajudantescheck bash tools/gateajudantescheck.sh
 # --- WhatsApp (docs/whatsapp.md) ---
 bash_teste tools/whatsappgatescheck.sh
 bash_teste tools/notchfontescheck.sh
+# tipos do contrato da ponte (docs/whatsapp-ponte.md) e decodificação
+swift_teste tools/whatsappmodeloscheck.swift Knobler/WhatsApp/WhatsAppModelos.swift
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
