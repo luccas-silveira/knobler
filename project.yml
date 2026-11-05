@@ -57,6 +57,12 @@ targets:
         NSCalendarsFullAccessUsageDescription: Knobler mostra sua agenda, cria eventos quando você salva e avisa sobre o próximo compromisso no notch.
         NSCameraUsageDescription: Knobler mostra sua câmera no notch como espelho antes de reuniões.
         NSMicrophoneUsageDescription: Knobler grava sua voz enquanto você segura a tecla de ditado, para transcrever onde o cursor estiver.
+        # A ponte do WhatsApp fala em http://127.0.0.1 (loopback). Sem esta
+        # exceção, o ATS do macOS 14+ recusa IP com -1022.
+        NSAppTransportSecurity:
+          NSExceptionDomains:
+            127.0.0.1:
+              NSExceptionAllowsInsecureHTTPLoads: true
         NSLocalNetworkUsageDescription: Knobler troca mensagens com outros Macs na sua rede local.
         NSBonjourServices:
           - _knobler._tcp
