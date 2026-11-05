@@ -118,4 +118,25 @@ enum NotificationRules {
         if s < 3600 { return "há \(Int(s / 60)) min" }
         return "há \(Int(s / 3600)) h"
     }
+
+    // MARK: - WhatsApp Desktop
+
+    /// Bundle id do WhatsApp Desktop (Info.plist do app instalado).
+    static let whatsAppBundleID = "net.whatsapp.WhatsApp"
+
+    /// O banner é do WhatsApp Desktop: o nome do app, sem as marcas de direção,
+    /// é exatamente "WhatsApp" (sem diferenciar maiúsculas), ou o bundle id
+    /// resolvido é o dele. "WhatsApp Business" e nome de quem mandou não são.
+    static func ehBannerDoWhatsApp(appName: String?, bundleID: String?) -> Bool {
+        if bundleID == whatsAppBundleID { return true }
+        guard let appName else { return false }
+        return limpo(appName).caseInsensitiveCompare("WhatsApp") == .orderedSame
+    }
+
+    /// Com a ponte conectada o card dela já avisa e responde: o banner do
+    /// WhatsApp Desktop sai da tela. Com a ponte fora, passa como sempre.
+    /// O estado da ponte entra por parâmetro — estas regras não sabem do WhatsApp.
+    static func descartaBannerDoWhatsApp(appName: String?, bundleID: String?, ponteConectada: Bool) -> Bool {
+        ponteConectada && ehBannerDoWhatsApp(appName: appName, bundleID: bundleID)
+    }
 }

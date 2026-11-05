@@ -26,6 +26,9 @@ final class NotificationInterceptor {
     private static let closeActionHints = NotificationRules.closeActionHints
 
     private let onNotification: (NotchNotification) -> Void
+    /// Estado da ponte do WhatsApp, entregue pelo AppDelegate. Conectada, o
+    /// banner do WhatsApp Desktop é descartado (o card da ponte já avisa).
+    var ponteWhatsAppConectada: () -> Bool = { false }
     private var observer: AXObserver?
     private var observedPid: pid_t = 0
     private var handled = Set<CFHashCode>()
@@ -151,6 +154,13 @@ final class NotificationInterceptor {
         case .recebendo: return
         case .concluido: close(banner); return
         case nil: break
+        }
+        // Ponte do WhatsApp conectada: o card dela já avisa e responde. Fecha
+        // mesmo com botão ("Responder"), senão o aviso fica duplicado na tela.
+        if NotificationRules.descartaBannerDoWhatsApp(appName: parsed.appName, bundleID: appAberto, ponteConectada: ponteWhatsAppConectada()) {
+            close(banner)
+            log.notice("banner do WhatsApp descartado: a ponte está conectada")
+            return
         }
         let buttons = actionButtons(in: banner)
         // alertas com botão (Aceitar/Recusar) exigem decisão — fechar destruiria

@@ -256,6 +256,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let interceptor = NotificationInterceptor { [weak self] notch in
             self?.publicar(notch)
         }
+        // o interceptor roda na main; peça desinstalada = false = banner passa
+        interceptor.ponteWhatsAppConectada = { MainActor.assumeIsolated { WhatsAppStore.shared.ponteConectada } }
         interceptor.start()
         self.interceptor = interceptor
         airdrop.iniciar()
