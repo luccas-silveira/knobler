@@ -250,6 +250,17 @@ VM_FONTES="Knobler/NotchViewModel.swift Knobler/NotchPresentation.swift Knobler/
 swift_teste tools/whatsappfilacheck.swift $VM_FONTES
 # card de chegada: texto, conta, grupo, mídia, agrupamento por conversa, idade máxima
 swift_teste tools/whatsappcartaocheck.swift Knobler/WhatsApp/WhatsAppModelos.swift Knobler/NotchNotification.swift Knobler/WhatsApp/WhatsAppCartao.swift
+# peça ligada: instalar nasce uma vez, desinstalar para uma vez, reinstalar
+# nasce de novo, instalação nova não nasce (mesmas fontes do plugincheck)
+swift_teste tools/whatsapppecacheck.swift Knobler/Plugin.swift Knobler/Pomodoro.swift \
+  Knobler/Reminders.swift Knobler/Descanso.swift Knobler/NotchSectionOrder.swift \
+  Knobler/Peer.swift Knobler/Wire.swift Knobler/LANMessaging.swift Knobler/MessageStore.swift \
+  Knobler/Permissions.swift Knobler/WebhookClient.swift Knobler/WebhookKeychainStore.swift \
+  Knobler/NotchNotification.swift Knobler/FileConverter.swift Knobler/ImageConverter.swift \
+  Knobler/DocumentConverter.swift Knobler/VideoConverter.swift
+# a ligação que só o app compila: efeitos antes do subir(), sonda depois,
+# conformidade isolada em WhatsAppPeca.swift, card índigo na vitrine
+bash_teste tools/whatsapppecaligacaocheck.sh
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
