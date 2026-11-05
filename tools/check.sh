@@ -191,6 +191,9 @@ swift_check eventoscheck          Knobler/NotchViewModel.swift Knobler/NotchPres
   Knobler/Reminders.swift Knobler/Peer.swift Knobler/LANMessaging.swift \
   Knobler/MessageStore.swift Knobler/Permissions.swift Knobler/Plugin.swift \
   Knobler/WebhookClient.swift Knobler/WebhookKeychainStore.swift Knobler/TecladoBloqueado.swift tools/eventoscheck.swift
+# Ajudantes swift_teste/bash_teste, bloco do WhatsApp e os gates
+# whatsappgatescheck/notchfontescheck, cada um provado num repo falso.
+run gateajudantescheck bash tools/gateajudantescheck.sh
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
 run semnslog bash -c '! grep -rn "NSLog(" Knobler'
