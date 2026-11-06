@@ -30,6 +30,11 @@ struct WhatsAppBolhaView: View {
 
     var body: some View {
         VStack(alignment: m.deMim ? .trailing : .leading, spacing: 0) {
+            if barraAberta {
+                // linha própria acima da bolha: empurra o layout em vez de
+                // cobrir esta mensagem ou a de cima
+                barraDeReacoes.padding(.bottom, 4)
+            }
             if mostraRemetente {
                 Text(remetente)
                     .font(.system(size: 10, weight: .semibold))
@@ -42,15 +47,10 @@ struct WhatsAppBolhaView: View {
             corpoComReacao
                 .overlay(alignment: m.deMim ? .leading : .trailing) {
                     if podeAgir && (hover || barraAberta) {
-                        // ao lado da bolha, 4 pt de folga, centradas na altura
-                        acoes.alignmentGuide(m.deMim ? .leading : .trailing) { d in
-                            m.deMim ? d[.trailing] + 4 : d[.leading] - 4
-                        }
-                    }
-                }
-                .overlay(alignment: m.deMim ? .topTrailing : .topLeading) {
-                    if barraAberta {
-                        barraDeReacoes.alignmentGuide(.top) { d in d[.bottom] + 4 }
+                        // ao lado da bolha, 4 pt de folga, centradas na altura;
+                        // por offset, que não mexe no tamanho da bolha
+                        let passo = Self.larguraDasAcoes + 4
+                        acoes.offset(x: m.deMim ? -passo : passo)
                     }
                 }
                 .frame(maxWidth: larguraMaxima, alignment: m.deMim ? .trailing : .leading)
@@ -68,6 +68,9 @@ struct WhatsAppBolhaView: View {
     private var minhaReacao: String? {
         m.reacoes.last { $0.deMim && !$0.emoji.isEmpty }?.emoji
     }
+
+    /// Dois botões de 22 pt com 2 pt entre eles.
+    private static let larguraDasAcoes: CGFloat = 22 * 2 + 2
 
     private var acoes: some View {
         HStack(spacing: 2) {

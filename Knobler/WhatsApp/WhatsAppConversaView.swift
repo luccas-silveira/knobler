@@ -36,6 +36,9 @@ struct WhatsAppConversaView: View {
         }
     }
 
+    /// Altura do degradê que esmaece a linha cortada no topo da lista.
+    private static let esmaecerTopo: CGFloat = 16
+
     private var bolhas: some View {
         let todas = store.estado.bolhas(de: chave)
         let linhas = WAConversaModelo.linhas(bolhas: todas, grupo: ehGrupo, agora: Date(), calendario: .current)
@@ -70,13 +73,28 @@ struct WhatsAppConversaView: View {
                         }
                     }
                 }
-                .padding(.vertical, 2)
+                // no topo da rolagem a primeira linha começa abaixo do degradê
+                .padding(.top, Self.esmaecerTopo)
+                .padding(.bottom, 2)
                 // conversa curta fica colada embaixo, como no mockup
                 .frame(maxWidth: .infinity, minHeight: geo.size.height, alignment: .bottomLeading)
             }
             // abre na mensagem mais recente e segue colada nela quando chega outra
             .defaultScrollAnchor(.bottom)
             .scrollIndicators(.hidden)
+        }
+        // nada da lista desenha fora da área dela (sobre o cabeçalho ou o
+        // compositor); a linha cortada no topo some num degradê em vez de
+        // ficar colada ao subtítulo do cabeçalho
+        .mask {
+            VStack(spacing: 0) {
+                LinearGradient(stops: [.init(color: .clear, location: 0),
+                                       .init(color: .clear, location: 0.4),
+                                       .init(color: .black, location: 1)],
+                               startPoint: .top, endPoint: .bottom)
+                    .frame(height: Self.esmaecerTopo)
+                Rectangle()
+            }
         }
     }
 }
