@@ -313,6 +313,15 @@ swift_teste tools/whatsapptelacheck.swift $VM_FONTES $WA_NUCLEO Knobler/WhatsApp
 # a ligação que o check.sh não compila: adotarPadrao na seção, paginação na
 # lista, seção e contagem na NotchView, fontes do snapshot e cenários whatsapp-*
 bash_teste tools/whatsapptelaligacaocheck.sh
+# estados de conexão e pareamento: QR (CoreImage, só preto e branco, escala
+# inteira, lido de volta), iniciarPareamento (POST, adota o 409, não repete com
+# QR), evento troca o QR, expirado → gerarOutroQR, sucesso relê contas,
+# tentarDeNovo relê a chave e acorda o canal
+swift_teste tools/whatsappqrcheck.swift $WA_NUCLEO Knobler/WhatsApp/WhatsAppQR.swift
+# a ligação que o check.sh não compila: WhatsAppEstadosView na seção, QR,
+# pareamento, Gerar outro, Tentar de novo e Copiar na view, fontes do snapshot
+# e os nove cenários whatsapp-<estado>
+bash_teste tools/whatsappestadosligacaocheck.sh
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
