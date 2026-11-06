@@ -327,6 +327,13 @@ bash_teste tools/whatsappestadosligacaocheck.sh
 # abre; store.marcarLida só pelo botão; store.grupo guardado 10 min; e a
 # ligação nas views, fontes do snapshot e os cinco cenários whatsapp-conversa/grupo
 swift_teste tools/whatsappconversacheck.swift $WA_NUCLEO Knobler/NotchNotification.swift Knobler/WhatsApp/WhatsAppCartao.swift Knobler/WhatsApp/WhatsAppApresentacao.swift Knobler/WhatsApp/WhatsAppConversaModelo.swift
+# compositor e ações: modo (microfone/avião/gravando/ditando), texto e rótulo
+# da citação, 6 reações (a já posta remove), tempo da gravação; citação e
+# anexo por conversa no store (Enter manda `citar` e esvazia campo e faixa, o
+# anexo sai com o texto do campo como legenda); barra de reações por tela no
+# VM; e a ligação nas views, fontes do snapshot e os quatro cenários
+# (VM_FONTES já traz Knobler/NotchNotification.swift: não repetir)
+swift_teste tools/whatsappcompositorcheck.swift $VM_FONTES $WA_NUCLEO Knobler/WhatsApp/WhatsAppCartao.swift Knobler/WhatsApp/WhatsAppApresentacao.swift Knobler/WhatsApp/WhatsAppCompositor.swift
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
