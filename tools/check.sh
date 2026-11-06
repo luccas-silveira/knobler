@@ -223,7 +223,7 @@ WA_NUCLEO="Knobler/WhatsApp/WhatsAppModelos.swift Knobler/WhatsApp/WhatsAppChave
   Knobler/WhatsApp/WhatsAppCliente.swift Knobler/WhatsApp/WhatsAppCanal.swift \
   Knobler/WhatsApp/WhatsAppEstado.swift Knobler/WhatsApp/WhatsAppStore.swift \
   Knobler/WhatsApp/WhatsAppGravacao.swift Knobler/WhatsApp/CodificadorOpus.swift \
-  Knobler/WhatsApp/OggOpus.swift"
+  Knobler/WhatsApp/OggOpus.swift Knobler/WhatsApp/WhatsAppMidia.swift"
 # singleton inerte até start: cliente + canal + estado, carga, envio, lida, stop
 swift_teste tools/whatsappstorecheck.swift $WA_NUCLEO
 # seção .whatsapp: enum, ordem, atalhos, largura 780 e altura 360
@@ -295,6 +295,10 @@ swift_teste tools/whatsappgravacaocheck.swift $WA_NUCLEO
 # a ligação que só o app compila: MicrofoneDoDitado sobre o MicRecorder com
 # onLevel, entregue ao store em WhatsAppPeca.ligar() antes do start()
 bash_teste tools/whatsappgravacaoligacaocheck.sh
+# mídia: caminho do cache pela regra da ponte, download guardado, recuperação
+# única da expirada, miniatura em memória, anexo copiado pra pasta de envio
+# (apagado depois da resposta, 100 MiB no máximo) e tocador do áudio recebido
+swift_teste tools/whatsappmidiacheck.swift $WA_NUCLEO Knobler/WhatsApp/WhatsAppPlayer.swift
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
