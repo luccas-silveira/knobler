@@ -343,6 +343,10 @@ swift_teste tools/whatsappintegracaocheck.swift $VM_FONTES $WA_NUCLEO Knobler/Wh
 # e WhatsAppCartaoView na NotchView, integração criada e ligada ao store no
 # AppDelegate, a view do card, fontes do snapshot e os cinco whatsapp-cartao-*
 bash_teste tools/whatsappintegracaoligacaocheck.sh
+# documentação: docs/whatsapp.md com as sete seções e o contrato citado,
+# ROADMAP/IDEIAS sem "WhatsApp Web"/"login headless", WhatsAppStore.shared na
+# tabela de estado, uma linha só no [Unreleased] e Novidades sem WhatsApp
+bash_teste tools/whatsappdocscheck.sh
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
