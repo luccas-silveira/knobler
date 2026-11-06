@@ -1,9 +1,11 @@
 import AppKit
+import CoreImage
 import SwiftUI
 
 // Coluna direita da seção do WhatsApp fora da conversa: ponte fora, chave que
 // não confere (ou ausente), versão incompatível, QR para parear (e expirado),
-// carregando e vazio. Medidas do mockup (`.state`, `.cmd`, `.pair`, `.qr`,
+// e vazio. O carregando mora na coluna esquerda (`WAListaCarregando`, no lugar
+// da lista); a direita fica em branco. Medidas do mockup (`.state`, `.cmd`, `.pair`, `.qr`,
 // `.sk`, `.chip-btn` em docs/vesta/mockups/2026-11-04-whatsapp/index.html);
 // textos de `WATextos`.
 
@@ -31,7 +33,8 @@ struct WhatsAppEstadosView: View {
             mensagem(icone: "exclamationmark.triangle", titulo: WATextos.incompativelTitulo,
                      apoio: WATextos.incompativelApoio) { botaoTentarDeNovo }
         case .qr, .qrExpirado: pareamento(expirado: tela == .qrExpirado)
-        case .carregando: carregando
+        // as linhas de espera ficam no lugar da lista, na coluna esquerda
+        case .carregando: Color.clear
         case .vazio:
             mensagem(icone: "phone.bubble.fill", titulo: WATextos.vazioTitulo,
                      apoio: WATextos.vazioApoio) { EmptyView() }
@@ -130,23 +133,16 @@ struct WhatsAppEstadosView: View {
     private func quadroDoQR(expirado: Bool) -> some View {
         // ponytail: expirado, a ponte não manda mais o `qr`; o código apagado
         // atrás do véu é decorativo, desenhado de um texto fixo.
-        let texto = expirado ? "2@qr-expirado" : (store.estado.pareamento?.qr ?? "")
-        let imagem = WAQR.imagem(texto, lado: 116)
+        let imagem = expirado ? Self.qrApagado : WAQR.imagem(store.estado.pareamento?.qr ?? "", lado: 116)
         return ZStack {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(expirado ? .white.opacity(0.06) : .white)
             if let imagem {
-                if expirado {
-                    // só os módulos escuros, em branco 15%
-                    Rectangle().fill(.white.opacity(0.15))
-                        .mask(Image(decorative: imagem, scale: 1).interpolation(.none)
-                            .colorInvert().luminanceToAlpha())
-                        .frame(width: 116, height: 116)
-                } else {
-                    Image(decorative: imagem, scale: 1)
-                        .interpolation(.none)
-                        .frame(width: 116, height: 116)
-                }
+                Image(decorative: imagem, scale: 1)
+                    .interpolation(.none)
+                    .frame(width: 116, height: 116)
+                    // apagado: só os módulos, em branco 15%
+                    .opacity(expirado ? 0.15 : 1)
             }
             if expirado {
                 RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.black.opacity(0.55))
@@ -165,9 +161,24 @@ struct WhatsAppEstadosView: View {
                                      : "QR para parear \(WACartao.rotuloDaConta(conta: conta, numero: conta?.conta ?? ""))")
     }
 
-    // MARK: - Carregando (.sk + .loadline)
+    /// Os módulos escuros de um QR fixo em branco opaco, o resto transparente:
+    /// o código apagado atrás do véu do expirado.
+    private static let qrApagado: CGImage? = {
+        guard let qr = WAQR.imagem("2@qr-expirado", lado: 116) else { return nil }
+        // invertido, o módulo escuro vira branco; o maskToAlpha faz do branco
+        // opaco e do preto transparente
+        let modulos = CIImage(cgImage: qr).applyingFilter("CIColorInvert").applyingFilter("CIMaskToAlpha")
+        return CIContext(options: [.useSoftwareRenderer: true])
+            .createCGImage(modulos, from: modulos.extent)
+    }()
+}
 
-    private var carregando: some View {
+// MARK: - Carregando (.sk + .loadline)
+
+/// Coluna esquerda enquanto a ponte não entrega as conversas: quatro linhas de
+/// espera no lugar da lista e "Carregando conversas…" embaixo.
+struct WAListaCarregando: View {
+    var body: some View {
         VStack(spacing: 8) {
             VStack(spacing: 2) {
                 ForEach(Array([0.70, 0.55, 0.85, 0.40].enumerated()), id: \.offset) { _, largura in

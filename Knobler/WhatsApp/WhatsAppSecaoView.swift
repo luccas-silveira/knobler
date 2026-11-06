@@ -33,19 +33,37 @@ struct WhatsAppSecaoView: View {
                              aberta: vm.whatsappConversaAberta.flatMap(WAChave.init(texto:)))
     }
 
+    /// Sem conta conhecida a coluna esquerda não teria nada (nem seletor): o
+    /// estado ocupa a seção inteira, centrado. O carregando é a exceção — as
+    /// linhas de espera ficam no lugar da lista.
+    private var estadoNaLarguraToda: Bool {
+        guard store.estado.contas.isEmpty else { return false }
+        switch direita {
+        case .carregando, .conversa: return false
+        default: return true
+        }
+    }
+
     var body: some View {
-        HStack(spacing: 12) {
-            WhatsAppListaView(vm: vm, store: store)
-                .frame(width: NotchMetrics.whatsappListaLargura)
-            colunaDireita
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(.leading, 12)
-                .overlay(alignment: .leading) {
-                    Rectangle().fill(.white.opacity(0.06)).frame(width: 1)
+        Group {
+            if estadoNaLarguraToda {
+                WhatsAppEstadosView(tela: direita, conta: conta, outra: outra, store: store)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                HStack(spacing: 12) {
+                    WhatsAppListaView(vm: vm, store: store, carregando: direita == .carregando)
+                        .frame(width: NotchMetrics.whatsappListaLargura)
+                    colunaDireita
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.leading, 12)
+                        .overlay(alignment: .leading) {
+                            Rectangle().fill(.white.opacity(0.06)).frame(width: 1)
+                        }
                 }
-                .task(id: Padrao(conta: contaID, primeira: conversas.first?.jid)) {
-                    await WhatsAppTela.adotarPadrao(vm: vm, store: store)
-                }
+            }
+        }
+        .task(id: Padrao(conta: contaID, primeira: conversas.first?.jid)) {
+            await WhatsAppTela.adotarPadrao(vm: vm, store: store)
         }
         .frame(height: NotchMetrics.whatsappAltura)
         .foregroundStyle(.white)

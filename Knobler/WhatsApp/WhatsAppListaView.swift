@@ -7,6 +7,9 @@ import SwiftUI
 struct WhatsAppListaView: View {
     @ObservedObject var vm: NotchViewModel
     @ObservedObject var store = WhatsAppStore.shared
+    /// A ponte ainda não entregou as conversas: linhas de espera no lugar da
+    /// lista (mockup, quadro "Carregando conversas").
+    var carregando = false
 
     private var contaID: String? {
         WhatsAppTela.contaInicial(selecionada: vm.whatsappContaSelecionada, contas: store.estado.contas)
@@ -25,19 +28,31 @@ struct WhatsAppListaView: View {
                     }
                 }
             }
-            Rectangle().fill(.white.opacity(0.08)).frame(height: 1).padding(.vertical, 2)
-            switch WhatsAppTela.esquerda(conta: conta) {
-            case .semPareamento:
-                Text(WATextos.semPareamento)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.white.opacity(0.62))
-                    .fixedSize(horizontal: false, vertical: true)
-            case .lista:
-                if let contaID { lista(contaID) }
+            // sem conta nenhuma não há seletor, e o fio ficaria solto
+            if !store.estado.contas.isEmpty {
+                Rectangle().fill(.white.opacity(0.08)).frame(height: 1).padding(.vertical, 2)
+            }
+            if carregando {
+                WAListaCarregando()
+            } else {
+                conteudo
             }
             Spacer(minLength: 0)
         }
         .foregroundStyle(.white)
+    }
+
+    @ViewBuilder
+    private var conteudo: some View {
+        switch WhatsAppTela.esquerda(conta: conta) {
+        case .semPareamento:
+            Text(WATextos.semPareamento)
+                .font(.system(size: 11))
+                .foregroundStyle(.white.opacity(0.62))
+                .fixedSize(horizontal: false, vertical: true)
+        case .lista:
+            if let contaID { lista(contaID) }
+        }
     }
 
     private func lista(_ contaID: String) -> some View {
