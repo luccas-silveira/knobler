@@ -347,6 +347,11 @@ bash_teste tools/whatsappintegracaoligacaocheck.sh
 # ROADMAP/IDEIAS sem "WhatsApp Web"/"login headless", WhatsAppStore.shared na
 # tabela de estado, uma linha só no [Unreleased] e Novidades sem WhatsApp
 bash_teste tools/whatsappdocscheck.sh
+# fumaça de ponta a ponta sem rede: ponte falsa com as duas contas, store,
+# integração e duas telas; carga, card em < 2 s com "· 8292", resposta citando
+# + lida, abrir e reagir, foto/documento/voz, recibos, leitura noutro aparelho
+# (sinal da conta), queda e ressincronize sem bolha dupla, só 127.0.0.1 com chave
+swift_teste tools/whatsappfumacacheck.swift $VM_FONTES $WA_NUCLEO Knobler/NotificationRules.swift Knobler/WhatsApp/WhatsAppCartao.swift Knobler/WhatsApp/WhatsAppIntegracao.swift
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
