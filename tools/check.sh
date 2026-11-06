@@ -221,7 +221,9 @@ swift_teste tools/whatsappbolhacheck.swift Knobler/WhatsApp/WhatsAppModelos.swif
 # (as próximas etapas acrescentam arquivos nela)
 WA_NUCLEO="Knobler/WhatsApp/WhatsAppModelos.swift Knobler/WhatsApp/WhatsAppChave.swift \
   Knobler/WhatsApp/WhatsAppCliente.swift Knobler/WhatsApp/WhatsAppCanal.swift \
-  Knobler/WhatsApp/WhatsAppEstado.swift Knobler/WhatsApp/WhatsAppStore.swift"
+  Knobler/WhatsApp/WhatsAppEstado.swift Knobler/WhatsApp/WhatsAppStore.swift \
+  Knobler/WhatsApp/WhatsAppGravacao.swift Knobler/WhatsApp/CodificadorOpus.swift \
+  Knobler/WhatsApp/OggOpus.swift"
 # singleton inerte até start: cliente + canal + estado, carga, envio, lida, stop
 swift_teste tools/whatsappstorecheck.swift $WA_NUCLEO
 # seção .whatsapp: enum, ordem, atalhos, largura 780 e altura 360
@@ -286,6 +288,13 @@ bash_teste tools/whatsappditadoligacaocheck.sh
 # nota de voz: CRC do Ogg, OpusHead/OpusTags, duração pelo TOC, páginas relidas
 # por um leitor próprio, e 2 s de seno codificados de verdade (AVAudioFile em 26+)
 swift_teste tools/whatsappoggcheck.swift Knobler/WhatsApp/OggOpus.swift Knobler/WhatsApp/CodificadorOpus.swift
+# nota de voz gravada: onda de 64 barras pelo nível do microfone, segundos
+# arredondados pra cima, gravar/cancelar/descartar curta, envio do Ogg pela
+# pasta de envio (apagado depois da resposta), bolha de voz e lida no sucesso
+swift_teste tools/whatsappgravacaocheck.swift $WA_NUCLEO
+# a ligação que só o app compila: MicrofoneDoDitado sobre o MicRecorder com
+# onLevel, entregue ao store em WhatsAppPeca.ligar() antes do start()
+bash_teste tools/whatsappgravacaoligacaocheck.sh
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
