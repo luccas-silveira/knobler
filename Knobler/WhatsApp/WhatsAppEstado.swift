@@ -32,9 +32,12 @@ struct WAEstado: Equatable {
     var contas: [WAConta] = []
     /// Por conta, em `ts` decrescente com desempate por `jid`.
     private(set) var conversasPorConta: [String: [WAConversa]] = [:]
-    /// Só conversas carregadas (`inserirMensagens` chamado), em `ts` crescente
-    /// com desempate por `id`. A chave usa o jid canônico.
+    /// Conversas com página lida ou com envio local, em `ts` crescente com
+    /// desempate por `id`. A chave usa o jid canônico.
     private(set) var bolhasPorChave: [WAChave: [WABolha]] = [:]
+    /// Conversas cuja página veio da ponte (`inserirMensagens` chamado). Ter
+    /// bolha não basta: o envio pelo card cria a lista sem o histórico.
+    private var paginasLidas: Set<WAChave> = []
     /// Cursor da página anterior; ausente = chegou ao começo.
     var antes: [WAChave: String] = [:]
     private(set) var rascunhos: [WAChave: String] = [:]
@@ -133,11 +136,18 @@ struct WAEstado: Equatable {
         bolhasPorChave[chave] != nil
     }
 
+    /// O histórico da conversa já foi lido da ponte (não só bolha local).
+    func historicoLido(_ chave: WAChave) -> Bool {
+        paginasLidas.contains(chave)
+    }
+
     /// Página de `GET /v1/mensagens`. `maisVelhas: false` troca as bolhas pela
-    /// página mais recente; `true` junta a página antiga sem repetir `id`.
+    /// página mais recente; `true` junta a página antiga sem repetir `id`. A
+    /// primeira página de uma conversa junta-se às bolhas do envio feito antes
+    /// dela (enviando ou já casadas pelo `ref`), sem repetir `id`.
     mutating func inserirMensagens(_ mensagens: [WAMensagem], em chave: WAChave,
                                    antes cursor: String?, maisVelhas: Bool) {
-        var lista = maisVelhas ? bolhas(de: chave) : []
+        var lista = maisVelhas || !historicoLido(chave) ? bolhas(de: chave) : []
         let conhecidos = Set(lista.map(\.id))
         var novos = Set<String>()
         for m in mensagens where !conhecidos.contains(m.id) && novos.insert(m.id).inserted {
@@ -145,6 +155,7 @@ struct WAEstado: Equatable {
         }
         bolhasPorChave[chave] = Self.ordenadas(lista)
         antes[chave] = cursor
+        paginasLidas.insert(chave)
     }
 
     private static func ordenadas(_ bs: [WABolha]) -> [WABolha] {
@@ -253,7 +264,7 @@ struct WAEstado: Equatable {
 
         atualizarConversa(conta: conta, cv)
 
-        // bolha só em conversa carregada; a não carregada lê a página ao abrir
+        // bolha só em conversa com lista; a sem lista lê a página ao abrir
         let k = WAChave(conta: conta, jid: cv.jid)
         if var lista = bolhasPorChave[k] {
             if let i = lista.firstIndex(where: { $0.id == m.id }) {
@@ -296,6 +307,7 @@ struct WAEstado: Equatable {
     mutating func esvaziarConversas() {
         conversasPorConta = [:]
         bolhasPorChave = [:]
+        paginasLidas = []
         antes = [:]
         vistos = []
         filaDeVistos = []

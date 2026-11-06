@@ -367,11 +367,11 @@ final class WhatsAppStore: ObservableObject {
 
     // MARK: - Conversa
 
-    /// Conta a tela e lê a página mais recente se a conversa ainda não tem
-    /// bolhas. Nunca marca lida.
+    /// Conta a tela e lê a página mais recente se o histórico ainda não veio
+    /// da ponte (a resposta pelo card cria bolhas sem ele). Nunca marca lida.
     func abrir(_ k: WAChave) async {
         abertas[k, default: 0] += 1
-        guard !estado.carregada(k) else { return }
+        guard !estado.historicoLido(k) else { return }
         await lerPagina(k)
     }
 
