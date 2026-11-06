@@ -15,6 +15,7 @@ enum WhatsAppPeca {
     /// O `nascer` da peça: o store é singleton e nasce inerte, então ligar só
     /// dispara a conexão (sem o arquivo da chave, o canal nem tenta).
     @MainActor static func ligar() -> PluginServico {
+        WhatsAppStore.shared.fonteDeMicrofone = MicrofoneDoDitado()
         WhatsAppStore.shared.start()
         return WhatsAppStore.shared
     }

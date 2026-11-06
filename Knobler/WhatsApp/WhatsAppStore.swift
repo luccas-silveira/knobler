@@ -35,6 +35,15 @@ final class WhatsAppStore: ObservableObject {
         canalAberto && estado.contas.contains { $0.estado == .conectada }
     }
 
+    /// Quem grava a nota de voz: o app entrega o gravador do ditado
+    /// (`WhatsAppPeca.ligar`); sem fonte, gravar diz "Sem acesso ao microfone".
+    var fonteDeMicrofone: WAFonteDeMicrofone?
+    /// Onde o Ogg da nota de voz espera a ponte ler; o arquivo some depois da resposta.
+    var pastaDeEnvio: URL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        .appendingPathComponent("com.zoi.knobler/envio", isDirectory: true)
+    @Published private(set) var gravacao: WAGravacaoEmCurso?
+    @Published private(set) var erroDeGravacao: String?
+
     /// Mensagem recebida (não minha), uma vez por mensagem.
     var aoChegarMensagem: ((WAMensagem, WAConversa, WAConta?) -> Void)?
 
@@ -54,6 +63,11 @@ final class WhatsAppStore: ObservableObject {
     /// Páginas de mensagens em voo: duas telas abrindo juntas pedem uma vez só.
     private var paginasEmVoo: Set<WAChave> = []
     private var contadorDeRef = 0
+    /// A fonte que está gravando e os níveis que ela já entregou (viram a onda).
+    private var fonteEmUso: WAFonteDeMicrofone?
+    private var niveisDaGravacao: [Float] = []
+    /// Sobe a cada gravação: nível atrasado de uma gravação encerrada não volta.
+    private var sessaoDeGravacao: UInt64 = 0
 
     init(cliente: WACliente? = nil, fabricaDeCanal: ((WACliente) -> WACanalProtocolo)? = nil) {
         self.cliente = cliente ?? WACliente()
@@ -81,6 +95,7 @@ final class WhatsAppStore: ObservableObject {
 
     func stop() {
         epoca &+= 1
+        cancelarGravacao()
         if let c = canal {
             // solta os callbacks antes: nada que o canal entregue depois chega aqui
             c.aoMudarEstado = nil
@@ -311,7 +326,9 @@ final class WhatsAppStore: ObservableObject {
     /// Reenvia a bolha que falhou com `ref` novo, no mesmo lugar.
     func retentar(idLocal: String, em k: WAChave) async {
         guard let b = estado.bolhas(de: k).first(where: { $0.id == idLocal }),
-              case .falhou? = b.envio else { return }
+              case .falhou? = b.envio,
+              // ponytail: nota de voz que falhou não reenvia (o Ogg já foi apagado)
+              b.mensagem.tipo == .texto else { return }
         let ref = novoRef()
         estado.retentar(idLocal: idLocal, novoRef: ref, chave: k)
         await enviar(b.mensagem.texto, para: k, citar: b.mensagem.citacao?.id, ref: ref)
@@ -339,6 +356,106 @@ final class WhatsAppStore: ObservableObject {
         } catch {
             log.error("WhatsApp: reação falhou — \(String(describing: error), privacy: .public)")
         }
+    }
+
+    // MARK: - Nota de voz
+
+    func gravar(em k: WAChave) {
+        guard gravacao == nil else { return }
+        guard let fonte = fonteDeMicrofone else {
+            erroDeGravacao = "Sem acesso ao microfone"
+            return
+        }
+        sessaoDeGravacao &+= 1
+        let sessao = sessaoDeGravacao
+        niveisDaGravacao = []
+        do {
+            try fonte.comecar { [weak self] n in Self.naMain { self?.registrarNivel(n, sessao: sessao) } }
+        } catch {
+            log.error("WhatsApp: gravação não começou — \(String(describing: error), privacy: .public)")
+            erroDeGravacao = "Sem acesso ao microfone"
+            return
+        }
+        erroDeGravacao = nil
+        fonteEmUso = fonte
+        gravacao = WAGravacaoEmCurso(chave: k, inicio: Date(), nivel: 0)
+    }
+
+    private func registrarNivel(_ n: Float, sessao: UInt64) {
+        guard sessao == sessaoDeGravacao, gravacao != nil else { return }
+        niveisDaGravacao.append(n)
+        gravacao?.nivel = n
+    }
+
+    func cancelarGravacao() {
+        guard gravacao != nil else { return }
+        _ = fonteEmUso?.parar()
+        encerrarGravacao()
+    }
+
+    private func encerrarGravacao() {
+        sessaoDeGravacao &+= 1
+        fonteEmUso = nil
+        niveisDaGravacao = []
+        gravacao = nil
+    }
+
+    /// Para o microfone e manda como voz. Menos de 0,5 s é descartado. O Ogg
+    /// fica na `pastaDeEnvio` só até a resposta: a ponte lê tudo antes de
+    /// responder (docs/whatsapp-ponte.md:600-603).
+    func pararEEnviarGravacao() async {
+        guard let g = gravacao else { return }
+        let amostras = fonteEmUso?.parar() ?? []
+        let niveis = niveisDaGravacao
+        encerrarGravacao()
+        guard amostras.count >= WAOnda.taxa / 2 else {
+            log.notice("WhatsApp: nota de voz curta demais, descartada")
+            return
+        }
+        let k = g.chave
+        let ep = epoca
+        let arquivo: URL
+        do {
+            arquivo = try await gravarOgg(amostras)
+        } catch {
+            log.error("WhatsApp: nota de voz não codificada — \(String(describing: error), privacy: .public)")
+            return
+        }
+        defer { try? FileManager.default.removeItem(at: arquivo) }
+
+        let ref = novoRef()
+        estado.comecarEnvio(chave: k, texto: "", tipo: .voz, citacao: nil, ref: ref,
+                            agora: Int(Date().timeIntervalSince1970), remetente: k.conta)
+        do {
+            let r = try await cliente.enviarVoz(conta: k.conta, para: k.jid, arquivo: arquivo,
+                                                segundos: WAOnda.segundos(amostras16k: amostras.count),
+                                                onda: WAOnda.reduzir(niveis: niveis), citar: nil, ref: ref)
+            guard ep == epoca else { return }
+            estado.confirmarEnvio(ref: ref, mensagem: r.mensagem, chave: k)
+        } catch {
+            guard ep == epoca else { return }
+            log.error("WhatsApp: envio de voz falhou — \(String(describing: error), privacy: .public)")
+            estado.falharEnvio(ref: ref, chave: k)
+            return
+        }
+        await marcarLida(k)
+    }
+
+    /// Codifica fora da main e grava `voz-<UUID>.ogg` na pasta de envio (0700).
+    private func gravarOgg(_ amostras: [Float]) async throws -> URL {
+        let pasta = pastaDeEnvio
+        return try await Task.detached(priority: .userInitiated) {
+            let (pacotes, preSkip) = try WACodificadorOpus().codificar(amostras)
+            let dados = OggOpus.arquivo(pacotes: pacotes, preSkip: preSkip,
+                                        totalAmostras48k: amostras.count * 3)
+            let fm = FileManager.default
+            try fm.createDirectory(at: pasta, withIntermediateDirectories: true,
+                                   attributes: [.posixPermissions: 0o700])
+            try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: pasta.path)
+            let url = pasta.appendingPathComponent("voz-\(UUID().uuidString).ogg")
+            try dados.write(to: url, options: .atomic)
+            return url
+        }.value
     }
 
     /// `k-<n>`: único no processo e bem abaixo dos 64 caracteres do contrato.
