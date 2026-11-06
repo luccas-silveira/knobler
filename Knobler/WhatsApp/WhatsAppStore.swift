@@ -67,6 +67,10 @@ final class WhatsAppStore: ObservableObject {
     private var abertas: [WAChave: Int] = [:]
     /// Páginas de mensagens em voo: duas telas abrindo juntas pedem uma vez só.
     private var paginasEmVoo: Set<WAChave> = []
+    /// Cursor `antes` da última página de `/v1/conversas` lida por conta;
+    /// ausente = a lista daquela conta chegou ao fim.
+    private var cursorDeConversas: [String: String] = [:]
+    private var listasEmVoo: Set<String> = []
     private var contadorDeRef = 0
     /// A fonte que está gravando e os níveis que ela já entregou (viram a onda).
     private var fonteEmUso: WAFonteDeMicrofone?
@@ -115,6 +119,7 @@ final class WhatsAppStore: ObservableObject {
         conexao = .inerte
         pendenteCompleta = true
         paginasEmVoo = []
+        listasEmVoo = []
     }
 
     /// O canal entrega na main (delegate e relógio na fila main). Se um dia
@@ -175,6 +180,7 @@ final class WhatsAppStore: ObservableObject {
     private func ressincronizar(epoca ep: UInt64) {
         guard ep == epoca else { return }
         estado.esvaziarConversas()
+        cursorDeConversas = [:]
         pendenteCompleta = true
         carregar(completa: true, esvaziando: true)
     }
@@ -228,25 +234,27 @@ final class WhatsAppStore: ObservableObject {
         }
     }
 
-    private nonisolated func lerConversas(_ contas: [String]) async -> [(String, Result<[WAConversa], Error>)] {
-        await withTaskGroup(of: (String, Result<[WAConversa], Error>).self) { grupo in
+    private nonisolated func lerConversas(_ contas: [String]) async -> [(String, Result<WARespostaConversas, Error>)] {
+        await withTaskGroup(of: (String, Result<WARespostaConversas, Error>).self) { grupo in
             for conta in contas {
                 grupo.addTask {
-                    do { return (conta, .success(try await self.cliente.conversas(conta: conta).conversas)) } catch {
+                    do { return (conta, .success(try await self.cliente.conversas(conta: conta))) } catch {
                         return (conta, .failure(error))
                     }
                 }
             }
-            var saida: [(String, Result<[WAConversa], Error>)] = []
+            var saida: [(String, Result<WARespostaConversas, Error>)] = []
             for await r in grupo { saida.append(r) }
             return saida
         }
     }
 
-    private func aplicarConversas(conta: String, _ r: Result<[WAConversa], Error>) {
+    /// Primeira página: troca a lista da conta e recomeça o cursor dela.
+    private func aplicarConversas(conta: String, _ r: Result<WARespostaConversas, Error>) {
         switch r {
-        case .success(let lista):
-            estado.substituirConversas(conta: conta, lista)
+        case .success(let pagina):
+            estado.substituirConversas(conta: conta, pagina.conversas)
+            cursorDeConversas[conta] = pagina.antes
         case .failure(let erro):
             // ponytail: uma conta que falha não segura a carga das outras
             log.error("WhatsApp: conversas da conta não lidas — \(String(describing: erro), privacy: .public)")
@@ -259,6 +267,26 @@ final class WhatsAppStore: ObservableObject {
         let r = await lerConversas([conta])
         guard ep == epoca, let lida = r.first else { return }
         aplicarConversas(conta: lida.0, lida.1)
+    }
+
+    /// Página seguinte da lista (a última linha apareceu): pede com o cursor
+    /// guardado da conta e acrescenta sem repetir `jid`. Sem cursor, a lista
+    /// já chegou ao fim e nada é pedido.
+    func carregarMaisConversas(conta: String) async {
+        guard let cursor = cursorDeConversas[conta], listasEmVoo.insert(conta).inserted else { return }
+        let ep = epoca
+        defer { if ep == epoca { listasEmVoo.remove(conta) } }
+        do {
+            let pagina = try await cliente.conversas(conta: conta, antes: cursor)
+            // uma recarga da primeira página no meio do caminho vence esta
+            guard ep == epoca, cursorDeConversas[conta] == cursor else { return }
+            let atuais = estado.conversas(da: conta)
+            let vistos = Set(atuais.map(\.jid))
+            estado.substituirConversas(conta: conta, atuais + pagina.conversas.filter { !vistos.contains($0.jid) })
+            cursorDeConversas[conta] = pagina.antes
+        } catch {
+            log.error("WhatsApp: página de conversas não lida — \(String(describing: error), privacy: .public)")
+        }
     }
 
     /// Pareamento com sucesso: a conta nova aparece em `/v1/contas`.
@@ -567,6 +595,7 @@ final class WhatsAppStore: ObservableObject {
         stop()
         estado = WAEstado()
         abertas = [:]
+        cursorDeConversas = [:]
         campoEmUso = nil
     }
 }

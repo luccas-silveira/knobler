@@ -255,6 +255,74 @@ func configurarMonitores(_ vm: NotchViewModel, estado: String) {
     vm.focar(.monitores)
 }
 
+// MARK: - WhatsApp: contas e conversas fictícias do mockup
+// (docs/vesta/mockups/2026-11-04-whatsapp/index.html, `ACC` e `CHATS`)
+
+let waBiz = "554791744143"
+let waPes = "554792508292"
+let waMarina = "554799990010@s.whatsapp.net"
+let waCarlos = "554799990011@s.whatsapp.net"
+let waFamilia = "120363000000000002@g.us"
+
+/// Hoje (ou `dias` atrás) na hora dada, no fuso local: a hora da linha sai
+/// igual à do mockup.
+func waTs(_ h: Int, _ m: Int, dias: Int = 0) -> Int {
+    let cal = Calendar.current
+    let dia = cal.date(byAdding: .day, value: -dias, to: Date())!
+    return Int(cal.date(bySettingHour: h, minute: m, second: 0, of: dia)!.timeIntervalSince1970)
+}
+
+func waConversa(_ jid: String, _ nome: String, grupo: Bool = false, naoLidas: Int = 0, ts: Int,
+                tipo: WATipoMensagem = .texto, previa: String = "", de: String? = nil,
+                segundos: Int? = nil, apagada: Bool = false) -> WAConversa {
+    let ultima = WAUltima(id: "u-\(jid)", deMim: false,
+                          remetente: de == nil ? jid : "554799990099@s.whatsapp.net",
+                          remetenteNome: de, tipo: tipo, previa: previa, ts: ts,
+                          apagada: apagada ? ts : nil, segundos: segundos)
+    return WAConversa(jid: jid, jids: [jid], tipo: grupo ? .grupo : .individual, nome: nome,
+                      naoLidas: naoLidas, marcadaNaoLida: false, ts: ts, ultima: ultima)
+}
+
+func waEstadoDoMockup() -> WAEstado {
+    var e = WAEstado()
+    e.substituirContas([
+        WAConta(conta: waBiz, jid: waBiz + ":17@s.whatsapp.net", nome: "ZOI Business", padrao: true,
+                estado: .conectada, motivo: nil, desde: 1762270000, naoLidas: 5, conversasNaoLidas: 2),
+        WAConta(conta: waPes, jid: waPes + ":4@s.whatsapp.net", nome: "Pessoal", padrao: false,
+                estado: .conectada, motivo: nil, desde: 1762270000, naoLidas: 2, conversasNaoLidas: 2),
+    ])
+    e.substituirConversas(conta: waBiz, [
+        waConversa("120363000000000001@g.us", "Operacional ZOI", grupo: true, naoLidas: 3,
+                   ts: waTs(14, 41), tipo: .voz, de: "Diego Martins", segundos: 37),
+        waConversa(waMarina, "Marina Duarte", naoLidas: 2, ts: waTs(14, 32),
+                   previa: "Fechado! Mando o briefing até sexta."),
+        waConversa(waCarlos, "Carlos (Seller Veículos)", ts: waTs(11, 47),
+                   previa: "Dá uma olhada quando puder."),
+    ])
+    e.definirRascunho("Carlos, ajustei o orçamento de dezembro e…", para: WAChave(conta: waBiz, jid: waCarlos))
+    e.substituirConversas(conta: waPes, [
+        waConversa(waFamilia, "Família", grupo: true, naoLidas: 1, ts: waTs(13, 5),
+                   tipo: .figurinha, de: "Tia Lúcia"),
+        waConversa("554799990013@s.whatsapp.net", "Rafa Lima", naoLidas: 1, ts: waTs(12, 20),
+                   tipo: .video, segundos: 18),
+        waConversa("554799990014@s.whatsapp.net", "Mãe", ts: waTs(21, 10, dias: 1),
+                   previa: "Filho, chegou bem?", apagada: true),
+    ])
+    return e
+}
+
+/// Seção (ou faixa) do WhatsApp com o estado do mockup. A conversa já entra
+/// aberta: assim o `adotarPadrao` da view não sai pedindo bolhas.
+@MainActor
+func waCenario(_ vm: NotchViewModel, conta: String, aberta: String, foco: NotchSection) {
+    WhatsAppStore.shared._injetar(estado: waEstadoDoMockup(), conexao: .pronta, canalAberto: true)
+    vm.setExpandedDirect(true)
+    vm.secoes = [.musica, .shelf, .mensagens, .whatsapp, .historico, .nota]
+    vm.focus = foco
+    vm.whatsappContaSelecionada = conta
+    vm.whatsappConversaAberta = WAChave(conta: conta, jid: aberta).texto
+}
+
 let scenarios: [Scenario] = [
     Scenario(name: "monitores-interna", realNotch: true, frameHeight: 360) { vm, _, _ in configurarMonitores(vm, estado: "interna") },
     Scenario(name: "monitores-ddc", realNotch: true, frameHeight: 360) { vm, _, _ in configurarMonitores(vm, estado: "ddc") },
@@ -398,6 +466,21 @@ let scenarios: [Scenario] = [
         vm.setExpandedDirect(true)
         vm.secoes = [.whatsapp]
         vm.focus = .whatsapp
+    },
+    // coluna esquerda do quadro "Lista e conversa individual" (variante A):
+    // grupo com prévia de áudio, Marina com 2 não lidas, Carlos com rascunho
+    Scenario(name: "whatsapp-lista-4143", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        waCenario(vm, conta: waBiz, aberta: waMarina, foco: .whatsapp)
+    },
+    // lista do quadro "Lista — Pessoal · 8292" (variante B): vídeo, figurinha
+    // em grupo e mensagem apagada
+    Scenario(name: "whatsapp-lista-8292", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        waCenario(vm, conta: waPes, aberta: waFamilia, foco: .whatsapp)
+    },
+    // quadro "Faixa de atalhos, 3×": o ícone com a contagem das não lidas
+    Scenario(name: "whatsapp-faixa", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, media, _ in
+        media.injectPreview(state: fakeState(), artwork: fakeArtwork())
+        waCenario(vm, conta: waBiz, aberta: waMarina, foco: .musica)
     },
     Scenario(name: "expanded-cor", realNotch: true) { vm, _, _ in
         CoresRecentes.shared.carregar(["#FF3B30", "#34C759", "#0A84FF", "#FFD60A", "#BF5AF2"])
@@ -816,6 +899,10 @@ QuickNote.shared.pasteboard = NSPasteboard(name: .init("knobler.snapshot"))
 // notificações falsas dos cenários seriam gravadas no histórico REAL de quem
 // roda o harness. Tem que vir antes do primeiro cenário.
 NotificationHistory.shared.arquivo = nil
+// a ponte de verdade fica fora: foto e bolhas que a seção do WhatsApp pedir vão
+// para uma porta sem ninguém (registro em memória, nada gravado). Tem que vir
+// antes do primeiro `WhatsAppStore.shared`/`WAFotoCache.shared`.
+UserDefaults.standard.register(defaults: [WAConfig.chavePorta: 1])
 for scenario in scenarios {
     // ShelfStore() relê o UserDefaults — sem o clear, os arquivos fake de um
     // cenário vazavam pros seguintes
@@ -901,7 +988,8 @@ for scenario in scenarios {
     .frame(width: scenario.frameWidth, height: scenario.frameHeight)
 
     let png: Data
-    if scenario.name.hasPrefix("agenda-") || scenario.name.hasPrefix("lembretes-") || scenario.name.hasPrefix("monitores-") {
+    if scenario.name.hasPrefix("agenda-") || scenario.name.hasPrefix("lembretes-") || scenario.name.hasPrefix("monitores-")
+        || scenario.name.hasPrefix("whatsapp-") {
         // ScrollView usa backing AppKit e sai preta no ImageRenderer. Uma
         // janela sintética permite capturar a lista real, sem eventos pessoais.
         _ = NSApplication.shared
