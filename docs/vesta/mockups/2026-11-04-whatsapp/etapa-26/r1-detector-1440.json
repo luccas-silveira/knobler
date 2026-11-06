@@ -1,0 +1,63 @@
+{
+ "ferramenta": "medição de pixel no render nativo (tools/snapshot.sh)",
+ "detector_impeccable": "não se aplica: a tela é SwiftUI nativa, sem DOM; a conferência é por medida contra o relatorio.md do mockup",
+ "escala_do_arquivo": "2x",
+ "medidas": [
+  {
+   "arquivo": "whatsapp-cartao-texto.png",
+   "pixels": [
+    880,
+    600
+   ],
+   "escala": 2,
+   "largura_corpo_pt": 332.0,
+   "largura_com_abas_pt": 350.0,
+   "altura_pt": 128.0
+  },
+  {
+   "arquivo": "whatsapp-cartao-grupo.png",
+   "pixels": [
+    880,
+    600
+   ],
+   "escala": 2,
+   "largura_corpo_pt": 332.0,
+   "largura_com_abas_pt": 350.0,
+   "altura_pt": 128.0
+  },
+  {
+   "arquivo": "whatsapp-cartao-foto.png",
+   "pixels": [
+    880,
+    600
+   ],
+   "escala": 2,
+   "largura_corpo_pt": 332.0,
+   "largura_com_abas_pt": 350.0,
+   "altura_pt": 254.0
+  },
+  {
+   "arquivo": "whatsapp-cartao-agrupado.png",
+   "pixels": [
+    880,
+    600
+   ],
+   "escala": 2,
+   "largura_corpo_pt": 332.0,
+   "largura_com_abas_pt": 350.0,
+   "altura_pt": 128.0
+  },
+  {
+   "arquivo": "whatsapp-cartao-respondendo.png",
+   "pixels": [
+    880,
+    600
+   ],
+   "escala": 2,
+   "largura_corpo_pt": 332.0,
+   "largura_com_abas_pt": 350.0,
+   "altura_pt": 128.0
+  }
+ ],
+ "alarmes": []
+}
