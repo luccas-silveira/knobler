@@ -306,6 +306,13 @@ swift_teste tools/whatsappfotocheck.swift Knobler/WhatsApp/WhatsAppModelos.swift
 # apresentação: prévia da lista, hora, separador de dia, duração, tamanho,
 # tique por forma, estado e rótulo da conta, e os textos exatos dos estados
 swift_teste tools/whatsappapresentacaocheck.swift Knobler/WhatsApp/WhatsAppModelos.swift Knobler/WhatsApp/WhatsAppEstado.swift Knobler/NotchNotification.swift Knobler/WhatsApp/WhatsAppCartao.swift Knobler/WhatsApp/WhatsAppApresentacao.swift
+# seção de duas colunas: o que a coluna direita mostra por estado, conversa
+# padrão que vira a aberta da tela (bolhas sim, lida nunca, card suprimido só
+# nela), coluna esquerda, conta inicial, faixa e paginação da lista
+swift_teste tools/whatsapptelacheck.swift $VM_FONTES $WA_NUCLEO Knobler/WhatsApp/WhatsAppTela.swift
+# a ligação que o check.sh não compila: adotarPadrao na seção, paginação na
+# lista, seção e contagem na NotchView, fontes do snapshot e cenários whatsapp-*
+bash_teste tools/whatsapptelaligacaocheck.sh
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
