@@ -45,7 +45,7 @@ A **ordem** de implementação (agrupada por infra compartilhada) mora em
 
 ## Integrações Externas
 
-- **WhatsApp Web**: Enviar mensagens via WhatsApp direto do notch (parse da URL, login headless).
+- **WhatsApp pela ponte local**: feito; ver `docs/whatsapp.md`.
 
 
 ---

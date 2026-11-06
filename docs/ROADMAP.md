@@ -58,9 +58,9 @@ Não compartilham substrato com ninguém — o "roadmap" deles é escolher um e 
 
 - **Notificações com ações** — ⚠️ travado no `AXUIElement` do banner vivo (ver
   `IDEIAS.md`); a infra de botão já está pronta.
-- **WhatsApp Web** — ⚠️ se for mais um destino de ditado, está descartado junto
-  com Apple Notes e Claude API (ver `IDEIAS.md`): o ditado só escreve no campo
-  selecionado. Só sobrevive como envio a partir do notch, sem tocar o ditado.
+- **WhatsApp pela ponte local** — feito; ver `docs/whatsapp.md`. A regra do
+  ditado não mudou: ele só escreve no campo selecionado (o campo de resposta do
+  notch conta como um); WhatsApp não virou destino próprio do ditado.
 - **Profiling de memória** — isolado.
 - **Animações suaves entre estados** — **último de tudo**: toca todos os estados,
   feito antes é refeito a cada view nova.

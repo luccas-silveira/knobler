@@ -6,6 +6,9 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- Integração opcional com uma ponte local de WhatsApp, invisível sem ela.
+
 ### Changed
 - O Knobler agora guarda um histórico do próprio consumo de memória e de processador, uma medição a cada 5 minutos dos últimos 7 dias, pra investigar quando o app fica pesado com o tempo.
 

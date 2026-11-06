@@ -169,6 +169,7 @@ do usuário.
 | Overlay de anotação, ferramenta, cor e espessura correntes | `AnnotationController.shared` (um painel por monitor) | seção Anotação do card, Ajustes › Desenho, `GET /status` |
 | Ordem-base das seções do card | `AppSettings.notchSectionOrder` | `NotchSectionOrder`, Ajustes › Notch |
 | Ordem efetiva, seção em foco e trava | `NotchViewModel` (`secoes`, `focus`, `focusLocked`) | `NotchView`, gestos, `GET /status` |
+| Contas, conversas, mensagens e rascunhos do WhatsApp (cache em memória; a ponte é a fonte da verdade) | `WhatsAppStore.shared` — um por app, nasce inerte, liga pela peça WhatsApp | seção WhatsApp, card de chegada, filtro do interceptor |
 
 O mesmo estado de Ask é injetado em todas as janelas. Não crie um store por
 monitor: uma resposta ou cancelamento precisa vencer uma única vez, mesmo com
