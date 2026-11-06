@@ -303,6 +303,9 @@ swift_teste tools/whatsappmidiacheck.swift $WA_NUCLEO Knobler/WhatsApp/WhatsAppP
 # If-None-Match (304 mantém), sem_foto não insiste, sem chave não pede, teto
 # de 64; o RemoteAvatarLoader não afrouxa (avatarcheck)
 swift_teste tools/whatsappfotocheck.swift Knobler/WhatsApp/WhatsAppModelos.swift Knobler/WhatsApp/WhatsAppChave.swift Knobler/WhatsApp/WhatsAppCliente.swift Knobler/RemoteAvatarLoader.swift Knobler/WhatsApp/WhatsAppFoto.swift
+# apresentação: prévia da lista, hora, separador de dia, duração, tamanho,
+# tique por forma, estado e rótulo da conta, e os textos exatos dos estados
+swift_teste tools/whatsappapresentacaocheck.swift Knobler/WhatsApp/WhatsAppModelos.swift Knobler/WhatsApp/WhatsAppEstado.swift Knobler/NotchNotification.swift Knobler/WhatsApp/WhatsAppCartao.swift Knobler/WhatsApp/WhatsAppApresentacao.swift
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
