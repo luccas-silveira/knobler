@@ -45,6 +45,11 @@ final class WhatsAppStore: ObservableObject {
     @Published private(set) var erroDeGravacao: String?
     /// Por que o último anexo não saiu (acima do limite, cópia que falhou).
     @Published private(set) var erroDeAnexo: String?
+    /// Faixa "Respondendo a …" por conta+conversa: sobrevive a fechar a
+    /// conversa e o notch; some ao enviar ou no x/Esc.
+    @Published private(set) var citacoes: [WAChave: WACitacao] = [:]
+    /// Arquivo escolhido no clipe e ainda não enviado, por conta+conversa.
+    @Published private(set) var anexos: [WAChave: URL] = [:]
 
     /// Cache da mídia recebida, com o mesmo cliente da ponte.
     private(set) var midia: WAMidiaCache
@@ -422,8 +427,11 @@ final class WhatsAppStore: ObservableObject {
 
     // MARK: - Envio
 
+    /// O campo e a faixa de citação de `k` esvaziam já com o envio em voo.
     func enviarTexto(_ texto: String, para k: WAChave, citando: WACitacao?) async {
         let ref = novoRef()
+        definirRascunho("", para: k)
+        citacoes[k] = nil
         estado.comecarEnvio(chave: k, texto: texto, citacao: citando, ref: ref,
                             agora: Int(Date().timeIntervalSince1970), remetente: k.conta)
         await enviar(texto, para: k, citar: citando?.id, ref: ref)
@@ -490,6 +498,9 @@ final class WhatsAppStore: ObservableObject {
         }
         defer { try? FileManager.default.removeItem(at: copia) }
         guard ep == epoca else { return }
+        // saiu: o chip do anexo e a legenda (o campo) esvaziam
+        anexos[k] = nil
+        definirRascunho("", para: k)
 
         let tipo = WAAnexo.tipo(paraArquivo: url)
         let tipoDaBolha: WATipoMensagem
@@ -649,7 +660,30 @@ final class WhatsAppStore: ObservableObject {
         return true
     }
 
+    // MARK: - Citação e anexo pendente
+
+    func citacao(_ k: WAChave) -> WACitacao? { citacoes[k] }
+
+    func citar(_ m: WAMensagem, em k: WAChave) {
+        citacoes[k] = WACitacao(id: m.id, remetente: m.remetente, texto: m.texto)
+    }
+
+    func cancelarCitacao(_ k: WAChave) { citacoes[k] = nil }
+
+    func anexoPendente(_ k: WAChave) -> URL? { anexos[k] }
+
+    /// `nil` tira o anexo (x no chip).
+    func definirAnexo(_ url: URL?, para k: WAChave) {
+        anexos[k] = url
+        erroDeAnexo = nil
+    }
+
     // MARK: - Harness
+
+    /// Só snapshot: a gravação em curso sem microfone.
+    func _injetarGravacao(_ g: WAGravacaoEmCurso?) {
+        gravacao = g
+    }
 
     /// Só testes e snapshot: põe o estado direto, sem canal.
     func _injetar(estado: WAEstado, conexao: WAConexao, canalAberto: Bool) {
@@ -676,5 +710,8 @@ final class WhatsAppStore: ObservableObject {
         cursorDeConversas = [:]
         grupos = [:]
         campoEmUso = nil
+        citacoes = [:]
+        anexos = [:]
+        cancelarGravacao()
     }
 }

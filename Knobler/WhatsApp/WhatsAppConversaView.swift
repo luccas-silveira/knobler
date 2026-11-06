@@ -2,8 +2,8 @@ import SwiftUI
 
 // Conversa na coluna direita da seção do WhatsApp (mockup, variante A):
 // cabeçalho de 28 pt e a lista de bolhas, que abre na mais recente e pede a
-// página antiga quando a primeira linha aparece. Abrir a conversa nunca marca
-// lida: só o botão "Marcar como lida".
+// página antiga quando a primeira linha aparece, e o compositor fixo embaixo.
+// Abrir a conversa nunca marca lida: só o botão "Marcar como lida".
 
 struct WhatsAppConversaView: View {
     @ObservedObject var vm: NotchViewModel
@@ -26,6 +26,8 @@ struct WhatsAppConversaView: View {
                 Task { await store.marcarLida(chave) }
             }
             bolhas
+            WhatsAppCompositorView(vm: vm, chave: chave)
+                .id(chave)
         }
         .task(id: chave) {
             grupo = nil
@@ -52,7 +54,7 @@ struct WhatsAppConversaView: View {
                                     .frame(maxWidth: .infinity)
                             case let .bolha(b, mostraRemetente, podeAgir):
                                 WhatsAppBolhaView(
-                                    bolha: b, chave: chave, mostraRemetente: mostraRemetente,
+                                    vm: vm, bolha: b, chave: chave, mostraRemetente: mostraRemetente,
                                     podeAgir: podeAgir, larguraMaxima: geo.size.width * 0.78,
                                     nomeDaCitacao: b.mensagem.citacao.map {
                                         WAConversaModelo.nomeDaCitacao($0, conta: chave.conta,

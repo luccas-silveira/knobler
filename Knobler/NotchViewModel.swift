@@ -150,7 +150,13 @@ final class NotchViewModel: ObservableObject {
     @Published var whatsappContaSelecionada: String?
     /// Conversa aberta na seção desta tela, como `"conta|jid"`. Fechar o card
     /// não a esquece: reabrir volta pra mesma conversa.
-    @Published var whatsappConversaAberta: String?
+    @Published var whatsappConversaAberta: String? {
+        didSet { if whatsappConversaAberta != oldValue { whatsappReacoesEm = nil } }
+    }
+    /// Mensagem (id) com a barra de reações aberta nesta tela. Trocar de
+    /// conversa, Esc e fechar o notch a fecham.
+    @Published var whatsappReacoesEm: String?
+    func fecharReacoesWhatsApp() { whatsappReacoesEm = nil }
     /// Campo de resposta com o teclado, na seção ou no card de chegada.
     @Published var whatsappEditando = false
     /// O campo só conta onde ele está na tela: a seção aberta em foco ou o card
@@ -627,6 +633,7 @@ final class NotchViewModel: ObservableObject {
             abertoPorTeclado = false
             if typingNote { QuickNote.shared.editing = false }
             whatsappEditando = false
+            whatsappReacoesEm = nil
             monitoresArrastando = false
             mirrorOn = false
             focoAoFechar = focusLocked ? focus.map { (NotchSectionOrder.focoParaGuardar($0, secoes: secoes), ProcessInfo.processInfo.systemUptime) } : nil

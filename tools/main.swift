@@ -704,6 +704,57 @@ let scenarios: [Scenario] = [
         ], local: WAEnvioDoMockup(texto: "Ouço daqui a pouco e respondo.", h: 14, m: 43, falhou: true),
            indisponiveis: ["g7"])
     },
+    // quadro "Envio, edição e barra de reações": a barra de 6 reações aberta
+    // sobre m7 e o compositor citando m7 (MSG m5–m8)
+    Scenario(name: "whatsapp-citando-reacoes", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        let m7 = waMsg("m7", waMarina, de: waMarina, 14, 32, texto: "Fechado! Mando o briefing até sexta.")
+        waConversaCenario(vm, jid: waMarina, [
+            waMsg("m5", waMarina, 14, 22, texto: "Perfeito. Sobe hoje às 18h?", editada: true, status: .entregue),
+            waMsg("m6", waMarina, 14, 25, texto: "Já te mando o relatório de outubro.", status: .enviada),
+            m7,
+        ], local: WAEnvioDoMockup(texto: "Combinado!", h: 14, m: 33, falhou: false))
+        WhatsAppStore.shared.citar(m7, em: WAChave(conta: waBiz, jid: waMarina))
+        vm.whatsappReacoesEm = "m7"
+    },
+    // quadro "Grupo: remetentes, documento, vídeo, gravando": o compositor
+    // gravando há 12 s, nível em 60%
+    Scenario(name: "whatsapp-gravando", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        waConversaCenario(vm, jid: waOperacional, [
+            waMsg("g1", waOperacional, de: waAna, nome: "Ana Ribeiro", 9, 12,
+                  texto: "Bom dia, pessoal! A pauta da semana está no drive."),
+            waMsg("g2", waOperacional, de: waAna, nome: "Ana Ribeiro", 9, 13, tipo: .documento,
+                  midia: waMidia("application/pdf", nome: "Pauta-semana-45.pdf", tamanho: 840_000)),
+            waMsg("g3", waOperacional, de: waDiego, nome: "Diego Martins", 9, 40, tipo: .video,
+                  texto: "Bastidores da gravação na Seller", midia: waMidia("video/mp4", segundos: 42)),
+        ], miniaturas: ["g3": waPNG(NSColor(red: 0.17, green: 0.18, blue: 0.20, alpha: 1))])
+        WhatsAppStore.shared._injetarGravacao(WAGravacaoEmCurso(
+            chave: WAChave(conta: waBiz, jid: waOperacional), inicio: Date().addingTimeInterval(-12.5), nivel: 0.6))
+    },
+    // quadro "Grupo: mídia indisponível, áudio, falha, ditando": o ditado
+    // escreve no campo em uso, com "Ouvindo" à direita (MSG g7–g9)
+    Scenario(name: "whatsapp-ditando", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        waConversaCenario(vm, jid: waOperacional, [
+            waMsg("g7", waOperacional, de: waJulia, nome: "Júlia Souza", 10, 5, tipo: .imagem,
+                  midia: waMidia("image/jpeg")),
+            waMsg("g8", waOperacional, de: waDiego, nome: "Diego Martins", 14, 41, tipo: .voz,
+                  midia: waMidia("audio/ogg; codecs=opus", segundos: 37)),
+        ], local: WAEnvioDoMockup(texto: "Ouço daqui a pouco e respondo.", h: 14, m: 43, falhou: true),
+           indisponiveis: ["g7"])
+        let k = WAChave(conta: waBiz, jid: waOperacional)
+        WhatsAppStore.shared.definirRascunho("Pode subir o corte de 15 s ainda hoje", para: k)
+        WhatsAppStore.shared.campoEmUso = k
+        vm.whatsappEditando = true
+        vm.dictation = .recording(level: 0.6)
+    },
+    // r3-interacao-abrir-rascunho.png: o rascunho do Carlos volta no campo
+    Scenario(name: "whatsapp-rascunho", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        // o estado do mockup já traz "Carlos, ajustei o orçamento de dezembro e…"
+        waConversaCenario(vm, jid: waCarlos, [
+            waMsg("c1", waCarlos, de: waCarlos, 11, 40, tipo: .documento,
+                  midia: waMidia("application/pdf", nome: "Proposta-Seller-nov26.pdf", tamanho: 1_200_000)),
+            waMsg("c2", waCarlos, de: waCarlos, 11, 47, texto: "Dá uma olhada quando puder."),
+        ])
+    },
     Scenario(name: "expanded-cor", realNotch: true) { vm, _, _ in
         CoresRecentes.shared.carregar(["#FF3B30", "#34C759", "#0A84FF", "#FFD60A", "#BF5AF2"])
         vm.setExpandedDirect(true)

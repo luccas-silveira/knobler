@@ -5,20 +5,25 @@ import SwiftUI
 // enviada a 22%, canto 8, texto 10 pt com hora e tique à direita; citação
 // dentro da bolha, reação numa cápsula embaixo, mídia pelo tipo e a falha de
 // envio em laranja embaixo da bolha (sem bolha vermelha). O que o clique na
-// mídia faz sai de `WAConversaModelo.acao(bolha:)`.
+// mídia faz sai de `WAConversaModelo.acao(bolha:)`. Com o mouse em cima (ou a
+// barra aberta), reagir e citar aparecem ao lado; a barra de 6 reações abre
+// acima da bolha e é estado por tela (`vm.whatsappReacoesEm`).
 
 struct WhatsAppBolhaView: View {
+    @ObservedObject var vm: NotchViewModel
     let bolha: WABolha
     let chave: WAChave
     let mostraRemetente: Bool
-    /// Reagir e citar (as ações da bolha entram com o compositor).
+    /// Reagir e citar.
     let podeAgir: Bool
     let larguraMaxima: CGFloat
     /// Quem escreveu a mensagem citada, já resolvido pela conversa.
     let nomeDaCitacao: String?
     @ObservedObject var store: WhatsAppStore
+    @State private var hover = false
 
     private var m: WAMensagem { bolha.mensagem }
+    private var barraAberta: Bool { podeAgir && vm.whatsappReacoesEm == m.id }
     private var estado: WAEstadoDaBolha { store.estado.estadoDaBolha(bolha) }
     private var falhou: Bool { estado == .falhou }
     private var midia: WAMostraMidia { WAConversaModelo.mostraMidia(bolha: bolha) }
@@ -35,10 +40,83 @@ struct WhatsAppBolhaView: View {
                     .padding(.bottom, 2)
             }
             corpoComReacao
+                .overlay(alignment: m.deMim ? .leading : .trailing) {
+                    if podeAgir && (hover || barraAberta) {
+                        // ao lado da bolha, 4 pt de folga, centradas na altura
+                        acoes.alignmentGuide(m.deMim ? .leading : .trailing) { d in
+                            m.deMim ? d[.trailing] + 4 : d[.leading] - 4
+                        }
+                    }
+                }
+                .overlay(alignment: m.deMim ? .topTrailing : .topLeading) {
+                    if barraAberta {
+                        barraDeReacoes.alignmentGuide(.top) { d in d[.bottom] + 4 }
+                    }
+                }
                 .frame(maxWidth: larguraMaxima, alignment: m.deMim ? .trailing : .leading)
             if falhou { falha }
         }
         .frame(maxWidth: .infinity, alignment: m.deMim ? .trailing : .leading)
+        .contentShape(Rectangle())
+        .onHover { hover = $0 }
+        .zIndex(barraAberta ? 1 : 0)
+    }
+
+    // MARK: - reagir e citar
+
+    /// A minha reação atual, se houver.
+    private var minhaReacao: String? {
+        m.reacoes.last { $0.deMim && !$0.emoji.isEmpty }?.emoji
+    }
+
+    private var acoes: some View {
+        HStack(spacing: 2) {
+            WABotaoDeAcao(icone: "face.smiling", ajuda: "Reagir") {
+                vm.whatsappReacoesEm = barraAberta ? nil : m.id
+            }
+            WABotaoDeAcao(icone: "arrowshape.turn.up.left", ajuda: "Responder citando") {
+                store.citar(m, em: chave)
+                vm.fecharReacoesWhatsApp()
+            }
+        }
+        .fixedSize()
+    }
+
+    /// Cápsula preta com fundo branco 15%: 6 botões de 26 pt, a minha marcada.
+    private var barraDeReacoes: some View {
+        let atual = minhaReacao
+        return HStack(spacing: 2) {
+            ForEach(WACompositor.reacoes, id: \.self) { e in
+                Button {
+                    let emoji = WACompositor.emojiParaEnviar(escolhido: e, atual: atual)
+                    let (alvo, k) = (m.id, chave)
+                    vm.fecharReacoesWhatsApp()
+                    Task { await store.reagir(emoji, a: alvo, em: k) }
+                } label: {
+                    Text(e)
+                        .font(.system(size: 15))
+                        .frame(width: 26, height: 26)
+                        .background(Circle().fill(.white.opacity(e == atual ? 0.25 : 0)))
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Reagir com \(e)")
+                .accessibilityAddTraits(e == atual ? .isSelected : [])
+            }
+        }
+        .padding(3)
+        .background(Capsule().fill(.white.opacity(0.15)))
+        .background(Capsule().fill(.black))
+        .fixedSize()
+        .focusable()
+        .focusEffectDisabled()
+        .onKeyPress(.escape) {
+            vm.fecharReacoesWhatsApp()
+            store.cancelarCitacao(chave)
+            return .handled
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Reações")
     }
 
     private var remetente: String {
@@ -297,6 +375,32 @@ struct WATiquesDuplos: View {
             Image(systemName: "checkmark")
         }
         .font(.system(size: tamanho, weight: peso))
+    }
+}
+
+// MARK: - Ações
+
+/// Botão de ação ao lado da bolha: 22 pt, canto 8, fundo branco 8% (15% no hover).
+private struct WABotaoDeAcao: View {
+    let icone: String
+    let ajuda: String
+    let acao: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: acao) {
+            Image(systemName: icone)
+                .font(.system(size: 11))
+                .foregroundStyle(.white.opacity(0.85))
+                .frame(width: 22, height: 22)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(.white.opacity(hover ? 0.15 : 0.08)))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
+        .help(ajuda)
+        .accessibilityLabel(ajuda)
     }
 }
 
