@@ -72,6 +72,8 @@ final class WhatsAppStore: ObservableObject {
     private var cursorDeConversas: [String: String] = [:]
     private var listasEmVoo: Set<String> = []
     private var contadorDeRef = 0
+    /// `POST /v1/pareamento` em voo: duas telas pedindo juntas viram um pedido só.
+    private var pareamentoEmVoo = false
     /// A fonte que está gravando e os níveis que ela já entregou (viram a onda).
     private var fonteEmUso: WAFonteDeMicrofone?
     private var niveisDaGravacao: [Float] = []
@@ -120,6 +122,7 @@ final class WhatsAppStore: ObservableObject {
         pendenteCompleta = true
         paginasEmVoo = []
         listasEmVoo = []
+        pareamentoEmVoo = false
     }
 
     /// O canal entrega na main (delegate e relógio na fila main). Se um dia
@@ -299,6 +302,44 @@ final class WhatsAppStore: ObservableObject {
         } catch {
             log.error("WhatsApp: contas não relidas — \(String(describing: error), privacy: .public)")
         }
+    }
+
+    // MARK: - Pareamento e reconexão
+
+    /// Tela do QR de uma conta deslogada: pede um pareamento à ponte. Com um
+    /// em `iniciando`/`qr` não pede de novo (o evento `pareamento` troca o QR
+    /// sozinho); com `409 pareamento_em_andamento` adota o do corpo. Só QR (A82).
+    func iniciarPareamento() async {
+        switch estado.pareamento?.estado {
+        case .iniciando?, .qr?: return
+        default: await pedirPareamento()
+        }
+    }
+
+    /// "Gerar outro" do QR expirado: inicia um pareamento novo.
+    func gerarOutroQR() async {
+        await pedirPareamento()
+    }
+
+    private func pedirPareamento() async {
+        guard !pareamentoEmVoo else { return }
+        pareamentoEmVoo = true
+        let ep = epoca
+        defer { if ep == epoca { pareamentoEmVoo = false } }
+        do {
+            let p = try await cliente.iniciarPareamento()
+            guard ep == epoca else { return }
+            estado.pareamento = p
+        } catch {
+            log.error("WhatsApp: pareamento não iniciado — \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    /// "Tentar de novo" da chave que não confere ou ausente (e da ponte fora):
+    /// relê o arquivo da chave e acorda o canal, que reconecta na hora.
+    func tentarDeNovo() async {
+        _ = cliente.chave(relendo: true)
+        canal?.acordou()
     }
 
     /// ponytail: erro que não é de chave nem de rede também cai em `.foraDoAr`,

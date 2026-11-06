@@ -163,4 +163,6 @@ Knobler/WhatsApp/WhatsAppCartao.swift
 Knobler/WhatsApp/WhatsAppApresentacao.swift
 Knobler/WhatsApp/WhatsAppTela.swift
 Knobler/WhatsApp/WhatsAppListaView.swift
+Knobler/WhatsApp/WhatsAppQR.swift
+Knobler/WhatsApp/WhatsAppEstadosView.swift
 Knobler/WhatsApp/WhatsAppSecaoView.swift

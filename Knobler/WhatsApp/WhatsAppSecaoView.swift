@@ -51,8 +51,14 @@ struct WhatsAppSecaoView: View {
         .foregroundStyle(.white)
     }
 
-    // ponytail: nesta etapa a conversa é só o nome e os estados só o título;
-    // bolhas, compositor, QR e botões entram nas etapas seguintes.
+    /// Outra conta que segue conectada, citada no apoio do QR.
+    private var outra: String? {
+        store.estado.contas.first { $0.conta != contaID && $0.estado == .conectada }
+            .map { WACartao.rotuloDaConta(conta: $0, numero: $0.conta) }
+    }
+
+    // ponytail: nesta etapa a conversa é só o nome; bolhas e compositor
+    // entram nas etapas seguintes.
     @ViewBuilder
     private var colunaDireita: some View {
         switch direita {
@@ -61,26 +67,7 @@ struct WhatsAppSecaoView: View {
                 .font(.system(size: 13, weight: .medium))
                 .lineLimit(1)
         default:
-            Text(titulo(direita))
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.white.opacity(0.85))
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 330)
-        }
-    }
-
-    private func titulo(_ d: WATelaDireita) -> String {
-        switch d {
-        case .ponteFora: return WATextos.ponteForaTitulo
-        case .chave: return WATextos.chaveTitulo
-        case .incompativel: return WATextos.incompativelTitulo
-        case .carregando: return WATextos.carregando
-        case .qr:
-            let rotulo = WACartao.rotuloDaConta(conta: conta, numero: contaID ?? "")
-            return WATextos.qrTitulo(rotulo: rotulo)
-        case .qrExpirado: return WATextos.qrExpiradoTitulo
-        case .vazio: return WATextos.vazioTitulo
-        case .conversa: return ""
+            WhatsAppEstadosView(tela: direita, conta: conta, outra: outra, store: store)
         }
     }
 }

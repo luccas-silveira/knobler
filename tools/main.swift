@@ -323,6 +323,45 @@ func waCenario(_ vm: NotchViewModel, conta: String, aberta: String, foco: NotchS
     vm.whatsappConversaAberta = WAChave(conta: conta, jid: aberta).texto
 }
 
+/// Estados de conexão da seção (aba "Estados de conexão" do mockup). Sem
+/// conversa na conta mostrada nem pareamento a pedir: nada sai para a ponte.
+let waQRSintetico = "2@knobler-snapshot"
+
+func waPareamento(_ estado: WAEstadoPareamento) -> WAPareamento {
+    let qr = estado == .qr ? waQRSintetico : nil
+    return WAPareamento(id: "p-snapshot", estado: estado, qr: qr, qrExpiraEm: qr == nil ? nil : 1762270620,
+                        fim: 1762270720, conta: nil, motivo: nil)
+}
+
+/// `estado`: o do mockup, só com contas (`comConversas: false`) ou vazio.
+/// Com `pessoalDeslogada`, a Pessoal · 8292 está deslogada e sem conversas.
+@MainActor
+func waEstadosCenario(_ vm: NotchViewModel, conexao: WAConexao, conta: String = waBiz,
+                      comContas: Bool = true, comConversas: Bool = true,
+                      pessoalDeslogada: Bool = false, pareamento: WAPareamento? = nil) {
+    var e = WAEstado()
+    if comContas {
+        let mockup = waEstadoDoMockup()
+        e.substituirContas(mockup.contas.map { c in
+            guard pessoalDeslogada, c.conta == waPes else { return c }
+            return WAConta(conta: c.conta, jid: c.jid, nome: c.nome, padrao: c.padrao, estado: .deslogada,
+                           motivo: nil, desde: c.desde, naoLidas: 0, conversasNaoLidas: 0)
+        })
+        if comConversas {
+            e.substituirConversas(conta: waBiz, mockup.conversas(da: waBiz))
+            if !pessoalDeslogada { e.substituirConversas(conta: waPes, mockup.conversas(da: waPes)) }
+        }
+    }
+    e.pareamento = pareamento
+    WhatsAppStore.shared._injetar(estado: e, conexao: conexao, canalAberto: conexao == .pronta)
+    vm.setExpandedDirect(true)
+    vm.secoes = [.musica, .shelf, .mensagens, .whatsapp, .historico, .nota]
+    vm.focus = .whatsapp
+    vm.whatsappContaSelecionada = conta
+    // a conversa já aberta: o `adotarPadrao` não sai pedindo bolhas
+    if conta == waBiz && comConversas { vm.whatsappConversaAberta = WAChave(conta: waBiz, jid: waMarina).texto }
+}
+
 let scenarios: [Scenario] = [
     Scenario(name: "monitores-interna", realNotch: true, frameHeight: 360) { vm, _, _ in configurarMonitores(vm, estado: "interna") },
     Scenario(name: "monitores-ddc", realNotch: true, frameHeight: 360) { vm, _, _ in configurarMonitores(vm, estado: "ddc") },
@@ -481,6 +520,40 @@ let scenarios: [Scenario] = [
     Scenario(name: "whatsapp-faixa", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, media, _ in
         media.injectPreview(state: fakeState(), artwork: fakeArtwork())
         waCenario(vm, conta: waBiz, aberta: waMarina, foco: .musica)
+    },
+    // aba "Estados de conexão": um cenário por quadro (o de chave ausente e o
+    // de incompatível seguem o desenho do de chave)
+    Scenario(name: "whatsapp-ponte-fora", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        waEstadosCenario(vm, conexao: .foraDoAr)
+    },
+    Scenario(name: "whatsapp-chave", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        waEstadosCenario(vm, conexao: .chaveNaoConfere)
+    },
+    Scenario(name: "whatsapp-chave-ausente", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        waEstadosCenario(vm, conexao: .semChave, comContas: false)
+    },
+    Scenario(name: "whatsapp-incompativel", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        waEstadosCenario(vm, conexao: .incompativel(2), comContas: false)
+    },
+    Scenario(name: "whatsapp-qr", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        waEstadosCenario(vm, conexao: .pronta, conta: waPes, comConversas: false,
+                         pessoalDeslogada: true, pareamento: waPareamento(.qr))
+    },
+    Scenario(name: "whatsapp-qr-expirado", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        waEstadosCenario(vm, conexao: .pronta, conta: waPes, comConversas: false,
+                         pessoalDeslogada: true, pareamento: waPareamento(.expirado))
+    },
+    Scenario(name: "whatsapp-carregando", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        waEstadosCenario(vm, conexao: .carregando, comContas: false)
+    },
+    Scenario(name: "whatsapp-vazio", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        waEstadosCenario(vm, conexao: .pronta, conta: waPes, comConversas: false)
+    },
+    // quadro "Conta desconectada" da variante A: a ZOI Business segue com a
+    // lista e as não lidas; a Pessoal, deslogada, mostra o QR à direita
+    Scenario(name: "whatsapp-desconectada", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        waEstadosCenario(vm, conexao: .pronta, conta: waPes, pessoalDeslogada: true,
+                         pareamento: waPareamento(.qr))
     },
     Scenario(name: "expanded-cor", realNotch: true) { vm, _, _ in
         CoresRecentes.shared.carregar(["#FF3B30", "#34C759", "#0A84FF", "#FFD60A", "#BF5AF2"])
