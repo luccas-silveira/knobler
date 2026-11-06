@@ -119,6 +119,11 @@ final class WAMidiaCache {
         }
     }
 
+    /// Só snapshot: a miniatura já em memória, sem pedir à ponte.
+    func _injetarMiniatura(_ dados: Data, chave: WAChave, mensagem: WAMensagem) {
+        miniaturas[Self.id(chave, mensagem.id)] = dados
+    }
+
     // MARK: - Ajudantes
 
     private static func id(_ k: WAChave, _ mensagem: String) -> String {

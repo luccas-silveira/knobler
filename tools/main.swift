@@ -362,6 +362,101 @@ func waEstadosCenario(_ vm: NotchViewModel, conexao: WAConexao, conta: String = 
     if conta == waBiz && comConversas { vm.whatsappConversaAberta = WAChave(conta: waBiz, jid: waMarina).texto }
 }
 
+/// Conversa do mockup aberta na coluna direita (aba "Variante A", colunas
+/// direitas dos quadros de conversa). As mídias são cores sólidas gravadas
+/// numa pasta temporária do harness: nada pessoal, nada da ponte.
+let waOperacional = "120363000000000001@g.us"
+let waEu = waBiz + "@s.whatsapp.net"
+let waAna = "554799000001@s.whatsapp.net"
+let waDiego = "554799000002@s.whatsapp.net"
+let waJulia = "554799000003@s.whatsapp.net"
+let waPastaDeMidia = URL(fileURLWithPath: NSTemporaryDirectory())
+    .appendingPathComponent("knobler-snapshot-whatsapp-\(getpid())", isDirectory: true)
+
+/// `de: nil` é mensagem minha.
+func waMsg(_ id: String, _ conversa: String, de: String? = nil, nome: String? = nil, _ h: Int, _ mi: Int,
+           tipo: WATipoMensagem = .texto, texto: String = "", midia: WAMidia? = nil,
+           citacao: WACitacao? = nil, reacao: String? = nil, editada: Bool = false,
+           apagada: Bool = false, status: WAStatus? = nil) -> WAMensagem {
+    let ts = waTs(h, mi)
+    let reacoes = reacao.map { [WAReacao(remetente: de ?? conversa, deMim: false, emoji: $0, ts: ts + 60)] } ?? []
+    return WAMensagem(id: id, conversa: conversa, remetente: de ?? waEu, remetenteNome: nome,
+                      deMim: de == nil, ts: ts, tipo: tipo, texto: texto, midia: midia, citacao: citacao,
+                      reacoes: reacoes, editada: editada ? ts + 120 : nil, apagada: apagada ? ts + 30 : nil,
+                      status: de == nil ? status : nil)
+}
+
+func waMidia(_ mimetype: String, nome: String = "", tamanho: Int = 120_000, segundos: Int? = nil) -> WAMidia {
+    WAMidia(mimetype: mimetype, nome: nome, tamanho: tamanho, segundos: segundos, miniatura: true, baixada: true)
+}
+
+/// PNG de cor sólida (ou só um emoji, fundo transparente, para a figurinha).
+func waPNG(_ cor: NSColor, largura: CGFloat = 400, altura: CGFloat = 250, emoji: String? = nil) -> Data {
+    let img = NSImage(size: NSSize(width: largura, height: altura), flipped: false) { r in
+        cor.setFill()
+        r.fill()
+        if let emoji {
+            let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: altura * 0.8)]
+            let t = NSAttributedString(string: emoji, attributes: attrs)
+            let tam = t.size()
+            t.draw(at: NSPoint(x: (largura - tam.width) / 2, y: (altura - tam.height) / 2))
+        }
+        return true
+    }
+    return NSBitmapImageRep(data: img.tiffRepresentation!)!.representation(using: .png, properties: [:])!
+}
+
+/// Envio local do mockup: `enviando` (relógio) ou que falhou ("tentar de novo").
+struct WAEnvioDoMockup {
+    let texto: String
+    let h: Int
+    let m: Int
+    let falhou: Bool
+}
+
+@MainActor
+func waConversaCenario(_ vm: NotchViewModel, jid: String, _ mensagens: [WAMensagem],
+                       local: WAEnvioDoMockup? = nil, indisponiveis: [String] = [],
+                       miniaturas: [String: Data] = [:], arquivos: [String: Data] = [:]) {
+    let store = WhatsAppStore.shared
+    let k = WAChave(conta: waBiz, jid: jid)
+    var e = waEstadoDoMockup()
+    e.inserirMensagens(mensagens, em: k, antes: nil, maisVelhas: false)
+    if let local {
+        e.comecarEnvio(chave: k, texto: local.texto, citacao: nil, ref: "snap-1",
+                       agora: waTs(local.h, local.m), remetente: waBiz)
+        if local.falhou { e.falharEnvio(ref: "snap-1", chave: k) }
+    }
+    for id in indisponiveis { _ = e.aplicar(.midia(conversa: jid, alvo: id, ok: false), conta: waBiz) }
+    store._usarMidia(raiz: waPastaDeMidia)
+    for m in mensagens {
+        if let d = arquivos[m.id] {
+            let url = store.midia.caminho(chave: k, mensagem: m)
+            try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                     withIntermediateDirectories: true)
+            try? d.write(to: url)
+        }
+        if let d = miniaturas[m.id] { store.midia._injetarMiniatura(d, chave: k, mensagem: m) }
+    }
+    store._injetar(estado: e, conexao: .pronta, canalAberto: true)
+    if jid == waOperacional {
+        let p = { (jid: String, nome: String, eu: Bool) in
+            WAParticipante(jid: jid, telefone: nil, lid: nil, nome: nome, admin: false, superadmin: false, eu: eu)
+        }
+        store._injetar(grupo: WAGrupo(jid: jid, nome: "Operacional ZOI", descricao: "", criado: 1_575_256_960,
+                                      dono: nil, soAdminsEnviam: false,
+                                      participantes: [p(waEu, "Você", true), p(waAna, "Ana Ribeiro", false),
+                                                      p(waDiego, "Diego Martins", false),
+                                                      p(waJulia, "Júlia Souza", false)]),
+                       em: k)
+    }
+    vm.setExpandedDirect(true)
+    vm.secoes = [.musica, .shelf, .mensagens, .whatsapp, .historico, .nota]
+    vm.focus = .whatsapp
+    vm.whatsappContaSelecionada = waBiz
+    vm.whatsappConversaAberta = k.texto
+}
+
 let scenarios: [Scenario] = [
     Scenario(name: "monitores-interna", realNotch: true, frameHeight: 360) { vm, _, _ in configurarMonitores(vm, estado: "interna") },
     Scenario(name: "monitores-ddc", realNotch: true, frameHeight: 360) { vm, _, _ in configurarMonitores(vm, estado: "ddc") },
@@ -554,6 +649,60 @@ let scenarios: [Scenario] = [
     Scenario(name: "whatsapp-desconectada", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
         waEstadosCenario(vm, conexao: .pronta, conta: waPes, pessoalDeslogada: true,
                          pareamento: waPareamento(.qr))
+    },
+    // quadro "Lista e conversa individual": lida em cápsula, citação dentro
+    // da bolha, reação embaixo, foto com legenda (MSG m1–m4)
+    Scenario(name: "whatsapp-conversa-marina", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        let foto = waMsg("m4", waMarina, de: waMarina, 14, 20, tipo: .imagem, texto: "Versão nova do post 3",
+                         midia: waMidia("image/jpeg"))
+        waConversaCenario(vm, jid: waMarina, [
+            waMsg("m1", waMarina, de: waMarina, 14, 2, texto: "Oi! Conseguiu ver as artes da campanha de Natal?"),
+            waMsg("m2", waMarina, 14, 5, texto: "Vi sim, ficaram ótimas. Só ajustaria o CTA do carrossel.", status: .lida),
+            waMsg("m3", waMarina, de: waMarina, 14, 8, texto: "Pode deixar, troco para “Agende sua visita”.",
+                  citacao: WACitacao(id: "m2", remetente: waEu, texto: "Só ajustaria o CTA do carrossel."),
+                  reacao: "👍"),
+            foto,
+        ], arquivos: ["m4": waPNG(NSColor(red: 0.62, green: 0.72, blue: 0.78, alpha: 1))])
+    },
+    // quadro "Envio, edição e barra de reações" (só as bolhas): editada e
+    // entregue, enviada, recebida, enviando (MSG m5–m8)
+    Scenario(name: "whatsapp-conversa-entrega", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        waConversaCenario(vm, jid: waMarina, [
+            waMsg("m5", waMarina, 14, 22, texto: "Perfeito. Sobe hoje às 18h?", editada: true, status: .entregue),
+            waMsg("m6", waMarina, 14, 25, texto: "Já te mando o relatório de outubro.", status: .enviada),
+            waMsg("m7", waMarina, de: waMarina, 14, 32, texto: "Fechado! Mando o briefing até sexta."),
+        ], local: WAEnvioDoMockup(texto: "Combinado!", h: 14, m: 33, falhou: false))
+    },
+    // quadro "Grupo: remetentes, documento, vídeo, gravando" (só as bolhas)
+    Scenario(name: "whatsapp-grupo-midia", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        waConversaCenario(vm, jid: waOperacional, [
+            waMsg("g1", waOperacional, de: waAna, nome: "Ana Ribeiro", 9, 12,
+                  texto: "Bom dia, pessoal! A pauta da semana está no drive."),
+            waMsg("g2", waOperacional, de: waAna, nome: "Ana Ribeiro", 9, 13, tipo: .documento,
+                  midia: waMidia("application/pdf", nome: "Pauta-semana-45.pdf", tamanho: 840_000)),
+            waMsg("g3", waOperacional, de: waDiego, nome: "Diego Martins", 9, 40, tipo: .video,
+                  texto: "Bastidores da gravação na Seller", midia: waMidia("video/mp4", segundos: 42)),
+        ], miniaturas: ["g3": waPNG(NSColor(red: 0.17, green: 0.18, blue: 0.20, alpha: 1))])
+    },
+    // quadro "Grupo: reação, figurinha e mensagem apagada"
+    Scenario(name: "whatsapp-grupo-reacao", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        waConversaCenario(vm, jid: waOperacional, [
+            waMsg("g4", waOperacional, 9, 44, texto: "Ficou muito bom. Dá para cortar uma versão de 15 s?",
+                  reacao: "❤️", status: .lida),
+            waMsg("g5", waOperacional, de: waDiego, nome: "Diego Martins", 9, 46, tipo: .figurinha,
+                  midia: waMidia("image/webp")),
+            waMsg("g6", waOperacional, de: waJulia, nome: "Júlia Souza", 10, 2, apagada: true),
+        ], arquivos: ["g5": waPNG(.clear, largura: 180, altura: 180, emoji: "🎬")])
+    },
+    // quadro "Grupo: mídia indisponível, áudio, falha, ditando" (só as bolhas)
+    Scenario(name: "whatsapp-grupo-falha", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        waConversaCenario(vm, jid: waOperacional, [
+            waMsg("g7", waOperacional, de: waJulia, nome: "Júlia Souza", 10, 5, tipo: .imagem,
+                  midia: waMidia("image/jpeg")),
+            waMsg("g8", waOperacional, de: waDiego, nome: "Diego Martins", 14, 41, tipo: .voz,
+                  midia: waMidia("audio/ogg; codecs=opus", segundos: 37)),
+        ], local: WAEnvioDoMockup(texto: "Ouço daqui a pouco e respondo.", h: 14, m: 43, falhou: true),
+           indisponiveis: ["g7"])
     },
     Scenario(name: "expanded-cor", realNotch: true) { vm, _, _ in
         CoresRecentes.shared.carregar(["#FF3B30", "#34C759", "#0A84FF", "#FFD60A", "#BF5AF2"])
@@ -1297,4 +1446,6 @@ renderHistoryRows("historico-linhas", [
     NotchNotification(appName: nil, title: "Webhook", body: "deploy ok", iconEmoji: "🚀"),
     NotchNotification(appName: nil, title: "Sem origem", body: "cai no sino"),
 ])
+// mídias de cor sólida dos cenários de conversa do WhatsApp
+try? FileManager.default.removeItem(at: waPastaDeMidia)
 }

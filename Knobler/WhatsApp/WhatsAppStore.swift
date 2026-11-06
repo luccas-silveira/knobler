@@ -47,13 +47,19 @@ final class WhatsAppStore: ObservableObject {
     @Published private(set) var erroDeAnexo: String?
 
     /// Cache da mídia recebida, com o mesmo cliente da ponte.
-    let midia: WAMidiaCache
+    private(set) var midia: WAMidiaCache
 
     /// Mensagem recebida (não minha), uma vez por mensagem.
     var aoChegarMensagem: ((WAMensagem, WAConversa, WAConta?) -> Void)?
 
     private let cliente: WACliente
     private let fabricaDeCanal: (WACliente) -> WACanalProtocolo
+    /// Relógio do store (testes injetam um que avança à mão).
+    private let agora: () -> Date
+    /// Grupos lidos de `GET /v1/grupo`, com a hora da leitura: valem 10 min,
+    /// como na ponte (docs/whatsapp-ponte.md:558-561).
+    private var grupos: [WAChave: (grupo: WAGrupo, lido: Date)] = [:]
+    private static let validadeDoGrupo: TimeInterval = 10 * 60
     private var canal: WACanalProtocolo?
 
     /// Sobe a cada `stop`/`_zerar`: resposta de pedido antigo não mexe no estado.
@@ -80,9 +86,11 @@ final class WhatsAppStore: ObservableObject {
     /// Sobe a cada gravação: nível atrasado de uma gravação encerrada não volta.
     private var sessaoDeGravacao: UInt64 = 0
 
-    init(cliente: WACliente? = nil, fabricaDeCanal: ((WACliente) -> WACanalProtocolo)? = nil) {
+    init(cliente: WACliente? = nil, fabricaDeCanal: ((WACliente) -> WACanalProtocolo)? = nil,
+         agora: @escaping () -> Date = Date.init) {
         let cliente = cliente ?? WACliente()
         self.cliente = cliente
+        self.agora = agora
         self.midia = WAMidiaCache(cliente: cliente)
         self.fabricaDeCanal = fabricaDeCanal ?? { cliente in
             WACanal(porta: WAConfig.porta(), chave: { cliente.chave(relendo: $0) })
@@ -393,6 +401,25 @@ final class WhatsAppStore: ObservableObject {
         }
     }
 
+    /// Participantes de uma conversa de grupo, para o cabeçalho. Pede
+    /// `GET /v1/grupo` só para jid `@g.us` e guarda 10 min; conversa
+    /// individual é `nil` sem pedido. Falha devolve o que estava guardado.
+    func grupo(_ k: WAChave) async -> WAGrupo? {
+        guard k.jid.hasSuffix("@g.us") else { return nil }
+        let pedido = agora()
+        if let g = grupos[k], pedido.timeIntervalSince(g.lido) < Self.validadeDoGrupo { return g.grupo }
+        let ep = epoca
+        do {
+            let g = try await cliente.grupo(conta: k.conta, jid: k.jid)
+            guard ep == epoca else { return g }
+            grupos[k] = (g, pedido)
+            return g
+        } catch {
+            log.error("WhatsApp: grupo não lido — \(String(describing: error), privacy: .public)")
+            return grupos[k]?.grupo
+        }
+    }
+
     // MARK: - Envio
 
     func enviarTexto(_ texto: String, para k: WAChave, citando: WACitacao?) async {
@@ -631,12 +658,23 @@ final class WhatsAppStore: ObservableObject {
         self.canalAberto = canalAberto
     }
 
+    /// Só snapshot: o grupo já lido, sem pedir à ponte.
+    func _injetar(grupo: WAGrupo, em k: WAChave) {
+        grupos[k] = (grupo, agora())
+    }
+
+    /// Só snapshot: a mídia sai de uma pasta temporária, não do cache real.
+    func _usarMidia(raiz: URL) {
+        midia = WAMidiaCache(raiz: raiz, cliente: cliente)
+    }
+
     /// Só testes e snapshot: volta ao recém-criado (inerte, sem canal, vazio).
     func _zerar() {
         stop()
         estado = WAEstado()
         abertas = [:]
         cursorDeConversas = [:]
+        grupos = [:]
         campoEmUso = nil
     }
 }

@@ -75,15 +75,13 @@ struct WhatsAppSecaoView: View {
             .map { WACartao.rotuloDaConta(conta: $0, numero: $0.conta) }
     }
 
-    // ponytail: nesta etapa a conversa é só o nome; bolhas e compositor
-    // entram nas etapas seguintes.
+    // ponytail: o compositor entra na etapa seguinte; por ora a conversa
+    // ocupa a coluna inteira.
     @ViewBuilder
     private var colunaDireita: some View {
         switch direita {
         case .conversa(let k):
-            Text(conversas.first { $0.jid == k.jid }?.nome ?? k.jid)
-                .font(.system(size: 13, weight: .medium))
-                .lineLimit(1)
+            WhatsAppConversaView(vm: vm, chave: k, store: store)
         default:
             WhatsAppEstadosView(tela: direita, conta: conta, outra: outra, store: store)
         }
