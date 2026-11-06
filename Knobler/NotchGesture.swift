@@ -8,7 +8,18 @@
 
 import Foundation
 
-enum ScrollTarget: Equatable { case closed, expanded }
+/// O que o monitor faz com um evento de scroll que caiu na zona do notch.
+/// Nenhum caso abre nem fecha o card: rolar não mexe mais no notch.
+enum AcaoDoScroll: Equatable {
+    /// devolve o evento: a lista do card (ou a janela de trás) rola
+    case repassar
+    /// consome o evento na zona, sem fazer nada
+    case engolir
+    /// card aberto: anda uma seção na faixa
+    case trocarSecao(avancando: Bool)
+    /// notch fechado com mídia: pula ou volta a faixa
+    case trocarFaixa(proxima: Bool)
+}
 
 enum NotchGesture {
     /// Pausa que separa dois gestos num mouse de rodinha: eventos a menos de
@@ -74,17 +85,16 @@ enum NotchGesture {
         return mouseY >= screenMaxY - zoneHeight
     }
 
-    /// Um gesto está começando? O acumulador e a flag da lista rolável zeram aqui, e
-    /// sem isso os dois nunca zeram fora do trackpad.
+    /// Um gesto está começando? O acumulador e a trava de "já agiu" zeram aqui,
+    /// e sem isso os dois nunca zeram fora do trackpad.
     ///
     /// - `began`: o trackpad diz `.began`. É o único caso que o código antigo
     ///   reconhecia — e mouse de rodinha **não** emite fase nenhuma, então o
     ///   acumulador crescia pra sempre (o usuário trocava de seção sem querer e
-    ///   só saía rolando centenas de pontos de volta) e a flag da lista rolável
-    ///   ficava presa em `false`, deixando a lista impossível de rolar.
+    ///   só saía rolando centenas de pontos de volta).
     /// - `previousInZone == false`: gesto que começou fora da zona e entrou
     ///   arrastando — o `.began` dele foi descartado antes desta checagem, então
-    ///   ele herdaria o acumulado e a flag do gesto anterior.
+    ///   ele herdaria o acumulado e a trava do gesto anterior.
     /// - tempo desde o último evento: a rodinha, de novo. Sem fase, só a pausa
     ///   distingue um gesto do seguinte. **Só vale pra evento sem fase
     ///   nenhuma** (`hasPhase == false`): no trackpad os dedos podem parar
@@ -105,23 +115,31 @@ enum NotchGesture {
         return sinceLastEvent > gestureGap
     }
 
-    /// Dedos pra baixo (deltaY positivo, natural scrolling): 24 pt abre o card.
-    /// Pra cima fecha.
+    /// Acumulado lateral que troca seção ou faixa. Limite aberto: 50 não age.
+    static let limiarLateral: CGFloat = 50
+
+    /// A decisão do gesto inteira, sem NSEvent. `deltaX`/`deltaY` são o
+    /// `scrollingDelta` deste evento; `accumX`/`accumY` são o acumulado do
+    /// gesto já com ele somado (a inércia não soma).
     ///
-    /// O eixo horizontal entra só como guarda de diagonal: um swipe quase
-    /// horizontal (pular faixa, trocar de tela) não pode abrir nem fechar o
-    /// card de raspão. É a mesma razão 1,5 que o monitor usava antes.
-    ///
-    /// ponytail: alvo é função do acumulado, não uma máquina de estados. Sai
-    /// mais barato que o scrollActed que existia aqui e o recuo dentro do
-    /// mesmo gesto passa a funcionar de graça.
-    ///
-    /// Com o histórico em foco esta função não é consultada: o monitor entrega
-    /// o evento à lista pra ela rolar de verdade.
-    static func verticalTarget(accumY: CGFloat, accumX: CGFloat) -> ScrollTarget? {
-        guard abs(accumY) > abs(accumX) * 1.5 else { return nil }
-        if accumY > 24 { return .expanded }
-        if accumY < -24 { return .closed }
-        return nil
+    /// - Evento vertical: sempre repassado, inclusive a inércia. Rolar não abre
+    ///   nem fecha o card; com ele aberto o eixo é do conteúdo (listas, agenda,
+    ///   página do link), com ele fechado é da janela de trás.
+    /// - Gesto majoritariamente vertical: a deriva lateral de um evento solto
+    ///   também passa adiante e nunca troca seção — quem rola está lendo.
+    /// - Horizontal: acima de `limiarLateral` anda uma seção (card aberto) ou
+    ///   troca de faixa (fechado com mídia), uma vez por gesto e nunca na
+    ///   inércia. Fora isso é engolido, pra janela de trás não rolar de lado.
+    static func acao(deltaX: CGFloat, deltaY: CGFloat,
+                     accumX: CGFloat, accumY: CGFloat,
+                     inercia: Bool, expandido: Bool,
+                     temMidia: Bool, jaAgiu: Bool) -> AcaoDoScroll {
+        if abs(deltaY) > abs(deltaX) { return .repassar }
+        if abs(accumY) > abs(accumX) { return .repassar }
+        guard !inercia, !jaAgiu, abs(accumX) > limiarLateral else { return .engolir }
+        // dedos pra esquerda (acumulado negativo) = avança / próxima faixa
+        if expandido { return .trocarSecao(avancando: accumX < 0) }
+        if temMidia { return .trocarFaixa(proxima: accumX < 0) }
+        return .engolir
     }
 }

@@ -10,6 +10,7 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 - Integração opcional com uma ponte local de WhatsApp, invisível sem ela.
 
 ### Changed
+- Rolar no notch não abre nem fecha mais o card; a rolagem vai para o conteúdo (listas, agenda, lembretes, página do link). Ele abre passando o mouse e a rolagem de lado continua trocando de seção ou de faixa.
 - O Knobler agora guarda um histórico do próprio consumo de memória e de processador, uma medição a cada 5 minutos dos últimos 7 dias, pra investigar quando o app fica pesado com o tempo.
 
 ### Fixed

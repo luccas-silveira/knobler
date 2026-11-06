@@ -217,15 +217,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var scrollAccumX: CGFloat = 0
     private var scrollAccumY: CGFloat = 0
     private var scrollActed = false
-    /// Gesto que COMEÇOU com uma lista rolável no card rola a lista, não age
-    /// no notch. Sem isso, o mesmo puxão seguiria trocando a seção em foco.
-    private var scrollStartedInList = false
     /// Timestamp e zona do último evento de scroll — é com eles que
     /// `NotchGesture.isGestureStart` reconhece começo de gesto sem `.began`
     /// (mouse de rodinha) ou de gesto que entrou arrastando na zona.
     private var lastScrollAt: TimeInterval = 0
     private var lastScrollInZone = false
-    private var scrollStartedInLink = false
 
     // ilha simulada nos monitores sem notch físico
     private static let simulatedNotchSize = CGSize(width: 190, height: 30)
@@ -1017,8 +1013,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    /// Dois dedos sobre o notch: pra baixo abre a música, pra cima fecha,
-    /// horizontal pula/volta faixa (como o Dynamic Island).
+    /// Dois dedos sobre o notch: o horizontal anda uma seção do card aberto ou
+    /// pula/volta faixa com ele fechado (como o Dynamic Island). O vertical não
+    /// abre nem fecha nada — vai pro conteúdo.
     private func setupSwipeGestures() {
         scrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) {
             [weak self] event in
@@ -1053,8 +1050,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         // o reset vem antes de tudo: um gesto que começa precisa resincronizar
         // o próprio estado mesmo que o card tenha fechado por fora (o
-        // setHover fecha sozinho quando o mouse sai), senão a flag velha
-        // engole o gesto novo inteiro
+        // setHover fecha sozinho quando o mouse sai), senão o `scrollActed`
+        // velho engole o gesto novo inteiro
         let novoGesto = NotchGesture.isGestureStart(
             began: event.phase == .began,
             momentum: !event.momentumPhase.isEmpty,
@@ -1068,55 +1065,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             scrollAccumX = 0
             scrollAccumY = 0
             scrollActed = false
-            // handoff só quando há de fato uma lista rolável na tela: com a
-            // nota ligada ou com o histórico vazio a seção não tem ScrollView
-            // nenhuma, e entregar o eixo vertical a ela mataria o gesto — sem
-            // abrir e sem fechar
-            scrollStartedInList = (vm.focus == .historico
-                && !NotificationHistory.shared.items.isEmpty
-                && !QuickNote.shared.hosted(by: id)) || vm.agendaRolavel || vm.lembretesRolavel
-            // a página do link rola sozinha: o vertical é dela, senão a primeira
-            // rolada fecharia o card em cima do que o usuário foi ler
-            scrollStartedInLink = vm.focus == .link && LinkPreview.shared.hosted(by: id)
         }
 
-        // Histórico ou agenda em foco: o vertical é da lista, incluindo inércia —
-        // inclusive a inércia, que chega depois dos dedos saírem e por isso
-        // não passa pelo reset acima
-        if scrollStartedInList || scrollStartedInLink,
-           abs(event.scrollingDeltaY) >= abs(event.scrollingDeltaX) {
+        // inércia não soma: ela chega depois dos dedos saírem
+        let inercia = !event.momentumPhase.isEmpty
+        if !inercia {
+            scrollAccumX += event.scrollingDeltaX
+            scrollAccumY += event.scrollingDeltaY
+        }
+
+        // a decisão mora no NotchGesture; aqui só se aplica o resultado
+        switch NotchGesture.acao(
+            deltaX: event.scrollingDeltaX, deltaY: event.scrollingDeltaY,
+            accumX: scrollAccumX, accumY: scrollAccumY,
+            inercia: inercia, expandido: expanded,
+            temMidia: media.state != nil, jaAgiu: scrollActed) {
+        case .repassar:
+            // vertical: a lista do card rola, ou a janela de trás com o notch
+            // fechado
             return event
-        }
-
-        // inércia não conta como gesto; ainda assim é engolida na zona
-        guard event.momentumPhase.isEmpty else { return nil }
-
-        scrollAccumX += event.scrollingDeltaX
-        scrollAccumY += event.scrollingDeltaY
-
-        // vertical: alvo é função do acumulado, então recuar dentro do mesmo
-        // gesto desfaz. Idempotente — aplicar o mesmo alvo duas vezes não custa.
-        if let target = NotchGesture.verticalTarget(accumY: scrollAccumY, accumX: scrollAccumX) {
-            switch target {
-            case .closed:
-                vm.setExpandedDirect(false)
-            case .expanded:
-                vm.setExpandedDirect(true)
-            }
-        } else if !scrollActed, abs(scrollAccumX) > 50 {
+        case .engolir:
+            return nil // a janela de trás não rola de lado junto
+        case .trocarSecao(let avancando):
+            // card aberto: horizontal anda um passo na faixa de seções —
+            // inclusive saindo da nota. Soltar a trava do `editing` é do
+            // `focar`, que todo caminho de troca de seção atravessa. Sair
+            // da seção não encerra a nota: `active` e `text` seguem
+            // intactos, e o ícone continua na faixa pra voltar.
             scrollActed = true
-            if expanded {
-                // card aberto: horizontal anda um passo na faixa de seções —
-                // inclusive saindo da nota. Soltar a trava do `editing` é do
-                // `focar`, que todo caminho de troca de seção atravessa. Sair
-                // da seção não encerra a nota: `active` e `text` seguem
-                // intactos, e o ícone continua na faixa pra voltar.
-                vm.focarVizinho(avancando: scrollAccumX < 0)
-            } else if media.state != nil {
-                if scrollAccumX < 0 { media.nextTrack() } else { media.previousTrack() }
-            }
+            vm.focarVizinho(avancando: avancando)
+            return nil
+        case .trocarFaixa(let proxima):
+            scrollActed = true
+            if proxima { media.nextTrack() } else { media.previousTrack() }
+            return nil
         }
-        return nil // engole o scroll na zona — a janela de trás não rola junto
     }
 
     @objc private func screensChanged() {
