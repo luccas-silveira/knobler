@@ -299,6 +299,10 @@ bash_teste tools/whatsappgravacaoligacaocheck.sh
 # única da expirada, miniatura em memória, anexo copiado pra pasta de envio
 # (apagado depois da resposta, 100 MiB no máximo) e tocador do áudio recebido
 swift_teste tools/whatsappmidiacheck.swift $WA_NUCLEO Knobler/WhatsApp/WhatsAppPlayer.swift
+# foto de perfil com a chave: miniatura guardada, 10 min sem pedir, ETag em
+# If-None-Match (304 mantém), sem_foto não insiste, sem chave não pede, teto
+# de 64; o RemoteAvatarLoader não afrouxa (avatarcheck)
+swift_teste tools/whatsappfotocheck.swift Knobler/WhatsApp/WhatsAppModelos.swift Knobler/WhatsApp/WhatsAppChave.swift Knobler/WhatsApp/WhatsAppCliente.swift Knobler/RemoteAvatarLoader.swift Knobler/WhatsApp/WhatsAppFoto.swift
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
