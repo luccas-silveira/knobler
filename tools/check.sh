@@ -322,6 +322,11 @@ swift_teste tools/whatsappqrcheck.swift $WA_NUCLEO Knobler/WhatsApp/WhatsAppQR.s
 # pareamento, Gerar outro, Tentar de novo e Copiar na view, fontes do snapshot
 # e os nove cenários whatsapp-<estado>
 bash_teste tools/whatsappestadosligacaocheck.sh
+# conversa: linhas (separador de dia, remetente em grupo, podeAgir), cabeçalho
+# (participantes com "você" no fim, Marcar como lida), mídia e o que o clique
+# abre; store.marcarLida só pelo botão; store.grupo guardado 10 min; e a
+# ligação nas views, fontes do snapshot e os cinco cenários whatsapp-conversa/grupo
+swift_teste tools/whatsappconversacheck.swift $WA_NUCLEO Knobler/NotchNotification.swift Knobler/WhatsApp/WhatsAppCartao.swift Knobler/WhatsApp/WhatsAppApresentacao.swift Knobler/WhatsApp/WhatsAppConversaModelo.swift
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
