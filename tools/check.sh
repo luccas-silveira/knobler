@@ -334,6 +334,15 @@ swift_teste tools/whatsappconversacheck.swift $WA_NUCLEO Knobler/NotchNotificati
 # VM; e a ligação nas views, fontes do snapshot e os quatro cenários
 # (VM_FONTES já traz Knobler/NotchNotification.swift: não repetir)
 swift_teste tools/whatsappcompositorcheck.swift $VM_FONTES $WA_NUCLEO Knobler/WhatsApp/WhatsAppCartao.swift Knobler/WhatsApp/WhatsAppApresentacao.swift Knobler/WhatsApp/WhatsAppCompositor.swift
+# card de chegada ligado ao app: montado uma vez fora do laço das telas,
+# evento .whatsapp nas duas, histórico uma linha por mensagem, supressão por
+# tela, respondeu/abrir; responderCartao envia com a citação, marca lida e só
+# então fecha o card (502 não fecha nem marca lida); o X só fecha
+swift_teste tools/whatsappintegracaocheck.swift $VM_FONTES $WA_NUCLEO Knobler/WhatsApp/WhatsAppCartao.swift Knobler/WhatsApp/WhatsAppIntegracao.swift
+# a ligação que o check.sh não compila: aplicarCartaoWhatsApp em presentation
+# e WhatsAppCartaoView na NotchView, integração criada e ligada ao store no
+# AppDelegate, a view do card, fontes do snapshot e os cinco whatsapp-cartao-*
+bash_teste tools/whatsappintegracaoligacaocheck.sh
 # --- fim WhatsApp ---
 # No macOS 27 o NSLog chega ao log unificado só como <private>: log do app é os.Logger
 # (docs/development.md, seção Logs).
