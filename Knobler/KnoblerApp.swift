@@ -178,6 +178,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         shelf: shelf,
         onActivity: { [weak self] in self?.airdropActivity = $0; self?.pushActivity() },
         onCard: { [weak self] in self?.publicar($0) })
+    /// Card de chegada do WhatsApp: montado uma vez e entregue ao `publicar`
+    /// (que desvia para o histórico quando o Mac está silenciando).
+    private lazy var whatsapp = WhatsAppIntegracao(telas: { [weak self] in self?.notches.values.map(\.viewModel) ?? [] },
+                                                   publicar: { [weak self] in self?.publicar($0) })
     /// Espelha `pomodoro.runState != .idle` pra não recalcular a atividade a cada
     /// tique do timer — só quando ele começa ou para.
     private var pomodoroAtivo = false
@@ -648,6 +652,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // O WhatsApp: `WhatsAppStore` é `.shared` e nasce inerte; `ligar()` só
         // dispara a conexão com a ponte (conformidade em `WhatsAppPeca.swift`).
         plugins.whatsappEfeitos = WhatsAppEfeitos(nascer: { WhatsAppPeca.ligar() })
+        // Mensagem recebida vira card em todas as telas; responder pelo card (ou
+        // o X dele) fecha o card em todas.
+        let integracao = whatsapp
+        WhatsAppStore.shared.aoChegarMensagem = { m, c, conta in integracao.chegou(mensagem: m, conversa: c, conta: conta, numero: conta?.conta ?? "") }
+        WhatsAppStore.shared.aoDispensarCartao = { integracao.respondeu(chave: $0) }
         // A décima conversão (tarefa 9), a terceira sem painel: `LinkPreview`
         // é `.shared` (singleton — `Shelf`/`NotchView` seguem lendo direto) e
         // já nasce dormente (nenhum link aberto), então `nascer` só devolve o

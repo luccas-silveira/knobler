@@ -457,6 +457,25 @@ func waConversaCenario(_ vm: NotchViewModel, jid: String, _ mensagens: [WAMensag
     vm.whatsappConversaAberta = k.texto
 }
 
+/// Card de chegada do WhatsApp (aba "Card de chegada" do mockup): o estado
+/// do mockup com a mensagem dentro e o card montado pelo `WACartao`, como a
+/// `WhatsAppIntegracao` monta. A miniatura entra em memória, sem a ponte.
+@MainActor
+func waCartaoCenario(_ vm: NotchViewModel, conta: String, jid: String, _ m: WAMensagem,
+                     contagem: Int = 1, miniatura: Data? = nil) {
+    let store = WhatsAppStore.shared
+    let k = WAChave(conta: conta, jid: jid)
+    var e = waEstadoDoMockup()
+    e.inserirMensagens([m], em: k, antes: nil, maisVelhas: false)
+    store._usarMidia(raiz: waPastaDeMidia)
+    if let miniatura { store.midia._injetarMiniatura(miniatura, chave: k, mensagem: m) }
+    store._injetar(estado: e, conexao: .pronta, canalAberto: true)
+    let conversa = e.conversas(da: conta).first { $0.jid == jid }!
+    vm.activeNotification = WACartao.montar(mensagem: m, conversa: conversa,
+                                            conta: e.contas.first { $0.conta == conta }, numero: conta,
+                                            contagem: contagem, agora: Date(timeIntervalSince1970: TimeInterval(m.ts)))
+}
+
 let scenarios: [Scenario] = [
     Scenario(name: "monitores-interna", realNotch: true, frameHeight: 360) { vm, _, _ in configurarMonitores(vm, estado: "interna") },
     Scenario(name: "monitores-ddc", realNotch: true, frameHeight: 360) { vm, _, _ in configurarMonitores(vm, estado: "ddc") },
@@ -747,6 +766,40 @@ let scenarios: [Scenario] = [
         vm.dictation = .recording(level: 0.6)
     },
     // r3-interacao-abrir-rascunho.png: o rascunho do Carlos volta no campo
+    // aba "Card de chegada": quadro "Individual, texto"
+    Scenario(name: "whatsapp-cartao-texto", realNotch: true, frameHeight: 300, frameWidth: 440) { vm, _, _ in
+        waCartaoCenario(vm, conta: waBiz, jid: waMarina,
+                        waMsg("k1", waMarina, de: waMarina, 14, 32, texto: "Fechado! Mando o briefing até sexta."))
+    },
+    // quadro "Grupo": o grupo é o título, quem mandou vem na prévia
+    Scenario(name: "whatsapp-cartao-grupo", realNotch: true, frameHeight: 300, frameWidth: 440) { vm, _, _ in
+        waCartaoCenario(vm, conta: waBiz, jid: waOperacional,
+                        waMsg("k2", waOperacional, de: waDiego, nome: "Diego Martins", 14, 41,
+                              texto: "Subi o corte de 15 s no drive."))
+    },
+    // quadro "Prévia com foto": miniatura acima do campo
+    Scenario(name: "whatsapp-cartao-foto", realNotch: true, frameHeight: 300, frameWidth: 440) { vm, _, _ in
+        let mae = "554799990014@s.whatsapp.net"
+        waCartaoCenario(vm, conta: waPes, jid: mae,
+                        waMsg("k3", mae, de: mae, 9, 12, tipo: .imagem, texto: "As orquídeas floresceram!",
+                              midia: waMidia("image/jpeg")),
+                        miniatura: waPNG(NSColor(red: 0.36, green: 0.55, blue: 0.33, alpha: 1)))
+    },
+    // quadro "Agrupado": três mensagens seguidas viram um card só
+    Scenario(name: "whatsapp-cartao-agrupado", realNotch: true, frameHeight: 300, frameWidth: 440) { vm, _, _ in
+        let rafa = "554799990013@s.whatsapp.net"
+        waCartaoCenario(vm, conta: waPes, jid: rafa,
+                        waMsg("k4", rafa, de: rafa, 12, 20, texto: "Bora pedalar sábado cedo?"), contagem: 3)
+    },
+    // quadro "Campo em uso: a fila espera": rascunho no campo, com foco
+    Scenario(name: "whatsapp-cartao-respondendo", realNotch: true, frameHeight: 300, frameWidth: 440) { vm, _, _ in
+        waCartaoCenario(vm, conta: waBiz, jid: waMarina,
+                        waMsg("k5", waMarina, de: waMarina, 14, 32, texto: "Fechado! Mando o briefing até sexta."))
+        let k = WAChave(conta: waBiz, jid: waMarina)
+        WhatsAppStore.shared.definirRascunho("Perfeito, obrigado!", para: k)
+        WhatsAppStore.shared.campoEmUso = k
+        vm.whatsappEditando = true
+    },
     Scenario(name: "whatsapp-rascunho", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
         // o estado do mockup já traz "Carlos, ajustei o orçamento de dezembro e…"
         waConversaCenario(vm, jid: waCarlos, [

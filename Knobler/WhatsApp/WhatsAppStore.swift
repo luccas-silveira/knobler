@@ -428,13 +428,15 @@ final class WhatsAppStore: ObservableObject {
     // MARK: - Envio
 
     /// O campo e a faixa de citação de `k` esvaziam já com o envio em voo.
-    func enviarTexto(_ texto: String, para k: WAChave, citando: WACitacao?) async {
+    /// `false` = a bolha terminou "não enviada" (ou o store foi zerado no meio).
+    @discardableResult
+    func enviarTexto(_ texto: String, para k: WAChave, citando: WACitacao?) async -> Bool {
         let ref = novoRef()
         definirRascunho("", para: k)
         citacoes[k] = nil
         estado.comecarEnvio(chave: k, texto: texto, citacao: citando, ref: ref,
                             agora: Int(Date().timeIntervalSince1970), remetente: k.conta)
-        await enviar(texto, para: k, citar: citando?.id, ref: ref)
+        return await enviar(texto, para: k, citar: citando?.id, ref: ref)
     }
 
     /// Reenvia a bolha que falhou com `ref` novo, no mesmo lugar.
@@ -445,23 +447,46 @@ final class WhatsAppStore: ObservableObject {
               b.mensagem.tipo == .texto else { return }
         let ref = novoRef()
         estado.retentar(idLocal: idLocal, novoRef: ref, chave: k)
-        await enviar(b.mensagem.texto, para: k, citar: b.mensagem.citacao?.id, ref: ref)
+        _ = await enviar(b.mensagem.texto, para: k, citar: b.mensagem.citacao?.id, ref: ref)
     }
 
     /// Responder é ler: a conversa só vira lida depois de o envio dar certo.
-    private func enviar(_ texto: String, para k: WAChave, citar: String?, ref: String) async {
+    private func enviar(_ texto: String, para k: WAChave, citar: String?, ref: String) async -> Bool {
         let ep = epoca
         do {
             let r = try await cliente.enviarTexto(conta: k.conta, para: k.jid, texto: texto, citar: citar, ref: ref)
-            guard ep == epoca else { return }
+            guard ep == epoca else { return false }
             estado.confirmarEnvio(ref: ref, mensagem: r.mensagem, chave: k)
         } catch {
-            guard ep == epoca else { return }
+            guard ep == epoca else { return false }
             log.error("WhatsApp: envio falhou — \(String(describing: error), privacy: .public)")
             estado.falharEnvio(ref: ref, chave: k)
-            return
+            return false
         }
         await marcarLida(k)
+        return true
+    }
+
+    // MARK: - Card de chegada
+
+    /// Fecha o card de chegada da conversa (`WAChave.texto`) em todas as
+    /// telas. É o X do card: a view só conhece a própria tela, quem liga o
+    /// callback (`AppDelegate`) conhece todas.
+    var aoDispensarCartao: ((String) -> Void)?
+
+    func dispensarCartao(chave: String) {
+        aoDispensarCartao?(chave)
+    }
+
+    /// Resposta pelo campo do card: envia com a citação guardada, marca lida
+    /// (o `enviar` já faz no sucesso) e só então fecha o card. Envio recusado
+    /// deixa o card e devolve o texto ao campo para tentar de novo.
+    func responderCartao(chave k: WAChave, texto: String) async {
+        if await enviarTexto(texto, para: k, citando: citacao(k)) {
+            dispensarCartao(chave: k.texto)
+        } else if rascunho(k).isEmpty {
+            definirRascunho(texto, para: k)
+        }
     }
 
     func reagir(_ emoji: String, a alvo: String, em k: WAChave) async {

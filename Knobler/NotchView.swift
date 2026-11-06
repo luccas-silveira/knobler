@@ -75,6 +75,7 @@ struct NotchView: View {
         layout.sectionWidth = NotchMetrics.larguraDoCard(vm.focus, padrao: 430, linkAberto: linkAberto)
         layout.notificationActions = vm.activeNotification?.actionTitles.isEmpty == false
         layout.notificationExtra = Self.alturaExtra(vm.activeNotification, aberto: vm.notificationHeld)
+        vm.aplicarCartaoWhatsApp(em: &layout)
         layout.mediaHeight = vm.incoming?.mediaHeight ?? 0
         layout.questionSize = questionSize
         layout.contentID = "\(askStore.state.active?.id ?? "")/\(askStore.state.page)/\(agentRequestStore.state.active?.id ?? "")"
@@ -177,12 +178,22 @@ struct NotchView: View {
                 pomodoroPill
                     .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace))
             case .notification:
-                notificationCard
-                    .frame(width: currentSize.width - 48,
-                           height: currentSize.height - topInset, alignment: .top)
-                    .padding(.top, topInset)
-                    // notificação desce do notch, como no iPhone
-                    .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace).combined(with: .move(edge: .top)))
+                if let n = vm.activeNotification, n.whatsapp != nil {
+                    // card de chegada do WhatsApp: medida própria, no molde do card LAN
+                    WhatsAppCartaoView(vm: vm, notificacao: n)
+                        .id(n.whatsapp?.chave)
+                        .frame(width: currentSize.width - 40)
+                        .padding(.top, topInset)
+                        .padding(.bottom, 12)
+                        .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace).combined(with: .move(edge: .top)))
+                } else {
+                    notificationCard
+                        .frame(width: currentSize.width - 48,
+                               height: currentSize.height - topInset, alignment: .top)
+                        .padding(.top, topInset)
+                        // notificação desce do notch, como no iPhone
+                        .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace).combined(with: .move(edge: .top)))
+                }
             case .message:
                 if let incoming = vm.incoming {
                     IncomingMessageView(vm: vm, incoming: incoming)

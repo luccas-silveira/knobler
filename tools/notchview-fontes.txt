@@ -160,6 +160,8 @@ Knobler/WhatsApp/WhatsAppPlayer.swift
 Knobler/WhatsApp/WhatsAppSonda.swift
 Knobler/WhatsApp/WhatsAppFoto.swift
 Knobler/WhatsApp/WhatsAppCartao.swift
+Knobler/WhatsApp/WhatsAppIntegracao.swift
+Knobler/WhatsApp/WhatsAppCartaoView.swift
 Knobler/WhatsApp/WhatsAppApresentacao.swift
 Knobler/WhatsApp/WhatsAppTela.swift
 Knobler/WhatsApp/WhatsAppListaView.swift
