@@ -1,0 +1,52 @@
+{
+ "ferramenta": "medição de pixel no render nativo (tools/snapshot.sh)",
+ "detector_impeccable": "não se aplica: a tela é SwiftUI nativa, sem DOM; a conferência é por medida contra o relatorio.md do mockup",
+ "escala_do_arquivo": "2x",
+ "medidas": [
+  {
+   "arquivo": "whatsapp-citando-reacoes.png",
+   "pixels": [
+    1720,
+    960
+   ],
+   "escala": 2,
+   "largura_corpo_pt": 752.0,
+   "largura_com_abas_pt": 770.0,
+   "altura_pt": 452.0
+  },
+  {
+   "arquivo": "whatsapp-gravando.png",
+   "pixels": [
+    1720,
+    960
+   ],
+   "escala": 2,
+   "largura_corpo_pt": 752.0,
+   "largura_com_abas_pt": 770.0,
+   "altura_pt": 452.0
+  },
+  {
+   "arquivo": "whatsapp-ditando.png",
+   "pixels": [
+    1720,
+    960
+   ],
+   "escala": 2,
+   "largura_corpo_pt": 752.0,
+   "largura_com_abas_pt": 770.0,
+   "altura_pt": 452.0
+  },
+  {
+   "arquivo": "whatsapp-rascunho.png",
+   "pixels": [
+    1720,
+    960
+   ],
+   "escala": 2,
+   "largura_corpo_pt": 752.0,
+   "largura_com_abas_pt": 770.0,
+   "altura_pt": 452.0
+  }
+ ],
+ "alarmes": []
+}
