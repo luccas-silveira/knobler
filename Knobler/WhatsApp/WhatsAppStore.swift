@@ -43,6 +43,11 @@ final class WhatsAppStore: ObservableObject {
         .appendingPathComponent("com.zoi.knobler/envio", isDirectory: true)
     @Published private(set) var gravacao: WAGravacaoEmCurso?
     @Published private(set) var erroDeGravacao: String?
+    /// Por que o último anexo não saiu (acima do limite, cópia que falhou).
+    @Published private(set) var erroDeAnexo: String?
+
+    /// Cache da mídia recebida, com o mesmo cliente da ponte.
+    let midia: WAMidiaCache
 
     /// Mensagem recebida (não minha), uma vez por mensagem.
     var aoChegarMensagem: ((WAMensagem, WAConversa, WAConta?) -> Void)?
@@ -70,7 +75,9 @@ final class WhatsAppStore: ObservableObject {
     private var sessaoDeGravacao: UInt64 = 0
 
     init(cliente: WACliente? = nil, fabricaDeCanal: ((WACliente) -> WACanalProtocolo)? = nil) {
-        self.cliente = cliente ?? WACliente()
+        let cliente = cliente ?? WACliente()
+        self.cliente = cliente
+        self.midia = WAMidiaCache(cliente: cliente)
         self.fabricaDeCanal = fabricaDeCanal ?? { cliente in
             WACanal(porta: WAConfig.porta(), chave: { cliente.chave(relendo: $0) })
         }
@@ -144,6 +151,9 @@ final class WhatsAppStore: ObservableObject {
         switch e {
         case let .numerado(_, conta, _, dados):
             let efeito = estado.aplicar(dados, conta: conta)
+            if case let .midia(conversa, alvo, ok) = dados {
+                midia.recuperou(chave: WAChave(conta: conta, jid: conversa), alvo: alvo, ok: ok)
+            }
             if case .sincronizacao = dados {
                 Task { await recarregarConversas(conta: conta) }
             }
@@ -327,7 +337,7 @@ final class WhatsAppStore: ObservableObject {
     func retentar(idLocal: String, em k: WAChave) async {
         guard let b = estado.bolhas(de: k).first(where: { $0.id == idLocal }),
               case .falhou? = b.envio,
-              // ponytail: nota de voz que falhou não reenvia (o Ogg já foi apagado)
+              // ponytail: nota de voz e anexo que falharam não reenviam (a cópia já foi apagada)
               b.mensagem.tipo == .texto else { return }
         let ref = novoRef()
         estado.retentar(idLocal: idLocal, novoRef: ref, chave: k)
@@ -356,6 +366,59 @@ final class WhatsAppStore: ObservableObject {
         } catch {
             log.error("WhatsApp: reação falhou — \(String(describing: error), privacy: .public)")
         }
+    }
+
+    // MARK: - Anexo
+
+    /// Foto, vídeo ou documento. Acima de 100 MiB não sai. A cópia em
+    /// `pastaDeEnvio` vive só até a resposta: a ponte lê tudo antes de
+    /// responder (docs/whatsapp-ponte.md:600-602).
+    func enviarAnexo(_ url: URL, para k: WAChave, legenda: String?) async {
+        erroDeAnexo = nil
+        let tamanho = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        guard tamanho <= WAAnexo.limite else {
+            erroDeAnexo = "Arquivo maior que 100 MB"
+            return
+        }
+        let ep = epoca
+        let pasta = pastaDeEnvio
+        let copia: URL
+        do {
+            copia = try await Task.detached(priority: .userInitiated) {
+                try WAAnexo.prepararEnvio(url, pasta: pasta)
+            }.value
+        } catch {
+            log.error("WhatsApp: anexo não copiado — \(String(describing: error), privacy: .public)")
+            erroDeAnexo = "Não deu pra ler o arquivo"
+            return
+        }
+        defer { try? FileManager.default.removeItem(at: copia) }
+        guard ep == epoca else { return }
+
+        let tipo = WAAnexo.tipo(paraArquivo: url)
+        let tipoDaBolha: WATipoMensagem
+        switch tipo {
+        case "imagem": tipoDaBolha = .imagem
+        case "video": tipoDaBolha = .video
+        default: tipoDaBolha = .documento
+        }
+        let texto = legenda ?? ""
+        let ref = novoRef()
+        estado.comecarEnvio(chave: k, texto: texto, tipo: tipoDaBolha, citacao: nil, ref: ref,
+                            agora: Int(Date().timeIntervalSince1970), remetente: k.conta)
+        do {
+            let r = try await cliente.enviarMidia(conta: k.conta, para: k.jid, tipo: tipo, arquivo: copia,
+                                                  nome: url.lastPathComponent,
+                                                  legenda: texto.isEmpty ? nil : texto, citar: nil, ref: ref)
+            guard ep == epoca else { return }
+            estado.confirmarEnvio(ref: ref, mensagem: r.mensagem, chave: k)
+        } catch {
+            guard ep == epoca else { return }
+            log.error("WhatsApp: envio de anexo falhou — \(String(describing: error), privacy: .public)")
+            estado.falharEnvio(ref: ref, chave: k)
+            return
+        }
+        await marcarLida(k)
     }
 
     // MARK: - Nota de voz

@@ -155,4 +155,6 @@ Knobler/WhatsApp/WhatsAppStore.swift
 Knobler/WhatsApp/WhatsAppGravacao.swift
 Knobler/WhatsApp/CodificadorOpus.swift
 Knobler/WhatsApp/OggOpus.swift
+Knobler/WhatsApp/WhatsAppMidia.swift
+Knobler/WhatsApp/WhatsAppPlayer.swift
 Knobler/WhatsApp/WhatsAppSonda.swift
