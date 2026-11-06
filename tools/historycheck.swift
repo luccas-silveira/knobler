@@ -22,7 +22,6 @@ struct HistoryCheck {
         testPersistencia()
         testSubtitleNoDisco()
         testApagar()
-        testGesto()
         testZonaDoGesto()
         testInicioDeGesto()
         print("✅ historycheck ok")
@@ -215,31 +214,6 @@ struct HistoryCheck {
         semDisco.record(NotchNotification(appName: nil, title: "memória", body: ""))
         semDisco.flush()
         assert(semDisco.items.count == 1, "sem arquivo o histórico funciona igual")
-    }
-
-    /// Puxão pra baixo numa passada só: 24 pt abre o card e é só isso — o
-    /// histórico virou uma seção da faixa, então não há mais degrau de 120 pt.
-    /// Como o alvo é função pura do acumulado, recuar os dedos dentro do mesmo
-    /// gesto desfaz sem precisar de máquina de estados.
-    static func testGesto() {
-        assert(NotchGesture.verticalTarget(accumY: 10, accumX: 0) == nil, "ruído não age")
-        assert(NotchGesture.verticalTarget(accumY: -10, accumX: 0) == nil, "ruído não age")
-        assert(NotchGesture.verticalTarget(accumY: 30, accumX: 0) == .expanded, "30 pt abre o card")
-        assert(NotchGesture.verticalTarget(accumY: 25, accumX: 0) == .expanded, "25 pt já abre")
-        // a cortina do histórico foi aposentada: o histórico virou uma seção
-        // como as outras, e um segundo caminho pra ele seria redundante
-        assert(NotchGesture.verticalTarget(accumY: 130, accumX: 0) == .expanded,
-               "puxão longo não é mais cortina")
-        // puxão gigante também: não há mais degrau nenhum acima do card
-        assert(NotchGesture.verticalTarget(accumY: 900, accumX: 0) == .expanded,
-               "puxão gigante continua sendo só o card")
-        assert(NotchGesture.verticalTarget(accumY: -30, accumX: 0) == .closed, "pra cima fecha")
-        // limiares exatos: o limite é aberto (>), não fechado (>=)
-        assert(NotchGesture.verticalTarget(accumY: 24, accumX: 0) == nil, "24 pt ainda é ruído")
-        assert(NotchGesture.verticalTarget(accumY: 120, accumX: 0) == .expanded, "120 pt ainda é card")
-        // guarda de diagonal: swipe quase horizontal não mexe no card
-        assert(NotchGesture.verticalTarget(accumY: 30, accumX: 60) == nil, "diagonal não abre")
-        assert(NotchGesture.verticalTarget(accumY: -30, accumX: 60) == nil, "diagonal não fecha")
     }
 
     /// A zona vertical do gesto. É o que decide se o scroll sobre aquele ponto

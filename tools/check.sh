@@ -127,6 +127,9 @@ swift_check shelfdropcheck        $CONVERSAO Knobler/ShelfDrop.swift \
 swift_check shelfordemcheck       Knobler/ShelfOrdem.swift tools/shelfordemcheck.swift
 swift_check screenshotcheck       Knobler/ScreenshotWatcher.swift Knobler/Permissions.swift tools/screenshotcheck.swift
 swift_check historycheck          Knobler/NotchNotification.swift Knobler/NotificationHistory.swift Knobler/NotchGesture.swift tools/historycheck.swift
+# rolagem no notch: o vertical nunca abre nem fecha o card e vai pro conteúdo;
+# o horizontal anda seção/troca faixa e segue engolido na zona
+swift_teste tools/rolagemcheck.swift Knobler/NotchGesture.swift
 swift_check sectionordercheck    Knobler/NotchSectionOrder.swift tools/sectionordercheck.swift
 swift_check tecladocheck         Knobler/TecladoBloqueado.swift tools/tecladocheck.swift
 # a decisão pura da instância única; o caminho AppKit de verdade é o
