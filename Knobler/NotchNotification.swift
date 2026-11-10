@@ -192,6 +192,9 @@ struct CartaoWhatsApp: Equatable {
     let contagem: Int
     let temMiniatura: Bool
     let mensagemID: String
+    /// Vídeo: o card fica na miniatura, com play e a duração por cima.
+    var ehVideo = false
+    var segundosDoVideo: Int? = nil
 }
 
 extension Array where Element == NotchNotification {

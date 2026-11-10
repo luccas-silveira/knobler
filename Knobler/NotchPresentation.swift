@@ -146,6 +146,9 @@ struct NotchPresentation: Equatable {
         /// Decidido por `NotchViewModel.aplicarCartaoWhatsApp(em:)`.
         var notificationWhatsApp = false
         var notificationMiniatura = false
+        /// Altura do quadro de mídia medida pela view do card (proporção da
+        /// imagem na largura do card); 0 = ainda não medida. Clampada aqui.
+        var notificationMidiaAltura: CGFloat = 0
         var mediaHeight: CGFloat = 0
         var questionSize = CGSize(width: 460, height: 120)
         var contentID = ""
@@ -172,7 +175,10 @@ struct NotchPresentation: Equatable {
         case .notification where layout.notificationWhatsApp:
             target = CGSize(width: NotchMetrics.whatsappCartaoLargura,
                             height: topInset + NotchMetrics.whatsappCartaoAltura
-                            + (layout.notificationMiniatura ? NotchMetrics.whatsappCartaoMiniatura : 0))
+                            + (layout.notificationMiniatura
+                               ? min(max(layout.notificationMidiaAltura, NotchMetrics.whatsappCartaoQuadroMinimo),
+                                     NotchMetrics.whatsappCartaoQuadroMaximo) + 6
+                               : 0))
         case .notification:
             target = CGSize(width: 380, height: topInset + (layout.notificationActions ? 92 : 56)
                             + min(max(layout.notificationExtra, 0), Self.notificationExtraMax))
@@ -238,6 +244,10 @@ enum NotchMetrics {
     static let whatsappCartaoAltura: CGFloat = 96
     /// Miniatura de 120 + 6 de espaço (`.cm-thumb{height:120px}` do mockup).
     static let whatsappCartaoMiniatura: CGFloat = 126
+    /// Quadro de mídia do card: a altura segue a proporção da imagem entre
+    /// estes dois limites (mockup 2026-11-10-whatsapp-cartao-nitido).
+    static let whatsappCartaoQuadroMinimo: CGFloat = 120
+    static let whatsappCartaoQuadroMaximo: CGFloat = 200
 
     /// Largura do card por seção em foco: o link foge do padrão só quando tem
     /// página (a barra de endereço sozinha não pede 780 pt); o WhatsApp sempre,

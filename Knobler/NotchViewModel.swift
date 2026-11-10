@@ -178,6 +178,9 @@ final class NotchViewModel: ObservableObject {
     /// conversa, Esc e fechar o notch a fecham.
     @Published var whatsappReacoesEm: String?
     func fecharReacoesWhatsApp() { whatsappReacoesEm = nil }
+    /// Altura do quadro de mídia do card de chegada, por mensagem. Ver
+    /// `medirMidiaWhatsApp(mensagemID:altura:)`.
+    @Published private var whatsappMidiaMedida: (mensagemID: String, altura: CGFloat)?
     /// Campo de resposta com o teclado, na seção ou no card de chegada.
     @Published var whatsappEditando = false
     /// O campo só conta onde ele está na tela: a seção aberta em foco ou o card
@@ -203,8 +206,22 @@ final class NotchViewModel: ObservableObject {
 
     /// Medida do card de chegada: a NotchView só chama isto, não decide nada.
     func aplicarCartaoWhatsApp(em layout: inout NotchPresentation.Layout) {
-        layout.notificationWhatsApp = activeNotification?.whatsapp != nil
-        layout.notificationMiniatura = activeNotification?.whatsapp?.temMiniatura == true
+        let cartao = activeNotification?.whatsapp
+        layout.notificationWhatsApp = cartao != nil
+        layout.notificationMiniatura = cartao?.temMiniatura == true
+        if let cartao, let m = whatsappMidiaMedida, m.mensagemID == cartao.mensagemID {
+            layout.notificationMidiaAltura = m.altura
+        } else {
+            layout.notificationMidiaAltura = 0
+        }
+    }
+
+    /// Altura do quadro de mídia que a view do card mediu. Vale só para a
+    /// mensagem medida: card novo (mesmo da mesma conversa) volta ao mínimo
+    /// até medir a sua.
+    func medirMidiaWhatsApp(mensagemID: String, altura: CGFloat) {
+        guard whatsappMidiaMedida?.mensagemID != mensagemID || whatsappMidiaMedida?.altura != altura else { return }
+        whatsappMidiaMedida = (mensagemID, altura)
     }
 
     /// Abre a conversa na seção do WhatsApp desta tela, no molde de `openThread`.

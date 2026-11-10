@@ -84,6 +84,7 @@ enum WACartao {
         default: temMiniatura = false
         }
 
+        let ehVideo = mensagem.tipo == .video
         let cartao = CartaoWhatsApp(
             chave: WAChave(conta: numero, jid: conversa.jid).texto,
             conta: numero,
@@ -92,7 +93,9 @@ enum WACartao {
             grupo: ehGrupo ? conversa.nome : nil,
             contagem: contagem,
             temMiniatura: temMiniatura,
-            mensagemID: mensagem.id
+            mensagemID: mensagem.id,
+            ehVideo: ehVideo,
+            segundosDoVideo: ehVideo ? mensagem.midia?.segundos : nil
         )
         return NotchNotification(
             appName: "WhatsApp",

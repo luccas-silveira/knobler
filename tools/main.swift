@@ -434,6 +434,72 @@ func waCena() -> Data {
     return NSBitmapImageRep(data: img.tiffRepresentation!)!.representation(using: .png, properties: [:])!
 }
 
+/// Foto em pé do mockup do card nítido (`#orq`, 9:16): orquídeas brancas
+/// num vaso. `escala` 1 dá 90 × 160 px; a miniatura do WhatsApp é ~54 × 96.
+func waOrquideas(escala: CGFloat) -> Data {
+    let (w, h) = (90 * escala, 160 * escala)
+    let img = NSImage(size: NSSize(width: w, height: h), flipped: true) { _ in
+        let t = NSAffineTransform()
+        t.scale(by: escala)
+        t.concat()
+        NSColor(red: 0.37, green: 0.49, blue: 0.33, alpha: 1).setFill()
+        NSRect(x: 0, y: 0, width: 90, height: 160).fill()
+        NSColor(red: 0.29, green: 0.23, blue: 0.18, alpha: 1).setFill()
+        NSRect(x: 0, y: 110, width: 90, height: 50).fill()
+        NSColor(red: 0.18, green: 0.29, blue: 0.16, alpha: 1).setFill()
+        NSRect(x: 43.5, y: 60, width: 3, height: 100).fill()
+        let flores: [(CGFloat, CGFloat, CGFloat)] = [(45, 52, 10), (20, 66, 9), (70, 58, 9), (34, 34, 8)]
+        for (x, y, r) in flores {
+            NSColor(red: 0.95, green: 0.91, blue: 0.96, alpha: 1).setFill()
+            NSBezierPath(ovalIn: NSRect(x: x - r, y: y - r, width: 2 * r, height: 2 * r)).fill()
+            NSColor(red: 0.78, green: 0.44, blue: 0.70, alpha: 1).setFill()
+            NSBezierPath(ovalIn: NSRect(x: x - 3, y: y - 1, width: 6, height: 6)).fill()
+        }
+        NSColor(red: 0.85, green: 0.82, blue: 0.77, alpha: 1).setFill()
+        NSBezierPath(roundedRect: NSRect(x: 25, y: 118, width: 40, height: 34), xRadius: 4, yRadius: 4).fill()
+        return true
+    }
+    return NSBitmapImageRep(data: img.tiffRepresentation!)!.representation(using: .png, properties: [:])!
+}
+
+/// Foto deitada do mockup do card nítido (`#praia`, 16:9): céu, mar, areia,
+/// sol e um coqueiro. `escala` 1 dá 320 × 180 px.
+func waPraia(escala: CGFloat) -> Data {
+    let (w, h) = (320 * escala, 180 * escala)
+    let img = NSImage(size: NSSize(width: w, height: h), flipped: true) { _ in
+        let t = NSAffineTransform()
+        t.scale(by: escala)
+        t.concat()
+        for (cor, y, alt) in [(NSColor(red: 0.50, green: 0.71, blue: 0.85, alpha: 1), 0.0, 180.0),
+                              (NSColor(red: 0.18, green: 0.50, blue: 0.68, alpha: 1), 95.0, 45.0),
+                              (NSColor(red: 0.91, green: 0.83, blue: 0.65, alpha: 1), 132.0, 48.0)] {
+            cor.setFill()
+            NSRect(x: 0, y: y, width: 320, height: alt).fill()
+        }
+        NSColor(red: 1, green: 0.95, blue: 0.77, alpha: 1).setFill()
+        NSBezierPath(ovalIn: NSRect(x: 238, y: 24, width: 38, height: 38)).fill()
+        let tronco = NSBezierPath()
+        tronco.move(to: NSPoint(x: 64, y: 134))
+        tronco.curve(to: NSPoint(x: 60, y: 60), controlPoint1: NSPoint(x: 72, y: 100), controlPoint2: NSPoint(x: 68, y: 80))
+        tronco.lineWidth = 5
+        NSColor(red: 0.36, green: 0.24, blue: 0.14, alpha: 1).setStroke()
+        tronco.stroke()
+        let folhas = NSBezierPath()
+        for (dx, dy) in [(-42.0, 8.0), (42.0, 4.0), (-30.0, -26.0), (34.0, -24.0)] {
+            folhas.move(to: NSPoint(x: 60, y: 60))
+            folhas.curve(to: NSPoint(x: 60 + dx, y: 60 + dy),
+                         controlPoint1: NSPoint(x: 60 + dx / 2, y: 60 + dy / 2 - 14),
+                         controlPoint2: NSPoint(x: 60 + dx, y: 60 + dy - 6))
+        }
+        folhas.lineWidth = 5
+        folhas.lineCapStyle = .round
+        NSColor(red: 0.18, green: 0.42, blue: 0.20, alpha: 1).setStroke()
+        folhas.stroke()
+        return true
+    }
+    return NSBitmapImageRep(data: img.tiffRepresentation!)!.representation(using: .png, properties: [:])!
+}
+
 /// Um quadro de vídeo H.264 com a `waCena`: o player do visualizador
 /// só aparece com um arquivo que o AVFoundation abre.
 func waVideo() -> Data {
@@ -538,13 +604,20 @@ func waConversaCenario(_ vm: NotchViewModel, jid: String, _ mensagens: [WAMensag
 /// `WhatsAppIntegracao` monta. A miniatura entra em memória, sem a ponte.
 @MainActor
 func waCartaoCenario(_ vm: NotchViewModel, conta: String, jid: String, _ m: WAMensagem,
-                     contagem: Int = 1, miniatura: Data? = nil) {
+                     contagem: Int = 1, miniatura: Data? = nil, arquivo: Data? = nil) {
     let store = WhatsAppStore.shared
     let k = WAChave(conta: conta, jid: jid)
     var e = waEstadoDoMockup()
     e.inserirMensagens([m], em: k, antes: nil, maisVelhas: false)
     store._usarMidia(raiz: waPastaDeMidia)
     if let miniatura { store.midia._injetarMiniatura(miniatura, chave: k, mensagem: m) }
+    // a foto inteira já no cache: `store.midia.arquivo` acha no disco, sem a ponte
+    if let arquivo {
+        let url = store.midia.caminho(chave: k, mensagem: m)
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                 withIntermediateDirectories: true)
+        try? arquivo.write(to: url)
+    }
     store._injetar(estado: e, conexao: .pronta, canalAberto: true)
     let conversa = e.conversas(da: conta).first { $0.jid == jid }!
     vm.activeNotification = WACartao.montar(mensagem: m, conversa: conversa,
@@ -860,6 +933,29 @@ let scenarios: [Scenario] = [
                         waMsg("k3", mae, de: mae, 9, 12, tipo: .imagem, texto: "As orquídeas floresceram!",
                               midia: waMidia("image/jpeg")),
                         miniatura: waPNG(NSColor(red: 0.36, green: 0.55, blue: 0.33, alpha: 1)))
+    },
+    // mockup do card nítido, "Depois: foto em pé": a foto inteira (9:16) no
+    // quadro de 200 pt, centralizada sobre a cópia desfocada
+    Scenario(name: "whatsapp-cartao-foto-empe", realNotch: true, frameHeight: 380, frameWidth: 440) { vm, _, _ in
+        let mae = "554799990014@s.whatsapp.net"
+        waCartaoCenario(vm, conta: waPes, jid: mae,
+                        waMsg("k6", mae, de: mae, 9, 12, tipo: .imagem, texto: "As orquídeas floresceram!",
+                              midia: waMidia("image/jpeg")),
+                        miniatura: waOrquideas(escala: 0.6), arquivo: waOrquideas(escala: 8))
+    },
+    // "Depois: foto deitada": largura toda, altura pela proporção (16:9 → 180)
+    Scenario(name: "whatsapp-cartao-foto-deitada", realNotch: true, frameHeight: 380, frameWidth: 440) { vm, _, _ in
+        waCartaoCenario(vm, conta: waBiz, jid: waMarina,
+                        waMsg("k7", waMarina, de: waMarina, 10, 5, tipo: .imagem, texto: "Chegamos! Olha essa vista",
+                              midia: waMidia("image/jpeg")),
+                        miniatura: waPraia(escala: 0.3), arquivo: waPraia(escala: 4))
+    },
+    // "Depois: vídeo": não baixa; miniatura com play e a duração "0:42"
+    Scenario(name: "whatsapp-cartao-video", realNotch: true, frameHeight: 380, frameWidth: 440) { vm, _, _ in
+        waCartaoCenario(vm, conta: waBiz, jid: waOperacional,
+                        waMsg("k8", waOperacional, de: waDiego, nome: "Diego Martins", 14, 41, tipo: .video,
+                              midia: waMidia("video/mp4", segundos: 42)),
+                        miniatura: waPraia(escala: 0.3))
     },
     // quadro "Agrupado": três mensagens seguidas viram um card só
     Scenario(name: "whatsapp-cartao-agrupado", realNotch: true, frameHeight: 300, frameWidth: 440) { vm, _, _ in

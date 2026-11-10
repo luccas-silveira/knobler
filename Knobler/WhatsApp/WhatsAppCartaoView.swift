@@ -4,9 +4,14 @@ import SwiftUI
 // Card de chegada do WhatsApp (mockup, aba "Card de chegada": `.cm`,
 // `.cm-acct`, `.cm-head`, `.cm-thumb`, `.cmp`), no molde do card de
 // Mensagens (IncomingMessageView): linha da conta, cabeçalho que abre a
-// conversa nesta tela, X que fecha o card em todas as telas, miniatura da foto
+// conversa nesta tela, X que fecha o card em todas as telas, quadro da mídia
 // e o campo "Responder…" ligado ao rascunho da conversa. Responder pelo card
 // marca a conversa como lida (o store faz depois do envio).
+//
+// Quadro da mídia (mockup 2026-11-10-whatsapp-cartao-nitido): a miniatura
+// entra na hora e a foto inteira a substitui quando chega; vídeo fica na
+// miniatura, com play e duração. A imagem aparece inteira, num quadro de
+// 120…200 pt que segue a proporção dela, sobre uma cópia desfocada e escura.
 
 struct WhatsAppCartaoView: View {
     @ObservedObject var vm: NotchViewModel
@@ -15,6 +20,13 @@ struct WhatsAppCartaoView: View {
     @StateObject private var foto = WAFotoLoader()
     @FocusState private var campoFocado: Bool
     @State private var miniatura: NSImage?
+    @State private var fotoInteira: NSImage?
+
+    /// Largura útil do card (360 − 2 × 20): a mesma do `.frame` na NotchView.
+    private static let larguraUtil = NotchMetrics.whatsappCartaoLargura - 40
+    /// Lado maior da foto inteira decodificada: o quadro tem no máximo
+    /// 320 × 200 pt, então 800 px dá folga para tela Retina sem guardar a foto cheia.
+    private static let ladoMaximoDaFoto = 800
 
     private var cartao: CartaoWhatsApp? { notificacao.whatsapp }
 
@@ -34,11 +46,27 @@ struct WhatsAppCartaoView: View {
                 WABotaoDoCartao(icone: "xmark", ajuda: "Fechar") { store.dispensarCartao(chave: c.chave) }
             }
             if c.temMiniatura {
-                miniaturaView
+                quadro(c)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 120)
+                    .frame(height: alturaDoQuadro)
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    .task(id: c.mensagemID) { await carregarMiniatura(c, chave: k) }
+                    // a mensagem entra na comparação: card novo da mesma conversa
+                    // com a mesma altura também precisa avisar o VM
+                    .onChange(of: MedidaDoQuadro(mensagemID: c.mensagemID, altura: alturaDoQuadro),
+                              initial: true) { _, m in
+                        vm.medirMidiaWhatsApp(mensagemID: m.mensagemID, altura: m.altura)
+                    }
+                    .task(id: c.mensagemID) {
+                        // o card é o mesmo para a conversa (`.id(chave)`): a
+                        // imagem da mensagem anterior não fica no quadro
+                        if fotoInteira != nil || miniatura != nil {
+                            fotoInteira = nil
+                            miniatura = nil
+                        }
+                        async let mini: Void = carregarMiniatura(c, chave: k)
+                        async let inteira: Void = carregarFotoInteira(c, chave: k)
+                        _ = await (mini, inteira)
+                    }
             }
             HStack(spacing: 6) {
                 campo(k, nome: notificacao.title)
@@ -135,14 +163,58 @@ struct WhatsAppCartaoView: View {
         }
     }
 
+    /// A foto inteira quando chegou; antes dela (e sempre no vídeo), a miniatura.
+    private var imagemDoQuadro: NSImage? { fotoInteira ?? miniatura }
+
+    private var alturaDoQuadro: CGFloat {
+        let tamanho = imagemDoQuadro?.size ?? .zero
+        let proporcao = tamanho.height > 0 ? tamanho.width / tamanho.height : 0
+        return WACartaoMidia.altura(larguraDisponivel: Self.larguraUtil, proporcao: proporcao)
+    }
+
+    /// Fundo desfocado e escurecido (preenche o que a foto em pé deixa vazio),
+    /// a imagem inteira na frente e, no vídeo, o play e a duração.
     @ViewBuilder
-    private var miniaturaView: some View {
-        if let miniatura {
-            Image(nsImage: miniatura).resizable().scaledToFill()
+    private func quadro(_ c: CartaoWhatsApp) -> some View {
+        if let img = imagemDoQuadro {
+            Color(white: 0.067)
+                .overlay {
+                    Image(nsImage: img).resizable().scaledToFill()
+                        .blur(radius: 14, opaque: true)
+                        .overlay(Color.black.opacity(0.45))
+                }
+                .overlay { Image(nsImage: img).resizable().scaledToFit() }
+                .overlay { if c.ehVideo { play } }
+                .overlay(alignment: .bottomLeading) {
+                    if c.ehVideo, let d = WACartaoMidia.duracao(segundos: c.segundosDoVideo) {
+                        Text(d)
+                            .font(.system(size: 10).monospacedDigit())
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1)
+                            .background(Capsule().fill(.black.opacity(0.55)))
+                            .padding(6)
+                    }
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(rotuloDoQuadro(c))
         } else {
             Rectangle().fill(.white.opacity(0.08))
-                .overlay(Image(systemName: "photo").font(.system(size: 14)).foregroundStyle(.white.opacity(0.45)))
+                .overlay(Image(systemName: c.ehVideo ? "video" : "photo")
+                    .font(.system(size: 14)).foregroundStyle(.white.opacity(0.45)))
         }
+    }
+
+    /// Círculo escuro de 34 pt com o triângulo: diz "vídeo" sem abrir nada.
+    private var play: some View {
+        Circle().fill(.black.opacity(0.55))
+            .frame(width: 34, height: 34)
+            .overlay(Image(systemName: "play.fill").font(.system(size: 14)).offset(x: 1))
+    }
+
+    private func rotuloDoQuadro(_ c: CartaoWhatsApp) -> String {
+        guard c.ehVideo else { return "Foto" }
+        if let d = WACartaoMidia.duracao(segundos: c.segundosDoVideo) { return "Vídeo, \(d)" }
+        return "Vídeo"
     }
 
     private func campo(_ k: WAChave, nome: String) -> some View {
@@ -187,13 +259,49 @@ struct WhatsAppCartaoView: View {
         Task { await store.responderCartao(chave: k, texto: t) }
     }
 
+    private func mensagem(_ c: CartaoWhatsApp, chave k: WAChave) -> WAMensagem? {
+        store.estado.bolhas(de: k).first(where: { $0.id == c.mensagemID })?.mensagem
+    }
+
     /// A miniatura embutida da mensagem, se a mensagem já está no estado.
     private func carregarMiniatura(_ c: CartaoWhatsApp, chave k: WAChave) async {
-        guard let m = store.estado.bolhas(de: k).first(where: { $0.id == c.mensagemID })?.mensagem,
+        guard let m = mensagem(c, chave: k),
               let d = await store.midia.miniatura(chave: k, mensagem: m),
               let img = NSImage(data: d) else { return }
         miniatura = img
     }
+
+    /// Foto: pede o arquivo inteiro e troca a miniatura por ele. `.aguardando`
+    /// (recuperação pedida ao celular) tenta de novo a cada segundo enquanto
+    /// o card existir; o resto fica na miniatura. Vídeo nunca baixa.
+    private func carregarFotoInteira(_ c: CartaoWhatsApp, chave k: WAChave) async {
+        guard let m = mensagem(c, chave: k), WACartaoMidia.baixaArquivo(tipo: m.tipo) else { return }
+        while !Task.isCancelled {
+            let r = await store.midia.arquivo(chave: k, mensagem: m)
+            if case .arquivo(let url) = r {
+                if let img = await Self.decodificar(url) { fotoInteira = img }
+                return
+            }
+            guard WACartaoMidia.tentarDeNovo(r) else { return }
+            try? await Task.sleep(for: .seconds(1))
+        }
+    }
+
+    /// Decodifica fora da main, já reduzida ao tamanho do quadro e com a
+    /// orientação do EXIF aplicada.
+    private static func decodificar(_ url: URL) async -> NSImage? {
+        let lado = ladoMaximoDaFoto
+        return await Task.detached(priority: .userInitiated) { () -> NSImage? in
+            guard let dados = try? Data(contentsOf: url),
+                  let cg = RemoteAvatarLoader.miniatura(de: dados, ladoMaximo: lado) else { return nil }
+            return NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
+        }.value
+    }
+}
+
+private struct MedidaDoQuadro: Equatable {
+    let mensagemID: String
+    let altura: CGFloat
 }
 
 /// Botão de ícone do card: 24 pt, canto 8, fundo só no hover (`.ib` do mockup).
