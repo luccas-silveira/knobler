@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preview nítido no card do WhatsApp — mockup do Knobler</title>
+<link rel="icon" href="data:,">
+<style>
+:root{
+  --notch:#000; --ink:#fff; --ink-2:rgba(255,255,255,.85); --ink-3:rgba(255,255,255,.62);
+  --fill:rgba(255,255,255,.15); --fill-subtle:rgba(255,255,255,.08); --field:rgba(255,255,255,.10);
+  --avatar:rgba(142,142,147,.35); --scrim:rgba(0,0,0,.55);
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro",system-ui,sans-serif;
+  --page-bg:#ececef; --page-ink:#1d1d1f; --page-ink-2:#4f4f56;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--page-bg);color:var(--page-ink);font-family:var(--font);-webkit-font-smoothing:antialiased}
+.page{max-width:1000px;margin:0 auto;padding:32px 16px 64px}
+h1{font-size:28px;font-weight:600;line-height:1.15}
+.lead{font-size:16px;line-height:1.55;color:var(--page-ink-2);max-width:62ch;margin-top:8px}
+.grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:32px 24px;margin-top:32px}
+.grade h2{font-size:18px;font-weight:600;line-height:1.3}
+.grade p{font-size:16px;line-height:1.55;color:var(--page-ink-2);margin:4px 0 16px}
+.card{width:340px;max-width:100%;background:var(--notch);color:var(--ink);border-radius:14px 14px 26px 26px;padding:30px 14px 14px;display:flex;flex-direction:column;gap:8px}
+.topo{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-3)}
+.quem{display:flex;align-items:center;gap:8px}
+.av{width:28px;height:28px;border-radius:50%;background:var(--avatar);display:grid;place-items:center;font-size:11px;font-weight:600;flex:none}
+.quem .n{font-size:12px;font-weight:600}
+.quem .t{font-size:11px;color:var(--ink-2)}
+.quem .x{margin-left:auto;color:var(--ink-2);font-size:14px}
+.midia{position:relative;width:100%;border-radius:8px;overflow:hidden;background:#111}
+.midia .fundo{position:absolute;inset:-12px;filter:blur(14px) brightness(.55)}
+.midia .fundo svg,.midia .frente svg{width:100%;height:100%;display:block}
+.midia .frente{position:relative;height:100%;margin:0 auto}
+.play{position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:var(--scrim);display:grid;place-items:center}
+.play svg{width:14px;height:14px;fill:#fff;margin-left:2px}
+.dur{position:absolute;left:6px;bottom:6px;font-size:10px;padding:1px 6px;border-radius:999px;background:var(--scrim);font-variant-numeric:tabular-nums}
+.resp{display:flex;align-items:center;gap:8px}
+.campo{flex:1;height:26px;border-radius:8px;background:var(--field);font-size:11px;color:var(--ink-3);display:flex;align-items:center;padding:0 8px}
+.antes{image-rendering:pixelated}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="orq" viewBox="0 0 90 160" preserveAspectRatio="xMidYMid slice">
+    <rect width="90" height="160" fill="#5f7d55"/><rect y="110" width="90" height="50" fill="#4a3b2f"/>
+    <path d="M45 160 V60" stroke="#2f4a2a" stroke-width="3"/><path d="M45 100 q-20 -10 -28 -30 M45 85 q18 -6 26 -24" stroke="#2f4a2a" stroke-width="2" fill="none"/>
+    <g fill="#f3e9f4"><circle cx="45" cy="52" r="10"/><circle cx="20" cy="66" r="9"/><circle cx="70" cy="58" r="9"/><circle cx="34" cy="34" r="8"/></g>
+    <g fill="#c86fb3"><circle cx="45" cy="54" r="3"/><circle cx="20" cy="68" r="3"/><circle cx="70" cy="60" r="3"/><circle cx="34" cy="36" r="2.5"/></g>
+    <rect x="25" y="118" width="40" height="34" rx="4" fill="#d9d1c4"/>
+  </symbol>
+  <symbol id="praia" viewBox="0 0 300 170" preserveAspectRatio="xMidYMid slice">
+    <rect width="300" height="170" fill="#7fb6d9"/><rect y="90" width="300" height="40" fill="#2f7fae"/><rect y="125" width="300" height="45" fill="#e8d3a6"/>
+    <circle cx="240" cy="40" r="18" fill="#fff2c4"/><path d="M60 125 q6 -40 -4 -70" stroke="#5b3d24" stroke-width="5" fill="none"/>
+    <path d="M56 55 q-30 -6 -40 10 M56 55 q30 -8 40 6 M56 55 q-10 -25 -30 -28 M56 55 q12 -24 34 -24" stroke="#2e6b33" stroke-width="5" fill="none" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="play" viewBox="0 0 10 12"><path d="M0 0 L10 6 L0 12z"/></symbol>
+</defs></svg>
+
+<main class="page">
+  <h1>Preview nítido no card de chegada</h1>
+  <p class="lead">Hoje o card estica a miniatura de 54 × 96 pixels que vem na mensagem e corta a foto numa faixa larga. Agora a foto inteira baixa ao chegar e aparece sem corte: a altura do quadro segue a proporção da foto, entre 120 e 200 pontos, e a foto em pé fica centralizada sobre uma cópia desfocada dela. Vídeo não baixa: fica com a miniatura e ganha o play e a duração.</p>
+
+  <div class="grade">
+    <section>
+      <h2>Hoje: foto em pé</h2>
+      <p>Miniatura esticada e cortada no meio. Não dá para ver o que é.</p>
+      <div class="card">
+        <div class="topo"><span>Pessoal · 8292</span><span>agora</span></div>
+        <div class="quem"><span class="av">M</span><div><div class="n">Mãe</div><div class="t">As orquídeas floresceram!</div></div><span class="x" aria-hidden="true">✕</span></div>
+        <div class="midia" style="height:120px"><div class="frente antes" style="width:100%;filter:blur(3px)"><svg aria-hidden="true"><use href="#orq"/></svg></div></div>
+        <div class="resp"><div class="campo">Responder…</div></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Depois: foto em pé</h2>
+      <p>A foto inteira, sem corte, no maior tamanho que cabe em 200 pontos de altura.</p>
+      <div class="card">
+        <div class="topo"><span>Pessoal · 8292</span><span>agora</span></div>
+        <div class="quem"><span class="av">M</span><div><div class="n">Mãe</div><div class="t">As orquídeas floresceram!</div></div><span class="x" aria-hidden="true">✕</span></div>
+        <div class="midia" style="height:200px"><div class="fundo"><svg aria-hidden="true"><use href="#orq"/></svg></div><div class="frente" style="width:112px"><svg role="img" aria-label="Foto de orquídeas"><use href="#orq"/></svg></div></div>
+        <div class="resp"><div class="campo">Responder…</div></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Depois: foto deitada</h2>
+      <p>Ocupa a largura toda; a altura segue a proporção da foto.</p>
+      <div class="card">
+        <div class="topo"><span>ZOI Business · 4143</span><span>agora</span></div>
+        <div class="quem"><span class="av">J</span><div><div class="n">Júlia Souza</div><div class="t">Chegamos! Olha essa vista</div></div><span class="x" aria-hidden="true">✕</span></div>
+        <div class="midia" style="height:176px"><div class="frente" style="width:100%"><svg role="img" aria-label="Foto da praia"><use href="#praia"/></svg></div></div>
+        <div class="resp"><div class="campo">Responder…</div></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Depois: vídeo</h2>
+      <p>Não baixa. Miniatura sem corte, com play e duração, para se ler como vídeo.</p>
+      <div class="card">
+        <div class="topo"><span>ZOI Business · 4143</span><span>agora</span></div>
+        <div class="quem"><span class="av">D</span><div><div class="n">Diego Martins</div><div class="t">Vídeo</div></div><span class="x" aria-hidden="true">✕</span></div>
+        <div class="midia" style="height:176px"><div class="frente" style="width:100%;filter:blur(2px)"><svg aria-hidden="true"><use href="#praia"/></svg></div>
+          <span class="play" aria-hidden="true"><svg><use href="#play"/></svg></span><span class="dur">0:42</span></div>
+        <div class="resp"><div class="campo">Responder…</div></div>
+      </div>
+    </section>
+  </div>
+</main>
+</body>
+</html>
