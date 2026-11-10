@@ -286,9 +286,10 @@ private func acaoDoClique() {
     let figurinha = msg("c7", de: X, ts: t, tipo: .figurinha, midia: midia("image/webp"))
     let apagada = msg("c8", de: X, ts: t, tipo: .imagem, midia: midia("image/jpeg"), apagada: t + 30)
 
-    // foto e vídeo recebidos se veem sem o celular: o arquivo abre no app padrão
-    exigir(acao(bolha(foto)) == .abrirArquivo, "clique na imagem → .abrirArquivo, veio \(acao(bolha(foto)))")
-    exigir(acao(bolha(video)) == .abrirArquivo, "clique no vídeo → .abrirArquivo, veio \(acao(bolha(video)))")
+    // foto e vídeo abrem no visualizador dentro do notch (etapa 1 do
+    // visualizador; o resto do comportamento está no whatsappvisualizadorcheck)
+    exigir(acao(bolha(foto)) == .verNoNotch, "clique na imagem → .verNoNotch, veio \(acao(bolha(foto)))")
+    exigir(acao(bolha(video)) == .verNoNotch, "clique no vídeo → .verNoNotch, veio \(acao(bolha(video)))")
     exigir(acao(bolha(doc)) == .mostrarNoFinder, "clique no documento → .mostrarNoFinder, veio \(acao(bolha(doc)))")
     exigir(acao(bolha(audio)) == .tocarAudio, "clique no áudio → .tocarAudio, veio \(acao(bolha(audio)))")
     exigir(acao(bolha(voz)) == .tocarAudio, "clique na voz → .tocarAudio, veio \(acao(bolha(voz)))")
@@ -593,7 +594,10 @@ private func ligacao() {
     exigir(tem(views, "WAConversaModelo.acao("), "o clique na mídia não segue WAConversaModelo.acao(")
     exigir(tem(views, "WAConversaModelo.mostraMidia("), "a bolha não decide a mídia por WAConversaModelo.mostraMidia(")
     exigir(tem(views, ".arquivo(chave:"), "o clique não pede o arquivo da mídia (store.midia.arquivo(chave:mensagem:))")
-    exigir(tem(views, "NSWorkspace.shared.open("), "foto/vídeo não abrem no app padrão (NSWorkspace.shared.open)")
+    // foto/vídeo: o clique abre o visualizador; o NSWorkspace.shared.open só
+    // sobra no botão dele (tools/whatsappvisualizadorligacaocheck.sh)
+    exigir(!tem(views, "NSWorkspace.shared.open("),
+           "foto/vídeo ainda abrem no app padrão pelo clique na bolha (NSWorkspace.shared.open)")
     exigir(tem(views, "activateFileViewerSelecting("), "documento não aparece no Finder (activateFileViewerSelecting)")
     exigir(tem(views, "WAPlayer.shared.tocar("), "áudio não toca pelo WAPlayer.shared.tocar(")
 

@@ -337,6 +337,16 @@ swift_teste tools/whatsappconversacheck.swift $WA_NUCLEO Knobler/NotchNotificati
 # VM; e a ligação nas views, fontes do snapshot e os quatro cenários
 # (VM_FONTES já traz Knobler/NotchNotification.swift: não repetir)
 swift_teste tools/whatsappcompositorcheck.swift $VM_FONTES $WA_NUCLEO Knobler/WhatsApp/WhatsAppCartao.swift Knobler/WhatsApp/WhatsAppApresentacao.swift Knobler/WhatsApp/WhatsAppCompositor.swift
+# visualizador de foto e vídeo dentro do notch: o clique dá .verNoNotch, o
+# estado (carregando/foto/vídeo/indisponível/"Não deu para abrir…") pelo
+# resultado de store.midia.arquivo, os textos (foto/vídeo, primeiro nome,
+# subtítulo hoje/ontem/data) e o que se vê por tela no VM (X, trocar de
+# conversa e fechar o notch zeram)
+swift_teste tools/whatsappvisualizadorcheck.swift $VM_FONTES $WA_NUCLEO Knobler/WhatsApp/WhatsAppCartao.swift Knobler/WhatsApp/WhatsAppApresentacao.swift Knobler/WhatsApp/WhatsAppConversaModelo.swift Knobler/WhatsApp/WhatsAppVisualizador.swift
+# a ligação que o check.sh não compila: a bolha sem NSWorkspace.shared.open,
+# o visualizador por cima só da conversa, botões, AVKit, fontes do snapshot e
+# os quatro cenários whatsapp-visualizador-*
+bash_teste tools/whatsappvisualizadorligacaocheck.sh
 # card de chegada ligado ao app: montado uma vez fora do laço das telas,
 # evento .whatsapp nas duas, histórico uma linha por mensagem, supressão por
 # tela, respondeu/abrir; responderCartao envia com a citação, marca lida e só
