@@ -287,8 +287,8 @@ Conversa individual que existe como `…@s.whatsapp.net` e como `…@lid` aparec
 - Para enviar, a ponte usa o apelido da conversa com a mensagem mais recente.
 - Remetente (`remetente`) também sai canônico, com JID completo, sem `:N`.
 
-Ficam de fora das listas: `status@broadcast`, canais (`@newsletter`) e
-`@broadcast` em geral.
+Ficam de fora das listas e do canal ao vivo (nenhum evento sai deles):
+`status@broadcast`, canais (`@newsletter`) e `@broadcast` em geral.
 
 ## Objetos
 
