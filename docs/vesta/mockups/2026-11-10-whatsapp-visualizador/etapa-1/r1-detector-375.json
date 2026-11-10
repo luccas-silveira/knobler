@@ -1,0 +1,5 @@
+{
+ "ferramenta": "conferência visual do render nativo (tools/snapshot.sh) contra o mockup",
+ "detector_impeccable": "não se aplica: a tela é SwiftUI nativa, sem DOM",
+ "achados": []
+}
