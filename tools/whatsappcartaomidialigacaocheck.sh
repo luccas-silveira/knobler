@@ -38,7 +38,7 @@ CENARIOS='"whatsapp-cartao-foto-empe" "whatsapp-cartao-foto-deitada" "whatsapp-c
 codigo() { sed -E 's|^[[:space:]]*//.*$||' "$1" 2>/dev/null; }
 
 # tem <arquivo> <texto fixo>: existe linha de código com o texto.
-tem() { codigo "$1" | grep -qF -- "$2"; }
+tem() { codigo "$1" | grep -F -- "$2" >/dev/null; }  # sem -q: o grep sairia cedo e o pipefail veria o SIGPIPE do sed
 
 # esticadas <arquivo>: linhas de código com `.scaledToFill()` sem `Circle()`
 # nem `.blur(` nela ou nas 3 seguintes. Uma por linha: "<n>: <texto>".
