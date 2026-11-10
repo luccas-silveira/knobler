@@ -255,6 +255,14 @@ VM_FONTES="Knobler/NotchViewModel.swift Knobler/NotchPresentation.swift Knobler/
 swift_teste tools/whatsappfilacheck.swift $VM_FONTES
 # card de chegada: texto, conta, grupo, mídia, agrupamento por conversa, idade máxima
 swift_teste tools/whatsappcartaocheck.swift Knobler/WhatsApp/WhatsAppModelos.swift Knobler/NotchNotification.swift Knobler/WhatsApp/WhatsAppCartao.swift
+# preview nítido no card: altura do quadro (120…200 pela proporção), só foto
+# baixa o arquivo, duração m:ss do vídeo, só .aguardando tenta de novo,
+# ehVideo/segundosDoVideo no card e o card crescendo com o quadro medido
+swift_teste tools/whatsappcartaomidiacheck.swift $VM_FONTES $WA_NUCLEO Knobler/WhatsApp/WhatsAppCartao.swift Knobler/WhatsApp/WhatsAppCartaoMidia.swift
+# a ligação que o check.sh não compila: a view do card sem scaledToFill na
+# frente nem 120 fixo, pedindo o arquivo, com fundo desfocado, e os três
+# cenários whatsapp-cartao-foto-empe/foto-deitada/video
+bash_teste tools/whatsappcartaomidialigacaocheck.sh
 # peça ligada: instalar nasce uma vez, desinstalar para uma vez, reinstalar
 # nasce de novo, instalação nova não nasce (mesmas fontes do plugincheck)
 swift_teste tools/whatsapppecacheck.swift Knobler/Plugin.swift Knobler/Pomodoro.swift \
