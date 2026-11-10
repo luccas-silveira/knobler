@@ -169,7 +169,9 @@ Knobler/WhatsApp/WhatsAppQR.swift
 Knobler/WhatsApp/WhatsAppEstadosView.swift
 Knobler/WhatsApp/WhatsAppSecaoView.swift
 Knobler/WhatsApp/WhatsAppConversaModelo.swift
+Knobler/WhatsApp/WhatsAppVisualizador.swift
 Knobler/WhatsApp/WhatsAppConversaView.swift
 Knobler/WhatsApp/WhatsAppBolhaView.swift
+Knobler/WhatsApp/WhatsAppVisualizadorView.swift
 Knobler/WhatsApp/WhatsAppCompositor.swift
 Knobler/WhatsApp/WhatsAppCompositorView.swift

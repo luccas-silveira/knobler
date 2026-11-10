@@ -7,6 +7,7 @@
 //
 
 import AppKit
+import AVFoundation
 import ImageIO
 import Network
 import SwiftUI
@@ -404,6 +405,81 @@ func waPNG(_ cor: NSColor, largura: CGFloat = 400, altura: CGFloat = 250, emoji:
         return true
     }
     return NSBitmapImageRep(data: img.tiffRepresentation!)!.representation(using: .png, properties: [:])!
+}
+
+/// "Foto de exemplo" do mockup do visualizador: céu ao entardecer, sol e
+/// morros, desenhados à mão (3:2).
+func waCena() -> Data {
+    let img = NSImage(size: NSSize(width: 600, height: 400), flipped: false) { r in
+        NSGradient(colors: [NSColor(red: 0.95, green: 0.80, blue: 0.56, alpha: 1),
+                            NSColor(red: 0.88, green: 0.48, blue: 0.37, alpha: 1),
+                            NSColor(red: 0.17, green: 0.23, blue: 0.40, alpha: 1)])!
+            .draw(in: r, angle: 90)
+        NSColor(red: 1, green: 0.89, blue: 0.70, alpha: 0.9).setFill()
+        NSBezierPath(ovalIn: NSRect(x: 368, y: 112, width: 104, height: 104)).fill()
+        for (cor, pontos) in [(NSColor(red: 0.24, green: 0.25, blue: 0.36, alpha: 1),
+                               [(0, 120), (120, 180), (220, 136), (340, 200), (460, 144), (600, 176)]),
+                              (NSColor(red: 0.14, green: 0.15, blue: 0.21, alpha: 1),
+                               [(0, 70), (160, 100), (300, 64), (440, 96), (600, 68)])] {
+            let p = NSBezierPath()
+            p.move(to: .zero)
+            for (x, y) in pontos { p.line(to: NSPoint(x: x, y: y)) }
+            p.line(to: NSPoint(x: 600, y: 0))
+            p.close()
+            cor.setFill()
+            p.fill()
+        }
+        return true
+    }
+    return NSBitmapImageRep(data: img.tiffRepresentation!)!.representation(using: .png, properties: [:])!
+}
+
+/// Um quadro de vídeo H.264 com a `waCena`: o player do visualizador
+/// só aparece com um arquivo que o AVFoundation abre.
+func waVideo() -> Data {
+    let url = URL(fileURLWithPath: NSTemporaryDirectory())
+        .appendingPathComponent("knobler-snapshot-video-\(getpid()).mp4")
+    try? FileManager.default.removeItem(at: url)
+    defer { try? FileManager.default.removeItem(at: url) }
+    let (w, h) = (480, 320)
+    let writer = try! AVAssetWriter(outputURL: url, fileType: .mp4)
+    let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
+        AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: w, AVVideoHeightKey: h])
+    let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: nil)
+    writer.add(input)
+    writer.startWriting()
+    writer.startSession(atSourceTime: .zero)
+    var buffer: CVPixelBuffer?
+    CVPixelBufferCreate(nil, w, h, kCVPixelFormatType_32ARGB, nil, &buffer)
+    let pb = buffer!
+    CVPixelBufferLockBaseAddress(pb, [])
+    let ctx = CGContext(data: CVPixelBufferGetBaseAddress(pb), width: w, height: h, bitsPerComponent: 8,
+                        bytesPerRow: CVPixelBufferGetBytesPerRow(pb), space: CGColorSpaceCreateDeviceRGB(),
+                        bitmapInfo: CGImageAlphaInfo.noneSkipFirst.rawValue)!
+    let cena = NSBitmapImageRep(data: waCena())!.cgImage!
+    ctx.draw(cena, in: CGRect(x: 0, y: 0, width: w, height: h))
+    CVPixelBufferUnlockBaseAddress(pb, [])
+    while !input.isReadyForMoreMediaData { RunLoop.current.run(until: Date().addingTimeInterval(0.01)) }
+    adaptor.append(pb, withPresentationTime: .zero)
+    input.markAsFinished()
+    // um quadro de 1/30 s: o tempo não passa de 0,1 s e o quadro parado fica
+    writer.endSession(atSourceTime: CMTime(value: 1, timescale: 30))
+    let pronto = DispatchSemaphore(value: 0)
+    writer.finishWriting { pronto.signal() }
+    pronto.wait()
+    return (try? Data(contentsOf: url)) ?? Data()
+}
+
+func waBomDiaDaAna() -> WAMensagem {
+    waMsg("g1", waOperacional, de: waAna, nome: "Ana Ribeiro", 9, 12,
+          texto: "Bom dia, pessoal! A pauta da semana está no drive.")
+}
+
+/// Um id por cenário: o arquivo gravado num cenário fica na pasta do harness
+/// e faria o seguinte achar a foto já baixada.
+func waFotoDoDiego(_ id: String) -> WAMensagem {
+    waMsg(id, waOperacional, de: waDiego, nome: "Diego Martins", 14, 41, tipo: .imagem,
+          texto: "Set montado pra gravação de amanhã", midia: waMidia("image/jpeg"))
 }
 
 /// Envio local do mockup: `enviando` (relógio) ou que falhou ("tentar de novo").
@@ -807,6 +883,38 @@ let scenarios: [Scenario] = [
                   midia: waMidia("application/pdf", nome: "Proposta-Seller-nov26.pdf", tamanho: 1_200_000)),
             waMsg("c2", waCarlos, de: waCarlos, 11, 47, texto: "Dá uma olhada quando puder."),
         ])
+    },
+    // visualizador de foto e vídeo (docs/vesta/mockups/2026-11-10-whatsapp-visualizador):
+    // quadro 2, a foto aberta com legenda
+    Scenario(name: "whatsapp-visualizador-foto", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        let foto = waFotoDoDiego("vis-foto")
+        waConversaCenario(vm, jid: waOperacional, [waBomDiaDaAna(), foto], arquivos: [foto.id: waCena()])
+        vm.verMidiaWhatsApp(chave: WAChave(conta: waBiz, jid: waOperacional).texto, mensagemID: foto.id)
+    },
+    // quadro 3: a foto ainda vem do celular; miniatura desfocada e spinner
+    Scenario(name: "whatsapp-visualizador-carregando", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        let foto = waFotoDoDiego("vis-carregando")
+        let k = WAChave(conta: waBiz, jid: waOperacional)
+        waConversaCenario(vm, jid: waOperacional, [waBomDiaDaAna(), foto], miniaturas: [foto.id: waCena()])
+        WhatsAppStore.shared.midia._marcarAguardando(chave: k, mensagem: foto)
+        vm.verMidiaWhatsApp(chave: k.texto, mensagemID: foto.id)
+    },
+    // quadro 4: vídeo aberto. O AVPlayerView não desenha no snapshot, então o
+    // PNG mostra o quadro parado (miniatura) embaixo do player
+    Scenario(name: "whatsapp-visualizador-video", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        let video = waMsg("vis-video", waOperacional, de: waDiego, nome: "Diego Martins", 9, 40, tipo: .video,
+                          texto: "Bastidores da gravação na Seller", midia: waMidia("video/mp4", segundos: 42))
+        waConversaCenario(vm, jid: waOperacional, [waBomDiaDaAna(), video],
+                          miniaturas: [video.id: waCena()], arquivos: [video.id: waVideo()])
+        vm.verMidiaWhatsApp(chave: WAChave(conta: waBiz, jid: waOperacional).texto, mensagemID: video.id)
+    },
+    // quadro 5: o celular já apagou o arquivo
+    Scenario(name: "whatsapp-visualizador-indisponivel", realNotch: true, frameHeight: 480, frameWidth: 860) { vm, _, _ in
+        let foto = waFotoDoDiego("vis-indisponivel")
+        let k = WAChave(conta: waBiz, jid: waOperacional)
+        waConversaCenario(vm, jid: waOperacional, [waBomDiaDaAna(), foto], miniaturas: [foto.id: waCena()])
+        WhatsAppStore.shared.midia.recuperou(chave: k, alvo: foto.id, ok: false)
+        vm.verMidiaWhatsApp(chave: k.texto, mensagemID: foto.id)
     },
     Scenario(name: "expanded-cor", realNotch: true) { vm, _, _ in
         CoresRecentes.shared.carregar(["#FF3B30", "#34C759", "#0A84FF", "#FFD60A", "#BF5AF2"])

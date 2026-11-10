@@ -25,8 +25,8 @@ enum WAMostraMidia: Equatable {
 
 /// O que o clique na mídia faz.
 enum WAAcaoDaBolha: Equatable {
-    /// Foto e vídeo se veem sem o celular: o arquivo do cache abre no app padrão.
-    case abrirArquivo
+    /// Foto e vídeo abrem no visualizador dentro do notch, por cima da conversa.
+    case verNoNotch
     case mostrarNoFinder
     case tocarAudio
     case nenhuma
@@ -114,7 +114,7 @@ enum WAConversaModelo {
     static func acao(bolha b: WABolha) -> WAAcaoDaBolha {
         guard b.envio == nil else { return .nenhuma }
         switch mostraMidia(bolha: b) {
-        case .imagem, .video: return .abrirArquivo
+        case .imagem, .video: return .verNoNotch
         case .documento: return .mostrarNoFinder
         case .audio: return .tocarAudio
         case .figurinha, .indisponivel, .nenhuma: return .nenhuma

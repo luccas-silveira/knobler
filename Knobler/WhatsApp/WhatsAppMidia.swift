@@ -124,6 +124,11 @@ final class WAMidiaCache {
         miniaturas[Self.id(chave, mensagem.id)] = dados
     }
 
+    /// Só snapshot: a mídia já pedida ao celular (`.aguardando`), sem a ponte.
+    func _marcarAguardando(chave: WAChave, mensagem: WAMensagem) {
+        recuperacoes[Self.id(chave, mensagem.id)] = .aguardando
+    }
+
     // MARK: - Ajudantes
 
     private static func id(_ k: WAChave, _ mensagem: String) -> String {

@@ -249,6 +249,15 @@ enum WATextos {
     static let ouvindo = "Ouvindo"
     static let marcarComoLida = "Marcar como lida"
 
+    // visualizador de foto e vídeo
+    static let abrirNoPreVisualizacao = "Abrir no Pré-Visualização"
+    static let mostrarNoFinder = "Mostrar no Finder"
+    static let fechar = "Fechar"
+
+    static func buscandoNoCelular(video: Bool) -> String {
+        video ? "Buscando o vídeo no celular…" : "Buscando a foto no celular…"
+    }
+
     /// Faixa da citação; `nil` é mensagem minha.
     static func citacao(nome: String?) -> String {
         "Respondendo a \(nome ?? "você")"

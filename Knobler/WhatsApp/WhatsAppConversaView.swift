@@ -29,6 +29,12 @@ struct WhatsAppConversaView: View {
             WhatsAppCompositorView(vm: vm, chave: chave)
                 .id(chave)
         }
+        // foto ou vídeo aberto: o visualizador cobre só esta coluna, não a lista
+        .overlay {
+            if let visto = vm.whatsappVisualizando, visto.chave == chave.texto {
+                WhatsAppVisualizadorView(vm: vm, visto: visto, chave: chave, store: store)
+            }
+        }
         .task(id: chave) {
             grupo = nil
             guard ehGrupo else { return }

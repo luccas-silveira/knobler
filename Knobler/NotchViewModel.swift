@@ -24,6 +24,13 @@ enum DictationPhase: Equatable {
     case error(String)
 }
 
+/// Foto ou vídeo aberto no visualizador do WhatsApp: a conversa (`"conta|jid"`)
+/// e o id da mensagem.
+struct WhatsAppVisto: Equatable {
+    let chave: String
+    let mensagemID: String
+}
+
 final class NotchViewModel: ObservableObject {
     /// Tela deste view model (existe um por monitor). Quem precisa saber "sou
     /// eu?" — hoje só a nota rápida — compara com este id. nil no harness de
@@ -151,8 +158,22 @@ final class NotchViewModel: ObservableObject {
     /// Conversa aberta na seção desta tela, como `"conta|jid"`. Fechar o card
     /// não a esquece: reabrir volta pra mesma conversa.
     @Published var whatsappConversaAberta: String? {
-        didSet { if whatsappConversaAberta != oldValue { whatsappReacoesEm = nil } }
+        didSet {
+            if whatsappConversaAberta != oldValue {
+                whatsappReacoesEm = nil
+                whatsappVisualizando = nil
+            }
+        }
     }
+    /// Foto ou vídeo aberto no visualizador desta tela (conversa e mensagem).
+    /// Abre na hora do clique, sem esperar o arquivo; o X, trocar de conversa
+    /// e fechar o notch o fecham.
+    @Published var whatsappVisualizando: WhatsAppVisto?
+    func verMidiaWhatsApp(chave: String, mensagemID: String) {
+        whatsappReacoesEm = nil
+        whatsappVisualizando = WhatsAppVisto(chave: chave, mensagemID: mensagemID)
+    }
+    func fecharVisualizadorWhatsApp() { whatsappVisualizando = nil }
     /// Mensagem (id) com a barra de reações aberta nesta tela. Trocar de
     /// conversa, Esc e fechar o notch a fecham.
     @Published var whatsappReacoesEm: String?
@@ -634,6 +655,7 @@ final class NotchViewModel: ObservableObject {
             if typingNote { QuickNote.shared.editing = false }
             whatsappEditando = false
             whatsappReacoesEm = nil
+            whatsappVisualizando = nil
             monitoresArrastando = false
             mirrorOn = false
             focoAoFechar = focusLocked ? focus.map { (NotchSectionOrder.focoParaGuardar($0, secoes: secoes), ProcessInfo.processInfo.systemUptime) } : nil

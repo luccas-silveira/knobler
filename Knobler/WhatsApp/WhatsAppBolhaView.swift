@@ -158,7 +158,7 @@ struct WhatsAppBolhaView: View {
         } else if midia == .figurinha {
             // figurinha não tem bolha: a imagem e a hora soltas
             VStack(alignment: .trailing, spacing: 4) {
-                WAMidiaDaBolha(bolha: bolha, chave: chave, tipo: .figurinha, store: store)
+                WAMidiaDaBolha(vm: vm, bolha: bolha, chave: chave, tipo: .figurinha, store: store)
                 meta
             }
         } else {
@@ -179,10 +179,10 @@ struct WhatsAppBolhaView: View {
         case .nenhuma, .figurinha:
             textoComMeta(m.texto)
         case .imagem, .video:
-            WAMidiaDaBolha(bolha: bolha, chave: chave, tipo: midia, store: store)
+            WAMidiaDaBolha(vm: vm, bolha: bolha, chave: chave, tipo: midia, store: store)
             if m.texto.isEmpty { metaSolta } else { textoComMeta(m.texto) }
         case .documento, .audio, .indisponivel:
-            WAMidiaDaBolha(bolha: bolha, chave: chave, tipo: midia, store: store)
+            WAMidiaDaBolha(vm: vm, bolha: bolha, chave: chave, tipo: midia, store: store)
             metaSolta
         }
     }
@@ -431,6 +431,7 @@ private struct WACapsulaDeReacao: View {
 /// Foto, vídeo, documento, áudio, figurinha ou mídia indisponível. Carrega só
 /// quando aparece: primeiro a miniatura, depois o arquivo (foto e figurinha).
 private struct WAMidiaDaBolha: View {
+    @ObservedObject var vm: NotchViewModel
     let bolha: WABolha
     let chave: WAChave
     let tipo: WAMostraMidia
@@ -438,6 +439,8 @@ private struct WAMidiaDaBolha: View {
     @State private var imagem: NSImage?
     /// A ponte pediu a mídia ao celular (`410`): spinner até o evento `midia`.
     @State private var aguardando = false
+    /// Cursor sobre a foto ou o vídeo: contorno claro avisando que abre.
+    @State private var hoverQuadro = false
 
     private var m: WAMensagem { bolha.mensagem }
 
@@ -505,7 +508,14 @@ private struct WAMidiaDaBolha: View {
         }
         .frame(width: 200, height: 125)
         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay {
+            if hoverQuadro && WAConversaModelo.acao(bolha: bolha) == .verNoNotch {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .strokeBorder(.white.opacity(0.35), lineWidth: 2)
+            }
+        }
         .contentShape(Rectangle())
+        .onHover { hoverQuadro = $0 }
     }
 
     private var spinner: some View {
@@ -611,6 +621,11 @@ private struct WAMidiaDaBolha: View {
             return
         }
         guard acao != .nenhuma else { return }
+        if acao == .verNoNotch {
+            // abre na hora; o visualizador busca o arquivo sozinho
+            vm.verMidiaWhatsApp(chave: chave.texto, mensagemID: m.id)
+            return
+        }
         Task { await executar(acao) }
     }
 
@@ -623,10 +638,9 @@ private struct WAMidiaDaBolha: View {
             case let .arquivo(url):
                 aguardando = false
                 switch acao {
-                case .abrirArquivo: NSWorkspace.shared.open(url)
                 case .mostrarNoFinder: NSWorkspace.shared.activateFileViewerSelecting([url])
                 case .tocarAudio: WAPlayer.shared.tocar(url: url, id: bolha.id)
-                case .nenhuma: break
+                case .verNoNotch, .nenhuma: break
                 }
                 return
             case .aguardando:
