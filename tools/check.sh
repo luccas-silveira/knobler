@@ -128,8 +128,11 @@ swift_check shelfordemcheck       Knobler/ShelfOrdem.swift tools/shelfordemcheck
 swift_check screenshotcheck       Knobler/ScreenshotWatcher.swift Knobler/Permissions.swift tools/screenshotcheck.swift
 swift_check historycheck          Knobler/NotchNotification.swift Knobler/NotificationHistory.swift Knobler/NotchGesture.swift tools/historycheck.swift
 # rolagem no notch: o vertical nunca abre nem fecha o card e vai pro conteúdo;
-# o horizontal anda seção/troca faixa e segue engolido na zona
+# o horizontal anda seção/troca faixa e segue engolido na zona; o evento que
+# encerra o gesto é sempre repassado (a lista precisa saber que os dedos saíram)
 swift_teste tools/rolagemcheck.swift Knobler/NotchGesture.swift
+# o handleScroll, que o check.sh não compila, tira o `fim:` das fases do evento
+swift_teste tools/rolagemligacaocheck.swift
 swift_check sectionordercheck    Knobler/NotchSectionOrder.swift tools/sectionordercheck.swift
 swift_check tecladocheck         Knobler/TecladoBloqueado.swift tools/tecladocheck.swift
 # a decisão pura da instância única; o caminho AppKit de verdade é o
@@ -336,7 +339,8 @@ bash_teste tools/whatsappestadosligacaocheck.sh
 # conversa: linhas (separador de dia, remetente em grupo, podeAgir), cabeçalho
 # (participantes com "você" no fim, Marcar como lida), mídia e o que o clique
 # abre; store.marcarLida só pelo botão; store.grupo guardado 10 min; e a
-# ligação nas views, fontes do snapshot e os cinco cenários whatsapp-conversa/grupo
+# ligação nas views (o ScrollView das bolhas nasce de novo a cada conversa),
+# fontes do snapshot e os cinco cenários whatsapp-conversa/grupo
 swift_teste tools/whatsappconversacheck.swift $WA_NUCLEO Knobler/NotchNotification.swift Knobler/WhatsApp/WhatsAppCartao.swift Knobler/WhatsApp/WhatsAppApresentacao.swift Knobler/WhatsApp/WhatsAppConversaModelo.swift
 # compositor e ações: modo (microfone/avião/gravando/ditando), texto e rótulo
 # da citação, 6 reações (a já posta remove), tempo da gravação; citação e

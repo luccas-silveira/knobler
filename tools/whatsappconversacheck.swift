@@ -554,6 +554,175 @@ private func codigo(_ caminho: String) -> [String]? {
     }
 }
 
+/// O fonte com comentário e miolo de string trocados por espaço, caractere a
+/// caractere: chave ou parêntese dentro deles não entra na conta de quem casa.
+private func soCodigo(_ fonte: String) -> [Character] {
+    var c = Array(fonte)
+    var i = 0
+    func apagar(_ j: Int) { if c[j] != "\n" { c[j] = " " } }
+    while i < c.count {
+        if c[i] == "/", i + 1 < c.count, c[i + 1] == "/" {
+            while i < c.count, c[i] != "\n" { apagar(i); i += 1 }
+        } else if c[i] == "/", i + 1 < c.count, c[i + 1] == "*" {
+            while i < c.count, !(c[i] == "*" && i + 1 < c.count && c[i + 1] == "/") { apagar(i); i += 1 }
+            if i < c.count { apagar(i); apagar(i + 1); i += 2 }
+        } else if c[i] == "\"" {
+            i += 1
+            while i < c.count, c[i] != "\"", c[i] != "\n" {
+                if c[i] == "\\", i + 1 < c.count { apagar(i); i += 1 }
+                apagar(i); i += 1
+            }
+            i += 1
+        } else {
+            i += 1
+        }
+    }
+    return c
+}
+
+/// Posição de quem fecha o `(`, `[` ou `{` aberto em `abre`; `nil` se não fecha.
+private func fechamento(_ c: [Character], _ abre: Int) -> Int? {
+    var nivel = 0
+    var i = abre
+    while i < c.count {
+        if "([{".contains(c[i]) { nivel += 1 }
+        if ")]}".contains(c[i]) {
+            nivel -= 1
+            if nivel == 0 { return i }
+        }
+        i += 1
+    }
+    return nil
+}
+
+private func posicao(_ c: [Character], de alvo: String, apos inicio: Int, ate fim: Int) -> Int? {
+    let a = Array(alvo)
+    guard !a.isEmpty, inicio >= 0, fim - a.count >= inicio else { return nil }
+    for i in inicio...(fim - a.count) where Array(c[i..<(i + a.count)]) == a { return i }
+    return nil
+}
+
+/// O `ScrollView` da propriedade `bolhas` tem `.id(chave)` na cadeia de
+/// modificadores DELE — depois de fechar o conteúdo, junto do
+/// `.defaultScrollAnchor(.bottom)`? É o que faz nascer um `ScrollView` novo a
+/// cada conversa. Não conta o `.id(chave)` do compositor (fora de `bolhas`),
+/// nem o posto dentro do conteúdo (no `LazyVStack`: recria as linhas e mantém
+/// a posição de rolagem), nem o de dentro do closure de outro modificador.
+private func scrollDasBolhasTemId(_ fonte: String) -> Bool {
+    let c = soCodigo(fonte)
+    // o corpo da propriedade
+    guard let prop = posicao(c, de: "var bolhas", apos: 0, ate: c.count),
+          let abreProp = posicao(c, de: "{", apos: prop, ate: c.count),
+          let fechaProp = fechamento(c, abreProp),
+          // o ScrollView dela e o conteúdo dele
+          let scroll = posicao(c, de: "ScrollView", apos: abreProp, ate: fechaProp)
+    else { return false }
+    var i = scroll + "ScrollView".count
+    while i < fechaProp, c[i].isWhitespace { i += 1 }
+    if i < fechaProp, c[i] == "(" {
+        guard let f = fechamento(c, i) else { return false }
+        i = f + 1
+        while i < fechaProp, c[i].isWhitespace { i += 1 }
+    }
+    guard i < fechaProp, c[i] == "{", let fechaConteudo = fechamento(c, i) else { return false }
+
+    // a cadeia: `.nome(...)`/`.nome { ... }` em sequência, até o closure de
+    // fora fechar ou começar outra coisa
+    let id = Array(".id(chave)")
+    var nivel = 0
+    var emNome = false
+    i = fechaConteudo + 1
+    while i < fechaProp {
+        let ch = c[i]
+        if nivel == 0 {
+            if ch == "." {
+                if i + id.count <= c.count, Array(c[i..<(i + id.count)]) == id { return true }
+                emNome = true
+            } else if ch.isWhitespace {
+                emNome = false
+            } else if "([{".contains(ch) {
+                nivel += 1; emNome = false
+            } else if ch.isLetter || ch.isNumber || ch == "_" {
+                if !emNome { return false }
+            } else {
+                return false
+            }
+        } else {
+            if "([{".contains(ch) { nivel += 1 }
+            if ")]}".contains(ch) { nivel -= 1 }
+        }
+        i += 1
+    }
+    return false
+}
+
+/// Prova que `scrollDasBolhasTemId` reprova o que tem que reprovar, num fonte
+/// de mentira com o desenho do arquivo de verdade.
+private func autotesteDoScrollPorConversa() {
+    let base = """
+    struct WhatsAppConversaView: View {
+        var body: some View {
+            VStack(alignment: .leading, spacing: 6) {
+                bolhas
+                WhatsAppCompositorView(vm: vm, chave: chave)
+                    .id(chave)
+            }
+            .task(id: chave) { grupo = nil }
+        }
+
+        private var bolhas: some View {
+            let todas = store.estado.bolhas(de: chave)
+            return GeometryReader { geo in
+                ScrollView(.vertical) {
+                    LazyVStack(alignment: .leading, spacing: 4) {
+                        ForEach(linhas) { linha in
+                            Text("} chave solta { (")
+                        }
+                    }
+                    // no topo da rolagem a primeira linha começa abaixo do degradê
+                    .padding(.top, Self.esmaecerTopo)
+                    .frame(maxWidth: .infinity, minHeight: geo.size.height, alignment: .bottomLeading)
+                }
+                // abre na mensagem mais recente e segue colada nela
+                .defaultScrollAnchor(.bottom)
+                .scrollIndicators(.hidden)
+            }
+            .mask { Color.black }
+        }
+    }
+    """
+    func com(_ de: String, _ para: String) -> String {
+        exigir(base.contains(de), "autoteste: o fonte de mentira não tem '\(de)'")
+        return base.replacingOccurrences(of: de, with: para)
+    }
+    let ancora = ".defaultScrollAnchor(.bottom)"
+    let casos: [(nome: String, fonte: String, esperado: Bool)] = [
+        ("como está hoje: .id(chave) só no compositor", base, false),
+        (".id(chave) só no LazyVStack",
+         com(".padding(.top, Self.esmaecerTopo)", ".padding(.top, Self.esmaecerTopo)\n.id(chave)"), false),
+        (".id(chave) só nas linhas do ForEach",
+         com("Text(\"} chave solta { (\")", "Text(\"} chave solta { (\").id(chave)"), false),
+        (".id(chave) só em comentário na cadeia do ScrollView",
+         com(ancora, "// .id(chave)\n" + ancora), false),
+        (".id(chave) só dentro do closure de um modificador do ScrollView",
+         com(ancora, ancora + "\n.overlay { Marca().id(chave) }"), false),
+        ("ScrollView com .id de outra coisa",
+         com(ancora, ancora + "\n.id(linhas.count)"), false),
+        (".id(chave) depois do .defaultScrollAnchor(.bottom)",
+         com(ancora, ancora + "\n.id(chave)"), true),
+        (".id(chave) antes do .defaultScrollAnchor(.bottom)",
+         com(ancora, ".id(chave)\n" + ancora), true),
+        (".id(chave) no fim da cadeia do ScrollView",
+         com(".scrollIndicators(.hidden)", ".scrollIndicators(.hidden)\n.id(chave)"), true),
+        (".id(chave) depois de um modificador com closure de várias linhas",
+         com(ancora, ancora + "\n.onChange(of: linhas.count) { _, _ in\n    avisar()\n}\n.id(chave)"), true),
+    ]
+    for caso in casos {
+        exigir(scrollDasBolhasTemId(caso.fonte) == caso.esperado,
+               "autoteste do ScrollView por conversa (\(caso.nome)): devia dar \(caso.esperado)")
+    }
+}
+
 private func ligacao() {
     let conversaView = "Knobler/WhatsApp/WhatsAppConversaView.swift"
     let bolhaView = "Knobler/WhatsApp/WhatsAppBolhaView.swift"
@@ -588,6 +757,13 @@ private func ligacao() {
     // lista: abre na mais recente, pagina pela primeira linha
     exigir(tem(conv, "WAConversaModelo.linhas("), "\(conversaView) não monta as linhas por WAConversaModelo.linhas(")
     exigir(tem(conv, ".defaultScrollAnchor(.bottom)"), "\(conversaView) sem .defaultScrollAnchor(.bottom): abriria na mais antiga")
+    // um ScrollView por conversa: sem identidade ele é reaproveitado na troca,
+    // herda a posição de rolagem da conversa anterior e a nova abre no meio do
+    // histórico. O .id(chave) do compositor e o do LazyVStack não resolvem.
+    autotesteDoScrollPorConversa()
+    let fonteDaConversa = (try? String(contentsOfFile: conversaView, encoding: .utf8)) ?? ""
+    exigir(scrollDasBolhasTemId(fonteDaConversa),
+           "\(conversaView): o ScrollView de `bolhas` sem .id(chave) na cadeia de modificadores dele (junto do .defaultScrollAnchor(.bottom)); trocar de conversa reaproveita o ScrollView e a nova não abre na última mensagem")
     exigir(tem(conv, "carregarMais("), "\(conversaView) não pede a página antiga (carregarMais)")
 
     // clique na mídia
