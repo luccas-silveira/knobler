@@ -130,10 +130,16 @@ enum NotchGesture {
     /// - Horizontal: acima de `limiarLateral` anda uma seção (card aberto) ou
     ///   troca de faixa (fechado com mídia), uma vez por gesto e nunca na
     ///   inércia. Fora isso é engolido, pra janela de trás não rolar de lado.
+    /// - Fim do gesto (`fim`: fase ou inércia `.ended`/`.cancelled`): sempre
+    ///   repassado, qualquer que seja o resto. Ele chega com delta (0, 0) e,
+    ///   engolido, a lista que recebeu o começo do gesto nunca saberia que os
+    ///   dedos saíram — ficava presa esticada, com vazio embaixo.
     static func acao(deltaX: CGFloat, deltaY: CGFloat,
                      accumX: CGFloat, accumY: CGFloat,
                      inercia: Bool, expandido: Bool,
-                     temMidia: Bool, jaAgiu: Bool) -> AcaoDoScroll {
+                     temMidia: Bool, jaAgiu: Bool,
+                     fim: Bool) -> AcaoDoScroll {
+        if fim { return .repassar }
         if abs(deltaY) > abs(deltaX) { return .repassar }
         if abs(accumY) > abs(accumX) { return .repassar }
         guard !inercia, !jaAgiu, abs(accumX) > limiarLateral else { return .engolir }

@@ -88,6 +88,9 @@ struct WhatsAppConversaView: View {
             // abre na mensagem mais recente e segue colada nela quando chega outra
             .defaultScrollAnchor(.bottom)
             .scrollIndicators(.hidden)
+            // um ScrollView por conversa: reaproveitado, ele herda a rolagem e
+            // as alturas estimadas da conversa anterior e a nova abre no meio
+            .id(chave)
         }
         // nada da lista desenha fora da área dela (sobre o cabeçalho ou o
         // compositor); a linha cortada no topo some num degradê em vez de

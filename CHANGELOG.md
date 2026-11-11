@@ -6,6 +6,10 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Fixed
+- Trocar de conversa no notch abre sempre na mensagem mais recente. Antes a conversa nova podia abrir no meio do histórico ou com um vazio embaixo.
+- A lista do card não fica mais presa esticada, com um vazio embaixo, depois de um gesto de dois dedos que andou mais de lado do que pra cima ou pra baixo.
+
 ## [0.37.0] - 2026-11-10
 
 ### Added

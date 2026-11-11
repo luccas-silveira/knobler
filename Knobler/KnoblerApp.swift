@@ -1074,12 +1074,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             scrollAccumY += event.scrollingDeltaY
         }
 
+        // o evento que encerra o gesto (dedos ou inércia) tem que chegar na
+        // lista, senão ela nunca sabe que soltaram e fica presa esticada
+        let fim = event.phase.contains(.ended) || event.phase.contains(.cancelled)
+            || event.momentumPhase.contains(.ended) || event.momentumPhase.contains(.cancelled)
+
         // a decisão mora no NotchGesture; aqui só se aplica o resultado
         switch NotchGesture.acao(
             deltaX: event.scrollingDeltaX, deltaY: event.scrollingDeltaY,
             accumX: scrollAccumX, accumY: scrollAccumY,
             inercia: inercia, expandido: expanded,
-            temMidia: media.state != nil, jaAgiu: scrollActed) {
+            temMidia: media.state != nil, jaAgiu: scrollActed,
+            fim: fim) {
         case .repassar:
             // vertical: a lista do card rola, ou a janela de trás com o notch
             // fechado
