@@ -15,9 +15,15 @@
 #   - docs/architecture.md tem, na tabela de estado (a que começa em
 #     `| Estado | Dono atual | Consumidores |`), uma linha com
 #     `WhatsAppStore.shared`;
-#   - CHANGELOG.md: no bloco `## [Unreleased]` (até o próximo `## [`) há
-#     exatamente UMA linha que cita WhatsApp; ela é um item `- ` sob
-#     `### Added` e diz "integração opcional", "ponte local" e "invisível";
+#   - CHANGELOG.md: o WhatsApp aparece numa linha só, a do lançamento. A linha
+#     de lançamento cita WhatsApp e diz "integração opcional", "ponte local" e
+#     "invisível"; existe exatamente UMA no arquivo inteiro, é um item `- ` sob
+#     `### Added` e mora no `## [Unreleased]` ou no bloco da versão em que saiu
+#     (o release move o bloco, e o gate não pode quebrar por isso). O bloco
+#     dela não tem outra linha citando WhatsApp, e nenhum bloco acima dele
+#     cita: o `[Unreleased]`, depois do lançamento, e as versões mais novas.
+#     Versão anterior à do lançamento não conta. O `## [Unreleased]` tem que
+#     existir;
 #   - nenhum arquivo de Knobler/Novidades/ cita WhatsApp (A4/A48).
 # Cada falta imprime `FALHOU: <o quê>` e o gate sai 1. Antes da checagem real,
 # um autoteste num repo falso prova que a verificação reprova.
@@ -40,10 +46,20 @@ itens() {
   ' "$1" 2>/dev/null
 }
 
-# unreleased <CHANGELOG>: o bloco `## [Unreleased]` até o próximo `## [`.
-unreleased() {
-  awk '/^## \[Unreleased\]/{f=1;next} /^## \[/{f=0} f' "$1" 2>/dev/null
+# citacoes <CHANGELOG>: uma linha por linha do arquivo que cita WhatsApp, como
+# `<nº do bloco>\t<bloco>\t<seção>\t<linha>`. Bloco é cada `## [nome]` (o 1 é
+# o primeiro, de cima pra baixo; 0 é o que vem antes dele) e seção é a última
+# `### ` do bloco antes da linha.
+citacoes() {
+  awk '
+    /^## \[/ { n++; b = $0; sub(/^## \[/, "", b); sub(/\].*$/, "", b); s = "" }
+    /^### /  { s = $0 }
+    tolower($0) ~ /whatsapp/ { printf "%d\t%s\t%s\t%s\n", n, b, s, $0 }
+  ' "$1" 2>/dev/null
 }
+
+# conta: quantas linhas não vazias chegam pela entrada
+conta() { grep -c . || true; }
 
 # verificar <raiz>
 verificar() {
@@ -54,7 +70,7 @@ verificar() {
   local arq="$r/docs/architecture.md"
   local cl="$r/CHANGELOG.md"
   local nov="$r/Knobler/Novidades"
-  local f s item bloco linhas_wa n secao_wa
+  local f s item bloco n cit lanc b_n b_nome secao linha acima
 
   for f in "$doc" "$rm" "$ideias" "$arq" "$cl"; do
     if [ ! -f "$f" ]; then
@@ -143,26 +159,44 @@ verificar() {
       echo "FALHOU: CHANGELOG.md sem '## [Unreleased]'"
       erro=1
     else
-      linhas_wa=$(unreleased "$cl" | grep -i -- 'whatsapp')
-      if [ -z "$linhas_wa" ]; then n=0; else n=$(printf '%s\n' "$linhas_wa" | wc -l | tr -d ' '); fi
-      if [ "$n" -ne 1 ]; then
-        echo "FALHOU: CHANGELOG.md, bloco [Unreleased] tem $n linha(s) citando WhatsApp (tem que ser exatamente 1)"
+      cit=$(citacoes "$cl")
+      # a linha de lançamento: cita WhatsApp e diz as três coisas
+      lanc=$(printf '%s\n' "$cit" | grep -iF -- 'integração opcional' \
+        | grep -iF -- 'ponte local' | grep -iF -- 'invisível')
+      n=$(printf '%s\n' "$lanc" | conta)
+      if [ "$n" -eq 0 ]; then
+        echo "FALHOU: CHANGELOG.md sem a linha de lançamento do WhatsApp (item '- ' sob '### Added' que diz 'integração opcional', 'ponte local' e 'invisível')"
+        erro=1
+      elif [ "$n" -gt 1 ]; then
+        echo "FALHOU: CHANGELOG.md tem $n linhas de lançamento do WhatsApp (tem que ser exatamente 1), nos blocos:$(printf '%s\n' "$lanc" | cut -f2 | sed 's/.*/ [&]/' | tr -d '\n')"
         erro=1
       else
-        for s in 'integração opcional' 'ponte local' 'invisível'; do
-          if ! printf '%s\n' "$linhas_wa" | grep -qiF -- "$s"; then
-            echo "FALHOU: linha do WhatsApp no CHANGELOG.md não diz '$s'"
-            erro=1
-          fi
-        done
-        if ! printf '%s\n' "$linhas_wa" | grep -q '^- '; then
-          echo "FALHOU: linha do WhatsApp no CHANGELOG.md não é um item '- '"
+        b_n=$(printf '%s\n' "$lanc" | cut -f1)
+        b_nome=$(printf '%s\n' "$lanc" | cut -f2)
+        secao=$(printf '%s\n' "$lanc" | cut -f3)
+        linha=$(printf '%s\n' "$lanc" | cut -f4-)
+        if ! printf '%s\n' "$linha" | grep -q '^- '; then
+          echo "FALHOU: linha de lançamento do WhatsApp no CHANGELOG.md não é um item '- '"
           erro=1
         fi
-        # a última `### ` antes da linha do WhatsApp, dentro do Unreleased
-        secao_wa=$(unreleased "$cl" | awk '/^### /{s=$0} tolower($0) ~ /whatsapp/ {print s; exit}')
-        if [ "$secao_wa" != "### Added" ]; then
-          echo "FALHOU: linha do WhatsApp no CHANGELOG.md fora de '### Added' (está sob '${secao_wa:-nenhuma}')"
+        if [ "$secao" != "### Added" ]; then
+          echo "FALHOU: linha de lançamento do WhatsApp no CHANGELOG.md fora de '### Added' (está sob '${secao:-nenhuma}', bloco [$b_nome])"
+          erro=1
+        fi
+        # o bloco do lançamento só cita WhatsApp na linha do lançamento
+        n=$(printf '%s\n' "$cit" | awk -F'\t' -v b="$b_n" '$1 == b' | conta)
+        if [ "$n" -ne 1 ]; then
+          echo "FALHOU: CHANGELOG.md, bloco [$b_nome] tem $n linha(s) citando WhatsApp (tem que ser só a do lançamento)"
+          erro=1
+        fi
+        # nada acima dele cita: o [Unreleased] depois do lançamento e as
+        # versões mais novas. As versões de baixo (mais velhas) não contam.
+        acima=$(printf '%s\n' "$cit" | awk -F'\t' -v b="$b_n" '$1 < b { print ($2 == "" ? "antes do primeiro bloco" : "bloco [" $2 "]") }' \
+          | sort | uniq -c | sed -E 's/^ *([0-9]+) (.*)$/\2 (\1 linha(s))/')
+        if [ -n "$acima" ]; then
+          printf '%s\n' "$acima" | while read -r s; do
+            echo "FALHOU: CHANGELOG.md cita WhatsApp depois do lançamento, que está em [$b_nome]: $s. O WhatsApp aparece numa linha só, a do lançamento"
+          done
           erro=1
         fi
       fi
@@ -376,26 +410,90 @@ printf '\nO estado do WhatsApp mora em `WhatsAppStore.shared`.\n' >> "$ARQ"
 caso "WhatsAppStore.shared só em prosa" 1 "sem linha com WhatsAppStore.shared"
 
 # CHANGELOG.md
+LANCAMENTO='- Integração opcional com uma ponte local de WhatsApp, invisível sem ela.'
+
+# changelog_lancado <miolo do Unreleased>: o lançamento já saiu na 0.37.0 (é o
+# que o release faz com o bloco) e uma versão velha cita WhatsApp de passagem.
+changelog_lancado() {
+  {
+    printf '# Changelog\n\n## [Unreleased]\n'
+    [ -n "${1:-}" ] && printf '\n%s\n' "$1"
+    printf '\n## [0.37.0] - 2026-11-10\n\n### Added\n%s\n\n### Changed\n- Outra coisa.\n' "$LANCAMENTO"
+    printf '\n## [0.36.0] - 2026-09-29\n\n### Fixed\n- Coisa antiga que cita WhatsApp de passagem,\n  e de novo o WhatsApp na linha de baixo.\n'
+  } > "$CL"
+}
+
+# o montar deixa o lançamento ainda no [Unreleased]: é o caso "doc certa" lá em cima
+
+montar
+changelog_lancado
+caso "lançamento já numa versão, Unreleased vazio" 0 ""
+
+montar
+changelog_lancado '### Fixed
+- Trocar de conversa no notch abre sempre na mensagem mais recente.'
+caso "lançamento já numa versão, Unreleased com Fixed que não cita WhatsApp" 0 ""
+
+montar
+changelog_lancado '### Fixed
+- A conversa do WhatsApp abre na mensagem mais recente.'
+caso "Unreleased citando WhatsApp depois do lançamento" 1 "depois do lançamento, que está em [0.37.0]: bloco [Unreleased] (1 linha(s))"
+
+montar
+changelog_lancado "### Added
+$LANCAMENTO"
+caso "linha de lançamento repetida no Unreleased e na versão" 1 "tem 2 linhas de lançamento do WhatsApp"
+
+montar
+changelog_lancado
+sed -i '' 's|^## \[0.37.0\] - 2026-11-10$|## [0.38.0] - 2026-11-20\
+\
+### Fixed\
+- O card do WhatsApp não corta mais a foto.\
+\
+## [0.37.0] - 2026-11-10|' "$CL"
+caso "versão mais nova que a do lançamento citando WhatsApp" 1 "depois do lançamento, que está em [0.37.0]: bloco [0.38.0] (1 linha(s))"
+
+montar
+changelog_lancado
+sed -i '' 's|^- Outra coisa\.$|- Seção WhatsApp no notch com duas colunas.|' "$CL"
+caso "bloco da versão do lançamento com outra linha do WhatsApp" 1 "bloco [0.37.0] tem 2 linha(s) citando WhatsApp"
+
+montar
+changelog_lancado
+sed -i '' 's|^### Added$|### Changed|' "$CL"
+caso "lançamento numa versão, fora de ### Added" 1 "fora de '### Added'"
+
+montar
+changelog_lancado
+grep -vxF -- "$LANCAMENTO" "$CL" > "$CL.novo"; mv "$CL.novo" "$CL"
+caso "sem linha de lançamento em lugar nenhum (a citação da versão velha não vale)" 1 "sem a linha de lançamento do WhatsApp"
+
 montar
 grep -viF 'whatsapp' "$CL" > "$CL.novo"; mv "$CL.novo" "$CL"
-caso "CHANGELOG sem linha do WhatsApp" 1 "tem 0 linha(s) citando WhatsApp"
+caso "CHANGELOG sem linha nenhuma do WhatsApp" 1 "sem a linha de lançamento do WhatsApp"
 
 montar
 sed -i '' 's|^### Changed$|### Changed\
 - Seção WhatsApp no notch com duas colunas.|' "$CL"
-caso "CHANGELOG com duas linhas do WhatsApp" 1 "tem 2 linha(s) citando WhatsApp"
+caso "Unreleased do lançamento com duas linhas do WhatsApp" 1 "bloco [Unreleased] tem 2 linha(s) citando WhatsApp"
+
+montar
+sed -i '' 's|^### Changed$|### Changed\
+- Integração opcional com uma ponte local de WhatsApp, invisível sem ela, de novo.|' "$CL"
+caso "linha de lançamento repetida no mesmo bloco" 1 "tem 2 linhas de lançamento do WhatsApp"
 
 montar
 sed -i '' 's|^- Integração opcional com uma ponte local de WhatsApp, invisível sem ela.$|- WhatsApp no notch.|' "$CL"
-caso "linha sem integração opcional" 1 "não diz 'integração opcional'"
+caso "linha sem integração opcional" 1 "sem a linha de lançamento do WhatsApp"
 
 montar
 sed -i '' 's|, invisível sem ela||' "$CL"
-caso "linha sem invisível" 1 "não diz 'invisível'"
+caso "linha sem invisível" 1 "sem a linha de lançamento do WhatsApp"
 
 montar
 sed -i '' 's|ponte local de WhatsApp|ponte de WhatsApp|' "$CL"
-caso "linha sem ponte local" 1 "não diz 'ponte local'"
+caso "linha sem ponte local" 1 "sem a linha de lançamento do WhatsApp"
 
 montar
 cat > "$CL" <<'EOF'

@@ -370,7 +370,8 @@ swift_teste tools/whatsappintegracaocheck.swift $VM_FONTES $WA_NUCLEO Knobler/Wh
 bash_teste tools/whatsappintegracaoligacaocheck.sh
 # documentação: docs/whatsapp.md com as sete seções e o contrato citado,
 # ROADMAP/IDEIAS sem "WhatsApp Web"/"login headless", WhatsAppStore.shared na
-# tabela de estado, uma linha só no [Unreleased] e Novidades sem WhatsApp
+# tabela de estado, o WhatsApp numa linha só do CHANGELOG (a do lançamento, no
+# [Unreleased] ou na versão em que saiu) e Novidades sem WhatsApp
 bash_teste tools/whatsappdocscheck.sh
 # fumaça de ponta a ponta sem rede: ponte falsa com as duas contas, store,
 # integração e duas telas; carga, card em < 2 s com "· 8292", resposta citando
