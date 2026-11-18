@@ -148,6 +148,7 @@ Avisos que valem para todas as etapas:
 - **O que prova a etapa:**
   - `./tools/check.sh` verde.
   - `Snapshots/ask-longo.png` (quatro opções com descrições de três linhas, numa tela baixa): topo, pergunta inteira, campo e legenda visíveis e inteiros; a lista cortada embaixo com a rolagem; o card não passa de 60% da altura disponível.
+  - Preview embaixo e alto: com um preview de 30 linhas largo demais para ficar ao lado, numa tela de 520 de altura, o preview aparece inteiro (a letra encolhe se preciso) e quem cede espaço é a lista, que rola; o card não passa da tela.
   - `Snapshots/ask-simple.png` e `ask-multiselect.png` saem idênticos aos da etapa 3 (com espaço sobrando não existe área rolável).
   - Trocar de uma aba alta para uma aba baixa encolhe o card (a medida aceita diminuir).
   - Ao vivo, com `POST /ask` da pergunta longa: rolar com dois dedos sobre a lista move a lista; deslizar de lado sobre o card **não** troca de música. Rolagem só se testa com evento real na fila do sistema e a janela na tela — o roteiro está em `~/.claude/projects/-Users-luccassilveira-Desktop-Projetos-knobler/memory/testar-rolagem-de-verdade.md`. Reabra o Knobler de `/Applications` depois.
@@ -156,6 +157,7 @@ Avisos que valem para todas as etapas:
   - A lista (opções + botão Confirmar) mede a própria altura natural por um `GeometryReader` no `.background` do conteúdo, com uma `PreferenceKey` nova (`AlturaDaListaDoAskKey`); o conteúdo de uma área rolável é sempre desenhado na altura natural, então a medida vale com ou sem rolagem. Guarde em `@State listaNatural`.
   - O que não é lista (topo, pergunta, preview embaixo, campo, legenda) = `alturaDoCard − alturaAtualDaLista`, onde `alturaDoCard` é a medida que o card já faz (`AlturaDoAskKey`). Teto da lista = `max(96, alturaMaxima − essaSobra)`.
   - Com `listaNatural > tetoDaLista`: a lista vai dentro de `ScrollView(.vertical)` com `.frame(height: tetoDaLista)`. Caso contrário, a lista é desenhada direto, sem `ScrollView` e sem `frame`. Antes da primeira medida (`listaNatural == 0`), desenhe direto.
+  - Pendência da etapa 4: em `AskCardView.layoutDoPreview`, quando o preview vai embaixo (`lado == false`), a `alturaMaxima` passada ao cálculo desconta também o mínimo da lista (96): `max(120, disponivel.height − 24 − topo − 150 − 96)`. Assim o preview encolhe a letra antes de empurrar o card para fora da tela, e a lista rola no espaço que sobra. Ao lado, a conta fica como está.
   - Não use `maxHeight: .infinity` em nada do card: é o que travava a auto-medição (comentário em `Ask.swift:172-174`).
   - `handleScroll` (`Knobler/KnoblerApp.swift:1037` trata o card como fechado quando `vm.mode != .music`): no ramo do gesto horizontal (`:1083-1106`), saia cedo quando `vm.mode == .question`. A rolagem vertical já é repassada ao conteúdo.
   - Cenário `ask-longo`: a pergunta `LONGA` do `<script>` do mockup, com a altura disponível da view model do cenário fixada em 520 (veja como o harness preenche `vm.availableSize` e sobrescreva dentro do `configure` do cenário).
