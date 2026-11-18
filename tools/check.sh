@@ -70,6 +70,7 @@ echo "== self-checks Swift =="
 swift_check presentationcheck Knobler/NotchSectionOrder.swift Knobler/NotchPresentation.swift tools/presentationcheck.swift
 swift_check askcheck          Knobler/AskModels.swift Knobler/AskFeature.swift tools/askcheck.swift
 swift_teste tools/askcardmodelocheck.swift Knobler/AskModels.swift Knobler/AskCard/AskCardModelo.swift
+swift_teste tools/asktecladocheck.swift Knobler/AskModels.swift Knobler/AskFeature.swift Knobler/AskCard/AskTeclado.swift
 # estrutura do card redesenhado nas views e no harness, que o typecheck não prova
 bash_teste tools/askcardcheck.sh
 swift_check apiguardcheck      Knobler/NotchAPIGuard.swift tools/apiguardcheck.swift

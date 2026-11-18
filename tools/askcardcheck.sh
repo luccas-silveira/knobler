@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gate das etapas 3, 4 e 5 do card de pergunta
+# Gate das etapas 3, 4, 5 e 6 do card de pergunta
 # (docs/vesta/plans/2026-11-18-card-pergunta.md): a estrutura do card
 # redesenhado nos arquivos que o ./tools/check.sh não roda (views SwiftUI e o
 # harness de snapshot). O notchfontescheck só typecheca.
@@ -69,6 +69,40 @@
 #     `AskTeto.doCard(`; o `ask-preview-alto` com `frameWidth: 900`, destaque na
 #     primeira opção e a conta de `quadro.height`; e cada um dos três cenários
 #     de preview chama `layoutDoPreview(` dentro do próprio bloco.
+# Etapa 6 (teclado no card: posse pelo atalho, teclas pelo vigia, Esc solta)
+# confere:
+#   - Knobler/AskCard/AskTeclado.swift existe, declara `enum AskTeclado` e só
+#     importa o Foundation; não conta como view (as ligações da etapa 3 têm de
+#     estar nas views); tools/notchview-fontes.txt só precisa dele se alguma
+#     fonte do snapshot (ou o tools/main.swift) usar as teclas; e
+#     tools/check.sh roda o tools/asktecladocheck.swift com ele;
+#   - Knobler/NotchViewModel.swift publica `tecladoNaPergunta` e
+#     `campoDaPerguntaFocado`, tem `perguntaDoClaudeAtiva`,
+#     `aoMudarTecladoDaPergunta` e `func darTecladoAPergunta(`, que chama o
+#     aviso e compara o valor novo com o atual; no `alternarPeloTeclado`, o ramo
+#     da pergunta (`.question`, `perguntaDoClaudeAtiva`, `darTecladoAPergunta(`)
+#     vem antes de `setExpandedDirect(` e de `abertoPorTeclado = true`;
+#   - Knobler/KnoblerApp.swift: o vigia de teclas (`addLocalMonitorForEvents`
+#     de `.keyDown`) chama `AskTeclado.comando(` antes do guard do card aberto
+#     pelo atalho (`abertoPorTeclado`), e esse guard exige modo diferente de
+#     `.question`; o app trata os quatro comandos que não são ação do reducer;
+#     o `makeKey` do `onKeyboardEligibilityChanged` só vem depois de olhar
+#     `.question`; o `aoPerderTeclado` chama `darTecladoAPergunta(false)` sem
+#     passar pelo guard do card de música; `perguntaDoClaudeAtiva` lê
+#     `askStore.state.active` e não o `agentRequestStore`;
+#     `aoMudarTecladoDaPergunta` tem `makeKey(`, `resignKey(` e
+#     `.setHighlight(`; e existe um `darTecladoAPergunta(false)` fora do vigia
+#     e do `aoPerderTeclado` (a posse cai quando a pergunta ativa muda);
+#   - Knobler/AskCard/: nenhum `.onExitCommand` envia `.cancelActive`; nenhuma
+#     view passa `teclado: false`/`teclado: true` fixo; o card usa
+#     `vm.tecladoNaPergunta`, lê e grava `vm.campoDaPerguntaFocado` e chama
+#     `darTecladoAPergunta(true)`; o rodapé tem o selo "⇥";
+#   - Knobler/LinkPreviewView.swift não diz mais que o Esc fecha "como … no card
+#     de pergunta" (este é o único ponto em que o comentário conta);
+#   - tools/main.swift tem `ask-teclado` (`tecladoNaPergunta = true`,
+#     `.setHighlight(1)`) e `ask-texto` (`tecladoNaPergunta = true`,
+#     `campoDaPerguntaFocado = true`, o texto do mockup por `.setText(`), e o
+#     `ask-preview` segue com `.setHighlight(1)` dentro do próprio bloco.
 # Linha de comentário (`//`) não conta.
 # Cada falta imprime `FALHOU: <o quê>` e o gate sai 1. Antes da checagem real,
 # um autoteste num repo falso prova que cada verificação reprova.
@@ -84,6 +118,19 @@ CENARIOS='ask-simple ask-multi-vazio ask-multiselect ask-preview ask-preview-lar
 CENARIOS_DE_PREVIEW='ask-preview ask-preview-largo'
 CENARIOS_DE_TETO='ask-longo ask-preview-alto'
 CENARIOS_COM_LAYOUT='ask-preview ask-preview-largo ask-preview-alto'
+CENARIOS_DE_TECLADO='ask-teclado ask-texto'
+# texto do quadro "Escrevendo" do mockup
+TEXTO_DO_MOCKUP='.setText("Atalho, mas só com o notch fechado")'
+# quem cita um destes nomes usa o Knobler/AskCard/AskTeclado.swift
+USA_TECLAS='(^|[^A-Za-z0-9_])Ask(Teclado|Tecla|Comando)([^A-Za-z0-9_]|$)'
+# comandos do AskComando que o app executa por conta própria (`.acao` vai
+# direto para o reducer), e o que cada um faz
+COMANDOS=(
+  'focarCampo|Tab não leva o cursor ao campo'
+  'voltarALista|Esc e ⇧Tab no campo não devolvem o cursor à lista'
+  'soltarTeclado|Esc na lista não solta o teclado'
+  'cancelar|⌘. não manda a pergunta para o terminal'
+)
 # linha de ~100 colunas da tabela `LARGA` do mockup
 LINHA_LARGA='Shift+Tab volta à lista'
 # opção da pergunta `LONGA` do mockup
@@ -121,12 +168,14 @@ contar_re() {
 tem() { grep -vE '^[[:space:]]*//' "$1" 2>/dev/null | grep -F -- "$2" >/dev/null; }
 tem_re() { grep -vE '^[[:space:]]*//' "$1" 2>/dev/null | grep -E -- "$2" >/dev/null; }
 
-# views <raiz>: os .swift de Knobler/AskCard/ menos o modelo puro, um por linha
+# views <raiz>: os .swift de Knobler/AskCard/ menos os dois arquivos puros (o
+# modelo e as teclas), um por linha
 views() {
   local f
   for f in "$1/$PASTA"/*.swift; do
     [ -e "$f" ] || continue
     [ "${f##*/}" = AskCardModelo.swift ] && continue
+    [ "${f##*/}" = AskTeclado.swift ] && continue
     printf '%s\n' "$f"
   done
 }
@@ -307,6 +356,67 @@ bloco_do_cenario() {
   ' "$1" 2>/dev/null
 }
 
+# esc_cancela <arquivo>: sai 0 se algum `.onExitCommand` do arquivo cita
+# `cancelActive` (do `onExitCommand` até fechar as chaves; sem chave, só a
+# linha quando a chamada fecha nela, senão a linha e a seguinte), sem comentário
+esc_cancela() {
+  awk '
+    /^[[:space:]]*\/\// { next }
+    {
+      linha = $0
+      sub(/[[:space:]]\/\/.*$/, "", linha)
+      if (!pega && linha ~ /onExitCommand/) {
+        pega = 1; abre = 0; fecha = 0; linhas = 0
+        sub(/^.*onExitCommand/, "", linha)
+      }
+      if (pega) {
+        linhas++
+        if (linha ~ /cancelActive/) achou = 1
+        abre += gsub(/\{/, "{", linha); fecha += gsub(/\}/, "}", linha)
+        if (abre > 0 && abre == fecha) pega = 0
+        else if (abre == 0 && (linhas >= 2 || linha ~ /\)[[:space:]]*$/)) pega = 0
+      }
+    }
+    END { exit(achou ? 0 : 1) }
+  ' "$1" 2>/dev/null
+}
+
+# vigia_de_teclas: lê da entrada padrão o bloco do vigia de `.keyDown` e
+# imprime o que falta. O guard antigo é a declaração `guard` que cita
+# `abertoPorTeclado`; a região dele vai até o `switch` das teclas do card de
+# música (`focarVizinho`), para valer também um segundo `guard` só com o modo.
+#   semguard    nenhum `abertoPorTeclado` no vigia
+#   depois      `AskTeclado.comando(` só aparece depois do guard antigo
+#   semquestion a região do guard antigo não cita `.question`
+vigia_de_teclas() {
+  awk '
+    { linha[NR] = $0 }
+    /(^|[^A-Za-z0-9_])guard([^A-Za-z0-9_]|$)/ { g = NR }
+    !cmd && /AskTeclado\.comando\(/ { cmd = NR }
+    !ini && /abertoPorTeclado/ { ini = (g ? g : NR); cita = NR }
+    ini && !fim && NR > cita && /(^|[^A-Za-z0-9_])switch([^A-Za-z0-9_]|$)|focarVizinho/ { fim = NR }
+    END {
+      if (!ini) { print "semguard"; exit }
+      if (cmd && cmd >= ini) print "depois"
+      if (!fim) fim = NR + 1
+      for (i = ini; i < fim; i++) if (linha[i] ~ /\.question([^A-Za-z0-9_]|$)/) q = 1
+      if (!q) print "semquestion"
+    }
+  '
+}
+
+# antes_de <texto fixo>: lê um bloco da entrada padrão e imprime, numa linha
+# só, o que vem antes da primeira ocorrência do texto
+antes_de() {
+  awk -v alvo="$1" '
+    {
+      i = index($0, alvo)
+      if (i > 0) { printf "%s\n", substr($0, 1, i - 1); exit }
+      printf "%s ", $0
+    }
+  '
+}
+
 # verificar <raiz>
 verificar() {
   local r="$1" erro=0
@@ -316,7 +426,12 @@ verificar() {
   local fontes="$r/tools/notchview-fontes.txt"
   local harness="$r/tools/main.swift"
   local previa="$r/$PASTA/AskPreviewView.swift"
-  local v f n bloco uso texto motivo
+  local teclas="$r/$PASTA/AskTeclado.swift"
+  local rodape="$r/$PASTA/AskRodapeView.swift"
+  local vmodel="$r/Knobler/NotchViewModel.swift"
+  local link="$r/Knobler/LinkPreviewView.swift"
+  local gates="$r/tools/check.sh"
+  local v f n bloco uso texto motivo veredito vigia perder
 
   # --- arquivos ---
   if [ -e "$r/Knobler/Ask.swift" ]; then
@@ -729,6 +844,308 @@ verificar() {
     done
   fi
 
+  # === etapa 6: teclado no card ===
+
+  # --- a função pura das teclas ---
+  if [ ! -f "$teclas" ]; then
+    echo "FALHOU: $PASTA/AskTeclado.swift não existe (a função pura que diz que tecla vira que comando)"
+    erro=1
+  else
+    if ! tem_re "$teclas" 'enum[[:space:]]+AskTeclado([^A-Za-z0-9_]|$)'; then
+      echo "FALHOU: $PASTA/AskTeclado.swift não declara 'enum AskTeclado'"
+      erro=1
+    fi
+    n=$(grep -vE '^[[:space:]]*//' "$teclas" | grep -E '^[[:space:]]*(@[A-Za-z_]+[[:space:]]+)*import[[:space:]]' \
+      | grep -cvE 'import[[:space:]]+Foundation[[:space:]]*$')
+    if [ "${n:-0}" -gt 0 ]; then
+      echo "FALHOU: $PASTA/AskTeclado.swift importa mais que o Foundation (a função das teclas é pura: sem NSEvent, AppKit ou SwiftUI)"
+      erro=1
+    fi
+  fi
+  # A linha nas fontes do snapshot só é exigida se alguma fonte usar as teclas:
+  # o vigia mora no KnoblerApp.swift, que não é fonte do snapshot.
+  if [ -f "$fontes" ] && ! grep -qxF -- "$PASTA/AskTeclado.swift" "$fontes"; then
+    while IFS= read -r f; do
+      case "$f" in ''|'#'*|"$PASTA/AskTeclado.swift") continue ;; esac
+      if tem_re "$r/$f" "$USA_TECLAS"; then
+        echo "FALHOU: tools/notchview-fontes.txt sem '$PASTA/AskTeclado.swift' ($f usa as teclas e entra no typecheck do snapshot)"
+        erro=1
+        break
+      fi
+    done < <(cat "$fontes"; echo tools/main.swift)
+  fi
+  if [ ! -f "$gates" ]; then
+    echo "FALHOU: tools/check.sh não existe"
+    erro=1
+  elif ! grep -E '^swift_teste tools/asktecladocheck\.swift .*Knobler/AskModels\.swift .*Knobler/AskFeature\.swift .*Knobler/AskCard/AskTeclado\.swift' "$gates" >/dev/null; then
+    echo "FALHOU: tools/check.sh sem a linha 'swift_teste tools/asktecladocheck.swift … Knobler/AskCard/AskTeclado.swift' (gate fora do check.sh a CI não vê)"
+    erro=1
+  fi
+
+  # --- posse do teclado na view model ---
+  if [ ! -f "$vmodel" ]; then
+    echo "FALHOU: Knobler/NotchViewModel.swift não existe"
+    erro=1
+  else
+    if ! tem_re "$vmodel" '@Published[^/]*var[[:space:]]+tecladoNaPergunta([^A-Za-z0-9_]|$)'; then
+      echo "FALHOU: Knobler/NotchViewModel.swift sem '@Published var tecladoNaPergunta' (a posse do teclado é estado próprio da pergunta, não o abertoPorTeclado)"
+      erro=1
+    fi
+    if ! tem_re "$vmodel" '@Published[^/]*var[[:space:]]+campoDaPerguntaFocado([^A-Za-z0-9_]|$)'; then
+      echo "FALHOU: Knobler/NotchViewModel.swift sem '@Published var campoDaPerguntaFocado' (Tab e Esc levam o cursor ao campo e de volta por ele)"
+      erro=1
+    fi
+    if ! tem_re "$vmodel" 'var[[:space:]]+perguntaDoClaudeAtiva[[:space:]]*:'; then
+      echo "FALHOU: Knobler/NotchViewModel.swift sem 'var perguntaDoClaudeAtiva:' (o atalho não distingue a pergunta do Claude do card do Codex)"
+      erro=1
+    fi
+    if ! tem_re "$vmodel" 'var[[:space:]]+aoMudarTecladoDaPergunta[[:space:]]*:'; then
+      echo "FALHOU: Knobler/NotchViewModel.swift sem 'var aoMudarTecladoDaPergunta:' (o painel não fica sabendo da posse)"
+      erro=1
+    fi
+    bloco=$(corpo_de "$vmodel" 'func[[:space:]]+darTecladoAPergunta[[:space:]]*[(]')
+    if [ -z "$bloco" ]; then
+      echo "FALHOU: Knobler/NotchViewModel.swift sem 'func darTecladoAPergunta('"
+      erro=1
+    else
+      case "$bloco" in
+        *aoMudarTecladoDaPergunta*) ;;
+        *)
+          echo "FALHOU: Knobler/NotchViewModel.swift: o darTecladoAPergunta não chama 'aoMudarTecladoDaPergunta' (o painel não vira janela-chave nem larga a chave)"
+          erro=1 ;;
+      esac
+      if ! printf '%s\n' "$bloco" | grep -E '[!=]=' >/dev/null; then
+        echo "FALHOU: Knobler/NotchViewModel.swift: o darTecladoAPergunta não compara o valor novo com o atual ('!=' ou '=='); avisando sem mudança, o resignKey do aviso chama o aoPerderTeclado, que chama o darTecladoAPergunta de novo"
+        erro=1
+      fi
+    fi
+    bloco=$(corpo_de "$vmodel" 'func[[:space:]]+alternarPeloTeclado[[:space:]]*[(]')
+    if [ -z "$bloco" ]; then
+      echo "FALHOU: Knobler/NotchViewModel.swift sem 'func alternarPeloTeclado(' (é por ele que o atalho global entra)"
+      erro=1
+    else
+      veredito=$(printf '%s\n' "$bloco" | awk '
+        !p && /perguntaDoClaudeAtiva/ { p = NR }
+        !d && /darTecladoAPergunta\(/ { d = NR }
+        !e && /setExpandedDirect\(|abertoPorTeclado[[:space:]]*=[[:space:]]*true/ { e = NR }
+        /\.question([^A-Za-z0-9_]|$)/ { q = 1 }
+        END {
+          if (!p) print "semconsulta"
+          if (!d) print "semposse"
+          if (!q) print "semmodo"
+          if (e && ((p && p > e) || (d && d > e))) print "depois"
+        }')
+      case "$veredito" in *semconsulta*)
+        echo "FALHOU: Knobler/NotchViewModel.swift: o alternarPeloTeclado não consulta 'perguntaDoClaudeAtiva' (com o card do Codex na tela o atalho tem de se comportar como hoje)"
+        erro=1 ;;
+      esac
+      case "$veredito" in *semposse*)
+        echo "FALHOU: Knobler/NotchViewModel.swift: o alternarPeloTeclado não chama 'darTecladoAPergunta(' (com pergunta na tela o atalho não dá o teclado a ela)"
+        erro=1 ;;
+      esac
+      case "$veredito" in *semmodo*)
+        echo "FALHOU: Knobler/NotchViewModel.swift: o alternarPeloTeclado não olha '.question' (o ramo da pergunta só vale com a pergunta na tela)"
+        erro=1 ;;
+      esac
+      case "$veredito" in *depois*)
+        echo "FALHOU: Knobler/NotchViewModel.swift: no alternarPeloTeclado o ramo da pergunta vem depois de 'setExpandedDirect(' ou 'abertoPorTeclado = true' (o atalho arma o card de música por trás da pergunta)"
+        erro=1 ;;
+      esac
+    fi
+  fi
+
+  # --- o app: vigia de teclas, herança da chave e posse que cai sozinha ---
+  if [ -f "$app" ]; then
+    vigia=$(corpo_de "$app" 'addLocalMonitorForEvents[(]matching:[[:space:]]*[.]keyDown')
+    if [ -z "$vigia" ]; then
+      echo "FALHOU: Knobler/KnoblerApp.swift sem o vigia de teclas ('addLocalMonitorForEvents(matching: .keyDown')"
+      erro=1
+    else
+      case "$vigia" in
+        *'AskTeclado.comando('*) ;;
+        *)
+          echo "FALHOU: Knobler/KnoblerApp.swift: o vigia de teclas não chama 'AskTeclado.comando(' (as teclas da pergunta não passam pela função testada)"
+          erro=1 ;;
+      esac
+      veredito=$(printf '%s\n' "$vigia" | vigia_de_teclas)
+      case "$veredito" in *semguard*)
+        echo "FALHOU: Knobler/KnoblerApp.swift: o vigia de teclas perdeu o guard do card aberto pelo atalho ('abertoPorTeclado'; ← → Tab e Esc do card de música dependem dele)"
+        erro=1 ;;
+      esac
+      case "$veredito" in *depois*)
+        echo "FALHOU: Knobler/KnoblerApp.swift: no vigia de teclas, 'AskTeclado.comando(' vem depois do guard do card aberto pelo atalho (o guard devolve o evento antes e a tecla não chega à pergunta)"
+        erro=1 ;;
+      esac
+      case "$veredito" in *semquestion*)
+        echo "FALHOU: Knobler/KnoblerApp.swift: no vigia de teclas, o guard do card aberto pelo atalho não exige modo diferente de '.question' (← → Tab e Esc mexem no card de música por trás da pergunta)"
+        erro=1 ;;
+      esac
+    fi
+    for uso in "${COMANDOS[@]}"; do
+      texto="${uso%%|*}"; motivo="${uso#*|}"
+      if ! tem_re "$app" "[.]$texto([^A-Za-z0-9_]|\$)"; then
+        echo "FALHOU: Knobler/KnoblerApp.swift não trata o comando '.$texto' ($motivo)"
+        erro=1
+      fi
+    done
+
+    bloco=$(corpo_de "$app" 'onKeyboardEligibilityChanged:[[:space:]]*[{]')
+    if [ -z "$bloco" ]; then
+      echo "FALHOU: Knobler/KnoblerApp.swift sem o bloco 'onKeyboardEligibilityChanged: {' (é ali que o painel herda a chave)"
+      erro=1
+    else
+      veredito=$(printf '%s\n' "$bloco" | awk '
+        !m && /makeKey\(/ { m = NR }
+        !q && /\.question([^A-Za-z0-9_]|$)/ { q = NR }
+        END { if (m && (!q || q > m)) print "herda" }')
+      if [ "$veredito" = herda ]; then
+        echo "FALHOU: Knobler/KnoblerApp.swift: o makeKey do onKeyboardEligibilityChanged não exige modo diferente de '.question' (pergunta que chega com o card do atalho aberto herda a chave e rouba o teclado)"
+        erro=1
+      fi
+    fi
+
+    perder=$(corpo_de "$app" 'aoPerderTeclado[[:space:]]*=[[:space:]]*[{]')
+    if [ -z "$perder" ]; then
+      echo "FALHOU: Knobler/KnoblerApp.swift não atribui 'aoPerderTeclado = {' (clicar em outro app tem de soltar o teclado da pergunta)"
+      erro=1
+    else
+      case "$perder" in
+        *'darTecladoAPergunta(false)'*)
+          if printf '%s\n' "$perder" | antes_de 'darTecladoAPergunta(false)' \
+              | grep -E '(^|[^A-Za-z0-9_])guard[^{]*(abertoPorTeclado|[.]music)' >/dev/null; then
+            echo "FALHOU: Knobler/KnoblerApp.swift: no aoPerderTeclado, 'darTecladoAPergunta(false)' vem depois do guard do card de música (com pergunta na tela o guard sai antes e clicar em outro app não solta o teclado)"
+            erro=1
+          fi ;;
+        *)
+          echo "FALHOU: Knobler/KnoblerApp.swift: o aoPerderTeclado não chama 'darTecladoAPergunta(false)' (clicar em outro app não solta o teclado da pergunta)"
+          erro=1 ;;
+      esac
+    fi
+
+    bloco=$(corpo_de "$app" 'perguntaDoClaudeAtiva[[:space:]]*=[[:space:]]*[{]')
+    if [ -z "$bloco" ]; then
+      echo "FALHOU: Knobler/KnoblerApp.swift não atribui 'perguntaDoClaudeAtiva = {' (sem ela o atalho nunca dá o teclado à pergunta)"
+      erro=1
+    else
+      if ! printf '%s\n' "$bloco" | grep -E 'askStore[?]?[.]state[.]active' >/dev/null; then
+        echo "FALHOU: Knobler/KnoblerApp.swift: 'perguntaDoClaudeAtiva' não lê 'askStore.state.active'"
+        erro=1
+      fi
+      case "$bloco" in *agentRequestStore*)
+        echo "FALHOU: Knobler/KnoblerApp.swift: 'perguntaDoClaudeAtiva' cita o 'agentRequestStore' (só a pergunta do Claude conta; o card do Codex fica como hoje)"
+        erro=1 ;;
+      esac
+    fi
+
+    bloco=$(corpo_de "$app" 'aoMudarTecladoDaPergunta[[:space:]]*=[[:space:]]*[{]')
+    if [ -z "$bloco" ]; then
+      echo "FALHOU: Knobler/KnoblerApp.swift não atribui 'aoMudarTecladoDaPergunta = {' (a posse muda e o painel não vira nem deixa de ser janela-chave)"
+      erro=1
+    else
+      case "$bloco" in *'makeKey('*) ;; *)
+        echo "FALHOU: Knobler/KnoblerApp.swift: o aoMudarTecladoDaPergunta sem 'makeKey(' (ganhar o teclado não faz do painel a janela-chave)"
+        erro=1 ;;
+      esac
+      case "$bloco" in *'resignKey('*) ;; *)
+        echo "FALHOU: Knobler/KnoblerApp.swift: o aoMudarTecladoDaPergunta sem 'resignKey(' (soltar o teclado não devolve as teclas ao app da frente)"
+        erro=1 ;;
+      esac
+      case "$bloco" in *'.setHighlight('*) ;; *)
+        echo "FALHOU: Knobler/KnoblerApp.swift: o aoMudarTecladoDaPergunta sem '.setHighlight(' (o destaque entra com o teclado e sai com ele)"
+        erro=1 ;;
+      esac
+    fi
+
+    # a posse cai quando a pergunta ativa muda: uma chamada que não seja a do
+    # Esc (vigia) nem a do clique em outro app (aoPerderTeclado)
+    n=$(( $(contar "$app" 'darTecladoAPergunta(false)') \
+      - $(printf '%s\n' "$vigia" | grep -cF -- 'darTecladoAPergunta(false)') \
+      - $(printf '%s\n' "$perder" | grep -cF -- 'darTecladoAPergunta(false)') ))
+    if [ "$n" -le 0 ] && ! tem "$notch" 'darTecladoAPergunta(false)' \
+        && ! nas_views "$r" 'darTecladoAPergunta(false)'; then
+      echo "FALHOU: nenhum 'darTecladoAPergunta(false)' fora do vigia de teclas e do aoPerderTeclado (a posse não cai quando a pergunta ativa muda: respondida, cancelada, expirada ou promovida da fila)"
+      erro=1
+    fi
+  fi
+
+  # --- o card segue a posse ---
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    if esc_cancela "$f"; then
+      echo "FALHOU: ${f#"$r"/}: um '.onExitCommand' ainda envia '.cancelActive' (Esc solta o teclado; quem manda a pergunta para o terminal é o ✕ e o ⌘.)"
+      erro=1
+    fi
+    if tem_re "$f" '(^|[^A-Za-z0-9_])teclado:[[:space:]]*(false|true)([^A-Za-z0-9_]|$)'; then
+      echo "FALHOU: ${f#"$r"/} passa 'teclado:' fixo em false ou true (contorno do destaque, selos acesos e legenda de teclas seguem vm.tecladoNaPergunta)"
+      erro=1
+    fi
+  done < <(views "$r")
+  if [ -f "$card" ]; then
+    if ! tem "$card" 'vm.tecladoNaPergunta'; then
+      echo "FALHOU: $PASTA/AskCardView.swift não usa 'vm.tecladoNaPergunta' (o card não muda quando ganha o teclado)"
+      erro=1
+    fi
+    if ! tem "$card" 'vm.campoDaPerguntaFocado'; then
+      echo "FALHOU: $PASTA/AskCardView.swift não usa 'vm.campoDaPerguntaFocado' (Tab do vigia não leva o cursor ao campo)"
+      erro=1
+    elif ! tem_re "$card" 'vm[.]campoDaPerguntaFocado[[:space:]]*=[^=]'; then
+      echo "FALHOU: $PASTA/AskCardView.swift não grava 'vm.campoDaPerguntaFocado =' (clicar no campo ou sair dele não chega à view model)"
+      erro=1
+    fi
+    if ! tem "$card" 'darTecladoAPergunta(true)'; then
+      echo "FALHOU: $PASTA/AskCardView.swift sem 'darTecladoAPergunta(true)' (clicar no campo de texto não dá o teclado à pergunta)"
+      erro=1
+    fi
+  fi
+  if [ -f "$rodape" ] && ! tem "$rodape" '"⇥"'; then
+    echo "FALHOU: $PASTA/AskRodapeView.swift sem o selo \"⇥\" (com o teclado na lista, o campo mostra a tecla que leva a ele)"
+    erro=1
+  fi
+
+  # --- o comentário do preview de link (aqui o que conta é o comentário) ---
+  if [ -f "$link" ] && grep -E 'como[^.;(]*[[:space:]](no|do)[[:space:]]+card[[:space:]]+de[[:space:]]+pergunta' "$link" >/dev/null; then
+    echo "FALHOU: Knobler/LinkPreviewView.swift ainda diz que o Esc fecha \"como … no card de pergunta\" (lá o Esc agora solta o teclado)"
+    erro=1
+  fi
+
+  # --- cenários do teclado no harness ---
+  if [ -f "$harness" ]; then
+    for v in $CENARIOS_DE_TECLADO; do
+      bloco=$(bloco_do_cenario "$harness" "$v")
+      if [ -z "$bloco" ]; then
+        echo "FALHOU: tools/main.swift sem o cenário \"$v\""
+        erro=1
+        continue
+      fi
+      if ! printf '%s\n' "$bloco" | grep -E 'tecladoNaPergunta[[:space:]]*=[[:space:]]*true' >/dev/null; then
+        echo "FALHOU: tools/main.swift: o cenário \"$v\" não liga 'vm.tecladoNaPergunta = true' (o PNG sairia em repouso)"
+        erro=1
+      fi
+      case "$v" in
+        ask-teclado)
+          case "$bloco" in *'.setHighlight(1)'*) ;; *)
+            echo "FALHOU: tools/main.swift: o cenário \"ask-teclado\" sem '.setHighlight(1)' (o contorno do quadro do mockup é o da segunda opção)"
+            erro=1 ;;
+          esac ;;
+        ask-texto)
+          if ! printf '%s\n' "$bloco" | grep -E 'campoDaPerguntaFocado[[:space:]]*=[[:space:]]*true' >/dev/null; then
+            echo "FALHOU: tools/main.swift: o cenário \"ask-texto\" não liga 'vm.campoDaPerguntaFocado = true' (a legenda do campo não aparece)"
+            erro=1
+          fi
+          case "$bloco" in *"$TEXTO_DO_MOCKUP"*) ;; *)
+            echo "FALHOU: tools/main.swift: o cenário \"ask-texto\" sem '$TEXTO_DO_MOCKUP' (o texto do quadro \"Escrevendo\" do mockup)"
+            erro=1 ;;
+          esac ;;
+      esac
+    done
+    # com o ask-teclado no arquivo, a conferência da etapa 4 (arquivo inteiro)
+    # não vê mais o ask-preview sem o destaque: quem pega é o bloco
+    case "$(bloco_do_cenario "$harness" ask-preview)" in *'.setHighlight(1)'*) ;; *)
+      echo "FALHOU: tools/main.swift: o cenário \"ask-preview\" sem '.setHighlight(1)' no próprio bloco (o preview exibido é o da segunda opção)"
+      erro=1 ;;
+    esac
+  fi
+
   return "$erro"
 }
 
@@ -790,10 +1207,16 @@ struct AskCardView: View {
             } else {
                 lista
             }
-            AskRodapeView(itens: AskLegenda.itens(teclado: false, campo: false, multipla: false,
-                                                  abas: false, atalho: vm.glifoDoAtalho()))
+            AskRodapeView(itens: AskLegenda.itens(teclado: vm.tecladoNaPergunta, campo: textFocused, multipla: false,
+                                                  abas: false, atalho: vm.glifoDoAtalho()),
+                          selo: vm.tecladoNaPergunta && !textFocused)
         }
         .onPreferenceChange(AlturaDaListaDoAskKey.self) { listaNatural = $0 }
+        .onChange(of: vm.campoDaPerguntaFocado) { textFocused = vm.campoDaPerguntaFocado }
+        .onChange(of: textFocused) {
+            vm.campoDaPerguntaFocado = textFocused
+            if textFocused { vm.darTecladoAPergunta(true) }
+        }
     }
 
     @ViewBuilder
@@ -810,6 +1233,7 @@ struct AskCardView: View {
     private var opcoes: some View {
         VStack {
             AskOpcaoView(rotulo: AskRotulo.separar("a").texto,
+                         teclado: vm.tecladoNaPergunta,
                          entrar: { askStore.send(.setHighlight(0)) },
                          clicar: { askStore.send(.choose(index: 0)) })
         }
@@ -855,8 +1279,32 @@ EOF
 import SwiftUI
 
 struct AskRodapeView: View {
+    let selo: Bool
     var body: some View {
         TextField("Outra resposta…", text: .constant("")).opacity(AskEstilo.linha)
+        if selo { AskSeloView(texto: "⇥") }
+    }
+}
+EOF
+  cat > "$T/r/$PASTA/AskTeclado.swift" <<'EOF'
+import Foundation
+
+struct AskTecla: Equatable {
+    var codigo: Int
+    var caracteres: String
+}
+
+enum AskComando: Equatable {
+    case acao(AskAction)
+    case focarCampo, voltarALista, soltarTeclado, cancelar
+}
+
+enum AskTeclado {
+    static func comando(_ tecla: AskTecla, campo: Bool, estado: AskState) -> AskComando? {
+        if tecla.caracteres == "2" { return .acao(.choose(index: 1)) }
+        if tecla.codigo == 124 { return .acao(.goTo(page: estado.page + 1)) }
+        if tecla.codigo == 125 { return .acao(.moveHighlight(by: 1)) }
+        return nil
     }
 }
 EOF
@@ -909,6 +1357,36 @@ struct NotchView: View {
     }
 }
 EOF
+  cat > "$T/r/Knobler/NotchViewModel.swift" <<'EOF'
+final class NotchViewModel: ObservableObject {
+    @Published private(set) var abertoPorTeclado = false
+    @Published var tecladoNaPergunta = false
+    @Published var campoDaPerguntaFocado = false
+    var perguntaDoClaudeAtiva: () -> Bool = { false }
+    var aoMudarTecladoDaPergunta: ((Bool) -> Void)?
+
+    func darTecladoAPergunta(_ liga: Bool) {
+        guard tecladoNaPergunta != liga else { return }
+        tecladoNaPergunta = liga
+        aoMudarTecladoDaPergunta?(liga)
+    }
+
+    func alternarPeloTeclado() {
+        if mode == .question, perguntaDoClaudeAtiva() { darTecladoAPergunta(!tecladoNaPergunta); return }
+        if expanded && abertoPorTeclado { setExpandedDirect(false); return }
+        abertoPorTeclado = true
+        setExpandedDirect(true)
+    }
+}
+EOF
+  cat > "$T/r/Knobler/LinkPreviewView.swift" <<'EOF'
+struct LinkPreviewView: View {
+    var body: some View {
+        // Esc fecha o preview, como na nota rápida
+        Text("x").onExitCommand { preview.fechar() }
+    }
+}
+EOF
   cat > "$T/r/Knobler/KnoblerApp.swift" <<'EOF'
 let vm = NotchViewModel()
 vm.glifoDoAtalho = { KeyboardShortcuts.getShortcut(for: .abrirNotch)?.shortcutGlyph }
@@ -917,6 +1395,68 @@ func handleScroll(_ event: NSEvent) -> NSEvent? {
     if vm.mode == .question { return event }
     return expanded ? nil : event
 }
+func setupAtalhoDoNotch() {
+    keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        if let window = NSApp.keyWindow as? NotchWindow, let vm = self?.vmDa(window),
+           vm.tecladoNaPergunta, vm.mode == .question, self?.askStore?.state.active != nil {
+            let tecla = AskTecla(codigo: Int(event.keyCode), caracteres: event.charactersIgnoringModifiers ?? "")
+            let campo = window.firstResponder is NSText
+            switch AskTeclado.comando(tecla, campo: campo, estado: askStore.state) {
+            case .acao(let acao)?: askStore.send(acao)
+            case .focarCampo?: vm.campoDaPerguntaFocado = true
+            case .voltarALista?: vm.campoDaPerguntaFocado = false
+            case .soltarTeclado?: vm.darTecladoAPergunta(false)
+            case .cancelar?: askStore.send(.cancelActive)
+            case nil: return campo ? event : nil
+            }
+            return nil
+        }
+        guard let window = NSApp.keyWindow as? NotchWindow, let vm = self?.vmDa(window),
+              vm.abertoPorTeclado, vm.mode != .question, !(window.firstResponder is NSText) else { return event }
+        switch Int(event.keyCode) {
+        case kVK_LeftArrow: vm.focarVizinho(avancando: false)
+        case kVK_Escape: vm.setExpandedDirect(false)
+        default: return event
+        }
+        return nil
+    }
+}
+func montarTela() {
+    viewModel.perguntaDoClaudeAtiva = { [weak askStore] in askStore?.state.active != nil }
+    viewModel.aoMudarTecladoDaPergunta = { [weak panel, weak viewModel] liga in
+        if liga {
+            panel?.allowsKeyboard = true
+            panel?.makeKey()
+            if askStore.state.highlight == nil { askStore.send(.setHighlight(0)) }
+        } else {
+            askStore.send(.setHighlight(nil))
+            viewModel?.campoDaPerguntaFocado = false
+            if panel?.isKeyWindow == true { panel?.resignKey() }
+        }
+    }
+    let host = NotchHostingView(rootView: NotchView(vm: viewModel,
+        onKeyboardEligibilityChanged: { [weak panel, weak viewModel] active in
+            panel?.allowsKeyboard = active
+            if !active, panel?.isKeyWindow == true { panel?.resignKey() }
+            if active, viewModel?.abertoPorTeclado == true, viewModel?.mode != .question { panel?.makeKey() }
+        }))
+    panel.aoPerderTeclado = { [weak viewModel] in
+        guard let viewModel else { return }
+        viewModel.darTecladoAPergunta(false)
+        guard viewModel.abertoPorTeclado, viewModel.mode == .music else { return }
+        viewModel.setExpandedDirect(false)
+    }
+}
+func observarPergunta() {
+    askStore.$state.map(\.active?.id).removeDuplicates().sink { [weak self] _ in
+        self?.notches.values.forEach { $0.viewModel.darTecladoAPergunta(false) }
+    }
+}
+EOF
+  cat > "$T/r/tools/check.sh" <<'EOF'
+swift_teste tools/askcardmodelocheck.swift Knobler/AskModels.swift Knobler/AskCard/AskCardModelo.swift
+swift_teste tools/asktecladocheck.swift Knobler/AskModels.swift Knobler/AskFeature.swift Knobler/AskCard/AskTeclado.swift
+bash_teste tools/askcardcheck.sh
 EOF
   cat > "$T/r/tools/notchview-fontes.txt" <<'EOF'
 # fontes
@@ -960,6 +1500,15 @@ let scenarios = [
     Scenario(name: "ask-revisita", realNotch: true) { _, _, askStore in
         askStore.send(.goTo(page: 0))
     },
+    Scenario(name: "ask-teclado", realNotch: true, frameHeight: 480) { vm, _, askStore in
+        vm.tecladoNaPergunta = true
+        askStore.send(.setHighlight(1))
+    },
+    Scenario(name: "ask-texto", realNotch: true, frameHeight: 480) { vm, _, askStore in
+        vm.tecladoNaPergunta = true
+        vm.campoDaPerguntaFocado = true
+        askStore.send(.setText("Atalho, mas só com o notch fechado"))
+    },
 ]
 let vm = NotchViewModel()
 vm.glifoDoAtalho = { "⌃⌥K" }
@@ -996,6 +1545,10 @@ NV="$T/r/Knobler/NotchView.swift"
 KA="$T/r/Knobler/KnoblerApp.swift"
 FT="$T/r/tools/notchview-fontes.txt"
 MN="$T/r/tools/main.swift"
+TC="$T/r/$PASTA/AskTeclado.swift"
+VM="$T/r/Knobler/NotchViewModel.swift"
+LK="$T/r/Knobler/LinkPreviewView.swift"
+CK="$T/r/tools/check.sh"
 
 montar
 caso "estrutura certa" 0 ""
@@ -1634,6 +2187,451 @@ montar
 # este buraco: quem pega é a conferência por bloco
 sed -i '' 's|AskCardView.layoutDoPreview(question: larga, disponivel: vm.availableSize, topo: 32)|layoutGuardado|' "$MN"
 caso "ask-preview-largo sem conferir o layout, com três cenários" 1 "o cenário \"ask-preview-largo\" não chama 'layoutDoPreview('"
+
+# === etapa 6: teclado no card ===
+
+# --- a função pura das teclas
+montar
+rm "$TC"
+caso "AskTeclado.swift ausente" 1 "$PASTA/AskTeclado.swift não existe"
+
+montar
+sed -i '' 's|^enum AskTeclado {|enum TeclasDoAsk {|' "$TC"
+caso "AskTeclado.swift sem o enum" 1 "não declara 'enum AskTeclado'"
+
+montar
+sed -i '' 's|^import Foundation$|import Foundation\
+import AppKit|' "$TC"
+caso "teclas com AppKit" 1 "importa mais que o Foundation"
+
+montar
+sed -i '' 's|^import Foundation$|import Foundation\
+// import AppKit|' "$TC"
+caso "AppKit só em comentário" 0 ""
+
+# o AskTeclado.swift do repo falso cita `.choose(index:` e `.goTo(page:`: os
+# casos "clique sem choose" e "aba sem goTo" lá em cima só reprovam porque ele
+# não conta como view
+
+# --- fontes do snapshot: só quando alguma fonte usa as teclas
+montar
+echo 'let tecla = AskTecla(codigo: 36, caracteres: "\r")' >> "$CV"
+caso "view usa as teclas e as fontes não as listam" 1 "tools/notchview-fontes.txt sem '$PASTA/AskTeclado.swift'"
+
+montar
+echo 'let tecla = AskTecla(codigo: 36, caracteres: "\r")' >> "$CV"
+echo "$PASTA/AskTeclado.swift" >> "$FT"
+caso "view usa as teclas e as fontes as listam" 0 ""
+
+montar
+echo 'precondition(AskTeclado.comando(tecla, campo: false, estado: askStore.state) == .focarCampo)' >> "$MN"
+caso "harness usa as teclas e as fontes não as listam" 1 "tools/notchview-fontes.txt sem '$PASTA/AskTeclado.swift'"
+
+montar
+# outro nome que só começa igual não é uso
+echo 'let x = AskTecladoVirtual()' >> "$CV"
+caso "nome que só começa com AskTeclado" 0 ""
+
+# --- registro no check.sh
+montar
+sed -i '' '/asktecladocheck/d' "$CK"
+caso "check.sh sem o asktecladocheck" 1 "tools/check.sh sem a linha 'swift_teste tools/asktecladocheck.swift"
+
+montar
+sed -i '' 's|^swift_teste tools/asktecladocheck|# swift_teste tools/asktecladocheck|' "$CK"
+caso "asktecladocheck comentado no check.sh" 1 "tools/check.sh sem a linha 'swift_teste tools/asktecladocheck.swift"
+
+montar
+sed -i '' 's| Knobler/AskCard/AskTeclado.swift$||' "$CK"
+caso "asktecladocheck sem compilar o AskTeclado.swift" 1 "tools/check.sh sem a linha 'swift_teste tools/asktecladocheck.swift"
+
+montar
+rm "$CK"
+caso "repo sem check.sh" 1 "tools/check.sh não existe"
+
+# --- view model
+montar
+rm "$VM"
+caso "repo sem a view model" 1 "Knobler/NotchViewModel.swift não existe"
+
+montar
+sed -i '' 's|^    @Published var tecladoNaPergunta = false$|    var tecladoNaPergunta = false|' "$VM"
+caso "posse do teclado sem @Published" 1 "sem '@Published var tecladoNaPergunta'"
+
+montar
+sed -i '' 's|^    @Published var tecladoNaPergunta = false$|    // @Published var tecladoNaPergunta = false|' "$VM"
+caso "posse do teclado só em comentário" 1 "sem '@Published var tecladoNaPergunta'"
+
+montar
+sed -i '' '/@Published var campoDaPerguntaFocado/d' "$VM"
+caso "view model sem o foco do campo" 1 "sem '@Published var campoDaPerguntaFocado'"
+
+montar
+sed -i '' '/var perguntaDoClaudeAtiva:/d' "$VM"
+caso "view model sem perguntaDoClaudeAtiva" 1 "sem 'var perguntaDoClaudeAtiva:'"
+
+montar
+sed -i '' '/var aoMudarTecladoDaPergunta:/d' "$VM"
+caso "view model sem o aviso da posse" 1 "sem 'var aoMudarTecladoDaPergunta:'"
+
+montar
+sed -i '' 's|func darTecladoAPergunta(|func tomarTeclado(|' "$VM"
+caso "view model sem darTecladoAPergunta" 1 "sem 'func darTecladoAPergunta('"
+
+montar
+sed -i '' '/aoMudarTecladoDaPergunta?(liga)/d' "$VM"
+caso "darTecladoAPergunta sem avisar o painel" 1 "o darTecladoAPergunta não chama 'aoMudarTecladoDaPergunta'"
+
+montar
+sed -i '' '/guard tecladoNaPergunta != liga else { return }/d' "$VM"
+caso "darTecladoAPergunta avisa sem mudança" 1 "o darTecladoAPergunta não compara o valor novo com o atual"
+
+montar
+sed -i '' 's|guard tecladoNaPergunta != liga else { return }|if tecladoNaPergunta == liga { return }|' "$VM"
+caso "comparação por == com saída cedo" 0 ""
+
+RAMO='if mode == .question, perguntaDoClaudeAtiva() { darTecladoAPergunta(!tecladoNaPergunta); return }'
+
+montar
+# como está hoje: o atalho só conhece o card de música
+sed -i '' "/$RAMO/d" "$VM"
+caso "alternarPeloTeclado sem o ramo da pergunta" 1 "o alternarPeloTeclado não consulta 'perguntaDoClaudeAtiva'"
+
+montar
+sed -i '' "s|^        $RAMO\$|        // $RAMO|" "$VM"
+caso "ramo da pergunta só em comentário" 1 "o alternarPeloTeclado não chama 'darTecladoAPergunta('"
+
+montar
+sed -i '' "/$RAMO/d; s|^        abertoPorTeclado = true\$|        abertoPorTeclado = true\\
+        $RAMO|" "$VM"
+caso "ramo da pergunta depois de armar o card de música" 1 "o ramo da pergunta vem depois de 'setExpandedDirect(' ou 'abertoPorTeclado = true'"
+
+montar
+sed -i '' "/$RAMO/d; s|^        if expanded \&\& abertoPorTeclado { setExpandedDirect(false); return }\$|&\\
+        $RAMO|" "$VM"
+caso "ramo da pergunta depois de fechar o card de música" 1 "o ramo da pergunta vem depois de 'setExpandedDirect(' ou 'abertoPorTeclado = true'"
+
+montar
+sed -i '' 's|if mode == .question, perguntaDoClaudeAtiva() {|if perguntaDoClaudeAtiva() {|' "$VM"
+caso "ramo da pergunta sem olhar o modo" 1 "o alternarPeloTeclado não olha '.question'"
+
+montar
+# o card do Codex divide o modo .question: sem a consulta ele ganharia a posse
+sed -i '' 's|if mode == .question, perguntaDoClaudeAtiva() {|if mode == .question {|' "$VM"
+caso "ramo da pergunta vale para o card do Codex" 1 "o alternarPeloTeclado não consulta 'perguntaDoClaudeAtiva'"
+
+montar
+sed -i '' 's|darTecladoAPergunta(!tecladoNaPergunta); return }|tecladoNaPergunta.toggle(); return }|' "$VM"
+caso "ramo da pergunta grava a flag sem avisar" 1 "o alternarPeloTeclado não chama 'darTecladoAPergunta('"
+
+montar
+sed -i '' "s|^        $RAMO\$|        guard !(mode == .question \&\& perguntaDoClaudeAtiva()) else {\\
+            darTecladoAPergunta(!tecladoNaPergunta)\\
+            return\\
+        }|" "$VM"
+caso "ramo da pergunta por guard, em várias linhas" 0 ""
+
+# --- vigia de teclas
+montar
+sed -i '' 's|switch AskTeclado.comando(tecla, campo: campo, estado: askStore.state) {|switch teclaNaMao(tecla, campo: campo) {|' "$KA"
+caso "vigia com as regras na mão" 1 "o vigia de teclas não chama 'AskTeclado.comando('"
+
+montar
+# a função é chamada no arquivo, mas não de dentro do vigia
+sed -i '' 's|switch AskTeclado.comando(tecla, campo: campo, estado: askStore.state) {|switch teclaNaMao(tecla, campo: campo) {|' "$KA"
+echo 'let solto = AskTeclado.comando(tecla, campo: false, estado: estado)' >> "$KA"
+caso "AskTeclado.comando só fora do vigia" 1 "o vigia de teclas não chama 'AskTeclado.comando('"
+
+montar
+sed -i '' 's|^            switch AskTeclado.comando(tecla, campo: campo, estado: askStore.state) {$|            // switch AskTeclado.comando(tecla, campo: campo, estado: askStore.state) {\
+            switch teclaNaMao(tecla, campo: campo) {|' "$KA"
+caso "AskTeclado.comando só em comentário" 1 "o vigia de teclas não chama 'AskTeclado.comando('"
+
+montar
+# o guard antigo sobe para antes do ramo da pergunta: devolve o evento primeiro
+sed -i '' '/^        guard let window = NSApp.keyWindow/d; /^              vm.abertoPorTeclado, vm.mode != .question/d; s|^        if let window = NSApp.keyWindow as? NotchWindow, let vm = self?.vmDa(window),$|        guard let janela = NSApp.keyWindow as? NotchWindow, let dona = self?.vmDa(janela),\
+              dona.abertoPorTeclado, dona.mode != .question, !(janela.firstResponder is NSText) else { return event }\
+&|' "$KA"
+caso "ramo da pergunta depois do guard antigo" 1 "'AskTeclado.comando(' vem depois do guard do card aberto pelo atalho"
+
+montar
+# o `.question` do ramo novo, que vem antes, não conta para o guard antigo
+sed -i '' 's|vm.abertoPorTeclado, vm.mode != .question, |vm.abertoPorTeclado, |' "$KA"
+caso "guard antigo sem o modo" 1 "o guard do card aberto pelo atalho não exige modo diferente de '.question'"
+
+montar
+sed -i '' 's|^              vm.abertoPorTeclado, vm.mode != .question, \(.*\)$|              vm.abertoPorTeclado, \1\
+        guard vm.mode != .question else { return event }|' "$KA"
+caso "modo num segundo guard, antes do switch" 0 ""
+
+montar
+# o modo só é olhado depois que ← já mexeu no card de música
+sed -i '' 's|vm.abertoPorTeclado, vm.mode != .question, |vm.abertoPorTeclado, |; s|^        case kVK_Escape: vm.setExpandedDirect(false)$|        case kVK_Escape: if vm.mode != .question { vm.setExpandedDirect(false) }|' "$KA"
+caso "modo só dentro do switch antigo" 1 "o guard do card aberto pelo atalho não exige modo diferente de '.question'"
+
+montar
+sed -i '' '/^        guard let window = NSApp.keyWindow/d; /^              vm.abertoPorTeclado, vm.mode != .question/d' "$KA"
+caso "vigia sem o guard antigo" 1 "o vigia de teclas perdeu o guard do card aberto pelo atalho"
+
+montar
+sed -i '' 's|addLocalMonitorForEvents(matching: .keyDown)|addLocalMonitorForEvents(matching: .scrollWheel)|' "$KA"
+caso "app sem vigia de teclas" 1 "sem o vigia de teclas"
+
+for uso in "${COMANDOS[@]}"; do
+  texto="${uso%%|*}"
+  montar
+  sed -i '' "/case [.]$texto?:/d" "$KA"
+  caso "vigia sem tratar .$texto" 1 "não trata o comando '.$texto'"
+done
+
+montar
+# .cancelActive não é o comando .cancelar
+sed -i '' 's|case .cancelar?: askStore.send(.cancelActive)|default: askStore.send(.cancelActive)|' "$KA"
+caso "cancelActive não conta como .cancelar" 1 "não trata o comando '.cancelar'"
+
+# --- herança da chave
+MAKEKEY='if active, viewModel?.abertoPorTeclado == true, viewModel?.mode != .question { panel?.makeKey() }'
+
+montar
+# como está hoje
+sed -i '' "s|$MAKEKEY|if active, viewModel?.abertoPorTeclado == true { panel?.makeKey() }|" "$KA"
+caso "makeKey automático sem olhar o modo" 1 "o makeKey do onKeyboardEligibilityChanged não exige modo diferente de '.question'"
+
+montar
+sed -i '' "s|^            $MAKEKEY\$|            guard viewModel?.mode != .question else { return }\\
+            if active, viewModel?.abertoPorTeclado == true { panel?.makeKey() }|" "$KA"
+caso "modo num guard antes do makeKey" 0 ""
+
+montar
+sed -i '' "s|^            $MAKEKEY\$|            if active, viewModel?.abertoPorTeclado == true { panel?.makeKey() }\\
+            if viewModel?.mode == .question { registrar() }|" "$KA"
+caso "modo olhado só depois do makeKey" 1 "o makeKey do onKeyboardEligibilityChanged não exige modo diferente de '.question'"
+
+montar
+sed -i '' 's|^        onKeyboardEligibilityChanged: { \[weak panel, weak viewModel\] active in$|        onKeyboardEligibilityChanged: nil|; /panel?.allowsKeyboard = active/,/^        }))$/d' "$KA"
+caso "app sem o bloco de elegibilidade" 1 "sem o bloco 'onKeyboardEligibilityChanged: {'"
+
+# --- clicar em outro app solta
+montar
+sed -i '' '/^        viewModel.darTecladoAPergunta(false)$/d' "$KA"
+caso "aoPerderTeclado sem soltar a pergunta" 1 "o aoPerderTeclado não chama 'darTecladoAPergunta(false)'"
+
+montar
+sed -i '' 's|^        viewModel.darTecladoAPergunta(false)$|        // viewModel.darTecladoAPergunta(false)|' "$KA"
+caso "soltar só em comentário" 1 "o aoPerderTeclado não chama 'darTecladoAPergunta(false)'"
+
+montar
+# com pergunta na tela o modo não é .music: o guard sai antes da chamada
+sed -i '' '/^        viewModel.darTecladoAPergunta(false)$/d; s|^        guard viewModel.abertoPorTeclado, viewModel.mode == .music else { return }$|&\
+        viewModel.darTecladoAPergunta(false)|' "$KA"
+caso "soltar depois do guard do card de música" 1 "'darTecladoAPergunta(false)' vem depois do guard do card de música"
+
+montar
+sed -i '' '/^        viewModel.darTecladoAPergunta(false)$/d; s|^        guard let viewModel else { return }$|        guard let viewModel, viewModel.abertoPorTeclado,\
+              viewModel.mode == .music else { return }\
+        viewModel.darTecladoAPergunta(false)|; /^        guard viewModel.abertoPorTeclado, viewModel.mode == .music else { return }$/d' "$KA"
+caso "soltar depois do guard antigo, quebrado em duas linhas" 1 "'darTecladoAPergunta(false)' vem depois do guard do card de música"
+
+montar
+sed -i '' '/^        viewModel.darTecladoAPergunta(false)$/d; s|^        guard viewModel.abertoPorTeclado, viewModel.mode == .music else { return }$|        if viewModel.abertoPorTeclado, viewModel.mode == .music { viewModel.setExpandedDirect(false) }\
+        viewModel.darTecladoAPergunta(false)|; /^        viewModel.setExpandedDirect(false)$/d' "$KA"
+caso "soltar depois de um if do card de música" 0 ""
+
+montar
+sed -i '' 's|^    panel.aoPerderTeclado = { \[weak viewModel\] in$|    panel.aoPerderFoco = { [weak viewModel] in|' "$KA"
+caso "app sem aoPerderTeclado" 1 "não atribui 'aoPerderTeclado = {'"
+
+# --- quem é a pergunta do Claude
+montar
+sed -i '' '/viewModel.perguntaDoClaudeAtiva = /d' "$KA"
+caso "app sem atribuir perguntaDoClaudeAtiva" 1 "não atribui 'perguntaDoClaudeAtiva = {'"
+
+montar
+sed -i '' 's|^    viewModel.perguntaDoClaudeAtiva = .*$|    viewModel.perguntaDoClaudeAtiva = { [weak askStore, weak agentRequestStore] in\
+        askStore?.state.active != nil \|\| agentRequestStore?.state.active != nil\
+    }|' "$KA"
+caso "perguntaDoClaudeAtiva conta o card do Codex" 1 "'perguntaDoClaudeAtiva' cita o 'agentRequestStore'"
+
+montar
+sed -i '' 's|^    viewModel.perguntaDoClaudeAtiva = .*$|    viewModel.perguntaDoClaudeAtiva = { [weak viewModel] in viewModel?.questionIsActive() == true }|' "$KA"
+caso "perguntaDoClaudeAtiva pelo questionIsActive" 1 "'perguntaDoClaudeAtiva' não lê 'askStore.state.active'"
+
+montar
+sed -i '' 's|^    viewModel.perguntaDoClaudeAtiva = .*$|    viewModel.perguntaDoClaudeAtiva = {\
+        askStore.state.active != nil\
+    }|' "$KA"
+caso "perguntaDoClaudeAtiva em três linhas, sem weak" 0 ""
+
+# --- o painel segue a posse
+montar
+sed -i '' 's|viewModel.aoMudarTecladoDaPergunta = {|viewModel.aoMudarOutraCoisa = {|' "$KA"
+caso "app sem atribuir o aviso da posse" 1 "não atribui 'aoMudarTecladoDaPergunta = {'"
+
+montar
+# o makeKey do bloco de elegibilidade não conta
+sed -i '' '/^            panel?.makeKey()$/d' "$KA"
+caso "ganhar o teclado sem makeKey" 1 "o aoMudarTecladoDaPergunta sem 'makeKey('"
+
+montar
+# o resignKey do bloco de elegibilidade não conta
+sed -i '' '/^            if panel?.isKeyWindow == true { panel?.resignKey() }$/d' "$KA"
+caso "soltar o teclado sem resignKey" 1 "o aoMudarTecladoDaPergunta sem 'resignKey('"
+
+montar
+sed -i '' '/askStore.send(.setHighlight(0))/d; /askStore.send(.setHighlight(nil))/d' "$KA"
+caso "posse sem mexer no destaque" 1 "o aoMudarTecladoDaPergunta sem '.setHighlight('"
+
+# --- a posse cai quando a pergunta ativa muda
+montar
+sed -i '' '/forEach { \$0.viewModel.darTecladoAPergunta(false) }/d' "$KA"
+caso "posse não cai com a troca de pergunta" 1 "nenhum 'darTecladoAPergunta(false)' fora do vigia de teclas e do aoPerderTeclado"
+
+montar
+sed -i '' '/forEach { \$0.viewModel.darTecladoAPergunta(false) }/d' "$KA"
+echo '// .onChange(of: askStore.state.active?.id) { vm.darTecladoAPergunta(false) }' >> "$NV"
+caso "queda da posse só em comentário" 1 "nenhum 'darTecladoAPergunta(false)' fora do vigia de teclas e do aoPerderTeclado"
+
+montar
+sed -i '' '/forEach { \$0.viewModel.darTecladoAPergunta(false) }/d' "$KA"
+echo 'let cai = { vm.darTecladoAPergunta(false) }' >> "$NV"
+caso "queda da posse no NotchView" 0 ""
+
+# --- Esc não cancela mais
+montar
+# como está hoje
+sed -i '' 's|^        .onPreferenceChange(AlturaDaListaDoAskKey.self) { listaNatural = $0 }$|&\
+        .onExitCommand { askStore.send(.cancelActive) }|' "$CV"
+caso "Esc do card ainda cancela" 1 "$PASTA/AskCardView.swift: um '.onExitCommand' ainda envia '.cancelActive'"
+
+montar
+sed -i '' 's|^        TextField("Outra resposta…", text: .constant("")).opacity(AskEstilo.linha)$|&\
+            .onExitCommand {\
+                askStore.send(.cancelActive)\
+            }|' "$RD"
+caso "Esc do rodapé cancela, em três linhas" 1 "$PASTA/AskRodapeView.swift: um '.onExitCommand' ainda envia '.cancelActive'"
+
+montar
+sed -i '' 's|^        .onPreferenceChange(AlturaDaListaDoAskKey.self) { listaNatural = $0 }$|&\
+        // .onExitCommand { askStore.send(.cancelActive) }|' "$CV"
+caso "Esc que cancela só em comentário" 0 ""
+
+montar
+# o ✕ logo abaixo continua enviando .cancelActive: não é do onExitCommand
+sed -i '' 's|^            Button { askStore.send(.cancelActive) } label: { Text("x") }$|            Text("y").onExitCommand { vm.campoDaPerguntaFocado = false }\
+&|' "$CV"
+caso "Esc do campo só devolve o cursor" 0 ""
+
+montar
+sed -i '' 's|^            Button { askStore.send(.cancelActive) } label: { Text("x") }$|            Text("y").onExitCommand(perform: voltarALista)\
+&|' "$CV"
+caso "onExitCommand(perform:) seguido do ✕" 0 ""
+
+# --- as peças seguem a posse
+montar
+# como está hoje
+sed -i '' 's|AskLegenda.itens(teclado: vm.tecladoNaPergunta, campo: textFocused|AskLegenda.itens(teclado: false, campo: textFocused|' "$CV"
+caso "legenda com teclado fixo em false" 1 "$PASTA/AskCardView.swift passa 'teclado:' fixo em false ou true"
+
+montar
+sed -i '' 's|AskLegenda.itens(teclado: vm.tecladoNaPergunta, campo: textFocused|AskLegenda.itens(teclado: true, campo: textFocused|' "$CV"
+caso "legenda com teclado fixo em true" 1 "$PASTA/AskCardView.swift passa 'teclado:' fixo em false ou true"
+
+montar
+# como está hoje
+sed -i '' 's|^                         teclado: vm.tecladoNaPergunta,$|                         teclado: false,|' "$CV"
+caso "opção com teclado fixo em false" 1 "$PASTA/AskCardView.swift passa 'teclado:' fixo em false ou true"
+
+montar
+sed -i '' 's|^struct AskOpcaoView: View {$|struct AskOpcaoView: View {\
+    var teclado: Bool = false\
+    // antes: teclado: false|' "$OP"
+caso "parâmetro com padrão e literal só em comentário" 0 ""
+
+montar
+sed -i '' 's|vm.tecladoNaPergunta|comTeclado|g' "$CV"
+caso "card sem ler a posse da view model" 1 "$PASTA/AskCardView.swift não usa 'vm.tecladoNaPergunta'"
+
+montar
+sed -i '' '/vm.campoDaPerguntaFocado/d' "$CV"
+caso "card sem o foco da view model" 1 "$PASTA/AskCardView.swift não usa 'vm.campoDaPerguntaFocado'"
+
+montar
+# lê (Tab do vigia chega), mas o clique no campo não volta para a view model
+sed -i '' '/^            vm.campoDaPerguntaFocado = textFocused$/d' "$CV"
+caso "card não grava o foco de volta" 1 "$PASTA/AskCardView.swift não grava 'vm.campoDaPerguntaFocado ='"
+
+montar
+sed -i '' 's|^            vm.campoDaPerguntaFocado = textFocused$|            if vm.campoDaPerguntaFocado == textFocused { return }|' "$CV"
+caso "comparação não é gravação" 1 "$PASTA/AskCardView.swift não grava 'vm.campoDaPerguntaFocado ='"
+
+montar
+sed -i '' '/if textFocused { vm.darTecladoAPergunta(true) }/d' "$CV"
+caso "clique no campo não dá o teclado" 1 "$PASTA/AskCardView.swift sem 'darTecladoAPergunta(true)'"
+
+montar
+sed -i '' '/AskSeloView(texto: "⇥")/d' "$RD"
+caso "rodapé sem o selo do Tab" 1 "$PASTA/AskRodapeView.swift sem o selo \"⇥\""
+
+montar
+sed -i '' 's|^        if selo { AskSeloView(texto: "⇥") }$|        // if selo { AskSeloView(texto: "⇥") }|' "$RD"
+caso "selo do Tab só em comentário" 1 "$PASTA/AskRodapeView.swift sem o selo \"⇥\""
+
+# --- comentário do preview de link
+montar
+# como está hoje
+sed -i '' 's|como na nota rápida$|como na nota rápida e no card de pergunta|' "$LK"
+caso "comentário do link ainda cita o card de pergunta" 1 "Knobler/LinkPreviewView.swift ainda diz"
+
+montar
+sed -i '' 's|como na nota rápida$|como na nota rápida (no card de pergunta o Esc solta o teclado)|' "$LK"
+caso "comentário do link cita o card pela diferença" 0 ""
+
+montar
+rm "$LK"
+caso "repo sem o preview de link" 0 ""
+
+# --- harness
+for v in $CENARIOS_DE_TECLADO; do
+  montar
+  sed -i '' "s|Scenario(name: \"$v\"|Scenario(name: \"x-$v\"|" "$MN"
+  caso "harness sem $v" 1 "sem o cenário \"$v\""
+done
+
+montar
+# a flag ligada no cenário vizinho não conta
+sed -i '' '/Scenario(name: "ask-teclado"/,/^    },$/{/vm.tecladoNaPergunta = true/d;}' "$MN"
+caso "ask-teclado sem a posse" 1 "o cenário \"ask-teclado\" não liga 'vm.tecladoNaPergunta = true'"
+
+montar
+sed -i '' '/Scenario(name: "ask-texto"/,/^    },$/{/vm.tecladoNaPergunta = true/d;}' "$MN"
+caso "ask-texto sem a posse" 1 "o cenário \"ask-texto\" não liga 'vm.tecladoNaPergunta = true'"
+
+montar
+sed -i '' '/Scenario(name: "ask-teclado"/,/^    },$/s|vm.tecladoNaPergunta = true|vm.tecladoNaPergunta = false|' "$MN"
+caso "ask-teclado com a posse desligada" 1 "o cenário \"ask-teclado\" não liga 'vm.tecladoNaPergunta = true'"
+
+montar
+# o .setHighlight(1) do ask-preview não conta
+sed -i '' '/Scenario(name: "ask-teclado"/,/^    },$/s|askStore.send(.setHighlight(1))|askStore.send(.setHighlight(0))|' "$MN"
+caso "ask-teclado com destaque na primeira" 1 "o cenário \"ask-teclado\" sem '.setHighlight(1)'"
+
+montar
+sed -i '' '/vm.campoDaPerguntaFocado = true/d' "$MN"
+caso "ask-texto sem o cursor no campo" 1 "o cenário \"ask-texto\" não liga 'vm.campoDaPerguntaFocado = true'"
+
+montar
+sed -i '' 's|vm.campoDaPerguntaFocado = true|vm.campoDaPerguntaFocado = false|' "$MN"
+caso "ask-texto com o cursor fora do campo" 1 "o cenário \"ask-texto\" não liga 'vm.campoDaPerguntaFocado = true'"
+
+montar
+sed -i '' 's|Atalho, mas só com o notch fechado|Outra resposta qualquer|' "$MN"
+caso "ask-texto sem o texto do mockup" 1 "o cenário \"ask-texto\" sem '.setText("
+
+montar
+# com o ask-teclado no arquivo, a conferência da etapa 4 (arquivo inteiro) não
+# vê este buraco: quem pega é a conferência por bloco
+sed -i '' '/Scenario(name: "ask-preview",/,/^    },$/s|askStore.send(.setHighlight(1))|askStore.send(.setHighlight(0))|' "$MN"
+caso "ask-preview sem o destaque, com o ask-teclado no arquivo" 1 "o cenário \"ask-preview\" sem '.setHighlight(1)' no próprio bloco"
 
 if [ "$AUTO" -ne 0 ]; then
   echo "FALHOU: autoteste do askcardcheck"

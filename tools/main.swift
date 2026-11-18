@@ -1545,6 +1545,79 @@ let scenarios: [Scenario] = [
                      && askStore.state.answers[AskDoMockup.abas.question] == nil,
                      "ask-revisita: de volta à primeira, com a resposta dela em destaque")
     },
+    // Quadro "Com o teclado no card": a pergunta é a dona do teclado. A segunda
+    // opção ganha o contorno, os selos dos números acendem, o campo mostra o
+    // selo ⇥ no fim e a legenda vira `↑ ↓ escolher · ⏎ responder · esc soltar`.
+    // frameHeight 480, como o ask-simple: o card desta pergunta mede ~460×330.
+    Scenario(name: "ask-teclado", realNotch: true, frameHeight: 480) { vm, _, askStore in
+        askStore.send(.enqueue(AskDoMockup.pedido("s10", [AskDoMockup.teclado])))
+
+        // Antes do quadro, o caminho do atalho global (⌃⌥K) na view model, com
+        // as ligações que o app faz: pergunta do Claude na tela = a posse do
+        // teclado alterna, sem tocar no card de música que fica por trás.
+        vm.questionIsActive = { askStore.state.active != nil }
+        vm.perguntaDoClaudeAtiva = { askStore.state.active != nil }
+        var avisos: [Bool] = []
+        vm.aoMudarTecladoDaPergunta = { avisos.append($0) }
+        precondition(vm.mode == .question && !vm.tecladoNaPergunta && !vm.campoDaPerguntaFocado,
+                     "ask-teclado: a pergunta chega sem o teclado")
+        vm.alternarPeloTeclado()
+        precondition(vm.tecladoNaPergunta && avisos == [true],
+                     "ask-teclado: com pergunta do Claude na tela, o atalho dá o teclado à pergunta e avisa o painel")
+        precondition(!vm.expanded && !vm.abertoPorTeclado,
+                     "ask-teclado: o atalho não arma o card de música por trás da pergunta")
+        vm.darTecladoAPergunta(true)
+        precondition(vm.tecladoNaPergunta && avisos == [true],
+                     "ask-teclado: dar o teclado a quem já tem não avisa de novo")
+        vm.alternarPeloTeclado()
+        precondition(!vm.tecladoNaPergunta && avisos == [true, false],
+                     "ask-teclado: o atalho de novo solta o teclado e avisa o painel")
+        precondition(!vm.expanded && !vm.abertoPorTeclado,
+                     "ask-teclado: soltar o teclado também não abre o card de música")
+        // É o que impede o laço resignKey → aoPerderTeclado → resignKey.
+        vm.darTecladoAPergunta(false)
+        precondition(!vm.tecladoNaPergunta && avisos == [true, false],
+                     "ask-teclado: tirar o teclado de quem não tem não avisa de novo")
+        // A prova do atalho não deixa rastro: o quadro sai das mesmas condições
+        // dos outros cenários `ask-*`.
+        vm.aoMudarTecladoDaPergunta = nil
+        vm.perguntaDoClaudeAtiva = { false }
+        vm.questionIsActive = { false }
+
+        vm.tecladoNaPergunta = true
+        askStore.send(.setHighlight(1))
+        precondition(vm.tecladoNaPergunta && !vm.campoDaPerguntaFocado && askStore.state.highlight == 1
+                     && askStore.state.answers.isEmpty && askStore.state.text.isEmpty,
+                     "ask-teclado: teclado no card, destaque na segunda opção, cursor fora do campo")
+        precondition(AskLegenda.itens(teclado: vm.tecladoNaPergunta, campo: vm.campoDaPerguntaFocado,
+                                      multipla: AskDoMockup.teclado.multiSelect, abas: false,
+                                      atalho: vm.glifoDoAtalho())
+                     == [AskLegendaItem(teclas: ["↑", "↓"], texto: "escolher"),
+                         AskLegendaItem(teclas: ["⏎"], texto: "responder"),
+                         AskLegendaItem(teclas: ["esc"], texto: "soltar")],
+                     "ask-teclado: a legenda é ↑ ↓ escolher · ⏎ responder · esc soltar")
+    },
+    // Quadro "Escrevendo" (Outra resposta): o cursor está no campo, o texto
+    // digitado aparece nele, o selo ⇥ some e a legenda vira
+    // `⏎ enviar · esc voltar à lista · ⌥ direita dita`. frameHeight 480 pela
+    // mesma conta do ask-teclado.
+    Scenario(name: "ask-texto", realNotch: true, frameHeight: 480) { vm, _, askStore in
+        askStore.send(.enqueue(AskDoMockup.pedido("s11", [AskDoMockup.teclado])))
+        vm.tecladoNaPergunta = true
+        vm.campoDaPerguntaFocado = true
+        askStore.send(.setText("Atalho, mas só com o notch fechado"))
+        precondition(vm.tecladoNaPergunta && vm.campoDaPerguntaFocado
+                     && askStore.state.text == "Atalho, mas só com o notch fechado"
+                     && askStore.state.highlight == nil && askStore.state.answers.isEmpty,
+                     "ask-texto: teclado no card, cursor no campo com o texto digitado, sem destaque na lista")
+        precondition(AskLegenda.itens(teclado: vm.tecladoNaPergunta, campo: vm.campoDaPerguntaFocado,
+                                      multipla: AskDoMockup.teclado.multiSelect, abas: false,
+                                      atalho: vm.glifoDoAtalho())
+                     == [AskLegendaItem(teclas: ["⏎"], texto: "enviar"),
+                         AskLegendaItem(teclas: ["esc"], texto: "voltar à lista"),
+                         AskLegendaItem(teclas: [], texto: "⌥ direita dita")],
+                     "ask-texto: a legenda é ⏎ enviar · esc voltar à lista · ⌥ direita dita")
+    },
     Scenario(
         name: "agent-permission-compact", realNotch: true,
         agentRequest: AgentRequest(
