@@ -78,8 +78,7 @@ struct NotchView: View {
         vm.aplicarCartaoWhatsApp(em: &layout)
         layout.mediaHeight = vm.incoming?.mediaHeight ?? 0
         layout.questionSize = questionSize
-        // sem a página: trocar de aba anima só o miolo do card, não o card inteiro
-        layout.contentID = "\(askStore.state.active?.id ?? "")/\(agentRequestStore.state.active?.id ?? "")"
+        layout.contentID = "\(askStore.state.active?.id ?? "")/\(askStore.state.page)/\(agentRequestStore.state.active?.id ?? "")"
         return NotchPresentation(content: vm.contentState(question: askStore.state.active != nil
                                 || agentRequestStore.state.active != nil), layout: layout)
     }
@@ -337,8 +336,8 @@ struct NotchView: View {
         let question = ask.questions[min(askStore.state.page, ask.questions.count - 1)]
         let hasPreview = question.options.contains { $0.preview != nil }
         // Estimativa só do primeiro frame, antes do card se medir:
-        // topo+pergunta (64) + opções (58 cada) + rodapé com campo e legenda (62)
-        var height = 64 + CGFloat(question.options.count) * 58 + 62
+        // título+chip (46) + opções (48 cada) + rodapé com campo de texto (44)
+        var height = 46 + CGFloat(question.options.count) * 48 + 44
         if question.multiSelect { height += 34 }  // botão Confirmar
         if hasPreview { height = max(height, 200) }
         // A altura real vem do próprio card (AlturaDoAskKey); os 18 são os

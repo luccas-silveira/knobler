@@ -43,10 +43,6 @@ final class NotchViewModel: ObservableObject {
     private var opening = NotchOpening()
     private var openingWork: DispatchWorkItem?
     var questionIsActive: () -> Bool = { false }
-    /// Glifo do atalho de abrir o notch ("⌃⌥K"), mostrado na legenda do card de
-    /// pergunta. Fecho lido a cada desenho: a biblioteca não avisa quando o
-    /// atalho muda. `nil` = sem atalho gravado.
-    var glifoDoAtalho: () -> String? = { nil }
     /// O painel desta tela está à vista? O AppDelegate liga ao `isVisible` da
     /// janela; a sonda do corte (`SensorDeCorte`) não julga painel escondido.
     /// O harness de snapshot fica no padrão.
