@@ -101,7 +101,8 @@ sobrevivem à troca de aba. Com uma pergunta só, não há abas.
 - **Recomendada**: rótulo que termina em `(Recomendado)` ou `(Recommended)`
   perde o sufixo e ganha um selo. A resposta enviada ao Claude usa o rótulo
   original, com o sufixo.
-- **Múltipla escolha**: caixa de marcação alinhada ao selo; o botão vira
+- **Múltipla escolha**: caixa de marcação na ponta direita da linha, no mesmo
+  lugar onde a pergunta simples mostra o ✓ da resposta; o botão vira
   "Confirmar 2" com a contagem e o `⏎` ao lado; desabilitado sem marcação.
 - **Campo de texto**: placeholder curto ("Outra resposta…"); a dica de Enter e
   de ditado sai do placeholder e vai para a legenda.
@@ -109,9 +110,9 @@ sobrevivem à troca de aba. Com uma pergunta só, não há abas.
   "Reduzir movimento".
 - Cores, raios e tipografia saem do que o notch já usa: branco em opacidades
   sobre preto (linha normal, em destaque e marcada em três degraus), raio 8,
-  selo em cápsula. O notch não tem arquivo de estilo nem cor de destaque; se o
-  card continua monocromático ou ganha uma cor só dele se decide no mockup.
-  Nenhum efeito de vidro.
+  selo em cápsula. O card é monocromático: o `DESIGN.md` reserva cor para a
+  capa do álbum e para estado de sistema, e manda construir hierarquia só com a
+  escada de opacidade do branco. Nenhum efeito de vidro.
 
 ### Texto longo
 
@@ -269,7 +270,9 @@ Dossiê: `docs/vesta/research/2026-11-18-card-pergunta-redesenho-research.md`
 - **A13, A15** — rolagem só acima do teto por escolha entre duas variantes; a
   página sai da identidade do conteúdo para a troca de aba animar só por dentro.
 - **A14** — cenários `ask-*` vão para a janela real do harness.
-- **A16** — monocromático ou cor de destaque: decide no mockup.
+- **A16** — monocromático, sem cor de destaque. Motivo: o `DESIGN.md` (que a
+  pesquisa não tinha lido) já decide: a única cor viva é a da capa do álbum, e
+  só no visualizador.
 - **A17** — a legenda lê o atalho atual e some se ele foi apagado.
 - **A18, A21** — viraram bordas a conferir.
 - **A19** — a lista de documentação cresceu.

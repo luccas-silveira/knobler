@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Card de pergunta do Claude — mockup do Knobler</title>
+<link rel="icon" href="data:,">
+<style>
+/* Tokens do notch: saem do DESIGN.md (preto puro, escada de opacidade do branco, SF Pro). */
+:root{
+  --notch:#000; --ink:#fff;
+  --ink-2:rgba(255,255,255,.85); --ink-3:rgba(255,255,255,.62); --ink-muted:rgba(255,255,255,.5); --ink-faint:rgba(255,255,255,.3);
+  --fill-strong:rgba(255,255,255,.25); --fill:rgba(255,255,255,.15); --fill-subtle:rgba(255,255,255,.08); --fill-faint:rgba(255,255,255,.06);
+  --anel:rgba(255,255,255,.5); --rec:#FF3B30;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro",system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --t-title:15px; --t-callout:12px; --t-sub:11px; --t-foot:10px;
+  --s-1:2px; --s-2:4px; --s-xs:6px; --s-sm:8px; --s-10:10px; --s-md:12px; --s-xl:16px; --s-lg:20px; --s-2xl:24px; --s-3xl:32px; --s-4xl:48px; --s-5xl:64px;
+  --r-key:4px; --r-lg:8px; --r-pill:999px; --r-ear:14px; --r-notch:30px; --r-tela:12px;
+  --ease-out:cubic-bezier(0.16,1,0.3,1); --dur-fast:120ms; --dur-in:220ms;
+  --page-bg:#ececef; --page-surface:#fff; --page-ink:#1d1d1f; --page-ink-2:#4f4f56; --page-line:rgba(0,0,0,.32); --page-focus:#0a58ca; --wall:#c9ced8;
+  --w-card:460px; --w-wide:540px;
+  --z-ear:1;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--page-bg);color:var(--page-ink);font-family:var(--font);-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;text-align:left}
+.i{width:1em;height:1em;flex:none;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+
+.page{max-width:1000px;margin:0 auto;padding:var(--s-3xl) var(--s-xl) var(--s-5xl)}
+.top h1{font-size:28px;font-weight:600;letter-spacing:-.01em;line-height:1.15}
+.top p,.quadro > p{font-size:16px;line-height:1.55;color:var(--page-ink-2);max-width:62ch}
+.top p{margin-top:var(--s-sm)}
+.quadro{margin-top:var(--s-4xl)}
+.quadro h2{font-size:20px;font-weight:600;line-height:1.3}
+.quadro > p{margin:var(--s-2) 0 var(--s-xl)}
+.acoes{display:flex;flex-wrap:wrap;gap:var(--s-sm);margin-bottom:var(--s-xl)}
+.pbtn{min-height:44px;padding:0 var(--s-xl);border-radius:var(--r-lg);border:1px solid var(--page-line);background:var(--page-surface);font-size:16px;font-weight:500}
+.pbtn:hover{border-color:var(--page-ink)}
+.pbtn:active{background:var(--page-bg)}
+.pbtn:focus-visible{outline:2px solid var(--page-focus);outline-offset:2px}
+.saida{font-size:16px;line-height:1.55;color:var(--page-ink-2);margin-top:var(--s-md);min-height:50px;max-width:62ch}
+.saida b{color:var(--page-ink);font-weight:600}
+.par{display:grid;grid-template-columns:1fr 1fr;gap:var(--s-xl)}
+.par h3{font-size:16px;font-weight:600;margin-bottom:var(--s-sm)}
+@media (max-width:980px){.par{grid-template-columns:1fr}}
+
+/* ---------- a tela do Mac e o notch ---------- */
+.tela{background:var(--wall);border-radius:var(--r-tela);display:flex;justify-content:center;padding-bottom:var(--s-3xl);overflow:hidden}
+.notch{position:relative;width:var(--w-card);background:var(--notch);color:var(--ink);border-radius:0 0 var(--r-notch) var(--r-notch);padding:var(--s-3xl) var(--s-lg) var(--s-md);display:flex;flex-direction:column;gap:var(--s-sm);font-size:var(--t-callout);line-height:1.3}
+.notch.largo{width:var(--w-wide)}
+.notch::before,.notch::after{content:"";position:absolute;top:0;width:var(--r-ear);height:var(--r-ear);z-index:var(--z-ear)}
+.notch::before{left:calc(var(--r-ear) * -1);background:radial-gradient(circle at 0 100%,transparent 13.5px,var(--notch) 14px)}
+.notch::after{right:calc(var(--r-ear) * -1);background:radial-gradient(circle at 100% 100%,transparent 13.5px,var(--notch) 14px)}
+@media (max-width:620px){.notch{zoom:.66}.notch.largo{zoom:.56}}
+
+.topo{display:flex;align-items:center;gap:var(--s-sm);min-height:22px}
+.chip{font-size:var(--t-foot);font-weight:600;padding:var(--s-1) var(--s-sm);border-radius:var(--r-pill);background:var(--fill)}
+.abas{display:flex;gap:var(--s-2);min-width:0}
+.aba{display:flex;align-items:center;gap:var(--s-2);height:22px;padding:0 var(--s-sm);border-radius:var(--r-pill);font-size:var(--t-foot);font-weight:600;color:var(--ink-muted);white-space:nowrap;min-width:0;transition:background var(--dur-fast) var(--ease-out),color var(--dur-fast) var(--ease-out)}
+.aba:hover{background:var(--fill-subtle);color:var(--ink-2)}
+.aba.atual{background:var(--fill);color:var(--ink)}
+.aba.resp{color:var(--ink-3)}
+.aba .r{font-weight:400;overflow:hidden;text-overflow:ellipsis;max-width:92px}
+.aba .pt{width:5px;height:5px;border-radius:50%;border:1px solid currentColor;flex:none}
+.aba.atual .pt{background:currentColor}
+.origem{margin-left:auto;font-size:var(--t-foot);font-weight:500;color:var(--ink-muted);white-space:nowrap}
+.x{width:18px;height:18px;border-radius:50%;background:var(--fill);display:grid;place-items:center;font-size:var(--t-foot);color:var(--ink-2);flex:none}
+.x:hover{background:var(--fill-strong);color:var(--ink)}
+.notch button:focus-visible,.notch input:focus-visible{outline:2px solid var(--ink-2);outline-offset:1px}
+
+.pergunta{font-size:var(--t-title);font-weight:600;line-height:1.3;letter-spacing:-.005em;margin:var(--s-1) 0 var(--s-2)}
+.conteudo{display:flex;flex-direction:column;gap:var(--s-sm);animation:entra var(--dur-in) var(--ease-out)}
+@keyframes entra{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:none}}
+.corpo{display:flex;gap:var(--s-10);align-items:stretch}
+.lista{display:flex;flex-direction:column;gap:var(--s-2);flex:1;min-width:0}
+.split .lista{flex:0 0 236px}
+.lista.rola{max-height:214px;overflow-y:auto;padding-right:var(--s-2);scrollbar-width:thin;scrollbar-color:var(--fill-strong) transparent}
+
+.op{display:grid;grid-template-columns:16px 1fr 16px;gap:var(--s-sm);align-items:start;width:100%;padding:var(--s-xs) var(--s-sm);border-radius:var(--r-lg);background:var(--fill-faint);box-shadow:inset 0 0 0 1px transparent;transition:background var(--dur-fast) var(--ease-out),box-shadow var(--dur-fast) var(--ease-out)}
+.op.dest{background:var(--fill)}
+[data-dono] .op.dest{box-shadow:inset 0 0 0 1px var(--anel)}
+.op.marc{background:var(--fill-strong)}
+.op.marc .desc{color:var(--ink-2)}
+.op.marc kbd{color:var(--ink)}
+.op:active{background:var(--fill-strong)}
+kbd{font-family:var(--font);font-variant-numeric:tabular-nums;font-size:var(--t-foot);font-weight:600;min-width:16px;height:16px;padding:0 var(--s-2);border-radius:var(--r-key);background:var(--fill-subtle);color:var(--ink-3);display:inline-grid;place-items:center;line-height:1}
+[data-dono] .op kbd{background:var(--fill);color:var(--ink)}
+.rot{display:flex;align-items:center;gap:var(--s-xs);font-weight:600;flex-wrap:wrap}
+.rec{font-size:var(--t-foot);font-weight:600;font-style:normal;padding:0 var(--s-xs);height:15px;border-radius:var(--r-pill);box-shadow:inset 0 0 0 1px var(--ink-muted);color:var(--ink-2);display:inline-grid;place-items:center}
+.desc{display:block;font-size:var(--t-sub);color:var(--ink-3);margin-top:var(--s-1);line-height:1.35}
+.est{width:16px;height:16px;display:grid;place-items:center;font-size:var(--t-callout);color:var(--ink)}
+.cx{width:13px;height:13px;border-radius:var(--r-key);box-shadow:inset 0 0 0 1.5px var(--ink-muted);display:grid;place-items:center;font-size:var(--t-foot)}
+.marc .cx{background:var(--ink);color:var(--notch);box-shadow:none}
+
+.confirmar{display:flex;justify-content:center;align-items:center;gap:var(--s-sm);height:30px;border-radius:var(--r-lg);background:var(--fill-strong);font-weight:600;transition:background var(--dur-fast) var(--ease-out)}
+.confirmar:hover{background:rgba(255,255,255,.32)}
+.confirmar:disabled{background:var(--fill-subtle);color:var(--ink-faint);cursor:default}
+.confirmar:disabled kbd{color:var(--ink-faint)}
+
+.preview{flex:1;min-width:0;min-height:120px;border-radius:var(--r-lg);background:var(--fill-faint);padding:var(--s-sm) var(--s-10);font-family:var(--mono);font-size:var(--t-sub);line-height:1.45;color:var(--ink-2);overflow:auto;white-space:pre}
+
+.campo{display:flex;align-items:center;gap:var(--s-sm);height:30px;padding:0 var(--s-sm);border-radius:var(--r-lg);background:var(--fill-subtle);box-shadow:inset 0 0 0 1px transparent}
+.campo:focus-within{box-shadow:inset 0 0 0 1px var(--anel)}
+.campo input{flex:1;min-width:0;background:none;border:0;outline:0;font-size:var(--t-callout)}
+.campo input::placeholder{color:var(--ink-muted)}
+.campo .mic{display:flex;align-items:center;gap:var(--s-2)}
+.campo .mic i{width:6px;height:6px;border-radius:50%;background:var(--rec)}
+.campo .mic b{width:26px;height:4px;border-radius:var(--r-pill);background:var(--ink)}
+.legenda{display:flex;flex-wrap:wrap;gap:var(--s-2) var(--s-sm);font-size:var(--t-foot);color:var(--ink-3);padding:0 var(--s-1);min-height:16px}
+.legenda span{display:inline-flex;align-items:center;gap:var(--s-2);white-space:nowrap}
+
+/* ---------- nota rápida com o selo de espera ---------- */
+.nota-cab{display:flex;align-items:center;gap:var(--s-sm);min-height:22px}
+.nota-cab b{font-size:var(--t-callout);font-weight:600}
+.selo{margin-left:auto;display:flex;align-items:center;gap:var(--s-xs);height:22px;padding:0 var(--s-sm);border-radius:var(--r-pill);background:var(--fill);font-size:var(--t-foot);font-weight:600}
+.selo:hover{background:var(--fill-strong)}
+.selo span{font-weight:400;color:var(--ink-3)}
+.nota-texto{min-height:84px;border-radius:var(--r-lg);background:var(--fill-faint);padding:var(--s-sm) var(--s-10);font-size:var(--t-callout);line-height:1.45;color:var(--ink-2)}
+.cursor{display:inline-block;width:1px;height:1.1em;background:var(--ink);vertical-align:text-bottom;animation:pisca 1s steps(2) infinite}
+@keyframes pisca{50%{opacity:0}}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition-duration:.01ms !important}
+  .conteudo{animation:some 150ms ease-out}
+  .cursor{animation:none}
+  @keyframes some{from{opacity:0}to{opacity:1}}
+}
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="top">
+    <h1>Card de pergunta do Claude</h1>
+    <p>O card em tamanho real, no estilo que o notch já tem: preto puro, branco em camadas, sem cor de destaque. O primeiro quadro funciona de verdade, com mouse e teclado. Os outros mostram cada estado parado.</p>
+  </header>
+
+  <section class="quadro" aria-labelledby="q-vivo">
+    <h2 id="q-vivo">Experimente: três perguntas, só no teclado</h2>
+    <p>A pergunta chega sem pegar o teclado. Aperte ⌃⌥K (ou o botão) para dar o teclado ao card. Depois use setas, números, Enter, espaço, Tab e Esc. Responda a primeira, volte com ← e troque a resposta.</p>
+    <div class="acoes">
+      <button class="pbtn" id="b-dono">Dar o teclado ao card (⌃⌥K)</button>
+      <button class="pbtn" id="b-reset">Recomeçar</button>
+    </div>
+    <div class="tela"><div class="notch" id="vivo"></div></div>
+    <p class="saida" id="saida" aria-live="polite"></p>
+  </section>
+
+  <section class="quadro" aria-labelledby="q-repouso">
+    <h2 id="q-repouso">Uma pergunta: em repouso e com o teclado</h2>
+    <p>Em repouso, os números ficam apagados e o rodapé diz qual atalho usar. Com o teclado, a opção em destaque ganha contorno e o rodapé vira a legenda das teclas. Rótulo que termina em "(Recomendado)" vira selo.</p>
+    <div class="par">
+      <div><h3>Em repouso</h3><div class="tela"><div class="notch" data-estado="repouso" inert></div></div></div>
+      <div><h3>Com o teclado no card</h3><div class="tela"><div class="notch" data-estado="teclado" inert></div></div></div>
+    </div>
+  </section>
+
+  <section class="quadro" aria-labelledby="q-multi">
+    <h2 id="q-multi">Múltipla escolha</h2>
+    <p>A caixa de marcação fica na ponta direita, onde a pergunta simples mostra o visto. O botão conta quantas estão marcadas e fica apagado sem nenhuma.</p>
+    <div class="par">
+      <div><h3>Nada marcado</h3><div class="tela"><div class="notch" data-estado="multi-vazio" inert></div></div></div>
+      <div><h3>Duas marcadas</h3><div class="tela"><div class="notch" data-estado="multi" inert></div></div></div>
+    </div>
+  </section>
+
+  <section class="quadro" aria-labelledby="q-abas">
+    <h2 id="q-abas">Várias perguntas: abas</h2>
+    <p>Cada aba mostra um estado: respondida (visto e a resposta), atual (preenchida) e pendente (apagada). Voltando a uma respondida, a escolha aparece marcada e pode ser trocada. A rodada é enviada quando a última pendente é respondida.</p>
+    <div class="par">
+      <div><h3>Segunda pergunta, primeira já respondida</h3><div class="tela"><div class="notch" data-estado="abas" inert></div></div></div>
+      <div><h3>De volta à primeira</h3><div class="tela"><div class="notch" data-estado="revisita" inert></div></div></div>
+    </div>
+  </section>
+
+  <section class="quadro" aria-labelledby="q-texto">
+    <h2 id="q-texto">Outra resposta</h2>
+    <p>Tab leva o cursor ao campo. Enter envia o texto; Esc volta à lista. Com o ditado ligado, o nível do microfone aparece dentro do campo.</p>
+    <div class="par">
+      <div><h3>Escrevendo</h3><div class="tela"><div class="notch" data-estado="texto" inert></div></div></div>
+      <div><h3>Ditando</h3><div class="tela"><div class="notch" data-estado="ditado" inert></div></div></div>
+    </div>
+  </section>
+
+  <section class="quadro" aria-labelledby="q-preview">
+    <h2 id="q-preview">Opções com preview</h2>
+    <p>O card alarga, o preview ocupa o que sobra e acompanha a opção em destaque, seja pelo mouse ou pelas setas. A letra sobe de 9 para 11 pt.</p>
+    <div class="tela"><div class="notch largo" data-estado="preview" inert></div></div>
+  </section>
+
+  <section class="quadro" aria-labelledby="q-longo">
+    <h2 id="q-longo">Texto longo</h2>
+    <p>Pergunta e descrições aparecem inteiras, sempre. O card cresce até 60% da tela; passando disso, só a lista rola, e pergunta, campo e legenda ficam parados. Aqui o teto foi encolhido para a rolagem aparecer.</p>
+    <div class="tela"><div class="notch" data-estado="longo"></div></div>
+  </section>
+
+  <section class="quadro" aria-labelledby="q-selo">
+    <h2 id="q-selo">Pergunta que chega enquanto você digita</h2>
+    <p>Se você está escrevendo dentro do notch, a pergunta espera. O card em uso ganha um selo no topo; ela abre quando você sai do campo ou clica no selo.</p>
+    <div class="tela"><div class="notch" inert>
+      <div class="nota-cab"><b>Nota rápida</b><div class="selo">◐ Claude perguntou <span>knobler</span></div></div>
+      <div class="nota-texto">Revisar o texto da novidade 0.38.0 antes de publicar. Trocar as duas imagens do docs/ask.md<span class="cursor"></span></div>
+    </div></div>
+  </section>
+</main>
+
+<script>
+const ICO = {
+  x:'<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+  ok:'<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>'
+};
+const P = (a,b,c) => { const w = 32, l = t => '│ ' + t.padEnd(w - 2) + ' │'; return ['┌' + '─'.repeat(w) + '┐', l(a), l(''), l(b), l(c), '└' + '─'.repeat(w) + '┘'].join('\n'); };
+const RODADA = [
+  {h:'Teclado', q:'Como o card deve receber o teclado quando o Claude perguntar?', ops:[
+    {l:'Atalho global foca o card (Recomendado)', d:'A pergunta aparece sem roubar o que você está digitando. ⌃⌥K leva o teclado ao card.'},
+    {l:'Card pega o teclado sozinho', d:'Mais rápido, mas um número digitado em outro app pode responder sem querer.'},
+    {l:'Atalhos globais diretos', d:'⌃⌥1 a ⌃⌥4 escolhem de qualquer app. Não cobre setas nem texto livre.'}]},
+  {h:'Checagens', multi:true, q:'Quais checagens rodo antes de publicar a 0.38.0?', ops:[
+    {l:'Todos os gates', d:'./tools/check.sh, os self-checks que a CI roda.'},
+    {l:'Snapshots', d:'Regenera os PNGs do card e compara com os de hoje.'},
+    {l:'Teste ao vivo', d:'POST /ask com três perguntas, respondido só pelo teclado.'},
+    {l:'Dry-run do release', d:'Valida versão, notas, build e assinatura sem publicar.'}]},
+  {h:'Abas', q:'Como a aba de uma pergunta já respondida deve aparecer?', ops:[
+    {l:'Rótulo e resposta', d:'A aba mostra o que você escolheu.', p:P('[x] Teclado: Atalho   [ ] Abas','Como a aba respondida aparece? ','  1  Rótulo e resposta         ')},
+    {l:'Só o visto', d:'Aba curta, sem a resposta.', p:P('[x] Teclado   [ ] Abas','Como a aba respondida aparece? ','  2  Só o visto                ')},
+    {l:'Numerada', d:'1, 2, 3 no lugar do rótulo.', p:P('[x] 1   [ ] 2   [ ] 3','Como a aba respondida aparece? ','  3  Numerada                  ')}]}
+];
+const LONGA = [{h:'Respostas', q:'As respostas são guardadas pelo texto da pergunta. Como tratar duas perguntas com o mesmo texto na mesma rodada?', ops:[
+  {l:'Contar por pergunta (Recomendado)', d:'A rodada fecha quando o texto de toda pergunta tem resposta. Duas perguntas iguais dividem uma resposta, que é o que o hook já entrega hoje ao Claude.'},
+  {l:'Guardar pela posição', d:'Cada pergunta ganha um número. Resolve a colisão dentro do card, mas na volta para o hook as duas respostas se sobrepõem do mesmo jeito, porque o formato de resposta não muda.'},
+  {l:'Recusar a rodada', d:'O card não abre e a pergunta vai direto para o terminal, com um aviso no log. Seguro, mas o usuário perde o card por um caso que quase nunca acontece.'},
+  {l:'Juntar as duas', d:'Perguntas de mesmo texto viram uma aba só. Menos abas, com o risco de esconder que o Claude perguntou duas vezes de propósito.'}]}];
+
+const limpo = l => l.replace(/\s*\((Recomendado|Recommended)\)$/,'');
+const resumo = r => !r ? '' : r.texto ? r.texto : r.labels.length > 1 ? r.labels.length + ' marcadas' : limpo(r.labels[0]);
+const k = t => `<kbd>${t}</kbd>`;
+
+function legenda(e, q, n){
+  if(e.campo) return [k('⏎')+' enviar', k('esc')+' voltar à lista', '⌥ direita dita'];
+  if(!e.dono) return [k('⌃⌥K')+' responder pelo teclado'];
+  const l = [k('↑')+k('↓')+' escolher'];
+  if(q.multi) l.push(k('espaço')+' marcar', k('⏎')+' confirmar'); else l.push(k('⏎')+' responder');
+  if(n > 1) l.push(k('←')+k('→')+' pergunta');
+  l.push(k('esc')+' soltar');
+  return l;
+}
+
+function desenha(el, qs, e){
+  const q = qs[e.pagina], resp = e.respostas[q.q];
+  const temPreview = q.ops.some(o => o.p);
+  el.toggleAttribute('data-dono', !!e.dono);
+  el.classList.toggle('largo', temPreview);
+  const topo = qs.length > 1
+    ? `<div class="abas" role="tablist">${qs.map((x,i) => {
+        const r = e.respostas[x.q], c = i === e.pagina ? 'atual' : r ? 'resp' : 'pend';
+        return `<button class="aba ${c}" role="tab" aria-selected="${i===e.pagina}" data-aba="${i}">${r ? ICO.ok : '<span class="pt"></span>'}${x.h}${r && i!==e.pagina ? `<span class="r">${resumo(r)}</span>` : ''}</button>`;
+      }).join('')}</div>`
+    : `<span class="chip">${q.h}</span>`;
+  const ops = q.ops.map((o,i) => {
+    const marcada = q.multi ? e.marcadas.has(o.l) : !!(resp && resp.labels && resp.labels[0] === o.l);
+    const rec = limpo(o.l) !== o.l;
+    const est = q.multi ? `<span class="cx">${marcada ? ICO.ok : ''}</span>` : marcada ? ICO.ok : '';
+    return `<button class="op ${i===e.destaque?'dest':''} ${marcada?'marc':''}" data-op="${i}" ${q.multi?`role="checkbox" aria-checked="${marcada}"`:''}>${i<9?k(i+1):'<span></span>'}<span><span class="rot">${limpo(o.l)}${rec?'<em class="rec">Recomendada</em>':''}</span><span class="desc">${o.d}</span></span><span class="est">${est}</span></button>`;
+  }).join('');
+  const conf = q.multi ? `<button class="confirmar" data-conf ${e.marcadas.size?'':'disabled'}>Confirmar${e.marcadas.size?' '+e.marcadas.size:''} ${k('⏎')}</button>` : '';
+  const prev = temPreview ? `<pre class="preview">${(q.ops[e.destaque ?? 0] || q.ops[0]).p}</pre>` : '';
+  const mic = e.ditando ? '<span class="mic" aria-label="Ditado gravando"><i></i><b></b></span>' : '';
+  el.innerHTML = `<div class="topo">${topo}<span class="origem">◐ knobler</span><button class="x" data-x aria-label="Responder no terminal">${ICO.x}</button></div>
+    <div class="conteudo" ${e.semAnimar?'style="animation:none"':''}><h3 class="pergunta">${q.q}</h3>
+    <div class="corpo ${temPreview?'split':''}"><div class="lista ${e.rola?'rola':''}" ${e.rola?'tabindex="0" role="group" aria-label="Opções"':''}>${ops}${conf}</div>${prev}</div>
+    <div class="campo">${mic}<input type="text" placeholder="Outra resposta…" aria-label="Outra resposta" value="${e.texto||''}">${e.dono && !e.campo ? k('⇥') : ''}</div>
+    <div class="legenda">${legenda(e,q,qs.length).map(t=>`<span>${t}</span>`).join('')}</div></div>`;
+}
+
+const base = (x={}) => Object.assign({pagina:0, respostas:{}, marcadas:new Set(), destaque:null, texto:'', dono:false, campo:false}, x);
+const r1 = {[RODADA[0].q]:{labels:[RODADA[0].ops[0].l]}};
+const ESTADOS = {
+  'repouso':     [[RODADA[0]], base()],
+  'teclado':     [[RODADA[0]], base({dono:true, destaque:1})],
+  'multi-vazio': [[RODADA[1]], base({dono:true, destaque:0})],
+  'multi':       [[RODADA[1]], base({dono:true, destaque:2, marcadas:new Set(['Todos os gates','Teste ao vivo'])})],
+  'abas':        [RODADA, base({pagina:1, respostas:r1, dono:true, destaque:0})],
+  'revisita':    [RODADA, base({pagina:0, respostas:Object.assign({[RODADA[1].q]:{labels:['Todos os gates','Teste ao vivo']}}, r1), dono:true, destaque:0})],
+  'texto':       [[RODADA[0]], base({dono:true, campo:true, texto:'Atalho, mas só com o notch fechado'})],
+  'ditado':      [[RODADA[0]], base({dono:true, campo:true, ditando:true, texto:'atalho global, e o esc'})],
+  'preview':     [[RODADA[2]], base({dono:true, destaque:1})],
+  'longo':       [LONGA, base({rola:true, destaque:0})]
+};
+document.querySelectorAll('[data-estado]').forEach(el => { const [qs,e] = ESTADOS[el.dataset.estado]; e.semAnimar = true; desenha(el, qs, e); });
+
+/* ---------- o card que funciona ---------- */
+const vivo = document.getElementById('vivo'), saida = document.getElementById('saida'), bDono = document.getElementById('b-dono');
+let E, fim = false;
+function pinta(animar){
+  E.semAnimar = !animar;
+  desenha(vivo, RODADA, E);
+  bDono.textContent = E.dono ? 'Soltar o teclado (⌃⌥K)' : 'Dar o teclado ao card (⌃⌥K)';
+  if(E.campo){ const i = vivo.querySelector('input'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
+}
+function recomeca(){ E = base(); fim = false; vivo.hidden = false; saida.textContent = ''; pinta(true); }
+function irPara(p){
+  const q = RODADA[p], r = E.respostas[q.q];
+  E.pagina = p; E.campo = false;
+  E.marcadas = new Set(q.multi && r && r.labels ? r.labels : []);
+  E.texto = r && r.texto ? r.texto : '';
+  E.destaque = E.dono ? Math.max(0, r && r.labels && !q.multi ? q.ops.findIndex(o => o.l === r.labels[0]) : 0) : null;
+  pinta(true);
+}
+function responde(r){
+  E.respostas[RODADA[E.pagina].q] = r;
+  for(let i = 1; i <= RODADA.length; i++){
+    const p = (E.pagina + i) % RODADA.length;
+    if(!E.respostas[RODADA[p].q]) return irPara(p);
+  }
+  fim = true; E.dono = false; vivo.hidden = true;
+  bDono.textContent = 'Dar o teclado ao card (⌃⌥K)';
+  saida.innerHTML = 'O card some e o Claude recebe: ' + RODADA.map(q => `<b>${q.h}</b> ${resumo(E.respostas[q.q])}`).join(' · ') + '. O teclado volta ao app da frente.';
+}
+function escolhe(i){
+  const q = RODADA[E.pagina], o = q.ops[i]; if(!o) return;
+  E.destaque = i;
+  if(q.multi){ E.marcadas.has(o.l) ? E.marcadas.delete(o.l) : E.marcadas.add(o.l); pinta(false); }
+  else responde({labels:[o.l]});
+}
+const confirma = () => { if(E.marcadas.size) responde({labels:[...E.marcadas]}); };
+function dono(liga){ E.dono = liga; E.campo = false; E.destaque = liga ? (E.destaque ?? 0) : null; pinta(false); }
+function cancela(){ fim = true; vivo.hidden = true; saida.textContent = 'Pergunta cancelada: ela volta para o terminal do Claude Code.'; }
+
+vivo.addEventListener('click', ev => {
+  const t = ev.target.closest('[data-op],[data-aba],[data-conf],[data-x]'); if(!t) return;
+  if(t.dataset.op) escolhe(+t.dataset.op);
+  else if(t.dataset.aba) irPara(+t.dataset.aba);
+  else if('conf' in t.dataset) confirma();
+  else cancela();
+});
+vivo.addEventListener('mouseover', ev => {
+  const t = ev.target.closest('[data-op]'); if(!t || E.destaque === +t.dataset.op) return;
+  E.destaque = +t.dataset.op;
+  vivo.querySelectorAll('.op').forEach((o,i) => o.classList.toggle('dest', i === E.destaque));
+  const p = vivo.querySelector('.preview'); if(p) p.textContent = RODADA[E.pagina].ops[E.destaque].p;
+});
+vivo.addEventListener('focusin', ev => { if(ev.target.matches('input') && !E.campo){ E.dono = true; E.campo = true; pinta(false); } });
+vivo.addEventListener('input', ev => { E.texto = ev.target.value; });
+bDono.addEventListener('click', () => { if(fim) recomeca(); dono(!E.dono); });
+document.getElementById('b-reset').addEventListener('click', recomeca);
+
+document.addEventListener('keydown', ev => {
+  if(ev.ctrlKey && ev.altKey && ev.code === 'KeyK'){ ev.preventDefault(); if(fim) recomeca(); return dono(!E.dono); }
+  if(fim || !E.dono) return;
+  const q = RODADA[E.pagina], n = q.ops.length, pare = () => ev.preventDefault();
+  if(ev.metaKey && ev.key === '.'){ pare(); return cancela(); }
+  if(E.campo){
+    if(ev.key === 'Enter' && E.texto.trim()){ pare(); responde({texto:E.texto.trim()}); }
+    else if(ev.key === 'Escape' || (ev.key === 'Tab' && ev.shiftKey)){ pare(); E.campo = false; vivo.querySelector('input').blur(); pinta(false); }
+    return;
+  }
+  if(ev.metaKey || ev.ctrlKey || ev.altKey) return;
+  if(ev.key === 'ArrowDown'){ pare(); E.destaque = Math.min(n-1, (E.destaque ?? -1) + 1); pinta(false); }
+  else if(ev.key === 'ArrowUp'){ pare(); E.destaque = Math.max(0, (E.destaque ?? n) - 1); pinta(false); }
+  else if(ev.key === 'ArrowLeft' || ev.key === 'ArrowRight'){ pare(); const p = E.pagina + (ev.key === 'ArrowLeft' ? -1 : 1); if(p >= 0 && p < RODADA.length) irPara(p); }
+  else if(/^[1-9]$/.test(ev.key)){ if(ev.repeat) return; pare(); escolhe(+ev.key - 1); }
+  else if(ev.key === ' ' && q.multi){ pare(); escolhe(E.destaque ?? 0); }
+  else if(ev.key === 'Enter'){ if(ev.repeat) return; pare(); q.multi ? confirma() : escolhe(E.destaque ?? 0); }
+  else if(ev.key === 'Tab' && !ev.shiftKey){ pare(); E.campo = true; pinta(false); }
+  else if(ev.key === 'Escape'){ pare(); dono(false); }
+});
+recomeca();
+</script>
+</body>
+</html>
