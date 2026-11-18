@@ -194,10 +194,11 @@ fonte monoespaçada dão o tamanho do quadro — função pura, sem medir view, 
 `NotchView` usa para a largura do card (hoje fixa em 540 com preview) e que
 ganha check hermético próprio em `tools/check.sh`.
 
-**Rolagem acima do teto.** Duas variantes da lista — conteúdo puro, e o mesmo
-conteúdo dentro de uma área rolável — com o sistema escolhendo a primeira que
-cabe no teto (`ViewThatFits`). A auto-medição do card deixa de usar "o maior
-valor visto" e passa a aceitar encolher.
+**Rolagem acima do teto.** A lista mede a própria altura natural e o card
+mede o que não é lista; com a lista maior que o espaço que sobra até o teto,
+ela vai para dentro de uma área rolável dessa altura, e sem isso é desenhada
+direto. A auto-medição do card deixa de usar "o maior valor visto" e passa a
+aceitar encolher.
 
 ## Bordas
 
