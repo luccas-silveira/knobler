@@ -616,7 +616,8 @@ struct NotchView: View {
     @ViewBuilder
     private var questionCard: some View {
         if askStore.state.active != nil {
-            AskCardView(vm: vm, askStore: askStore)
+            AskCardView(vm: vm, askStore: askStore,
+                        alturaMaxima: AskTeto.doCard(disponivel: vm.availableSize.height, topo: topInset))
                 .frame(width: currentSize.width - 40)
                 .padding(.top, topInset + 6)
                 .padding(.bottom, 12)

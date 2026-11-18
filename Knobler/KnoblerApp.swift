@@ -1102,6 +1102,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             vm.focarVizinho(avancando: avancando)
             return nil
         case .trocarFaixa(let proxima):
+            // pergunta na tela: deslizar de lado sobre o card não troca de música
+            guard vm.mode != .question else { return nil }
             scrollActed = true
             if proxima { media.nextTrack() } else { media.previousTrack() }
             return nil

@@ -61,9 +61,15 @@ struct AskSeloView: View {
 struct AskCardView: View {
     @ObservedObject var vm: NotchViewModel
     let askStore: AskStore
+    /// Até onde o card cresce (`AskTeto.doCard`); passou disso, a lista rola.
+    let alturaMaxima: CGFloat
 
     @FocusState private var textFocused: Bool
     @State private var sobreOFechar = false
+    @State private var listaNatural: CGFloat = 0
+    @State private var alturaDoCard: CGFloat = 0
+    /// Altura da área rolável da lista; `nil` = ela cabe e é desenhada direto.
+    @State private var tetoDaLista: CGFloat?
     @Environment(\.accessibilityReduceMotion) private var reduzMovimento
 
     private var ask: AskRequest? { askStore.state.active }
@@ -98,20 +104,28 @@ struct AskCardView: View {
     /// e o `NotchView` chamam esta mesma função, para nunca divergirem. `nil` =
     /// pergunta sem preview.
     static func layoutDoPreview(question: AskQuestion, disponivel: CGSize, topo: CGFloat) -> AskPreviewLayout? {
-        // 150 = topo, pergunta, campo e legenda
-        let alturaMaxima = max(120, disponivel.height - 24 - topo - 150)
-        var layout = AskPreviewLayout.calcular(
-            previews: question.options.compactMap(\.preview),
-            avanco: letraDoPreview.avanco,
-            linha: letraDoPreview.linha,
-            // o mesmo limite de largura do `NotchPresentation`
-            larguraMaxima: disponivel.width - 64,
-            alturaMaxima: alturaMaxima)
-        // Quando rola, o quadro para na altura que cabe; o resto é da rolagem.
-        if let calculado = layout, calculado.rola {
-            layout?.quadro.height = min(calculado.quadro.height, alturaMaxima)
+        func calcular(reserva: CGFloat) -> AskPreviewLayout? {
+            // 150 = topo, pergunta, campo e legenda
+            let alturaMaxima = max(120, disponivel.height - 24 - topo - 150 - reserva)
+            var layout = AskPreviewLayout.calcular(
+                previews: question.options.compactMap(\.preview),
+                avanco: letraDoPreview.avanco,
+                linha: letraDoPreview.linha,
+                // o mesmo limite de largura do `NotchPresentation`
+                larguraMaxima: disponivel.width - 64,
+                alturaMaxima: alturaMaxima)
+            // Quando rola, o quadro para na altura que cabe; o resto é da rolagem.
+            if let calculado = layout, calculado.rola {
+                layout?.quadro.height = min(calculado.quadro.height, alturaMaxima)
+            }
+            return layout
         }
-        return layout
+        // Ao lado ou embaixo sai só da largura. Embaixo, o preview divide a
+        // altura com a lista: guarda o mínimo dela e encolhe a letra antes de
+        // empurrar o card para fora da tela.
+        let layout = calcular(reserva: 0)
+        guard let layout, !layout.lado else { return layout }
+        return calcular(reserva: AskTeto.minimoDaLista)
     }
 
     var body: some View {
@@ -140,6 +154,10 @@ struct AskCardView: View {
             }
             .allowsHitTesting(false)
         )
+        .onPreferenceChange(AlturaDoAskKey.self) { alturaDoCard = $0 }
+        .onPreferenceChange(AlturaDaListaDoAskKey.self) { listaNatural = $0 ?? 0 }
+        // Uma conta por rodada de medida, com o card e a lista do mesmo layout.
+        .onChange(of: [listaNatural, alturaDoCard, alturaMaxima]) { refazerTetoDaLista() }
         // Esc (com o campo focado) = mesmo intent do ✕: pergunta vai pro terminal
         .onExitCommand { askStore.send(.cancelActive) }
     }
@@ -201,18 +219,18 @@ struct AskCardView: View {
                     passo: AskPreviewLayout.passo(linha: Self.letraDoPreview.linha, fonte: layout.fonte))
                 if layout.lado {
                     HStack(alignment: .top, spacing: AskPreviewLayout.vao) {
-                        optionList(question: question).frame(width: AskPreviewLayout.lista)
+                        lista(question: question).frame(width: AskPreviewLayout.lista)
                         previa
                     }
                 } else {
                     // largo demais para ficar ao lado: desce e usa a largura toda
                     VStack(spacing: 8) {
-                        optionList(question: question)
+                        lista(question: question)
                         previa
                     }
                 }
             } else {
-                optionList(question: question)
+                lista(question: question)
             }
             AskRodapeView(
                 texto: textBinding,
@@ -228,6 +246,36 @@ struct AskCardView: View {
                                           text: text))
                 })
         }
+    }
+
+    /// A lista inteira quando cabe; acima do teto, só ela rola e o resto do
+    /// card (topo, pergunta, preview, campo, legenda) fica parado.
+    @ViewBuilder
+    private func lista(question: AskQuestion) -> some View {
+        if let teto = tetoDaLista {
+            ScrollView(.vertical) { optionList(question: question) }
+                .frame(height: teto)
+        } else {
+            optionList(question: question)
+        }
+    }
+
+    /// `tetoDaLista` ainda é a altura com que a lista foi desenhada na medida
+    /// que chegou: é o `listaAtual` da conta.
+    private func refazerTetoDaLista() {
+        var teto = AskTeto.daLista(natural: listaNatural, card: alturaDoCard,
+                                   listaAtual: tetoDaLista ?? listaNatural, tetoDoCard: alturaMaxima)
+        // Ao lado do preview o card já tem a altura dele: a lista não fica
+        // mais baixa que o preview.
+        if let calculado = teto, let question,
+           let layout = Self.layoutDoPreview(question: question, disponivel: vm.availableSize,
+                                             topo: vm.hasRealNotch ? vm.notchSize.height : 4),
+           layout.lado {
+            teto = listaNatural > layout.quadro.height ? max(calculado, layout.quadro.height) : nil
+        }
+        // Diferença de fração de ponto é ruído da medida, não teto novo.
+        if let teto, let tetoDaLista, abs(teto - tetoDaLista) < 0.5 { return }
+        if teto != tetoDaLista { tetoDaLista = teto }
     }
 
     private func optionList(question: AskQuestion) -> some View {
@@ -258,6 +306,14 @@ struct AskCardView: View {
                 confirmar(question: question)
             }
         }
+        // Altura natural: dentro da rolagem o conteúdo é desenhado inteiro, então
+        // a medida vale com ou sem ela. Em overlay pelo mesmo motivo do card.
+        .overlay(
+            GeometryReader { proxy in
+                Color.clear.preference(key: AlturaDaListaDoAskKey.self, value: proxy.size.height)
+            }
+            .allowsHitTesting(false)
+        )
     }
 
     private func confirmar(question: AskQuestion) -> some View {
@@ -317,5 +373,16 @@ struct AlturaDoAskKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = nextValue()
+    }
+}
+
+/// Altura natural da lista de opções (com o Confirmar), medida por ela mesma.
+/// Comparada ao teto, decide se a lista rola.
+struct AlturaDaListaDoAskKey: PreferenceKey {
+    static var defaultValue: CGFloat?
+    static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) {
+        // A lista tem vizinhos depois dela (preview, rodapé) que não medem nada
+        // e entram aqui sem valor: só uma medida de verdade troca o que há.
+        value = nextValue() ?? value
     }
 }

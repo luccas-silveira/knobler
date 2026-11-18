@@ -3,8 +3,8 @@
 //  Knobler
 //
 //  O que o card de pergunta decide sem desenhar nada: o sufixo de recomendada,
-//  o resumo da aba respondida, a legenda de teclas do rodapé e o tamanho do
-//  preview. Só Foundation e CoreGraphics, pra compilar no gate ao lado de
+//  o resumo da aba respondida, a legenda de teclas do rodapé, o teto de altura
+//  e o tamanho do preview. Só Foundation e CoreGraphics, pra compilar no gate ao lado de
 //  AskModels.swift.
 //
 
@@ -75,6 +75,30 @@ enum AskLegenda {
         }
         itens.append(AskLegendaItem(teclas: ["esc"], texto: "soltar"))
         return itens
+    }
+}
+
+/// Teto de 60% da tela: até onde o card cresce e quanto dele sobra para a
+/// lista de opções, que é a única parte que rola.
+enum AskTeto {
+    /// Abaixo disto a lista não encolhe, mesmo com o card acima do teto.
+    static let minimoDaLista: CGFloat = 96
+
+    /// Altura máxima do card: 60% do disponível, menos o topo (o notch) e os
+    /// 18 de padding que o `NotchView` põe em volta dele.
+    static func doCard(disponivel: CGFloat, topo: CGFloat) -> CGFloat {
+        0.6 * disponivel - (topo + 18)
+    }
+
+    /// Altura da área rolável da lista, ou `nil` quando ela cabe inteira.
+    /// `card` e `listaAtual` são da mesma medida: a diferença é o que não é
+    /// lista (topo, pergunta, preview embaixo, campo, legenda) e não muda com
+    /// a rolagem, então a conta dá o mesmo valor antes e depois de rolar.
+    static func daLista(natural: CGFloat, card: CGFloat, listaAtual: CGFloat, tetoDoCard: CGFloat) -> CGFloat? {
+        guard natural > 0, card > 0 else { return nil }
+        let sobra = card - listaAtual
+        let teto = max(minimoDaLista, tetoDoCard - sobra)
+        return natural > teto ? teto : nil
     }
 }
 
