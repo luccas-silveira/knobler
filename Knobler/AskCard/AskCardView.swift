@@ -254,6 +254,10 @@ struct AskCardView: View {
     private func lista(question: AskQuestion) -> some View {
         if let teto = tetoDaLista {
             ScrollView(.vertical) { optionList(question: question) }
+                // sem a barra clássica do macOS: com mouse conectado ela abre uma
+                // calha de 17 pt e as linhas ficam mais estreitas que o campo;
+                // a linha cortada embaixo já diz que a lista rola
+                .scrollIndicators(.never)
                 .frame(height: teto)
         } else {
             optionList(question: question)
