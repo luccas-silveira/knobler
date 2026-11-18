@@ -69,6 +69,7 @@ bash_teste()  { local t="$1"; shift; run "$(basename "$t" .sh)" bash "$t" "$@"; 
 echo "== self-checks Swift =="
 swift_check presentationcheck Knobler/NotchSectionOrder.swift Knobler/NotchPresentation.swift tools/presentationcheck.swift
 swift_check askcheck          Knobler/AskModels.swift Knobler/AskFeature.swift tools/askcheck.swift
+swift_teste tools/askcardmodelocheck.swift Knobler/AskModels.swift Knobler/AskCard/AskCardModelo.swift
 swift_check apiguardcheck      Knobler/NotchAPIGuard.swift tools/apiguardcheck.swift
 swift_check longpollcheck     Knobler/NotchAPILongPoll.swift tools/longpollcheck.swift
 # servidor de verdade numa porta alternativa (44877, nunca a 4477): contrato de
