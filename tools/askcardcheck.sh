@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gate das etapas 3, 4, 5 e 6 do card de pergunta
+# Gate das etapas 3, 4, 5, 6 e 7 do card de pergunta
 # (docs/vesta/plans/2026-11-18-card-pergunta.md): a estrutura do card
 # redesenhado nos arquivos que o ./tools/check.sh não roda (views SwiftUI e o
 # harness de snapshot). O notchfontescheck só typecheca.
@@ -103,6 +103,24 @@
 #     `.setHighlight(1)`) e `ask-texto` (`tecladoNaPergunta = true`,
 #     `campoDaPerguntaFocado = true`, o texto do mockup por `.setText(`), e o
 #     `ask-preview` segue com `.setHighlight(1)` dentro do próprio bloco.
+# Etapa 7 (a pergunta espera enquanto o usuário digita no notch) confere:
+#   - Knobler/AskCard/AskSeloView.swift existe, está em
+#     tools/notchview-fontes.txt, tem "Claude perguntou", `.help("Abrir a
+#     pergunta")` e grava `perguntaLiberada =`; alguma struct declarada nele é
+#     usada no Knobler/NotchView.swift;
+#   - Knobler/NotchViewModel.swift tem `@Published var perguntaLiberada`, e o
+#     NotchView, o app ou a view model zeram `perguntaLiberada = nil`;
+#   - Knobler/NotchView.swift chama `perguntaVisivel(`, lê `vm.digitandoNoNotch`
+#     e `vm.perguntaLiberada`, e não passa mais `askStore.state.active` direto
+#     no `contentState(question:`;
+#   - Knobler/KnoblerApp.swift: `questionIsActive = {` passa por
+#     `perguntaVisivel(` com `digitandoNoNotch` e `perguntaLiberada`, e
+#     `perguntaDoClaudeAtiva = {` também passa por `perguntaVisivel(` (pergunta
+#     escondida atrás do selo não ganha o painel nem o atalho);
+#   - tools/main.swift tem `ask-espera-nota` (com `.enqueue(`, sem
+#     `perguntaLiberada =`) e `ask-espera-liberada` (com `.enqueue(`,
+#     `perguntaLiberada =` e `.externalDismiss(`), e o laço chama
+#     `conferirEsperaNaJanela(`.
 # Linha de comentário (`//`) não conta.
 # Cada falta imprime `FALHOU: <o quê>` e o gate sai 1. Antes da checagem real,
 # um autoteste num repo falso prova que cada verificação reprova.
@@ -1146,6 +1164,138 @@ verificar() {
     esac
   fi
 
+  # === etapa 7: a pergunta espera enquanto o usuário digita no notch ===
+  local selo="$r/$PASTA/AskSeloView.swift" nomes nome usado
+
+  # --- o selo "Claude perguntou" ---
+  if [ ! -f "$selo" ]; then
+    echo "FALHOU: $PASTA/AskSeloView.swift não existe (o selo da pergunta que espera)"
+    erro=1
+  else
+    if ! tem "$selo" 'Claude perguntou'; then
+      echo "FALHOU: $PASTA/AskSeloView.swift sem o texto 'Claude perguntou'"
+      erro=1
+    fi
+    if ! tem "$selo" '.help("Abrir a pergunta")'; then
+      echo "FALHOU: $PASTA/AskSeloView.swift sem '.help(\"Abrir a pergunta\")'"
+      erro=1
+    fi
+    if ! tem_re "$selo" 'perguntaLiberada[[:space:]]*=[^=]'; then
+      echo "FALHOU: $PASTA/AskSeloView.swift não grava 'perguntaLiberada =' (clicar no selo não abre a pergunta)"
+      erro=1
+    fi
+    nomes=$(grep -vE '^[[:space:]]*//' "$selo" | grep -oE 'struct[[:space:]]+[A-Za-z0-9_]+' | awk '{ print $2 }')
+    usado=0
+    for nome in $nomes; do
+      tem_re "$notch" "(^|[^A-Za-z0-9_])$nome[(]" && usado=1
+    done
+    if [ "$usado" = 0 ]; then
+      echo "FALHOU: Knobler/NotchView.swift não usa nenhuma view de $PASTA/AskSeloView.swift (o selo nunca aparece)"
+      erro=1
+    fi
+  fi
+  if [ -f "$fontes" ] && ! grep -qxF -- "$PASTA/AskSeloView.swift" "$fontes"; then
+    echo "FALHOU: tools/notchview-fontes.txt sem '$PASTA/AskSeloView.swift'"
+    erro=1
+  fi
+
+  # --- a liberação na view model ---
+  if [ -f "$vmodel" ] && ! tem_re "$vmodel" '@Published[[:space:]]+var[[:space:]]+perguntaLiberada([^A-Za-z0-9_]|$)'; then
+    echo "FALHOU: Knobler/NotchViewModel.swift sem '@Published var perguntaLiberada' (o clique no selo não redesenha o card)"
+    erro=1
+  fi
+  if ! tem_re "$notch" 'perguntaLiberada[[:space:]]*=[[:space:]]*nil' \
+      && ! tem_re "$app" 'perguntaLiberada[[:space:]]*=[[:space:]]*nil' \
+      && ! tem_re "$vmodel" 'perguntaLiberada[[:space:]]*=[[:space:]]*nil'; then
+    echo "FALHOU: nem o NotchView, nem o app, nem a view model zeram 'perguntaLiberada = nil' (a liberação não volta a nil quando a pergunta ativa muda)"
+    erro=1
+  fi
+
+  # --- o NotchView decide pela função testada ---
+  if [ -f "$notch" ]; then
+    if ! tem "$notch" 'perguntaVisivel('; then
+      echo "FALHOU: Knobler/NotchView.swift não chama 'perguntaVisivel(' (a pergunta não espera a digitação)"
+      erro=1
+    fi
+    if ! tem "$notch" 'vm.digitandoNoNotch'; then
+      echo "FALHOU: Knobler/NotchView.swift não lê 'vm.digitandoNoNotch' (a digitação desta tela não segura a pergunta)"
+      erro=1
+    fi
+    if ! tem "$notch" 'vm.perguntaLiberada'; then
+      echo "FALHOU: Knobler/NotchView.swift não lê 'vm.perguntaLiberada' (o clique no selo não abre a pergunta)"
+      erro=1
+    fi
+    if tem_re "$notch" 'contentState[(]question:[[:space:]]*askStore[.]state[.]active'; then
+      echo "FALHOU: Knobler/NotchView.swift ainda passa 'askStore.state.active' direto em 'contentState(question:' (a pergunta toma a tela no meio da digitação)"
+      erro=1
+    fi
+  fi
+
+  # --- o app decide pela mesma função, com a view model de cada tela ---
+  if [ -f "$app" ]; then
+    bloco=$(corpo_de "$app" 'questionIsActive[[:space:]]*=[[:space:]]*[{]')
+    if [ -z "$bloco" ]; then
+      echo "FALHOU: Knobler/KnoblerApp.swift não atribui 'questionIsActive = {'"
+      erro=1
+    else
+      case "$bloco" in *'perguntaVisivel('*) ;; *)
+        echo "FALHOU: Knobler/KnoblerApp.swift: 'questionIsActive' não passa por 'perguntaVisivel(' (o painel trata como pergunta na tela a que está esperando)"
+        erro=1 ;;
+      esac
+      case "$bloco" in *digitandoNoNotch*) ;; *)
+        echo "FALHOU: Knobler/KnoblerApp.swift: 'questionIsActive' não lê 'digitandoNoNotch' da tela"
+        erro=1 ;;
+      esac
+      case "$bloco" in *perguntaLiberada*) ;; *)
+        echo "FALHOU: Knobler/KnoblerApp.swift: 'questionIsActive' não lê 'perguntaLiberada' da tela"
+        erro=1 ;;
+      esac
+    fi
+    bloco=$(corpo_de "$app" 'perguntaDoClaudeAtiva[[:space:]]*=[[:space:]]*[{]')
+    if [ -n "$bloco" ]; then
+      case "$bloco" in *'perguntaVisivel('*) ;; *)
+        echo "FALHOU: Knobler/KnoblerApp.swift: 'perguntaDoClaudeAtiva' não passa por 'perguntaVisivel(' (a pergunta escondida atrás do selo recebe o atalho)"
+        erro=1 ;;
+      esac
+    fi
+  fi
+
+  # --- cenários da espera no harness ---
+  if [ -f "$harness" ]; then
+    for v in ask-espera-nota ask-espera-liberada; do
+      bloco=$(bloco_do_cenario "$harness" "$v")
+      if [ -z "$bloco" ]; then
+        echo "FALHOU: tools/main.swift sem o cenário \"$v\""
+        erro=1
+        continue
+      fi
+      case "$bloco" in *'.enqueue('*) ;; *)
+        echo "FALHOU: tools/main.swift: o cenário \"$v\" não enfileira a pergunta ('.enqueue(')"
+        erro=1 ;;
+      esac
+      case "$v" in
+        ask-espera-nota)
+          if printf '%s\n' "$bloco" | grep -E 'perguntaLiberada[[:space:]]*=[^=]' >/dev/null; then
+            echo "FALHOU: tools/main.swift: o cenário \"ask-espera-nota\" grava 'perguntaLiberada =' (o quadro é o da pergunta esperando, antes do clique no selo)"
+            erro=1
+          fi ;;
+        ask-espera-liberada)
+          if ! printf '%s\n' "$bloco" | grep -E 'perguntaLiberada[[:space:]]*=[^=]' >/dev/null; then
+            echo "FALHOU: tools/main.swift: o cenário \"ask-espera-liberada\" não grava 'perguntaLiberada =' (o clique no selo)"
+            erro=1
+          fi
+          case "$bloco" in *'.externalDismiss('*) ;; *)
+            echo "FALHOU: tools/main.swift: o cenário \"ask-espera-liberada\" sem '.externalDismiss(' (a volta à nota com o mesmo texto)"
+            erro=1 ;;
+          esac ;;
+      esac
+    done
+    if ! tem_re "$harness" '^[[:space:]]*conferirEsperaNaJanela[(]'; then
+      echo "FALHOU: tools/main.swift: o laço não chama 'conferirEsperaNaJanela(' (ninguém olha o NotchView de verdade depois do quadro)"
+      erro=1
+    fi
+  fi
+
   return "$erro"
 }
 
@@ -1341,7 +1491,22 @@ struct NotchView: View {
     private var presentation: NotchPresentation {
         layout.questionSize = questionSize
         layout.contentID = "\(askStore.state.active?.id ?? "")/\(agentRequestStore.state.active?.id ?? "")"
-        return NotchPresentation(content: vm.contentState(question: true), layout: layout)
+        if seloVisivel { layout.sectionHeight += 28 }
+        return NotchPresentation(content: vm.contentState(question: perguntaNaTela), layout: layout)
+    }
+    private var perguntaNaTela: Bool {
+        NotchContentState.perguntaVisivel(ask: askStore.state.active != nil,
+            agente: agentRequestStore.state.active != nil,
+            digitando: vm.digitandoNoNotch,
+            liberada: vm.perguntaLiberada == askStore.state.active?.id)
+    }
+    private var seloVisivel: Bool { askStore.state.active != nil && !perguntaNaTela }
+    @ViewBuilder private var faixaDoSelo: some View {
+        if seloVisivel, let ask = askStore.state.active {
+            HStack { Spacer(); AskPerguntaEsperandoView(vm: vm, id: ask.id, origem: ask.source) }
+                .frame(height: 22)
+                .onChange(of: askStore.state.active?.id) { _, _ in vm.perguntaLiberada = nil }
+        }
     }
     private var questionSize: CGSize {
         let question = ask.questions[min(askStore.state.page, ask.questions.count - 1)]
@@ -1364,6 +1529,9 @@ final class NotchViewModel: ObservableObject {
     @Published var campoDaPerguntaFocado = false
     var perguntaDoClaudeAtiva: () -> Bool = { false }
     var aoMudarTecladoDaPergunta: ((Bool) -> Void)?
+    /// Id da pergunta que o usuário abriu pelo selo.
+    @Published var perguntaLiberada: String?
+    var digitandoNoNotch: Bool { protegeEdicao }
 
     func darTecladoAPergunta(_ liga: Bool) {
         guard tecladoNaPergunta != liga else { return }
@@ -1422,7 +1590,13 @@ func setupAtalhoDoNotch() {
     }
 }
 func montarTela() {
-    viewModel.perguntaDoClaudeAtiva = { [weak askStore] in askStore?.state.active != nil }
+    viewModel.questionIsActive = { [weak askStore, weak agentRequestStore, weak viewModel] in
+        NotchContentState.perguntaVisivel(ask: askStore?.state.active != nil,
+            agente: agentRequestStore?.state.active != nil,
+            digitando: viewModel?.digitandoNoNotch ?? false,
+            liberada: viewModel?.perguntaLiberada == askStore?.state.active?.id)
+    }
+    viewModel.perguntaDoClaudeAtiva = { [weak askStore, weak viewModel] in NotchContentState.perguntaVisivel(ask: askStore?.state.active != nil, agente: false, digitando: viewModel?.digitandoNoNotch ?? false, liberada: viewModel?.perguntaLiberada == askStore?.state.active?.id) }
     viewModel.aoMudarTecladoDaPergunta = { [weak panel, weak viewModel] liga in
         if liga {
             panel?.allowsKeyboard = true
@@ -1468,6 +1642,7 @@ Knobler/AskCard/AskAbasView.swift
 Knobler/AskCard/AskOpcaoView.swift
 Knobler/AskCard/AskRodapeView.swift
 Knobler/AskCard/AskPreviewView.swift
+Knobler/AskCard/AskSeloView.swift
 EOF
   cat > "$T/r/tools/main.swift" <<'EOF'
 let rotulo = "Atalho global foca o card (Recomendado)"
@@ -1500,6 +1675,19 @@ let scenarios = [
     Scenario(name: "ask-revisita", realNotch: true) { _, _, askStore in
         askStore.send(.goTo(page: 0))
     },
+    Scenario(name: "ask-espera-nota", realNotch: true, frameHeight: 360) { vm, _, askStore in
+        configurarNotaEmEdicao(vm, "ask-espera-nota")
+        askStore.send(.enqueue(AskDoMockup.pedido("s12", [AskDoMockup.teclado])))
+        precondition(!perguntaNaTela(vm, askStore))
+    },
+    Scenario(name: "ask-espera-liberada", realNotch: true, frameHeight: 480) { vm, _, askStore in
+        configurarNotaEmEdicao(vm, "ask-espera-liberada")
+        askStore.send(.enqueue(AskDoMockup.pedido("s13", [AskDoMockup.teclado])))
+        vm.perguntaLiberada = askStore.state.active?.id
+        askStore.send(.externalDismiss(id: "s13"))
+        askStore.send(.enqueue(AskDoMockup.pedido("s14", [AskDoMockup.teclado])))
+        vm.perguntaLiberada = askStore.state.active?.id
+    },
     Scenario(name: "ask-teclado", realNotch: true, frameHeight: 480) { vm, _, askStore in
         vm.tecladoNaPergunta = true
         askStore.send(.setHighlight(1))
@@ -1517,6 +1705,35 @@ if scenario.name.hasPrefix("agenda-") || scenario.name.hasPrefix("lembretes-")
     janela()
 }
 if scenario.name.hasPrefix("ask-") { outraCoisa() }
+if scenario.name.hasPrefix("ask-espera-") {
+    conferirEsperaNaJanela(scenario.name, vm: vm, askStore: askStore) { outra in AnyView(Text("x")) }
+}
+EOF
+  cat > "$T/r/$PASTA/AskSeloView.swift" <<'EOF'
+import SwiftUI
+
+/// Selo da pergunta que espera enquanto o usuário digita no notch.
+struct AskPerguntaEsperandoView: View {
+    @ObservedObject var vm: NotchViewModel
+    let id: String
+    let origem: String?
+    @State private var realce = false
+
+    var body: some View {
+        Button { vm.perguntaLiberada = id } label: {
+            HStack(spacing: 4) {
+                Text("◐ Claude perguntou").font(.system(size: 10, weight: .semibold))
+                if let origem { Text(origem).font(.system(size: 10)).opacity(0.62) }
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 22)
+            .background(Capsule().fill(.white.opacity(realce ? 0.25 : 0.15)))
+        }
+        .buttonStyle(.plain)
+        .onHover { realce = $0 }
+        .help("Abrir a pergunta")
+    }
+}
 EOF
 }
 
@@ -2458,7 +2675,8 @@ caso "perguntaDoClaudeAtiva pelo questionIsActive" 1 "'perguntaDoClaudeAtiva' n�
 
 montar
 sed -i '' 's|^    viewModel.perguntaDoClaudeAtiva = .*$|    viewModel.perguntaDoClaudeAtiva = {\
-        askStore.state.active != nil\
+        NotchContentState.perguntaVisivel(ask: askStore.state.active != nil, agente: false,\
+            digitando: viewModel.digitandoNoNotch, liberada: viewModel.perguntaLiberada == askStore.state.active?.id)\
     }|' "$KA"
 caso "perguntaDoClaudeAtiva em três linhas, sem weak" 0 ""
 
@@ -2632,6 +2850,142 @@ montar
 # vê este buraco: quem pega é a conferência por bloco
 sed -i '' '/Scenario(name: "ask-preview",/,/^    },$/s|askStore.send(.setHighlight(1))|askStore.send(.setHighlight(0))|' "$MN"
 caso "ask-preview sem o destaque, com o ask-teclado no arquivo" 1 "o cenário \"ask-preview\" sem '.setHighlight(1)' no próprio bloco"
+
+# === etapa 7 =================================================================
+SL="$T/r/$PASTA/AskSeloView.swift"
+
+# --- o selo
+montar
+rm "$SL"
+caso "sem o arquivo do selo" 1 "$PASTA/AskSeloView.swift não existe"
+
+montar
+grep -vxF -- "$PASTA/AskSeloView.swift" "$FT" > "$FT.novo"; mv "$FT.novo" "$FT"
+caso "fontes sem o selo" 1 "tools/notchview-fontes.txt sem '$PASTA/AskSeloView.swift'"
+
+montar
+sed -i '' 's|◐ Claude perguntou|◐ Pergunta|' "$SL"
+caso "selo sem o texto" 1 "AskSeloView.swift sem o texto 'Claude perguntou'"
+
+montar
+sed -i '' 's|^                Text("◐ Claude perguntou")|                // Text("◐ Claude perguntou")\
+                Text("◐")|' "$SL"
+caso "texto do selo só em comentário" 1 "AskSeloView.swift sem o texto 'Claude perguntou'"
+
+montar
+sed -i '' '/.help("Abrir a pergunta")/d' "$SL"
+caso "selo sem a dica" 1 "AskSeloView.swift sem '.help(\"Abrir a pergunta\")'"
+
+montar
+sed -i '' 's|Button { vm.perguntaLiberada = id }|Button { vm.tecladoNaPergunta = true }|' "$SL"
+caso "clique no selo não libera a pergunta" 1 "AskSeloView.swift não grava 'perguntaLiberada ='"
+
+montar
+sed -i '' 's|Button { vm.perguntaLiberada = id }|Button { if vm.perguntaLiberada == id { return } }|' "$SL"
+caso "comparação no selo não é gravação" 1 "AskSeloView.swift não grava 'perguntaLiberada ='"
+
+montar
+# o selo existe e ninguém o desenha
+sed -i '' 's|AskPerguntaEsperandoView(vm: vm|Text(verbatim: ask.id); EmptyView(|' "$NV"
+caso "NotchView sem o selo" 1 "Knobler/NotchView.swift não usa nenhuma view de $PASTA/AskSeloView.swift"
+
+montar
+# outro nome de struct no arquivo do selo: vale o que o arquivo declara
+sed -i '' 's|AskPerguntaEsperandoView|AskSeloDaEspera|g' "$SL" "$NV"
+caso "selo com outro nome de struct" 0 ""
+
+# --- a liberação
+montar
+sed -i '' 's|^    @Published var perguntaLiberada: String?$|    var perguntaLiberada: String?|' "$VM"
+caso "liberação sem @Published" 1 "sem '@Published var perguntaLiberada'"
+
+montar
+sed -i '' '/vm.perguntaLiberada = nil/d' "$NV"
+caso "liberação nunca volta a nil" 1 "zeram 'perguntaLiberada = nil'"
+
+montar
+sed -i '' 's|{ _, _ in vm.perguntaLiberada = nil }|{ _, _ in }\
+                // vm.perguntaLiberada = nil|' "$NV"
+caso "liberação zerada só em comentário" 1 "zeram 'perguntaLiberada = nil'"
+
+montar
+# zerar no app também vale
+sed -i '' '/vm.perguntaLiberada = nil/d' "$NV"
+echo 'func aoTrocarPergunta() { notches.values.forEach { $0.viewModel.perguntaLiberada = nil } }' >> "$KA"
+caso "liberação zerada no app" 0 ""
+
+# --- o NotchView
+montar
+# como está hoje
+sed -i '' 's|vm.contentState(question: perguntaNaTela)|vm.contentState(question: askStore.state.active != nil|' "$NV"
+caso "NotchView passa a pergunta ativa direto" 1 "ainda passa 'askStore.state.active' direto em 'contentState(question:'"
+
+montar
+sed -i '' 's|NotchContentState.perguntaVisivel(ask: askStore.state.active != nil,|(askStore.state.active != nil \&\& !vm.digitandoNoNotch) \|\| vm.perguntaLiberada != nil \|\| [|; s|liberada: vm.perguntaLiberada == askStore.state.active?.id)|0].isEmpty|' "$NV"
+caso "NotchView com a conta solta" 1 "Knobler/NotchView.swift não chama 'perguntaVisivel('"
+
+montar
+sed -i '' 's|digitando: vm.digitandoNoNotch,|digitando: false,|' "$NV"
+caso "NotchView sem a digitação" 1 "Knobler/NotchView.swift não lê 'vm.digitandoNoNotch'"
+
+montar
+sed -i '' 's|liberada: vm.perguntaLiberada == askStore.state.active?.id)|liberada: false)|; s|{ _, _ in vm.perguntaLiberada = nil }|{ _, _ in }|' "$NV"
+echo 'func zerar() { vm.perguntaLiberada = nil }' >> "$VM"
+caso "NotchView sem a liberação" 1 "Knobler/NotchView.swift não lê 'vm.perguntaLiberada'"
+
+# --- o app
+montar
+# como está hoje
+sed -i '' '/^    viewModel.questionIsActive = {/,/^    }$/d' "$KA"
+sed -i '' 's|^func montarTela() {$|func montarTela() {\
+    viewModel.questionIsActive = { [weak askStore, weak agentRequestStore] in\
+        askStore?.state.active != nil \|\| agentRequestStore?.state.active != nil\
+    }|' "$KA"
+caso "questionIsActive como hoje" 1 "'questionIsActive' não passa por 'perguntaVisivel('"
+
+montar
+sed -i '' 's|            digitando: viewModel?.digitandoNoNotch ?? false,$|            digitando: false,|' "$KA"
+caso "questionIsActive sem a digitação" 1 "'questionIsActive' não lê 'digitandoNoNotch' da tela"
+
+montar
+sed -i '' 's|            liberada: viewModel?.perguntaLiberada == askStore?.state.active?.id)$|            liberada: false)|' "$KA"
+caso "questionIsActive sem a liberação" 1 "'questionIsActive' não lê 'perguntaLiberada' da tela"
+
+montar
+sed -i '' '/^    viewModel.questionIsActive = {/,/^    }$/d' "$KA"
+caso "app sem questionIsActive" 1 "não atribui 'questionIsActive = {'"
+
+montar
+# como está hoje
+sed -i '' 's|^    viewModel.perguntaDoClaudeAtiva = .*$|    viewModel.perguntaDoClaudeAtiva = { [weak askStore] in askStore?.state.active != nil }|' "$KA"
+caso "perguntaDoClaudeAtiva como hoje" 1 "'perguntaDoClaudeAtiva' não passa por 'perguntaVisivel('"
+
+# --- harness
+for v in ask-espera-nota ask-espera-liberada; do
+  montar
+  sed -i '' "s|Scenario(name: \"$v\"|Scenario(name: \"x-$v\"|" "$MN"
+  caso "harness sem $v" 1 "sem o cenário \"$v\""
+
+  montar
+  sed -i '' "/Scenario(name: \"$v\"/,/^    },\$/{/askStore.send(.enqueue(/d;}" "$MN"
+  caso "$v sem a pergunta" 1 "o cenário \"$v\" não enfileira a pergunta"
+done
+
+montar
+sed -i '' '/Scenario(name: "ask-espera-nota"/,/^    },$/s|^        precondition(!perguntaNaTela(vm, askStore))$|        vm.perguntaLiberada = "s12"|' "$MN"
+caso "ask-espera-nota já liberada" 1 "o cenário \"ask-espera-nota\" grava 'perguntaLiberada ='"
+
+montar
+sed -i '' '/Scenario(name: "ask-espera-liberada"/,/^    },$/{/vm.perguntaLiberada = /d;}' "$MN"
+caso "ask-espera-liberada sem o clique no selo" 1 "o cenário \"ask-espera-liberada\" não grava 'perguntaLiberada ='"
+
+montar
+sed -i '' '/Scenario(name: "ask-espera-liberada"/,/^    },$/{/.externalDismiss(/d;}' "$MN"
+caso "ask-espera-liberada sem a volta à nota" 1 "o cenário \"ask-espera-liberada\" sem '.externalDismiss('"
+
+montar
+sed -i '' 's|^    conferirEsperaNaJanela(scenario.name|    // conferirEsperaNaJanela(scenario.name|' "$MN"
+caso "laço sem a conferência na janela" 1 "o laço não chama 'conferirEsperaNaJanela('"
 
 if [ "$AUTO" -ne 0 ]; then
   echo "FALHOU: autoteste do askcardcheck"

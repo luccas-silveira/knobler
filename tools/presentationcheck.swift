@@ -152,6 +152,49 @@ enum PresentationCheck {
         assert(NotchMetrics.alturaDaSecao(.lembretesApple) == 330)
         assert(NotchMetrics.alturaAgenda(editando: true, disponivel: 900, topo: 32) == 400)
         assert(NotchMetrics.alturaAgenda(editando: true, disponivel: 400, topo: 4) == 312)
+
+        // Etapa 7 (docs/vesta/plans/2026-11-18-card-pergunta.md): a pergunta do
+        // Claude espera enquanto o usuário digita no notch desta tela, até o
+        // clique no selo; o card do Codex não espera. Tabela inteira: as 16
+        // combinações, cada uma com o que quem usa vê.
+        let esperas: [(ask: Bool, agente: Bool, digitando: Bool, liberada: Bool, visivel: Bool, porque: String)] = [
+            (true, false, false, false, true, "pergunta do Claude sem digitação aparece na hora"),
+            (true, false, true, false, false, "pergunta do Claude com digitação espera atrás do selo"),
+            (true, false, true, true, true, "pergunta liberada pelo selo aparece mesmo com digitação"),
+            (true, false, false, true, true, "pergunta liberada e sem digitação aparece"),
+            (false, true, false, false, true, "card do Codex aparece sem digitação"),
+            (false, true, true, false, true, "card do Codex aparece mesmo com digitação"),
+            (false, true, true, true, true, "card do Codex aparece com digitação e liberação"),
+            (false, true, false, true, true, "card do Codex aparece sem digitação, com liberação"),
+            (true, true, false, false, true, "Claude e Codex sem digitação: aparece"),
+            (true, true, true, false, true, "com o card do Codex ativo, a tela é de pergunta mesmo com digitação"),
+            (true, true, true, true, true, "Claude liberado e Codex com digitação: aparece"),
+            (true, true, false, true, true, "Claude liberado e Codex sem digitação: aparece"),
+            (false, false, false, false, false, "sem pergunta e sem Codex não aparece"),
+            (false, false, true, false, false, "sem pergunta e sem Codex, digitando, não aparece"),
+            (false, false, true, true, false, "liberação sem pergunta ativa não faz aparecer nada"),
+            (false, false, false, true, false, "liberação sem pergunta ativa e sem digitação não faz aparecer nada"),
+        ]
+        for c in esperas {
+            let visivel = NotchContentState.perguntaVisivel(ask: c.ask, agente: c.agente,
+                                                            digitando: c.digitando, liberada: c.liberada)
+            precondition(visivel == c.visivel,
+                         "perguntaVisivel(ask: \(c.ask), agente: \(c.agente), digitando: \(c.digitando), liberada: \(c.liberada)) deu \(visivel): \(c.porque)")
+        }
+        // O que a tela mostra com a nota em edição: a nota enquanto a pergunta
+        // espera, a pergunta depois do clique no selo.
+        do {
+            let espera = NotchContentState.perguntaVisivel(ask: true, agente: false, digitando: true, liberada: false)
+            let nota = NotchContentState(question: espera, typingNote: true, expanded: true, focus: .nota)
+            precondition(nota.mode == .music && nota.keyboard,
+                         "pergunta esperando: a nota em edição segue na tela e com o teclado")
+            let liberada = NotchContentState.perguntaVisivel(ask: true, agente: false, digitando: true, liberada: true)
+            precondition(NotchContentState(question: liberada, typingNote: true, expanded: true, focus: .nota).mode
+                         == .question, "liberada pelo selo: a pergunta toma a tela")
+            let semDigitar = NotchContentState.perguntaVisivel(ask: true, agente: false, digitando: false, liberada: false)
+            precondition(NotchContentState(question: semDigitar, expanded: true, focus: .nota).mode == .question,
+                         "fora do campo: a pergunta aparece sozinha, sem o selo")
+        }
         print("presentationcheck ok")
     }
 }

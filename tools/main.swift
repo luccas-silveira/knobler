@@ -799,6 +799,93 @@ enum AskDoMockup {
         AskRequest(id: id, questions: perguntas,
                    receivedAt: Date(timeIntervalSince1970: 1_000), source: "knobler")
     }
+
+    /// Texto da nota do quadro "Pergunta que chega enquanto você digita".
+    static let notaEmEdicao = "Revisar o texto da novidade 0.38.0 antes de publicar. "
+        + "Trocar as duas imagens do docs/ask.md"
+}
+
+/// Etapa 7: nota rápida em edição nesta tela (display 1), como o
+/// `nota-editando`, com o cursor no campo. É o "digitando no notch" que faz a
+/// pergunta do Claude esperar atrás do selo.
+@MainActor
+func configurarNotaEmEdicao(_ vm: NotchViewModel, _ cenario: String) {
+    vm.displayID = 1
+    QuickNote.shared.adotar(1)
+    QuickNote.shared.text = AskDoMockup.notaEmEdicao
+    vm.setExpandedDirect(true)
+    vm.secoes = [.nota, .musica]
+    vm.focus = .nota
+    QuickNote.shared.editing = true
+    precondition(QuickNote.shared.typing(on: 1) && vm.digitandoNoNotch,
+                 "\(cenario): nota em edição nesta tela conta como digitando no notch")
+}
+
+/// A pergunta do Claude aparece nesta tela? A conta do plano, com a view model
+/// da própria tela (o NotchView e o app fazem a mesma).
+@MainActor
+func perguntaNaTela(_ vm: NotchViewModel, _ askStore: AskStore) -> Bool {
+    NotchContentState.perguntaVisivel(ask: askStore.state.active != nil, agente: false,
+                                      digitando: vm.digitandoNoNotch,
+                                      liberada: vm.perguntaLiberada == askStore.state.active?.id)
+}
+
+/// Etapa 7, depois do quadro: o que o NotchView de verdade decidiu (a
+/// `presentation` que ele publica na view model) e a volta quando a pergunta
+/// some. `notch` monta o NotchView de outra tela com as mesmas lojas.
+@MainActor
+func conferirEsperaNaJanela(_ cenario: String, vm: NotchViewModel, askStore: AskStore,
+                            notch: (NotchViewModel) -> AnyView) {
+    func girar() { RunLoop.main.run(until: Date().addingTimeInterval(0.3)) }
+    let texto = QuickNote.shared.text
+    guard let id = askStore.state.active?.id, let antes = vm.presentation else {
+        preconditionFailure("\(cenario): o quadro saiu sem pergunta ativa ou sem a apresentação publicada")
+    }
+    if cenario == "ask-espera-nota" {
+        precondition(antes.mode == .music && antes.focus == .nota,
+                     "\(cenario): na janela, a nota segue na tela e o card de pergunta não aparece")
+        precondition(QuickNote.shared.typing(on: 1),
+                     "\(cenario): a nota segue em edição enquanto a pergunta espera (sem isso o PNG não mostra a espera)")
+
+        // Outra tela, sem nada em edição: a mesma pergunta aparece na hora.
+        let outra = NotchViewModel()
+        outra.displayID = 2
+        outra.hasRealNotch = true
+        outra.notchSize = CGSize(width: 200, height: 32)
+        outra.glifoDoAtalho = { "⌃⌥K" }
+        let janela = NotchWindow(contentRect: NSRect(x: 700, y: 100, width: 560, height: 480),
+                                 styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        janela.isReleasedWhenClosed = false
+        janela.contentView = NSHostingView(rootView: notch(outra))
+        janela.orderFrontRegardless()
+        girar()
+        precondition(outra.presentation?.mode == .question,
+                     "\(cenario): na tela que não está em edição, a mesma pergunta aparece na hora")
+        janela.close()
+
+        // Pergunta cancelada ou expirada durante a espera: o selo some e o card
+        // volta ao tamanho da nota, que segue em edição com o mesmo texto.
+        askStore.send(.externalDismiss(id: id))
+        girar()
+        guard let depois = vm.presentation else {
+            preconditionFailure("\(cenario): sem apresentação depois de dispensar a pergunta")
+        }
+        precondition(depois.mode == .music && depois.focus == .nota,
+                     "\(cenario): dispensada a pergunta que esperava, a nota segue na tela")
+        precondition(antes.size.height - depois.size.height == 28,
+                     "\(cenario): enquanto a pergunta espera o card cresce 28 pt (a faixa do selo), e dispensada a pergunta o selo some e o card volta (\(antes.size.height) → \(depois.size.height))")
+        precondition(QuickNote.shared.text == texto && QuickNote.shared.typing(on: 1),
+                     "\(cenario): a pergunta dispensada não mexe na nota em edição")
+    } else {
+        precondition(antes.mode == .question,
+                     "\(cenario): na janela, a pergunta liberada pelo selo aparece")
+        askStore.send(.externalDismiss(id: id))
+        girar()
+        precondition(vm.presentation?.mode == .music && vm.presentation?.focus == .nota,
+                     "\(cenario): dispensada a pergunta aberta pelo selo, a nota volta à tela")
+        precondition(QuickNote.shared.hosted(by: 1) && QuickNote.shared.text == texto,
+                     "\(cenario): dispensada a pergunta aberta pelo selo, a nota tem o mesmo texto")
+    }
 }
 
 let scenarios: [Scenario] = [
@@ -1618,6 +1705,67 @@ let scenarios: [Scenario] = [
                          AskLegendaItem(teclas: [], texto: "⌥ direita dita")],
                      "ask-texto: a legenda é ⏎ enviar · esc voltar à lista · ⌥ direita dita")
     },
+    // Quadro "Pergunta que chega enquanto você digita": a nota rápida segue em
+    // edição na tela, com uma faixa no topo trazendo o selo `◐ Claude
+    // perguntou` e a origem à direita; o card de pergunta não aparece. Depois do
+    // quadro, `conferirEsperaNaJanela` olha o NotchView de verdade: a outra tela
+    // mostra a pergunta e, dispensada a pergunta, o selo some.
+    Scenario(name: "ask-espera-nota", realNotch: true, frameHeight: 360) { vm, _, askStore in
+        configurarNotaEmEdicao(vm, "ask-espera-nota")
+        askStore.send(.enqueue(AskDoMockup.pedido("s12", [AskDoMockup.teclado])))
+        precondition(askStore.state.active?.id == "s12" && vm.perguntaLiberada == nil,
+                     "ask-espera-nota: a pergunta chega ativa e ninguém a abriu pelo selo")
+        precondition(!perguntaNaTela(vm, askStore),
+                     "ask-espera-nota: digitando na nota, a pergunta do Claude espera")
+        precondition(vm.contentState(question: perguntaNaTela(vm, askStore)).mode == .music && vm.focus == .nota,
+                     "ask-espera-nota: a nota segue na tela enquanto a pergunta espera")
+
+        // Numa tela que não está em edição, a mesma pergunta aparece na hora.
+        let outraTela = NotchViewModel()
+        outraTela.displayID = 2
+        precondition(!outraTela.digitandoNoNotch,
+                     "ask-espera-nota: a nota em edição na tela 1 não conta como digitação na tela 2")
+        precondition(outraTela.contentState(question: perguntaNaTela(outraTela, askStore)).mode == .question,
+                     "ask-espera-nota: na tela sem edição a pergunta aparece na hora")
+
+        // Sair do campo (Esc, clique fora) solta a pergunta sozinha, sem o selo.
+        QuickNote.shared.editing = false
+        precondition(!vm.digitandoNoNotch && perguntaNaTela(vm, askStore),
+                     "ask-espera-nota: fora do campo, a pergunta aparece sem precisar do selo")
+        // De volta ao quadro: o cursor no campo, a pergunta esperando.
+        QuickNote.shared.editing = true
+        precondition(vm.digitandoNoNotch && !perguntaNaTela(vm, askStore),
+                     "ask-espera-nota: de volta ao campo, a pergunta volta a esperar")
+    },
+    // O mesmo cenário depois do clique no selo: a pergunta aparece. Antes do
+    // quadro, a volta: dispensada a pergunta aberta pelo selo, a nota está lá
+    // com o mesmo texto; e a pergunta seguinte, que chega com o usuário ainda
+    // na nota, é a do quadro, aberta pelo selo de novo.
+    Scenario(name: "ask-espera-liberada", realNotch: true, frameHeight: 480) { vm, _, askStore in
+        configurarNotaEmEdicao(vm, "ask-espera-liberada")
+        let texto = QuickNote.shared.text
+        askStore.send(.enqueue(AskDoMockup.pedido("s13", [AskDoMockup.teclado])))
+        precondition(!perguntaNaTela(vm, askStore),
+                     "ask-espera-liberada: antes do clique no selo, a pergunta espera")
+        // o que o clique no selo grava
+        vm.perguntaLiberada = askStore.state.active?.id
+        precondition(perguntaNaTela(vm, askStore)
+                     && vm.contentState(question: perguntaNaTela(vm, askStore)).mode == .question,
+                     "ask-espera-liberada: o clique no selo abre a pergunta")
+        askStore.send(.externalDismiss(id: "s13"))
+        precondition(askStore.state.active == nil,
+                     "ask-espera-liberada: a pergunta aberta pelo selo foi dispensada")
+        precondition(QuickNote.shared.hosted(by: 1) && QuickNote.shared.text == texto,
+                     "ask-espera-liberada: dispensada a pergunta, a nota tem o mesmo texto de antes")
+        precondition(vm.contentState(question: perguntaNaTela(vm, askStore)).mode == .music && vm.focus == .nota,
+                     "ask-espera-liberada: dispensada a pergunta, a tela volta à nota")
+
+        // O quadro.
+        askStore.send(.enqueue(AskDoMockup.pedido("s14", [AskDoMockup.teclado])))
+        vm.perguntaLiberada = askStore.state.active?.id
+        precondition(askStore.state.active?.id == "s14" && perguntaNaTela(vm, askStore),
+                     "ask-espera-liberada: a pergunta liberada pelo selo aparece")
+    },
     Scenario(
         name: "agent-permission-compact", realNotch: true,
         agentRequest: AgentRequest(
@@ -1889,6 +2037,18 @@ for scenario in scenarios {
             precondition(!vm.expanded && vm.agendaRascunho?.titulo == "Título digitado no teste",
                          "Escape deve recolher e preservar o rascunho")
             print("agenda: teclado, Tab e Escape ok na janela nativa")
+        }
+        // Etapa 7: o PNG já saiu; aqui o NotchView de verdade, e a volta.
+        if scenario.name.hasPrefix("ask-espera-") {
+            conferirEsperaNaJanela(scenario.name, vm: vm, askStore: askStore) { outra in
+                AnyView(NotchView(
+                    vm: outra, askStore: askStore, agentRequestStore: agentRequestStore,
+                    media: media, levels: SystemAudioLevels(), shelf: currentShelf,
+                    dropTargetsEnabled: false, onKeyboardEligibilityChanged: { _ in })
+                    .environmentObject(MessageStore(carregando: false))
+                    .frame(width: 560, height: 480))
+            }
+            print("\(scenario.name): espera conferida na janela nativa")
         }
         window.close()
     } else {
