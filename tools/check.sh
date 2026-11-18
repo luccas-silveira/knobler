@@ -73,6 +73,9 @@ swift_teste tools/askcardmodelocheck.swift Knobler/AskModels.swift Knobler/AskCa
 swift_teste tools/asktecladocheck.swift Knobler/AskModels.swift Knobler/AskFeature.swift Knobler/AskCard/AskTeclado.swift
 # estrutura do card redesenhado nas views e no harness, que o typecheck não prova
 bash_teste tools/askcardcheck.sh
+# documentação do card (etapa 8): novidade 0.38.0, CHANGELOG, docs/ask.md e o
+# catálogo do snapshot-ui sem os ask-* entre o que não renderiza
+bash_teste tools/askdocscheck.sh
 swift_check apiguardcheck      Knobler/NotchAPIGuard.swift tools/apiguardcheck.swift
 swift_check longpollcheck     Knobler/NotchAPILongPoll.swift tools/longpollcheck.swift
 # servidor de verdade numa porta alternativa (44877, nunca a 4477): contrato de
