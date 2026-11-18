@@ -1256,6 +1256,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 viewModel.questionIsActive = { [weak askStore, weak agentRequestStore] in
                     askStore?.state.active != nil || agentRequestStore?.state.active != nil
                 }
+                viewModel.glifoDoAtalho = { KeyboardShortcuts.getShortcut(for: .abrirNotch)?.shortcutGlyph }
                 viewModel.restaurarFocoSalvo()
                 let panel = NotchWindow(
                     contentRect: .zero,
