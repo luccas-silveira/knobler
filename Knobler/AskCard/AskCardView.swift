@@ -158,8 +158,16 @@ struct AskCardView: View {
         .onPreferenceChange(AlturaDaListaDoAskKey.self) { listaNatural = $0 ?? 0 }
         // Uma conta por rodada de medida, com o card e a lista do mesmo layout.
         .onChange(of: [listaNatural, alturaDoCard, alturaMaxima]) { refazerTetoDaLista() }
-        // Esc (com o campo focado) = mesmo intent do ✕: pergunta vai pro terminal
-        .onExitCommand { askStore.send(.cancelActive) }
+        // O cursor no campo anda nos dois sentidos: Tab e Esc do vigia de teclas
+        // mexem na view model; o clique no campo chega por aqui e dá o teclado
+        // à pergunta. Esc não cancela mais: quem manda ao terminal é o ✕ e o ⌘.
+        .onChange(of: vm.campoDaPerguntaFocado) { _, focado in
+            if textFocused != focado { textFocused = focado }
+        }
+        .onChange(of: textFocused) { _, focado in
+            if vm.campoDaPerguntaFocado != focado { vm.campoDaPerguntaFocado = focado }
+            if focado { vm.darTecladoAPergunta(true) }
+        }
     }
 
     // MARK: Topo
@@ -236,9 +244,11 @@ struct AskCardView: View {
                 texto: textBinding,
                 foco: $textFocused,
                 nivelDoDitado: nivelDoDitado,
-                itens: AskLegenda.itens(teclado: false, campo: textFocused,
+                itens: AskLegenda.itens(teclado: vm.tecladoNaPergunta, campo: vm.campoDaPerguntaFocado,
                                         multipla: question.multiSelect, abas: abas,
                                         atalho: vm.glifoDoAtalho()),
+                // com o teclado na lista, o campo mostra a tecla que leva a ele
+                selo: vm.tecladoNaPergunta && !vm.campoDaPerguntaFocado,
                 enviar: {
                     let text = askStore.state.text.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !text.isEmpty else { return }
@@ -290,7 +300,7 @@ struct AskCardView: View {
                     multipla: question.multiSelect,
                     marcada: estaMarcada(option, em: question),
                     destaque: askStore.state.highlight == indice,
-                    teclado: false,
+                    teclado: vm.tecladoNaPergunta,
                     pairar: { dentro in
                         if dentro {
                             askStore.send(.setHighlight(indice))

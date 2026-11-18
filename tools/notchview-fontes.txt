@@ -29,6 +29,7 @@ Knobler/AskModels.swift
 Knobler/AskFeature.swift
 Knobler/AskStore.swift
 Knobler/AskCard/AskCardModelo.swift
+Knobler/AskCard/AskTeclado.swift
 Knobler/AskCard/AskCardView.swift
 Knobler/AskCard/AskAbasView.swift
 Knobler/AskCard/AskOpcaoView.swift

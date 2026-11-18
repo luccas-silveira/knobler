@@ -43,6 +43,18 @@ final class NotchViewModel: ObservableObject {
     private var opening = NotchOpening()
     private var openingWork: DispatchWorkItem?
     var questionIsActive: () -> Bool = { false }
+    /// A pergunta do Claude é a dona do teclado: o atalho global deu as teclas
+    /// a ela (ou o clique no campo). Estado próprio, e não o `abertoPorTeclado`,
+    /// porque com pergunta na tela o atalho não pode armar o card de música.
+    @Published var tecladoNaPergunta = false
+    /// Cursor no campo "Outra resposta" da pergunta. Tab e Esc do vigia de
+    /// teclas mexem aqui; o `@FocusState` do card acompanha nos dois sentidos.
+    @Published var campoDaPerguntaFocado = false
+    /// Há pergunta do Claude ativa? Só ela; o card do Codex divide o modo
+    /// `.question` e fica de fora (o atalho segue como antes com ele).
+    var perguntaDoClaudeAtiva: () -> Bool = { false }
+    /// Avisa o painel quando a posse do teclado muda (vira ou larga a chave).
+    var aoMudarTecladoDaPergunta: ((Bool) -> Void)?
     /// Glifo do atalho de abrir o notch ("⌃⌥K"), mostrado na legenda do card de
     /// pergunta. Fecho lido a cada desenho: a biblioteca não avisa quando o
     /// atalho muda. `nil` = sem atalho gravado.
@@ -153,7 +165,7 @@ final class NotchViewModel: ObservableObject {
     @Published private(set) var agendaConfirmacao: String?
 
     var editandoAgenda: Bool { expanded && focus == .agenda && agendaRascunho != nil }
-    private var protegeEdicao: Bool { typingNote || editandoAgenda || editandoLembretes || editandoWhatsApp }
+    var protegeEdicao: Bool { typingNote || editandoAgenda || editandoLembretes || editandoWhatsApp }
 
     // MARK: - WhatsApp (por tela)
 
@@ -644,8 +656,18 @@ final class NotchViewModel: ObservableObject {
                                       execute: work)
     }
 
-    /// Atalho global: abre com teclado ou fecha o que ele mesmo abriu.
+    /// Dá ou tira o teclado da pergunta. Só avisa o painel quando muda: o
+    /// `resignKey` do aviso chama o `aoPerderTeclado`, que chama isto de novo.
+    func darTecladoAPergunta(_ liga: Bool) {
+        guard tecladoNaPergunta != liga else { return }
+        tecladoNaPergunta = liga
+        aoMudarTecladoDaPergunta?(liga)
+    }
+
+    /// Atalho global: abre com teclado ou fecha o que ele mesmo abriu. Com
+    /// pergunta do Claude na tela, alterna a posse do teclado da pergunta.
     func alternarPeloTeclado() {
+        if mode == .question, perguntaDoClaudeAtiva() { darTecladoAPergunta(!tecladoNaPergunta); return }
         if expanded && abertoPorTeclado { setExpandedDirect(false); return }
         abertoPorTeclado = true
         setExpandedDirect(true)

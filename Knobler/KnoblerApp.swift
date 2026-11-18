@@ -214,6 +214,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // gesto de swipe no notch (monitor local de scroll)
     private var scrollMonitor: Any?
     private var keyMonitor: Any?
+    /// Id da pergunta ativa da última vez que o `vigiarPerguntaAtiva` olhou.
+    private var perguntaAtivaVista: String?
     private var scrollAccumX: CGFloat = 0
     private var scrollAccumY: CGFloat = 0
     private var scrollActed = false
@@ -240,6 +242,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         configureAgentRequestFeature()
         configureAgentes()
         observeAskLifecycle()
+        vigiarPerguntaAtiva()
 
         setupStatusItem()
         setupEditMenu()
@@ -901,6 +904,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 else { return }
                 NSSound(named: "Pop")?.play()  // uma vez, na chegada
                 self.askStore?.send(.enqueue(request))
+                // A pergunta nunca rouba o teclado: o painel que estava com a
+                // chave (card aberto pelo atalho) larga, e as teclas voltam ao
+                // app da frente. Quem digita na nota, agenda, lembretes ou
+                // WhatsApp, ou já responde outra pergunta pelo teclado, segue.
+                for notch in self.notches.values where notch.window.isKeyWindow
+                    && !notch.viewModel.protegeEdicao && !notch.viewModel.tecladoNaPergunta {
+                    notch.window.resignKey()
+                }
             }
         }
         apiServer.onAskDismiss = { [weak self] id in
@@ -964,6 +975,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
     }
 
+    /// A posse do teclado é da pergunta em tela, não do card: quando a pergunta
+    /// ativa troca (respondida, cancelada, expirada ou a próxima da fila
+    /// promovida), todas as telas soltam o teclado. O `AskStore` é
+    /// `@Observable`, então o vigia se rearma a cada mudança do estado.
+    private func vigiarPerguntaAtiva() {
+        guard let askStore else { return }
+        let atual = withObservationTracking {
+            askStore.state.active?.id
+        } onChange: { [weak self] in
+            // o aviso vem antes da mudança: lê o valor novo no próximo giro
+            Task { @MainActor [weak self] in self?.vigiarPerguntaAtiva() }
+        }
+        if atual != perguntaAtivaVista {
+            notches.values.forEach { $0.viewModel.darTecladoAPergunta(false) }
+        }
+        perguntaAtivaVista = atual
+    }
+
     /// O servidor limpa seus pendingAsks ao parar, mas não emite dismiss.
     /// Limpa somente o store compartilhado, sem fan-out por monitor.
     private func clearAskPresentation() {
@@ -999,9 +1028,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.viewModelUnderMouse()?.alternarPeloTeclado()
         }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            // Pergunta do Claude dona do teclado: a tecla passa pela função
+            // testada (`AskTeclado`) e, se vira comando, não segue adiante.
+            if let askStore = self?.askStore, askStore.state.active != nil,
+               let window = NSApp.keyWindow as? NotchWindow,
+               let vm = self?.notches.values.first(where: { $0.window === window })?.viewModel,
+               vm.tecladoNaPergunta, vm.mode == .question {
+                let flags = event.modifierFlags
+                let tecla = AskTecla(codigo: Int(event.keyCode), caracteres: event.charactersIgnoringModifiers ?? "",
+                                     shift: flags.contains(.shift), command: flags.contains(.command),
+                                     outros: flags.contains(.control) || flags.contains(.option),
+                                     repeticao: event.isARepeat)
+                let campo = window.firstResponder is NSText
+                guard let comando = AskTeclado.comando(tecla, campo: campo, estado: askStore.state) else {
+                    // no campo a tecla é dele; na lista só os atalhos do
+                    // sistema (⌘) passam, e letra solta não apita
+                    return campo || tecla.command ? event : nil
+                }
+                switch comando {
+                case .acao(let acao): askStore.send(acao)
+                case .focarCampo: vm.campoDaPerguntaFocado = true
+                case .voltarALista: vm.campoDaPerguntaFocado = false
+                case .soltarTeclado: vm.darTecladoAPergunta(false)
+                case .cancelar: askStore.send(.cancelActive)
+                }
+                return nil
+            }
             guard let window = NSApp.keyWindow as? NotchWindow,
                   let vm = self?.notches.values.first(where: { $0.window === window })?.viewModel,
-                  vm.abertoPorTeclado, !(window.firstResponder is NSText) else { return event }
+                  vm.abertoPorTeclado, vm.mode != .question, !(window.firstResponder is NSText) else { return event }
             switch Int(event.keyCode) {
             case kVK_LeftArrow: vm.focarVizinho(avancando: false)
             case kVK_RightArrow: vm.focarVizinho(avancando: true)
@@ -1258,6 +1313,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 viewModel.questionIsActive = { [weak askStore, weak agentRequestStore] in
                     askStore?.state.active != nil || agentRequestStore?.state.active != nil
                 }
+                // só a pergunta do Claude: o card do Codex divide o modo
+                // `.question` e o atalho segue como antes com ele
+                viewModel.perguntaDoClaudeAtiva = { [weak askStore] in askStore?.state.active != nil }
                 viewModel.glifoDoAtalho = { KeyboardShortcuts.getShortcut(for: .abrirNotch)?.shortcutGlyph }
                 viewModel.restaurarFocoSalvo()
                 let panel = NotchWindow(
@@ -1267,6 +1325,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     defer: false
                 )
                 viewModel.painelAVista = { [weak panel] in panel?.isVisible == true }
+                // Posse do teclado da pergunta: ganhar faz do painel a janela-chave
+                // (sem ativar o app) e põe o destaque na lista; soltar tira o
+                // destaque e larga a chave. Como o painel nunca ativa o app, o
+                // app da frente volta a receber as teclas sozinho.
+                viewModel.aoMudarTecladoDaPergunta = { [weak panel, weak viewModel, weak askStore] liga in
+                    if liga {
+                        panel?.allowsKeyboard = true
+                        panel?.makeKey()
+                        if askStore?.state.highlight == nil { askStore?.send(.setHighlight(0)) }
+                    } else {
+                        askStore?.send(.setHighlight(nil))
+                        viewModel?.campoDaPerguntaFocado = false
+                        if panel?.isKeyWindow == true { panel?.resignKey() }
+                    }
+                }
                 let host = NotchHostingView(
                     rootView: NotchView(
                         vm: viewModel, askStore: askStore, agentRequestStore: agentRequestStore,
@@ -1275,7 +1348,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                             panel?.allowsKeyboard = active
                             if !active, panel?.isKeyWindow == true { panel?.resignKey() }
                             // aberto pelo atalho: o painel pega as teclas sem ativar o app
-                            if active, viewModel?.abertoPorTeclado == true { panel?.makeKey() }
+                            // (a pergunta nunca herda a chave: só o atalho a dá)
+                            if active, viewModel?.abertoPorTeclado == true, viewModel?.mode != .question {
+                                panel?.makeKey()
+                            }
                         })
                         .environmentObject(lanMessagingParaInjetar)
                         .environmentObject(messageStoreParaInjetar)
@@ -1287,10 +1363,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                         notchReal: viewModel?.hasRealNotch ?? false)
                 }
                 panel.contentView = host
-                // clicar em outro app fecha o card do atalho; notificação por
-                // cima também tira o teclado, mas aí o card não está à vista
+                // clicar em outro app fecha o card do atalho e solta o teclado
+                // da pergunta; notificação por cima também tira o teclado, mas
+                // aí o card não está à vista
                 panel.aoPerderTeclado = { [weak viewModel] in
-                    guard let viewModel, viewModel.abertoPorTeclado, viewModel.mode == .music else { return }
+                    guard let viewModel else { return }
+                    viewModel.darTecladoAPergunta(false)
+                    guard viewModel.abertoPorTeclado, viewModel.mode == .music else { return }
                     viewModel.setExpandedDirect(false)
                 }
                 var novo = ScreenNotch(window: panel, viewModel: viewModel)

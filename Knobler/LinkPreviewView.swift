@@ -36,7 +36,7 @@ struct LinkPreviewView: View {
             }
         }
         .foregroundStyle(.white)
-        // Esc fecha o preview, como na nota rápida e no card de pergunta
+        // Esc fecha o preview, como na nota rápida. No card de pergunta o Esc só solta o teclado.
         .onExitCommand { preview.fechar() }
     }
 

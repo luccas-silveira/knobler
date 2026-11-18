@@ -14,6 +14,8 @@ struct AskRodapeView: View {
     /// Nível do microfone quando o ditado está gravando; `nil` fora dele.
     let nivelDoDitado: CGFloat?
     let itens: [AskLegendaItem]
+    /// Teclado na lista: o selo ⇥ no fim do campo diz como chegar a ele.
+    let selo: Bool
     let enviar: () -> Void
 
     var body: some View {
@@ -48,6 +50,10 @@ struct AskRodapeView: View {
                     }
                 }
                 .font(.system(size: 12))
+            if selo {
+                AskSeloView(texto: "⇥")
+                    .accessibilityLabel("Tab leva ao campo")
+            }
         }
         .padding(.horizontal, 8)
         .frame(height: 30)
