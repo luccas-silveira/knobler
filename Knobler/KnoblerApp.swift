@@ -730,8 +730,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             status["micInUse"] = self?.micMonitor.isRunning ?? false
             status["silenciando"] = self?.silenciando ?? false
             status["notches"] = (self?.notches ?? [:]).map { id, notch in
-                let mode: NotchViewModel.Mode = self?.askStore?.state.active != nil
-                    || self?.agentRequestStore?.state.active != nil
+                // por tela: a pergunta que espera atrás do selo não está na cara
+                let mode: NotchViewModel.Mode = notch.viewModel.questionIsActive()
                     ? .question : notch.viewModel.mode
                 return [
                     "display": Int(id),
@@ -1310,12 +1310,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             } else {
                 let viewModel = NotchViewModel()
                 viewModel.displayID = id
-                viewModel.questionIsActive = { [weak askStore, weak agentRequestStore] in
-                    askStore?.state.active != nil || agentRequestStore?.state.active != nil
+                // a pergunta do Claude espera enquanto se digita no notch
+                // desta tela, até o clique no selo; o card do Codex não espera
+                viewModel.questionIsActive = { [weak askStore, weak agentRequestStore, weak viewModel] in
+                    NotchContentState.perguntaVisivel(ask: askStore?.state.active != nil,
+                        agente: agentRequestStore?.state.active != nil,
+                        digitando: viewModel?.digitandoNoNotch ?? false,
+                        liberada: viewModel?.perguntaLiberada == askStore?.state.active?.id)
                 }
-                // só a pergunta do Claude: o card do Codex divide o modo
-                // `.question` e o atalho segue como antes com ele
-                viewModel.perguntaDoClaudeAtiva = { [weak askStore] in askStore?.state.active != nil }
+                // só a pergunta do Claude, e só na tela: o card do Codex divide
+                // o modo `.question` e o atalho segue como antes com ele; a
+                // pergunta escondida atrás do selo não recebe o atalho
+                viewModel.perguntaDoClaudeAtiva = { [weak askStore, weak viewModel] in
+                    NotchContentState.perguntaVisivel(ask: askStore?.state.active != nil, agente: false,
+                        digitando: viewModel?.digitandoNoNotch ?? false,
+                        liberada: viewModel?.perguntaLiberada == askStore?.state.active?.id)
+                }
                 viewModel.glifoDoAtalho = { KeyboardShortcuts.getShortcut(for: .abrirNotch)?.shortcutGlyph }
                 viewModel.restaurarFocoSalvo()
                 let panel = NotchWindow(

@@ -35,6 +35,7 @@ Knobler/AskCard/AskAbasView.swift
 Knobler/AskCard/AskOpcaoView.swift
 Knobler/AskCard/AskRodapeView.swift
 Knobler/AskCard/AskPreviewView.swift
+Knobler/AskCard/AskSeloView.swift
 Knobler/AgentRequestModels.swift
 Knobler/AgentRequestStore.swift
 Knobler/AgentRequestCard.swift

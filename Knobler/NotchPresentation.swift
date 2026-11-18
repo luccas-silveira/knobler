@@ -50,6 +50,13 @@ struct NotchContentState {
         return .closed
     }
 
+    /// A pergunta (ou o card do Codex) toma esta tela? A do Claude espera
+    /// enquanto o usuário digita no notch desta tela, até o clique no selo
+    /// (`liberada`); o card do Codex não espera.
+    static func perguntaVisivel(ask: Bool, agente: Bool, digitando: Bool, liberada: Bool) -> Bool {
+        agente || (ask && (!digitando || liberada))
+    }
+
     var keyboard: Bool {
         switch mode {
         case .question: return true

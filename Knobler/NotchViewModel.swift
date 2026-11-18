@@ -53,6 +53,10 @@ final class NotchViewModel: ObservableObject {
     /// Há pergunta do Claude ativa? Só ela; o card do Codex divide o modo
     /// `.question` e fica de fora (o atalho segue como antes com ele).
     var perguntaDoClaudeAtiva: () -> Bool = { false }
+    /// Id da pergunta do Claude que o usuário abriu pelo selo "Claude
+    /// perguntou" enquanto digitava no notch. Volta a `nil` quando a pergunta
+    /// ativa muda (o NotchView zera).
+    @Published var perguntaLiberada: String?
     /// Avisa o painel quando a posse do teclado muda (vira ou larga a chave).
     var aoMudarTecladoDaPergunta: ((Bool) -> Void)?
     /// Glifo do atalho de abrir o notch ("⌃⌥K"), mostrado na legenda do card de
@@ -166,6 +170,8 @@ final class NotchViewModel: ObservableObject {
 
     var editandoAgenda: Bool { expanded && focus == .agenda && agendaRascunho != nil }
     var protegeEdicao: Bool { typingNote || editandoAgenda || editandoLembretes || editandoWhatsApp }
+    /// Digitando no notch desta tela: a pergunta do Claude espera atrás do selo.
+    var digitandoNoNotch: Bool { protegeEdicao }
 
     // MARK: - WhatsApp (por tela)
 

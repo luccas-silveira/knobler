@@ -72,6 +72,9 @@ struct NotchView: View {
                 + (display?.error != nil ? 42 : 0)
                 + (display?.preferences.mode == .hardware && display?.hardwareBrightness == false ? 32 : 0)
         }
+        // a faixa do selo da pergunta que espera (22 + 6 até a seção): o card
+        // cresce em vez de cobrir algum controle da seção
+        if seloVisivel { layout.sectionHeight += 28 }
         layout.sectionWidth = NotchMetrics.larguraDoCard(vm.focus, padrao: 430, linkAberto: linkAberto)
         layout.notificationActions = vm.activeNotification?.actionTitles.isEmpty == false
         layout.notificationExtra = Self.alturaExtra(vm.activeNotification, aberto: vm.notificationHeld)
@@ -80,9 +83,20 @@ struct NotchView: View {
         layout.questionSize = questionSize
         // sem a página: trocar de aba anima só o miolo do card, não o card inteiro
         layout.contentID = "\(askStore.state.active?.id ?? "")/\(agentRequestStore.state.active?.id ?? "")"
-        return NotchPresentation(content: vm.contentState(question: askStore.state.active != nil
-                                || agentRequestStore.state.active != nil), layout: layout)
+        return NotchPresentation(content: vm.contentState(question: perguntaNaTela), layout: layout)
     }
+
+    /// A pergunta toma esta tela? A do Claude espera enquanto se digita no
+    /// notch daqui, até o clique no selo; o card do Codex não espera.
+    private var perguntaNaTela: Bool {
+        NotchContentState.perguntaVisivel(ask: askStore.state.active != nil,
+                                          agente: agentRequestStore.state.active != nil,
+                                          digitando: vm.digitandoNoNotch,
+                                          liberada: vm.perguntaLiberada == askStore.state.active?.id)
+    }
+
+    /// Pergunta do Claude ativa e escondida nesta tela: o selo avisa.
+    private var seloVisivel: Bool { askStore.state.active != nil && !perguntaNaTela }
 
     private var mode: NotchMode { presentation.mode }
     private var currentSize: CGSize { presentation.size }
@@ -112,6 +126,8 @@ struct NotchView: View {
         .onReceive(monitors.$displays) { displays in
             vm.monitoresDisponiveis = !displays.isEmpty
         }
+        // a liberação pelo selo vale só para a pergunta que foi aberta
+        .onChange(of: askStore.state.active?.id) { _, _ in vm.perguntaLiberada = nil }
     }
 
     /// O retrato do instante em que um desvio aparece ou cura (o `VigiaDoCorte`
@@ -889,37 +905,46 @@ struct NotchView: View {
     @ViewBuilder
     private var expandedContent: some View {
         VStack(spacing: 8) {
-            Group {
-                switch vm.focus {
-                case .nota: noteSection
-                case .historico: HistoryListView(history: history,
-                                                 onOpen: { vm.setExpandedDirect(false) })
-                case .mensagens: MessagesView(vm: vm)
-                case .whatsapp: WhatsAppSecaoView(vm: vm)
-                case .espelho: if vm.mirrorOn { mirrorSection } else { espelhoDesligado }
-                case .shelf: ShelfRowView(shelf: shelf, vm: vm, onAirDrop: vm.onAirDrop)
-                case .link: if linkPreview.hosted(by: vm.displayID) { LinkPreviewView(preview: linkPreview) }
-                           else { linkVazio }
-                case .atividade:
-                    if let a = vm.activity { activityRow(a) }
-                    else { vazio("arrow.triangle.2.circlepath", "Nenhuma atividade") }
-                case .pomodoro:
-                    // ponytail: texto, não botão. `Pomodoro.startNext()` só sai
-                    // de `.waiting`; não existe "iniciar do zero" no VM hoje.
-                    // Vira ação quando alguém pedir.
-                    if let p = vm.pomodoro { pomodoroSection(p) }
-                    else { vazio("timer", "Pomodoro parado") }
-                case .anotacao: AnnotationDeckView(annotation: annotation)
-                case .agenda: AgendaView(vm: vm)
-                case .lembretesApple: vm.onLembretesView?()
-                case .monitores: MonitoresView(vm: vm)
-                case .agentes: AgentesView(agentes: agentes)
-                case .acoesRapidas: AcoesRapidasView(vm: vm)
-                case .cor: CorView()
-                case .musica, .none: musicSection
+            VStack(spacing: 6) {
+                if seloVisivel, let ask = askStore.state.active {
+                    HStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        AskSeloDaEspera(vm: vm, id: ask.id, origem: ask.source)
+                    }
+                    .frame(height: 22)
                 }
+                Group {
+                    switch vm.focus {
+                    case .nota: noteSection
+                    case .historico: HistoryListView(history: history,
+                                                     onOpen: { vm.setExpandedDirect(false) })
+                    case .mensagens: MessagesView(vm: vm)
+                    case .whatsapp: WhatsAppSecaoView(vm: vm)
+                    case .espelho: if vm.mirrorOn { mirrorSection } else { espelhoDesligado }
+                    case .shelf: ShelfRowView(shelf: shelf, vm: vm, onAirDrop: vm.onAirDrop)
+                    case .link: if linkPreview.hosted(by: vm.displayID) { LinkPreviewView(preview: linkPreview) }
+                               else { linkVazio }
+                    case .atividade:
+                        if let a = vm.activity { activityRow(a) }
+                        else { vazio("arrow.triangle.2.circlepath", "Nenhuma atividade") }
+                    case .pomodoro:
+                        // ponytail: texto, não botão. `Pomodoro.startNext()` só sai
+                        // de `.waiting`; não existe "iniciar do zero" no VM hoje.
+                        // Vira ação quando alguém pedir.
+                        if let p = vm.pomodoro { pomodoroSection(p) }
+                        else { vazio("timer", "Pomodoro parado") }
+                    case .anotacao: AnnotationDeckView(annotation: annotation)
+                    case .agenda: AgendaView(vm: vm)
+                    case .lembretesApple: vm.onLembretesView?()
+                    case .monitores: MonitoresView(vm: vm)
+                    case .agentes: AgentesView(agentes: agentes)
+                    case .acoesRapidas: AcoesRapidasView(vm: vm)
+                    case .cor: CorView()
+                    case .musica, .none: musicSection
+                    }
+                }
+                .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace))
             }
-            .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace))
             Spacer(minLength: 0)
             sectionStrip
         }
