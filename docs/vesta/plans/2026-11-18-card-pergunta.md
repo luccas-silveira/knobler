@@ -232,7 +232,7 @@ Avisos que valem para todas as etapas:
 
 - **Título:** Documentação, novidade da 0.38.0 e imagens.
 - **Tela:** não.
-- **Arquivos:** mudar `CHANGELOG.md`, `Knobler/Novidades/NovidadesCatalogo.swift` (ou onde `NovidadesCatalogo.versoes` mora), `docs/ask.md`, `docs/images/ask-simple.png`, `docs/images/ask-multiselect.png`, `.claude/skills/snapshot-ui/SKILL.md`, `HANDOFF.md`; criar `Knobler/Novidades/0.38.0.html`.
+- **Arquivos:** mudar `CHANGELOG.md`, `Knobler/NovidadesCatalogo.swift`, `docs/ask.md`, `docs/images/ask-simple.png`, `docs/images/ask-multiselect.png`, `.claude/skills/snapshot-ui/SKILL.md`, `HANDOFF.md`; criar `Knobler/Novidades/0.38.0.html`.
 - **O que prova a etapa:**
   - `./tools/check.sh` verde, incluindo o gate de novidades (`tools/novidadescheck.swift`: `NovidadesCatalogo.versoes` bate com os arquivos de `Knobler/Novidades/`).
   - `./tools/release.sh minor --dry-run` passa pela validação de notas e de novidade (não publica nada).
