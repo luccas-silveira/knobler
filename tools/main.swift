@@ -625,6 +625,84 @@ func waCartaoCenario(_ vm: NotchViewModel, conta: String, jid: String, _ m: WAMe
                                             contagem: contagem, agora: Date(timeIntervalSince1970: TimeInterval(m.ts)))
 }
 
+/// Rodada de três perguntas do mockup aprovado do card de pergunta: a constante
+/// `RODADA` do `<script>` de docs/vesta/mockups/2026-11-18-card-pergunta/index.html.
+/// Os cenários `ask-*` usam estes textos para o PNG bater com o quadro do mockup.
+enum AskDoMockup {
+    /// `P` do mockup: moldura de texto com `largura` colunas por dentro.
+    static func quadro(_ linhas: [String], largura: Int = 44) -> String {
+        let borda = String(repeating: "─", count: largura)
+        let meio = linhas.map { linha in
+            "│ " + linha + String(repeating: " ", count: max(0, largura - 2 - linha.count)) + " │"
+        }
+        return (["┌" + borda + "┐"] + meio + ["└" + borda + "┘"]).joined(separator: "\n")
+    }
+
+    /// `ABA` do mockup: o preview de cada opção da terceira pergunta, com `>` na
+    /// linha da opção `n` (1 a 3).
+    static func aba(_ topo: String, _ n: Int, _ nota: String) -> String {
+        let linhas = [topo, "", "Como a aba respondida aparece?", "",
+                      "  1  Rótulo e resposta", "  2  Só o visto", "  3  Numerada", "", nota]
+        return quadro(linhas.enumerated().map { i, texto in
+            i > 3 && i < 7 && i - 3 == n ? ">" + String(texto.dropFirst()) : texto
+        })
+    }
+
+    static let teclado = AskQuestion(
+        question: "Como o card deve receber o teclado quando o Claude perguntar?",
+        header: "Teclado", multiSelect: false,
+        options: [
+            AskOption(label: "Atalho global foca o card (Recomendado)",
+                      description: "A pergunta aparece sem roubar o que você está digitando. ⌃⌥K leva o teclado ao card.",
+                      preview: nil),
+            AskOption(label: "Card pega o teclado sozinho",
+                      description: "Mais rápido, mas um número digitado em outro app pode responder sem querer.",
+                      preview: nil),
+            AskOption(label: "Atalhos globais diretos",
+                      description: "⌃⌥1 a ⌃⌥4 escolhem de qualquer app. Não cobre setas nem texto livre.",
+                      preview: nil),
+        ])
+
+    static let checagens = AskQuestion(
+        question: "Quais checagens rodo antes de publicar a 0.38.0?",
+        header: "Checagens", multiSelect: true,
+        options: [
+            AskOption(label: "Todos os gates",
+                      description: "./tools/check.sh, os self-checks que a CI roda.", preview: nil),
+            AskOption(label: "Snapshots",
+                      description: "Regenera os PNGs do card e compara com os de hoje.", preview: nil),
+            AskOption(label: "Teste ao vivo",
+                      description: "POST /ask com três perguntas, respondido só pelo teclado.", preview: nil),
+            AskOption(label: "Dry-run do release",
+                      description: "Valida versão, notas, build e assinatura sem publicar.", preview: nil),
+        ])
+
+    static let abas = AskQuestion(
+        question: "Como a aba de uma pergunta já respondida deve aparecer?",
+        header: "Abas", multiSelect: false,
+        options: [
+            AskOption(label: "Rótulo e resposta", description: "A aba mostra o que você escolheu.",
+                      preview: aba("[x] Teclado: Atalho global   (o) Abas", 1,
+                                   "Você vê a escolha sem voltar à pergunta.")),
+            AskOption(label: "Só o visto", description: "Aba curta, sem a resposta.",
+                      preview: aba("[x] Teclado   (o) Abas", 2, "Cabem mais abas na mesma linha.")),
+            AskOption(label: "Numerada", description: "1, 2, 3 no lugar do rótulo.",
+                      preview: aba("[x] 1   (o) 2   ( ) 3", 3,
+                                   "A mais curta; perde o assunto da pergunta.")),
+        ])
+
+    static let rodada = [teclado, checagens, abas]
+
+    /// As duas marcadas do quadro "Duas marcadas", na ordem das opções.
+    static let marcadas = ["Todos os gates", "Teste ao vivo"]
+
+    /// Pedido com a origem do mockup (`◐ knobler`).
+    static func pedido(_ id: String, _ perguntas: [AskQuestion]) -> AskRequest {
+        AskRequest(id: id, questions: perguntas,
+                   receivedAt: Date(timeIntervalSince1970: 1_000), source: "knobler")
+    }
+}
+
 let scenarios: [Scenario] = [
     Scenario(name: "monitores-interna", realNotch: true, frameHeight: 360) { vm, _, _ in configurarMonitores(vm, estado: "interna") },
     Scenario(name: "monitores-ddc", realNotch: true, frameHeight: 360) { vm, _, _ in configurarMonitores(vm, estado: "ddc") },
@@ -1241,34 +1319,27 @@ let scenarios: [Scenario] = [
     Scenario(name: "dictation-error", realNotch: false) { vm, _, _ in
         vm.dictation = .error("Sem acesso ao microfone")
     },
-    // frameHeight maior que o default 240: a pergunta agora ocupa as linhas que
-    // precisar e o card mede a própria altura — com 240 o PNG cortava a lista.
-    Scenario(name: "ask-simple", realNotch: true, frameHeight: 420) { _, _, askStore in
-        askStore.send(.enqueue(AskRequest(id: "s1", questions: [
-            AskQuestion(
-                question: "Qual abordagem seguir?", header: "Abordagem",
-                multiSelect: false,
-                options: [
-                    AskOption(label: "Hook PreToolUse",
-                              description: "Intercepta toda pergunta e envia pro notch",
-                              preview: nil),
-                    AskOption(label: "Servidor MCP",
-                              description: "Tool dedicada configurada por projeto",
-                              preview: nil),
-                ])
-        ], receivedAt: Date(timeIntervalSince1970: 1_000))))
+    // Card de pergunta com os dados do mockup aprovado (`AskDoMockup`), sempre
+    // por ações reais do reducer. frameHeight 480: a pergunta e as descrições
+    // saem inteiras e o card mede a própria altura — com menos o PNG cortava.
+    // Quadro "Uma pergunta: em repouso": chip, origem, selo Recomendada, legenda
+    // com o atalho.
+    Scenario(name: "ask-simple", realNotch: true, frameHeight: 480) { _, _, askStore in
+        askStore.send(.enqueue(AskDoMockup.pedido("s1", [AskDoMockup.teclado])))
+        precondition(askStore.state.highlight == nil && askStore.state.answers.isEmpty,
+                     "ask-simple: em repouso, sem destaque e sem resposta")
     },
-    Scenario(name: "ask-multiselect", realNotch: true, frameHeight: 420) { _, _, askStore in
-        askStore.send(.enqueue(AskRequest(id: "s2", questions: [
-            AskQuestion(
-                question: "Quais checagens rodar?", header: "Validação",
-                multiSelect: true,
-                options: [
-                    AskOption(label: "Build Release", description: "xcodebuild", preview: nil),
-                    AskOption(label: "Snapshots", description: "harness visual", preview: nil),
-                    AskOption(label: "E2E manual", description: "roteiro no app real", preview: nil),
-                ])
-        ], receivedAt: Date(timeIntervalSince1970: 1_000))))
+    // Quadro "Nada marcado": caixas vazias e Confirmar apagado.
+    Scenario(name: "ask-multi-vazio", realNotch: true, frameHeight: 480) { _, _, askStore in
+        askStore.send(.enqueue(AskDoMockup.pedido("s5", [AskDoMockup.checagens])))
+        precondition(askStore.state.selected.isEmpty, "ask-multi-vazio: nada marcado")
+    },
+    // Quadro "Duas marcadas": duas caixas preenchidas e "Confirmar 2".
+    Scenario(name: "ask-multiselect", realNotch: true, frameHeight: 480) { _, _, askStore in
+        askStore.send(.enqueue(AskDoMockup.pedido("s2", [AskDoMockup.checagens])))
+        for rotulo in AskDoMockup.marcadas { askStore.send(.toggle(label: rotulo)) }
+        precondition(askStore.state.selected == Set(AskDoMockup.marcadas),
+                     "ask-multiselect: duas marcadas")
     },
     Scenario(name: "ask-preview", realNotch: true) { _, _, askStore in
         askStore.send(.enqueue(AskRequest(id: "s3", questions: [
@@ -1285,21 +1356,31 @@ let scenarios: [Scenario] = [
                 ])
         ], receivedAt: Date(timeIntervalSince1970: 1_000))))
     },
-    Scenario(name: "ask-paged", realNotch: true) { _, _, askStore in
-        let request = AskRequest(id: "s4", questions: [
-            AskQuestion(question: "Pergunta um?", header: "Um", multiSelect: false,
-                        options: [AskOption(label: "A", description: "", preview: nil)]),
-            AskQuestion(question: "Pergunta dois de três?", header: "Dois", multiSelect: false,
-                        options: [
-                            AskOption(label: "Sim", description: "segue", preview: nil),
-                            AskOption(label: "Não", description: "para", preview: nil),
-                        ]),
-            AskQuestion(question: "Pergunta três?", header: "Três", multiSelect: false,
-                        options: [AskOption(label: "B", description: "", preview: nil)]),
-        ], receivedAt: Date(timeIntervalSince1970: 1_000))
-        askStore.send(.enqueue(request))
-        // O cenário permanece na página 1 por uma transição de domínio real.
-        askStore.send(.submit(labels: ["A"], text: nil))
+    // Quadro "Segunda pergunta, primeira já respondida": aba 1 com visto e a
+    // resposta resumida, aba 2 atual, aba 3 pendente.
+    Scenario(name: "ask-paged", realNotch: true, frameHeight: 480) { _, _, askStore in
+        askStore.send(.enqueue(AskDoMockup.pedido("s4", AskDoMockup.rodada)))
+        // O cenário chega à página 1 por uma transição de domínio real.
+        let primeira = AskDoMockup.teclado.options[0].label
+        askStore.send(.submit(labels: [primeira], text: nil))
+        precondition(askStore.state.page == 1
+                     && askStore.state.answers[AskDoMockup.teclado.question]?.labels == [primeira]
+                     && askStore.state.answers.count == 1,
+                     "ask-paged: segunda pergunta em tela, só a primeira respondida")
+    },
+    // Quadro "De volta à primeira": a opção respondida marcada, a aba 2 com
+    // "2 marcadas", a aba 3 ainda pendente.
+    Scenario(name: "ask-revisita", realNotch: true, frameHeight: 480) { _, _, askStore in
+        askStore.send(.enqueue(AskDoMockup.pedido("s6", AskDoMockup.rodada)))
+        askStore.send(.submit(labels: [AskDoMockup.teclado.options[0].label], text: nil))
+        for rotulo in AskDoMockup.marcadas { askStore.send(.toggle(label: rotulo)) }
+        askStore.send(.submit(labels: AskDoMockup.marcadas, text: nil))
+        precondition(askStore.state.page == 2, "ask-revisita: a pendente é a terceira")
+        askStore.send(.goTo(page: 0))
+        precondition(askStore.state.page == 0 && askStore.state.highlight == 0
+                     && askStore.state.answers[AskDoMockup.checagens.question]?.labels == AskDoMockup.marcadas
+                     && askStore.state.answers[AskDoMockup.abas.question] == nil,
+                     "ask-revisita: de volta à primeira, com a resposta dela em destaque")
     },
     Scenario(
         name: "agent-permission-compact", realNotch: true,
@@ -1440,6 +1521,9 @@ for scenario in scenarios {
     currentShelf = ShelfStore()
     currentShelf.clear()
     let vm = NotchViewModel()
+    // atalho fixo: a legenda do card de pergunta não pode depender do atalho
+    // que quem roda o harness gravou nos Ajustes
+    vm.glifoDoAtalho = { "⌃⌥K" }
     let media = MediaController()
     let askStore = AskStore(dependencies: .init(
         resolve: { _, _ in },
@@ -1519,9 +1603,11 @@ for scenario in scenarios {
 
     let png: Data
     if scenario.name.hasPrefix("agenda-") || scenario.name.hasPrefix("lembretes-") || scenario.name.hasPrefix("monitores-")
-        || scenario.name.hasPrefix("whatsapp-") {
+        || scenario.name.hasPrefix("whatsapp-") || scenario.name.hasPrefix("ask-") {
         // ScrollView usa backing AppKit e sai preta no ImageRenderer. Uma
         // janela sintética permite capturar a lista real, sem eventos pessoais.
+        // O card de pergunta entra pelo campo de texto, que no ImageRenderer
+        // sai como a faixa amarela de "proibido".
         _ = NSApplication.shared
         let host = NSHostingView(rootView: view.transaction { $0.disablesAnimations = true; $0.animation = nil })
         let window = NotchWindow(contentRect: NSRect(x: 100, y: 100, width: scenario.frameWidth, height: scenario.frameHeight),
