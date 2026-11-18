@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gate das etapas 3 e 4 do card de pergunta
+# Gate das etapas 3, 4 e 5 do card de pergunta
 # (docs/vesta/plans/2026-11-18-card-pergunta.md): a estrutura do card
 # redesenhado nos arquivos que o ./tools/check.sh não roda (views SwiftUI e o
 # harness de snapshot). O notchfontescheck só typecheca.
@@ -45,6 +45,30 @@
 #   - tools/main.swift tem `ask-preview` e `ask-preview-largo` com
 #     `frameWidth: 900`, o destaque na segunda opção por `.setHighlight(1)`, a
 #     tabela larga do mockup e o `AskCardView.layoutDoPreview(` nos dois.
+# Etapa 5 (teto de 60% da tela, rolagem só na lista) confere:
+#   - AskCardView.swift tem o parâmetro `alturaMaxima: CGFloat` e tira a altura
+#     da área rolável de `AskTeto.daLista(` (a conta testada no
+#     askcardmodelocheck, não uma conta solta na view);
+#   - a rolagem da lista é `ScrollView(.vertical` e todo `ScrollView` do
+#     AskCardView.swift fica num ramo de `if`/`guard`/`switch` com o teto na
+#     condição (`teto`, `rola` ou `AskTeto.`): com espaço sobrando a lista é
+#     desenhada direto;
+#   - alguma view declara `struct AlturaDaListaDoAskKey`, publica a medida
+#     (`preference(key: AlturaDaListaDoAskKey.self`) e lê
+#     (`onPreferenceChange(AlturaDaListaDoAskKey.self`);
+#   - nenhum arquivo de Knobler/AskCard/ usa `maxHeight: .infinity`;
+#   - o `layoutDoPreview` desconta o mínimo da lista (`AskTeto.minimoDaLista`
+#     ou 96): preview embaixo e alto encolhe a letra antes de empurrar o card
+#     para fora da tela;
+#   - Knobler/NotchView.swift passa `alturaMaxima:` na chamada que cria o
+#     `AskCardView(` e usa `AskTeto.doCard(`;
+#   - o `handleScroll` de Knobler/KnoblerApp.swift trata `.question` (deslizar
+#     de lado sobre a pergunta não troca de música);
+#   - tools/main.swift tem `ask-longo` e `ask-preview-alto`, os dois com a
+#     altura disponível em 520; o `ask-longo` com a pergunta longa do mockup e
+#     `AskTeto.doCard(`; o `ask-preview-alto` com `frameWidth: 900`, destaque na
+#     primeira opção e a conta de `quadro.height`; e cada um dos três cenários
+#     de preview chama `layoutDoPreview(` dentro do próprio bloco.
 # Linha de comentário (`//`) não conta.
 # Cada falta imprime `FALHOU: <o quê>` e o gate sai 1. Antes da checagem real,
 # um autoteste num repo falso prova que cada verificação reprova.
@@ -58,8 +82,12 @@ VIEWS='AskCardView AskAbasView AskOpcaoView AskRodapeView AskPreviewView'
 PECAS='AskAbasView AskOpcaoView AskRodapeView AskPreviewView'
 CENARIOS='ask-simple ask-multi-vazio ask-multiselect ask-preview ask-preview-largo ask-paged ask-revisita'
 CENARIOS_DE_PREVIEW='ask-preview ask-preview-largo'
+CENARIOS_DE_TETO='ask-longo ask-preview-alto'
+CENARIOS_COM_LAYOUT='ask-preview ask-preview-largo ask-preview-alto'
 # linha de ~100 colunas da tabela `LARGA` do mockup
 LINHA_LARGA='Shift+Tab volta à lista'
+# opção da pergunta `LONGA` do mockup
+LINHA_LONGA='Guardar pela posição'
 PLACEHOLDER='"Outra resposta…"'
 ROTULO_DO_MOCKUP='Atalho global foca o card (Recomendado)'
 # texto fixo que tem de aparecer em alguma view, e por quê
@@ -181,6 +209,102 @@ condicao_da_janela() {
     pega { print }
     pega && /\{[[:space:]]*$/ { exit }
   ' "$1"
+}
+
+# corpo_de <arquivo> <regex>: da primeira linha de código que casa com a regex
+# até a chave que fecha o bloco (conta chaves), sem comentário (nem o de fim de
+# linha)
+corpo_de() {
+  awk -v inicio="$2" '
+    /^[[:space:]]*\/\// { next }
+    !pega && $0 ~ inicio { pega = 1 }
+    pega {
+      sub(/[[:space:]]\/\/.*$/, "")
+      print
+      abre += gsub(/\{/, "{"); fecha += gsub(/\}/, "}")
+      if (abre > 0 && abre == fecha) exit
+    }
+  ' "$1" 2>/dev/null
+}
+
+# chamada que cria o card no NotchView: do `AskCardView(` ao parêntese que fecha
+# (pode quebrar em mais de uma linha), sem comentário. `AskCardView.` não conta.
+criacao_do_card() {
+  awk '
+    /^[[:space:]]*\/\// { next }
+    !pega && /AskCardView\(/ { pega = 1; sub(/^.*AskCardView\(/, "AskCardView(") }
+    pega {
+      sub(/[[:space:]]\/\/.*$/, "")
+      print
+      abre += gsub(/\(/, "("); fecha += gsub(/\)/, ")")
+      if (abre == fecha) exit
+    }
+  ' "$1" 2>/dev/null
+}
+
+# rolagem_da_lista <arquivo>: `sem` (nenhum `ScrollView(.vertical`), `solto`
+# (algum ScrollView fora de um ramo com o teto na condição) ou `ok`.
+# Ramo com o teto: o bloco de um `if`/`guard`/`switch`/`case` cuja condição
+# (que pode quebrar em mais de uma linha) cita `teto`, `rola` ou `AskTeto`; o
+# `else` desse `if`; o resto do bloco depois de um `guard` assim; e o que
+# estiver dentro de qualquer um deles. Ternário nos eixos
+# (`ScrollView(x ? .vertical : [])`) é ScrollView sempre: dá `sem`.
+rolagem_da_lista() {
+  awk '
+    function cita(t) { return t ~ /[Tt]eto|[Rr]ola/ }
+    function palavra(t, p) { return t ~ ("(^|[^A-Za-z0-9_])(" p ")([^A-Za-z0-9_]|$)") }
+    /^[[:space:]]*\/\// { next }
+    {
+      linha = $0
+      sub(/[[:space:]]\/\/.*$/, "", linha)
+      # `seg` = a declaração em curso desde a última chave; recomeça a cada
+      # linha, menos na continuação de uma condição quebrada
+      if (par <= 0) par = 0
+      if (par == 0 && !segue && linha !~ /^[[:space:]]*else([^A-Za-z0-9_]|$)/) seg = ""
+      n = length(linha)
+      for (i = 1; i <= n; i++) {
+        c = substr(linha, i, 1)
+        if (c == "{") {
+          proprio = (palavra(seg, "if|guard|switch|case") && cita(seg))
+          herda = (!palavra(seg, "guard") && palavra(seg, "else") && ultimo)
+          topo++
+          ramo[topo] = (proprio || herda || (topo > 1 && (ramo[topo - 1] || guarda[topo - 1])))
+          doguard[topo] = (palavra(seg, "guard") && cita(seg))
+          guarda[topo] = 0
+          seg = ""
+        } else if (c == "}") {
+          if (topo > 0) {
+            ultimo = ramo[topo]
+            g = doguard[topo]
+            topo--
+            if (g && topo > 0) guarda[topo] = 1
+          }
+          seg = ""
+        } else {
+          if (c == "(") par++
+          else if (c == ")") par--
+          else if (c == "S" && substr(linha, i, 10) == "ScrollView") {
+            if (substr(linha, i, 20) == "ScrollView(.vertical") vertical = 1
+            if (!(topo > 0 && (ramo[topo] || guarda[topo]))) solto = 1
+          }
+          seg = seg c
+        }
+      }
+      seg = seg " "
+      segue = (linha ~ /(,|&&|\|\||=|\()[[:space:]]*$/)
+    }
+    END { print (!vertical ? "sem" : (solto ? "solto" : "ok")) }
+  ' "$1" 2>/dev/null
+}
+
+# bloco_do_cenario <arquivo> <nome>: do `Scenario(name: "<nome>"` até a linha
+# antes do `Scenario(` seguinte, sem comentário
+bloco_do_cenario() {
+  awk -v alvo="Scenario(name: \"$2\"" '
+    /^[[:space:]]*\/\// { next }
+    index($0, "Scenario(") { pega = (index($0, alvo) > 0) }
+    pega { print }
+  ' "$1" 2>/dev/null
 }
 
 # verificar <raiz>
@@ -475,6 +599,136 @@ verificar() {
     fi
   fi
 
+  # === etapa 5: teto de 60% da tela, rolagem só na lista ===
+
+  # --- o card recebe o teto e rola só a lista ---
+  if [ -f "$card" ]; then
+    if ! tem_re "$card" '(let|var)[[:space:]]+alturaMaxima[[:space:]]*:[[:space:]]*CGFloat'; then
+      echo "FALHOU: $PASTA/AskCardView.swift sem o parâmetro 'alturaMaxima: CGFloat' (o card não sabe onde parar de crescer)"
+      erro=1
+    fi
+    if ! tem "$card" 'AskTeto.daLista('; then
+      echo "FALHOU: $PASTA/AskCardView.swift sem 'AskTeto.daLista(' (a altura da área rolável sai do modelo testado, não de conta solta na view)"
+      erro=1
+    fi
+    case "$(rolagem_da_lista "$card")" in
+      sem)
+        echo "FALHOU: $PASTA/AskCardView.swift sem 'ScrollView(.vertical' (lista que passa do teto não rola e empurra o card para fora da tela)"
+        erro=1 ;;
+      solto)
+        echo "FALHOU: $PASTA/AskCardView.swift: 'ScrollView' fora de um ramo de 'if'/'guard'/'switch' com o teto na condição ('teto', 'rola' ou 'AskTeto.'); com espaço sobrando a lista é desenhada direto"
+        erro=1 ;;
+    esac
+    if ! corpo_de "$card" 'func[[:space:]]+layoutDoPreview[[:space:]]*[(]' \
+        | grep -E 'AskTeto\.minimoDaLista|(^|[^0-9.A-Za-z_])96([^0-9.]|$)' >/dev/null; then
+      echo "FALHOU: $PASTA/AskCardView.swift: o layoutDoPreview não desconta o mínimo da lista ('AskTeto.minimoDaLista' ou 96) quando o preview vai embaixo (preview alto empurra o card para fora da tela)"
+      erro=1
+    fi
+  fi
+
+  # --- a lista mede a própria altura natural ---
+  if ! nas_views_re "$r" 'struct[[:space:]]+AlturaDaListaDoAskKey([^A-Za-z0-9_]|$)'; then
+    echo "FALHOU: nenhuma view de $PASTA/ declara 'struct AlturaDaListaDoAskKey' (a lista não mede a própria altura natural)"
+    erro=1
+  fi
+  if ! nas_views_re "$r" 'preference\([[:space:]]*key:[[:space:]]*AlturaDaListaDoAskKey\.self'; then
+    echo "FALHOU: nenhuma view de $PASTA/ publica 'preference(key: AlturaDaListaDoAskKey.self' (ninguém mede a lista)"
+    erro=1
+  fi
+  if ! nas_views_re "$r" 'onPreferenceChange\([[:space:]]*AlturaDaListaDoAskKey\.self'; then
+    echo "FALHOU: nenhuma view de $PASTA/ lê 'onPreferenceChange(AlturaDaListaDoAskKey.self' (a medida da lista não chega à conta do teto)"
+    erro=1
+  fi
+
+  # --- nada que trave a auto-medição ---
+  for f in "$r/$PASTA"/*.swift; do
+    [ -e "$f" ] || continue
+    if tem_re "$f" 'maxHeight:[[:space:]]*\.infinity'; then
+      echo "FALHOU: ${f#"$r"/} usa 'maxHeight: .infinity' (trava a auto-medição: o card ocupa o que derem em vez de dizer a própria altura)"
+      erro=1
+    fi
+  done
+
+  # --- o NotchView entrega o teto ---
+  if [ -f "$notch" ]; then
+    case "$(criacao_do_card "$notch")" in
+      *'alturaMaxima:'*) ;;
+      *)
+        echo "FALHOU: Knobler/NotchView.swift não passa 'alturaMaxima:' ao criar o AskCardView (o card cresce sem teto)"
+        erro=1 ;;
+    esac
+    if ! tem "$notch" 'AskTeto.doCard('; then
+      echo "FALHOU: Knobler/NotchView.swift sem 'AskTeto.doCard(' (o teto de 60% sai do modelo testado, não de conta solta)"
+      erro=1
+    fi
+  fi
+
+  # --- gesto de lado com pergunta na tela ---
+  if [ -f "$app" ]; then
+    bloco=$(corpo_de "$app" 'func[[:space:]]+handleScroll[[:space:]]*[(]')
+    if [ -z "$bloco" ]; then
+      echo "FALHOU: Knobler/KnoblerApp.swift sem 'func handleScroll(' (é ali que o gesto de lado troca de música)"
+      erro=1
+    elif ! printf '%s\n' "$bloco" | grep -E '\.question([^A-Za-z0-9_]|$)' >/dev/null; then
+      echo "FALHOU: Knobler/KnoblerApp.swift: o handleScroll não trata '.question' (deslizar de lado sobre a pergunta troca de música)"
+      erro=1
+    fi
+  fi
+
+  # --- cenários do teto no harness ---
+  if [ -f "$harness" ]; then
+    for v in $CENARIOS_DE_TETO; do
+      bloco=$(bloco_do_cenario "$harness" "$v")
+      if [ -z "$bloco" ]; then
+        echo "FALHOU: tools/main.swift sem o cenário \"$v\""
+        erro=1
+        continue
+      fi
+      if ! printf '%s\n' "$bloco" | grep -E 'availableSize(\.height[[:space:]]*=|[[:space:]]*=.*height:)[[:space:]]*520([^0-9.]|$)' >/dev/null; then
+        echo "FALHOU: tools/main.swift: o cenário \"$v\" não fixa a altura disponível em 520 (com os 900 de sempre nada bate no teto)"
+        erro=1
+      fi
+      case "$v" in
+        ask-longo)
+          case "$bloco" in
+            *'AskTeto.doCard('*) ;;
+            *)
+              echo "FALHOU: tools/main.swift: o cenário \"ask-longo\" sem 'AskTeto.doCard(' (nada prova que a pergunta longa passa do teto)"
+              erro=1 ;;
+          esac ;;
+        ask-preview-alto)
+          case "$bloco" in
+            *'.setHighlight(0)'*) ;;
+            *)
+              echo "FALHOU: tools/main.swift: o cenário \"ask-preview-alto\" sem '.setHighlight(0)' (o preview alto é o da primeira opção)"
+              erro=1 ;;
+          esac
+          case "$bloco" in
+            *'quadro.height'*) ;;
+            *)
+              echo "FALHOU: tools/main.swift: o cenário \"ask-preview-alto\" sem a conta de 'quadro.height' (nada prova que o preview embaixo deixa o mínimo da lista dentro da tela)"
+              erro=1 ;;
+          esac ;;
+      esac
+    done
+    if ! tem "$harness" "$LINHA_LONGA"; then
+      echo "FALHOU: tools/main.swift sem a pergunta longa do mockup ('$LINHA_LONGA'; sem ela nenhum PNG prova a lista rolando)"
+      erro=1
+    fi
+    if ! tem_re "$harness" 'Scenario\(name: "ask-preview-alto"[^{]*frameWidth:[[:space:]]*900([^0-9]|$)'; then
+      echo "FALHOU: tools/main.swift: o cenário \"ask-preview-alto\" sem 'frameWidth: 900' (o card alargado bate no limite da janela)"
+      erro=1
+    fi
+    for v in $CENARIOS_COM_LAYOUT; do
+      case "$(bloco_do_cenario "$harness" "$v")" in
+        *'layoutDoPreview('*) ;;
+        *)
+          echo "FALHOU: tools/main.swift: o cenário \"$v\" não chama 'layoutDoPreview(' (nada prova ao lado/embaixo, letra e rolagem nesse cenário)"
+          erro=1 ;;
+      esac
+    done
+  fi
+
   return "$erro"
 }
 
@@ -506,14 +760,18 @@ enum AskEstilo {
 struct AskCardView: View {
     @ObservedObject var vm: NotchViewModel
     let askStore: AskStore
+    let alturaMaxima: CGFloat
+    @State private var listaNatural: CGFloat = 0
+    @State private var alturaDoCard: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduzMovimento
 
     static func layoutDoPreview(question: AskQuestion, disponivel: CGSize, topo: CGFloat) -> AskPreviewLayout? {
         let letra = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
+        let reserva = cabeAoLado(question, disponivel) ? 0 : AskTeto.minimoDaLista
         return AskPreviewLayout.calcular(
             previews: question.options.compactMap(\.preview),
             avanco: letra.maximumAdvancement.width, linha: letra.ascender - letra.descender + letra.leading,
-            larguraMaxima: disponivel.width - 64, alturaMaxima: max(120, disponivel.height - 24 - topo - 150))
+            larguraMaxima: disponivel.width - 64, alturaMaxima: max(120, disponivel.height - 24 - topo - 150 - reserva))
     }
 
     var body: some View {
@@ -535,18 +793,40 @@ struct AskCardView: View {
             AskRodapeView(itens: AskLegenda.itens(teclado: false, campo: false, multipla: false,
                                                   abas: false, atalho: vm.glifoDoAtalho()))
         }
+        .onPreferenceChange(AlturaDaListaDoAskKey.self) { listaNatural = $0 }
     }
 
+    @ViewBuilder
     private var lista: some View {
+        if let teto = AskTeto.daLista(natural: listaNatural, card: alturaDoCard,
+                                      listaAtual: listaNatural, tetoDoCard: alturaMaxima) {
+            ScrollView(.vertical) { opcoes }
+                .frame(height: teto)
+        } else {
+            opcoes
+        }
+    }
+
+    private var opcoes: some View {
         VStack {
             AskOpcaoView(rotulo: AskRotulo.separar("a").texto,
                          entrar: { askStore.send(.setHighlight(0)) },
                          clicar: { askStore.send(.choose(index: 0)) })
         }
+        .background(GeometryReader { p in
+            Color.clear.preference(key: AlturaDaListaDoAskKey.self, value: p.size.height)
+        })
     }
 }
 
 struct AlturaDoAskKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+struct AlturaDaListaDoAskKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = nextValue()
@@ -622,11 +902,21 @@ struct NotchView: View {
         if let previa, !previa.lado { height += previa.quadro.height + 8 }
         return CGSize(width: previa?.larguraDoCard ?? 460, height: height)
     }
+    private var questionCard: some View {
+        AskCardView(vm: vm, askStore: askStore,
+                    alturaMaxima: AskTeto.doCard(disponivel: vm.availableSize.height, topo: topInset))
+            .frame(width: currentSize.width - 40)
+    }
 }
 EOF
   cat > "$T/r/Knobler/KnoblerApp.swift" <<'EOF'
 let vm = NotchViewModel()
 vm.glifoDoAtalho = { KeyboardShortcuts.getShortcut(for: .abrirNotch)?.shortcutGlyph }
+func handleScroll(_ event: NSEvent) -> NSEvent? {
+    let expanded = vm.mode == .music
+    if vm.mode == .question { return event }
+    return expanded ? nil : event
+}
 EOF
   cat > "$T/r/tools/notchview-fontes.txt" <<'EOF'
 # fontes
@@ -654,6 +944,17 @@ let scenarios = [
         let tabela = "Tab        leva o cursor ao campo            Shift+Tab volta à lista"
         let layout = AskCardView.layoutDoPreview(question: larga, disponivel: vm.availableSize, topo: 32)
         precondition(layout?.lado == false)
+    },
+    Scenario(name: "ask-longo", realNotch: true, frameHeight: 620) { vm, _, askStore in
+        vm.availableSize.height = 520
+        let opcao = "Guardar pela posição"
+        precondition(AskTeto.doCard(disponivel: 520, topo: 32) < 358)
+    },
+    Scenario(name: "ask-preview-alto", realNotch: true, frameHeight: 620, frameWidth: 900) { vm, _, askStore in
+        vm.availableSize = CGSize(width: 900, height: 520)
+        askStore.send(.setHighlight(0))
+        let layout = AskCardView.layoutDoPreview(question: alta, disponivel: vm.availableSize, topo: 32)
+        precondition((layout?.quadro.height ?? .infinity) <= 218)
     },
     Scenario(name: "ask-paged", realNotch: true) { _, _, askStore in },
     Scenario(name: "ask-revisita", realNotch: true) { _, _, askStore in
@@ -1044,7 +1345,8 @@ for v in $CENARIOS_DE_PREVIEW; do
 done
 
 montar
-sed -i '' 's|question: larga, disponivel: vm.availableSize, topo: 32)|question: larga)|; s|AskCardView.layoutDoPreview(question: larga)|nil as AskPreviewLayout?|' "$MN"
+# (o ask-preview-alto da etapa 5 também chama: sai junto, senão ainda seriam duas)
+sed -i '' 's|question: larga, disponivel: vm.availableSize, topo: 32)|question: larga)|; s|AskCardView.layoutDoPreview(question: larga)|nil as AskPreviewLayout?|; s|AskCardView.layoutDoPreview(question: alta, disponivel: vm.availableSize, topo: 32)|nil as AskPreviewLayout?|' "$MN"
 caso "só um cenário confere o layout" 1 "sem 'AskCardView.layoutDoPreview(' nos dois cenários"
 
 montar
@@ -1054,6 +1356,284 @@ caso "ask-preview com destaque na primeira" 1 "sem '.setHighlight(1)'"
 montar
 sed -i '' 's|Shift+Tab volta à lista|volta|' "$MN"
 caso "harness sem a tabela larga" 1 "sem a tabela larga do mockup"
+
+# === etapa 5: teto de 60% da tela, rolagem só na lista ===
+
+# nova_lista: troca a `lista` do card falso pelo texto da entrada padrão
+nova_lista() {
+  sed -i '' '/^    @ViewBuilder$/,/^    }$/d' "$CV"
+  {
+    sed -n '1,/^    private var opcoes: some View {$/p' "$CV" | sed '$d'
+    cat
+    sed -n '/^    private var opcoes: some View {$/,$p' "$CV"
+  } > "$CV.novo"
+  mv "$CV.novo" "$CV"
+}
+
+# --- parâmetro e conta do modelo
+montar
+sed -i '' '/^    let alturaMaxima: CGFloat$/d' "$CV"
+caso "card sem alturaMaxima" 1 "sem o parâmetro 'alturaMaxima: CGFloat'"
+
+montar
+sed -i '' 's|^    let alturaMaxima: CGFloat$|    // let alturaMaxima: CGFloat|' "$CV"
+caso "alturaMaxima só em comentário" 1 "sem o parâmetro 'alturaMaxima: CGFloat'"
+
+montar
+sed -i '' 's|^    let alturaMaxima: CGFloat$|    var alturaMaxima : CGFloat = .infinity|' "$CV"
+caso "alturaMaxima como var com valor padrão" 0 ""
+
+montar
+sed -i '' 's|if let teto = AskTeto.daLista(natural: listaNatural, card: alturaDoCard,|if let teto = tetoNaMao(natural: listaNatural, card: alturaDoCard,|' "$CV"
+caso "teto da lista por conta solta" 1 "sem 'AskTeto.daLista('"
+
+# --- rolagem só sob o teto
+montar
+sed -i '' 's|ScrollView(.vertical) { opcoes }|opcoes.clipped()|' "$CV"
+caso "lista sem rolagem" 1 "AskCardView.swift sem 'ScrollView(.vertical'"
+
+montar
+sed -i '' 's|^            ScrollView(.vertical) { opcoes }$|            // ScrollView(.vertical) { opcoes }\
+            opcoes|' "$CV"
+caso "rolagem só em comentário" 1 "AskCardView.swift sem 'ScrollView(.vertical'"
+
+montar
+# ScrollView sempre, com os eixos saindo de um ternário
+sed -i '' 's|ScrollView(.vertical) { opcoes }|ScrollView(teto > 0 ? .vertical : []) { opcoes }|' "$CV"
+caso "eixos da lista por ternário" 1 "AskCardView.swift sem 'ScrollView(.vertical'"
+
+montar
+# a condição existe, mas não é a do teto
+sed -i '' 's|^        if let teto = AskTeto.daLista(natural: listaNatural, card: alturaDoCard,$|        if comBarra {|; /^ *listaAtual: listaNatural, tetoDoCard: alturaMaxima) {$/d; s|\.frame(height: teto)|.frame(height: 200)|' "$CV"
+caso "ScrollView sob condição que não é o teto" 1 "'ScrollView' fora de um ramo de 'if'/'guard'/'switch' com o teto"
+
+montar
+# o ramo sem preview do corpo ganha rolagem sempre: é ramo, mas não do teto
+sed -i '' 's|^                lista$|                ScrollView(.vertical) { lista }|' "$CV"
+caso "ScrollView no ramo sem preview" 1 "'ScrollView' fora de um ramo de 'if'/'guard'/'switch' com o teto"
+
+montar
+# a lista certa, e uma segunda rolagem sem eixo em volta do corpo
+sed -i '' 's|^            AskAbasView(ir: |            ScrollView { opcoes }\
+            AskAbasView(ir: |' "$CV"
+caso "segundo ScrollView solto no corpo" 1 "'ScrollView' fora de um ramo de 'if'/'guard'/'switch' com o teto"
+
+montar
+nova_lista <<'EOF'
+    @ViewBuilder
+    private var lista: some View {
+        let teto = AskTeto.daLista(natural: listaNatural, card: alturaDoCard,
+                                   listaAtual: listaNatural, tetoDoCard: alturaMaxima)
+        if teto == nil {
+            opcoes
+        } else {
+            ScrollView(.vertical) { opcoes }.frame(height: teto ?? 0)
+        }
+    }
+
+EOF
+caso "teto negado, rolagem no else" 0 ""
+
+montar
+nova_lista <<'EOF'
+    private var lista: AnyView {
+        guard let teto = AskTeto.daLista(natural: listaNatural, card: alturaDoCard,
+                                         listaAtual: listaNatural, tetoDoCard: alturaMaxima)
+        else { return AnyView(opcoes) }
+        return AnyView(ScrollView(.vertical) { opcoes }.frame(height: teto))
+    }
+
+EOF
+caso "rolagem depois de um guard do teto" 0 ""
+
+montar
+nova_lista <<'EOF'
+    @ViewBuilder
+    private var lista: some View {
+        if let teto = AskTeto.daLista(natural: listaNatural, card: alturaDoCard,
+                                      listaAtual: listaNatural, tetoDoCard: alturaMaxima) {
+            VStack(spacing: 0) {
+                ScrollView(.vertical, showsIndicators: true) { opcoes }
+            }
+            .frame(height: teto)
+        } else {
+            opcoes
+        }
+    }
+
+EOF
+caso "rolagem dentro de um contêiner do ramo" 0 ""
+
+montar
+nova_lista <<'EOF'
+    private var lista: AnyView {
+        guard let ask = askStore.state.active else { return AnyView(opcoes) }
+        return AnyView(ScrollView(.vertical) { opcoes }.frame(height: 200))
+    }
+
+EOF
+caso "rolagem depois de um guard que não é do teto" 1 "'ScrollView' fora de um ramo de 'if'/'guard'/'switch' com o teto"
+
+# --- pendência da etapa 4: o preview embaixo reserva o mínimo da lista
+montar
+sed -i '' '/let reserva = /d; s| - 150 - reserva))| - 150))|' "$CV"
+caso "layoutDoPreview sem reservar a lista" 1 "o layoutDoPreview não desconta o mínimo da lista"
+
+montar
+sed -i '' 's|AskTeto.minimoDaLista|96|' "$CV"
+caso "mínimo da lista como 96 literal" 0 ""
+
+montar
+sed -i '' 's|AskTeto.minimoDaLista|196|' "$CV"
+caso "96 como sufixo de outro número" 1 "o layoutDoPreview não desconta o mínimo da lista"
+
+montar
+# o 96 existe no arquivo, mas na lista: o preview continua sem reservar nada
+sed -i '' '/let reserva = /d; s| - 150 - reserva))| - 150))|; s|\.frame(height: teto)|.frame(height: max(96, teto))|' "$CV"
+caso "96 fora do layoutDoPreview" 1 "o layoutDoPreview não desconta o mínimo da lista"
+
+# --- medida da lista
+montar
+sed -i '' 's|^struct AlturaDaListaDoAskKey: PreferenceKey {|struct OutraChave: PreferenceKey {|' "$CV"
+caso "sem a chave da lista" 1 "declara 'struct AlturaDaListaDoAskKey'"
+
+montar
+# a lista medida com a chave do card: as duas medidas se misturam
+sed -i '' '/^struct AlturaDaListaDoAskKey/,/^}$/d; s|AlturaDaListaDoAskKey|AlturaDoAskKey|' "$CV"
+caso "lista medida com a chave do card" 1 "declara 'struct AlturaDaListaDoAskKey'"
+
+montar
+sed -i '' 's|Color.clear.preference(key: AlturaDaListaDoAskKey.self, value: p.size.height)|Color.clear|' "$CV"
+caso "chave da lista sem ninguém publicar" 1 "publica 'preference(key: AlturaDaListaDoAskKey.self'"
+
+montar
+sed -i '' '/onPreferenceChange(AlturaDaListaDoAskKey.self)/d' "$CV"
+caso "chave da lista sem ninguém ler" 1 "lê 'onPreferenceChange(AlturaDaListaDoAskKey.self'"
+
+# --- maxHeight: .infinity
+montar
+sed -i '' 's|\.frame(height: teto)|.frame(maxHeight: .infinity)|' "$CV"
+caso "maxHeight infinito no card" 1 "$PASTA/AskCardView.swift usa 'maxHeight: .infinity'"
+
+montar
+sed -i '' 's|^            \.fixedSize()$|            .fixedSize()\
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)|' "$PV"
+caso "maxHeight infinito na peça do preview" 1 "$PASTA/AskPreviewView.swift usa 'maxHeight: .infinity'"
+
+montar
+sed -i '' 's|^            \.fixedSize()$|            .fixedSize()\
+            // sem maxHeight: .infinity: trava a auto-medição\
+            .frame(maxWidth: .infinity, alignment: .leading)|' "$PV"
+caso "maxWidth infinito e maxHeight só em comentário" 0 ""
+
+# --- NotchView
+montar
+sed -i '' 's|^        AskCardView(vm: vm, askStore: askStore,$|        AskCardView(vm: vm, askStore: askStore)|; /alturaMaxima: AskTeto.doCard(/d' "$NV"
+caso "NotchView sem passar o teto" 1 "não passa 'alturaMaxima:' ao criar o AskCardView"
+
+montar
+# o rótulo aparece na chamada de outro card, não na do AskCardView
+sed -i '' 's|^        AskCardView(vm: vm, askStore: askStore,$|        AskCardView(vm: vm, askStore: askStore)|; s|^                    alturaMaxima: AskTeto.doCard(disponivel: vm.availableSize.height, topo: topInset))$|        OutroCard(alturaMaxima: AskTeto.doCard(disponivel: vm.availableSize.height, topo: topInset))|' "$NV"
+caso "alturaMaxima na chamada de outro card" 1 "não passa 'alturaMaxima:' ao criar o AskCardView"
+
+montar
+sed -i '' 's|alturaMaxima: AskTeto.doCard(disponivel: vm.availableSize.height, topo: topInset))|alturaMaxima: 0.6 * vm.availableSize.height - (topInset + 18))|' "$NV"
+caso "teto do card por conta solta" 1 "Knobler/NotchView.swift sem 'AskTeto.doCard('"
+
+montar
+# chamada numa linha só, com o teto guardado antes
+sed -i '' 's|^        AskCardView(vm: vm, askStore: askStore,$|        let teto = AskTeto.doCard(disponivel: vm.availableSize.height, topo: topInset)\
+        return AskCardView(vm: vm, askStore: askStore, alturaMaxima: teto)|; /^                    alturaMaxima: AskTeto.doCard(/d' "$NV"
+caso "teto guardado e chamada numa linha" 0 ""
+
+# --- gesto de lado
+montar
+sed -i '' '/if vm.mode == .question/d' "$KA"
+caso "handleScroll sem a pergunta" 1 "o handleScroll não trata '.question'"
+
+montar
+# o caso existe no arquivo, fora do handleScroll (é como está hoje)
+sed -i '' '/if vm.mode == .question/d' "$KA"
+echo 'let modo: Modo = perguntaAtiva ? .question : vm.mode' >> "$KA"
+caso ".question só fora do handleScroll" 1 "o handleScroll não trata '.question'"
+
+montar
+sed -i '' 's|^    if vm.mode == .question { return event }$|    // if vm.mode == .question { return event }|' "$KA"
+caso ".question só em comentário" 1 "o handleScroll não trata '.question'"
+
+montar
+sed -i '' '/if vm.mode == .question/d; s|^    let expanded = vm.mode == .music$|    let expanded = vm.mode == .music  // .question entra depois|' "$KA"
+caso ".question só em comentário de fim de linha" 1 "o handleScroll não trata '.question'"
+
+montar
+sed -i '' 's|if vm.mode == .question { return event }|if vm.questionIsActive() { return event }|' "$KA"
+caso "outro nome que começa com question" 1 "o handleScroll não trata '.question'"
+
+montar
+sed -i '' 's|^func handleScroll(|func tratarRolagem(|' "$KA"
+caso "app sem handleScroll" 1 "sem 'func handleScroll('"
+
+montar
+sed -i '' 's|^    if vm.mode == .question { return event }$|    guard vm.mode != .question else { return event }|' "$KA"
+caso "saída cedo por guard" 0 ""
+
+# --- harness
+for v in $CENARIOS_DE_TETO; do
+  montar
+  sed -i '' "s|Scenario(name: \"$v\"|Scenario(name: \"x-$v\"|" "$MN"
+  caso "harness sem $v" 1 "sem o cenário \"$v\""
+done
+
+montar
+sed -i '' 's|^        vm.availableSize.height = 520$|        vm.availableSize.height = 900|' "$MN"
+caso "ask-longo na tela alta" 1 "o cenário \"ask-longo\" não fixa a altura disponível em 520"
+
+montar
+sed -i '' '/^        vm.availableSize.height = 520$/d' "$MN"
+caso "ask-longo sem fixar a altura (a do vizinho não conta)" 1 "o cenário \"ask-longo\" não fixa a altura disponível em 520"
+
+montar
+sed -i '' 's|vm.availableSize = CGSize(width: 900, height: 520)|vm.availableSize = CGSize(width: 900, height: 900)|' "$MN"
+caso "ask-preview-alto na tela alta" 1 "o cenário \"ask-preview-alto\" não fixa a altura disponível em 520"
+
+montar
+sed -i '' 's|vm.availableSize = CGSize(width: 900, height: 520)|vm.availableSize = CGSize(width: 520, height: 1520)|' "$MN"
+caso "520 na largura e como sufixo" 1 "o cenário \"ask-preview-alto\" não fixa a altura disponível em 520"
+
+montar
+sed -i '' 's|precondition(AskTeto.doCard(disponivel: 520, topo: 32) < 358)|precondition(262 < 358)|' "$MN"
+caso "ask-longo sem a conta do teto" 1 "o cenário \"ask-longo\" sem 'AskTeto.doCard('"
+
+montar
+# a conta existe, mas no bloco de outro cenário
+sed -i '' 's|precondition(AskTeto.doCard(disponivel: 520, topo: 32) < 358)|precondition(262 < 358)|; s|^        precondition((layout?.quadro.height ?? .infinity) <= 218)$|        precondition((layout?.quadro.height ?? .infinity) <= 218 \&\& AskTeto.doCard(disponivel: 520, topo: 32) > 0)|' "$MN"
+caso "conta do teto no cenário vizinho" 1 "o cenário \"ask-longo\" sem 'AskTeto.doCard('"
+
+montar
+sed -i '' 's|Guardar pela posição|Outra opção|' "$MN"
+caso "harness sem a pergunta longa" 1 "sem a pergunta longa do mockup"
+
+montar
+sed -i '' 's|Scenario(name: "ask-preview-alto", realNotch: true, frameHeight: 620, frameWidth: 900)|Scenario(name: "ask-preview-alto", realNotch: true, frameHeight: 620)|' "$MN"
+caso "ask-preview-alto sem frameWidth" 1 "o cenário \"ask-preview-alto\" sem 'frameWidth: 900'"
+
+montar
+sed -i '' 's|^        askStore.send(.setHighlight(0))$|        askStore.send(.setHighlight(1))|' "$MN"
+caso "ask-preview-alto com destaque na segunda" 1 "o cenário \"ask-preview-alto\" sem '.setHighlight(0)'"
+
+montar
+sed -i '' '/quadro.height/d' "$MN"
+caso "ask-preview-alto sem a conta da altura" 1 "o cenário \"ask-preview-alto\" sem a conta de 'quadro.height'"
+
+montar
+sed -i '' 's|AskCardView.layoutDoPreview(question: alta, disponivel: vm.availableSize, topo: 32)|layoutGuardado|' "$MN"
+caso "ask-preview-alto sem conferir o layout" 1 "o cenário \"ask-preview-alto\" não chama 'layoutDoPreview('"
+
+montar
+# com três cenários de preview, a contagem da etapa 4 (duas chamadas) não vê
+# este buraco: quem pega é a conferência por bloco
+sed -i '' 's|AskCardView.layoutDoPreview(question: larga, disponivel: vm.availableSize, topo: 32)|layoutGuardado|' "$MN"
+caso "ask-preview-largo sem conferir o layout, com três cenários" 1 "o cenário \"ask-preview-largo\" não chama 'layoutDoPreview('"
 
 if [ "$AUTO" -ne 0 ]; then
   echo "FALHOU: autoteste do askcardcheck"

@@ -719,6 +719,78 @@ enum AskDoMockup {
                       ].joined(separator: "\n")),
         ])
 
+    /// `LONGA` do mockup (quadro "Texto longo"): quatro opções com descrições
+    /// de três linhas. Numa tela baixa o card bate no teto e só a lista rola.
+    static let longa = AskQuestion(
+        question: "As respostas são guardadas pelo texto da pergunta. Como tratar duas perguntas com o mesmo texto na mesma rodada?",
+        header: "Respostas", multiSelect: false,
+        options: [
+            AskOption(label: "Contar por pergunta (Recomendado)",
+                      description: "A rodada fecha quando o texto de toda pergunta tem resposta. Duas perguntas iguais dividem uma resposta, que é o que o hook já entrega hoje ao Claude.",
+                      preview: nil),
+            AskOption(label: "Guardar pela posição",
+                      description: "Cada pergunta ganha um número. Resolve a colisão dentro do card, mas na volta para o hook as duas respostas se sobrepõem do mesmo jeito, porque o formato de resposta não muda.",
+                      preview: nil),
+            AskOption(label: "Recusar a rodada",
+                      description: "O card não abre e a pergunta vai direto para o terminal, com um aviso no log. Seguro, mas o usuário perde o card por um caso que quase nunca acontece.",
+                      preview: nil),
+            AskOption(label: "Juntar as duas",
+                      description: "Perguntas de mesmo texto viram uma aba só. Menos abas, com o risco de esconder que o Claude perguntou duas vezes de propósito.",
+                      preview: nil),
+        ])
+
+    /// Passos do preview alto: comando e o que ele confere.
+    static let passos: [(comando: String, confere: String)] = [
+        ("./tools/check.sh", "todos os gates herméticos, os mesmos da CI"),
+        ("./tools/check.sh --com-ambiente", "gate do Codex e instância de ponta a ponta"),
+        ("./tools/snapshot.sh", "regenera os PNGs para comparar com o mockup"),
+        ("xcodegen generate", "refaz o projeto depois de arquivo novo ou apagado"),
+        ("xcodebuild -scheme Knobler build", "compila o app com a assinatura local"),
+        ("curl -X POST 127.0.0.1:4477/ask", "pergunta de verdade, respondida só pelo teclado"),
+        ("./tools/release.sh --dry-run minor", "versão, notas, build e assinatura, sem publicar"),
+        ("./tools/release.sh minor", "escreve a versão, cria a tag e publica o zip"),
+        ("brew upgrade --cask knobler", "o cask novo instala por cima do app aberto"),
+        ("open /Applications/Knobler.app", "reabre o instalado, que o build de teste encerrou"),
+        ("GET /status", "axTrusted e tapExists seguem verdadeiros"),
+        ("git push --follow-tags", "sobe o commit de release com a tag"),
+    ]
+
+    /// Preview largo E alto, que o mockup não tem: moldura de 100 colunas por
+    /// 16 linhas (cabeçalho, régua e os doze passos). Não cabe ao lado da lista
+    /// e, a 11 pt, não cabe embaixo numa tela de 520 de altura.
+    static let roteiro: String = {
+        func coluna(_ texto: String, _ largura: Int) -> String {
+            texto + String(repeating: " ", count: max(0, largura - texto.count))
+        }
+        func linha(_ passo: String, _ comando: String, _ confere: String) -> String {
+            coluna(passo, 5) + "  " + coluna(comando, 38) + "  " + confere
+        }
+        let regua = linha(String(repeating: "-", count: 5), String(repeating: "-", count: 38),
+                          String(repeating: "-", count: 49))
+        let corpo = passos.enumerated().map { i, passo in linha(String(i + 1), passo.comando, passo.confere) }
+        return quadro([linha("Passo", "Comando", "O que confere"), regua] + corpo, largura: 98)
+    }()
+
+    /// Pergunta do preview alto. As duas descrições ocupam três linhas de
+    /// propósito: com o preview embaixo a lista passa do mínimo de 96 e rola.
+    static let alta = AskQuestion(
+        question: "Que roteiro de publicação entra no HANDOFF da 0.38.0?",
+        header: "Roteiro", multiSelect: false,
+        options: [
+            AskOption(label: "Roteiro completo",
+                      description: "Os doze passos, do primeiro gate ao push da tag, com o comando de cada um e o que ele confere. É o que entra no HANDOFF para quem for publicar a próxima versão sem ter acompanhado esta sessão de trabalho do começo ao fim.",
+                      preview: roteiro),
+            AskOption(label: "Só os três gates",
+                      description: "Só o check.sh, o snapshot e o dry-run do release. Cabe numa linha do HANDOFF, mas deixa de fora a reabertura do app instalado e a conferência da Acessibilidade, que já derrubaram o ditado em silêncio uma vez.",
+                      preview: [
+                        "Passo  Comando",
+                        "-----  ----------------------------------",
+                        "1      ./tools/check.sh",
+                        "2      ./tools/snapshot.sh",
+                        "3      ./tools/release.sh --dry-run minor",
+                      ].joined(separator: "\n")),
+        ])
+
     /// As duas marcadas do quadro "Duas marcadas", na ordem das opções.
     static let marcadas = ["Todos os gates", "Teste ao vivo"]
 
@@ -1396,6 +1468,56 @@ let scenarios: [Scenario] = [
             topo: vm.hasRealNotch ? vm.notchSize.height : 4)
         precondition(layout?.lado == false, "ask-preview-largo: a tabela não cabe ao lado e desce")
         precondition(layout?.rola == false, "ask-preview-largo: embaixo a tabela sai inteira, sem rolagem")
+    },
+    // Quadro "Texto longo": quatro opções com descrições de três linhas numa
+    // tela baixa (520 de altura disponível). O card para em 60% do disponível e
+    // só a lista rola; topo, pergunta, campo e legenda ficam parados e inteiros.
+    // frameHeight 620, mais que o disponível: card que passe do teto aparece no
+    // PNG em vez de sair cortado pela borda da janela.
+    Scenario(name: "ask-longo", realNotch: true, frameHeight: 620) { vm, _, askStore in
+        vm.availableSize = CGSize(width: 900, height: 520)
+        askStore.send(.enqueue(AskDoMockup.pedido("s8", [AskDoMockup.longa])))
+        askStore.send(.setHighlight(0))
+        precondition(askStore.state.highlight == 0, "ask-longo: destaque na primeira opção")
+        let topo: CGFloat = vm.hasRealNotch ? vm.notchSize.height : 4
+        // 0,6 × 520 − (32 + 18) = 262
+        let teto = AskTeto.doCard(disponivel: vm.availableSize.height, topo: topo)
+        // A estimativa de primeiro frame do `questionSize` do NotchView: 64 de
+        // topo e pergunta, 58 por opção, 62 de rodapé. Com três linhas de
+        // descrição por opção a altura de verdade é ainda maior.
+        let lista = CGFloat(AskDoMockup.longa.options.count) * 58
+        let estimada = 64 + lista + 62
+        precondition(teto < estimada,
+                     "ask-longo: o teto do card (60% de 520) fica abaixo da altura natural")
+        precondition(AskTeto.daLista(natural: lista, card: estimada, listaAtual: lista, tetoDoCard: teto) != nil,
+                     "ask-longo: com o card acima do teto, quem rola é a lista")
+    },
+    // Preview embaixo e alto numa tela baixa (a pendência da etapa 4): a moldura
+    // de 100 colunas não cabe ao lado e, a 11 pt, as 16 linhas não cabem nos 520
+    // de altura junto com a lista. A letra encolhe até o preview sair inteiro no
+    // que sobra depois de reservar o mínimo da lista (96); quem cede é a lista,
+    // que rola, e o card não passa da tela.
+    // São 16 linhas, não as 30 do plano: no piso de 8 pt, 30 linhas pedem ~359
+    // de altura e o espaço é 218 — o preview rolaria em vez de sair inteiro. O
+    // máximo que fecha com a fórmula é 17.
+    Scenario(name: "ask-preview-alto", realNotch: true, frameHeight: 620, frameWidth: 900) { vm, _, askStore in
+        vm.availableSize = CGSize(width: 900, height: 520)
+        askStore.send(.enqueue(AskDoMockup.pedido("s9", [AskDoMockup.alta])))
+        askStore.send(.setHighlight(0))
+        precondition(askStore.state.highlight == 0, "ask-preview-alto: destaque na primeira opção")
+        let linhasDoRoteiro = AskDoMockup.roteiro.split(separator: "\n", omittingEmptySubsequences: false)
+        precondition(linhasDoRoteiro.count == 16 && linhasDoRoteiro.allSatisfy { $0.count == 100 },
+                     "ask-preview-alto: o preview da primeira opção tem 16 linhas de 100 colunas")
+        let topo: CGFloat = vm.hasRealNotch ? vm.notchSize.height : 4
+        let layout = AskCardView.layoutDoPreview(
+            question: AskDoMockup.alta, disponivel: vm.availableSize, topo: topo)
+        precondition(layout?.lado == false, "ask-preview-alto: 100 colunas não cabem ao lado e descem")
+        precondition(layout?.rola == false, "ask-preview-alto: o preview sai inteiro, sem rolagem")
+        // 520 − 24 − topo − 150 − 96: a tela menos margens, topo, o que não é
+        // lista (150) e o mínimo da lista (96). Com topo 32 são 218.
+        let espaco = vm.availableSize.height - 24 - topo - 150 - 96
+        precondition((layout?.quadro.height ?? .infinity) <= espaco + 0.001,
+                     "ask-preview-alto: o preview embaixo deixa o mínimo da lista (96) dentro da tela")
     },
     // Quadro "Segunda pergunta, primeira já respondida": aba 1 com visto e a
     // resposta resumida, aba 2 atual, aba 3 pendente.
