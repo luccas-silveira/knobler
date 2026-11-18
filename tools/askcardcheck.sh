@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Gate da etapa 3 do card de pergunta (docs/vesta/plans/2026-11-18-card-pergunta.md):
-# a estrutura do card redesenhado nos arquivos que o ./tools/check.sh não roda
-# (views SwiftUI e o harness de snapshot). O notchfontescheck só typecheca.
-# Confere:
+# Gate das etapas 3 e 4 do card de pergunta
+# (docs/vesta/plans/2026-11-18-card-pergunta.md): a estrutura do card
+# redesenhado nos arquivos que o ./tools/check.sh não roda (views SwiftUI e o
+# harness de snapshot). O notchfontescheck só typecheca.
+# Etapa 3 confere:
 #   - Knobler/Ask.swift não existe mais; os quatro arquivos de view de
 #     Knobler/AskCard/ existem, cada um declara a sua struct, as três peças são
 #     usadas fora do próprio arquivo e leem o `AskEstilo` do AskCardView.swift;
@@ -24,6 +25,26 @@
 #   - tools/main.swift tem os cinco cenários `ask-*`, com os dados do mockup e
 #     a volta por `.goTo(page:`, manda o prefixo `ask-` para a janela real e
 #     fixa `vm.glifoDoAtalho = { "⌃⌥K" }`.
+# Etapa 4 (preview sempre inteiro) confere:
+#   - Knobler/AskCard/AskPreviewView.swift existe, declara `struct
+#     AskPreviewView`, está em tools/notchview-fontes.txt, é usada fora do
+#     próprio arquivo e lê o `AskEstilo`;
+#   - AskCardView.swift declara `static func layoutDoPreview(`, chama a função,
+#     e é por ela que passa o `AskPreviewLayout.calcular(`; a medida da letra vem
+#     de `monospacedSystemFont(` (avanço fixo corta a moldura);
+#   - Knobler/NotchView.swift chama `layoutDoPreview(`, tira a largura da
+#     propriedade `larguraDoCard` do layout, não fixa mais 540 no `questionSize`, não chama
+#     `AskPreviewLayout.calcular(` por conta própria e soma `quadro.height` na
+#     estimativa do primeiro frame;
+#   - Knobler/AskCard/ sem `.frame(width: 250)` e sem letra monoespaçada de
+#     9 pt; `design: .monospaced` só no AskPreviewView.swift; a lista ao lado do
+#     preview tem a largura que o cálculo supõe (236 ou `AskPreviewLayout.lista`);
+#   - o card decide por `.lado`; alguma view usa `.fonte` e `.quadro` do layout;
+#     o AskPreviewView.swift tem `.fixedSize(` e o `ScrollView` dele só aparece
+#     depois de um `if`/`guard`/`switch` com `rola`;
+#   - tools/main.swift tem `ask-preview` e `ask-preview-largo` com
+#     `frameWidth: 900`, o destaque na segunda opção por `.setHighlight(1)`, a
+#     tabela larga do mockup e o `AskCardView.layoutDoPreview(` nos dois.
 # Linha de comentário (`//`) não conta.
 # Cada falta imprime `FALHOU: <o quê>` e o gate sai 1. Antes da checagem real,
 # um autoteste num repo falso prova que cada verificação reprova.
@@ -33,9 +54,12 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 PASTA='Knobler/AskCard'
-VIEWS='AskCardView AskAbasView AskOpcaoView AskRodapeView'
-PECAS='AskAbasView AskOpcaoView AskRodapeView'
-CENARIOS='ask-simple ask-multi-vazio ask-multiselect ask-paged ask-revisita'
+VIEWS='AskCardView AskAbasView AskOpcaoView AskRodapeView AskPreviewView'
+PECAS='AskAbasView AskOpcaoView AskRodapeView AskPreviewView'
+CENARIOS='ask-simple ask-multi-vazio ask-multiselect ask-preview ask-preview-largo ask-paged ask-revisita'
+CENARIOS_DE_PREVIEW='ask-preview ask-preview-largo'
+# linha de ~100 colunas da tabela `LARGA` do mockup
+LINHA_LARGA='Shift+Tab volta à lista'
 PLACEHOLDER='"Outra resposta…"'
 ROTULO_DO_MOCKUP='Atalho global foca o card (Recomendado)'
 # texto fixo que tem de aparecer em alguma view, e por quê
@@ -64,15 +88,17 @@ contar_re() {
   n=$(grep -vE '^[[:space:]]*//' "$1" 2>/dev/null | grep -cE -- "$2")
   echo "${n:-0}"
 }
-tem() { [ "$(contar "$1" "$2")" -gt 0 ]; }
-tem_re() { [ "$(contar_re "$1" "$2")" -gt 0 ]; }
+# Sem passar pelo `contar`: o autoteste chama isto milhares de vezes e cada
+# `$( )` é um processo a mais. `>/dev/null` no lugar do `-q` pelo mesmo SIGPIPE.
+tem() { grep -vE '^[[:space:]]*//' "$1" 2>/dev/null | grep -F -- "$2" >/dev/null; }
+tem_re() { grep -vE '^[[:space:]]*//' "$1" 2>/dev/null | grep -E -- "$2" >/dev/null; }
 
 # views <raiz>: os .swift de Knobler/AskCard/ menos o modelo puro, um por linha
 views() {
   local f
   for f in "$1/$PASTA"/*.swift; do
     [ -e "$f" ] || continue
-    [ "$(basename "$f")" = AskCardModelo.swift ] && continue
+    [ "${f##*/}" = AskCardModelo.swift ] && continue
     printf '%s\n' "$f"
   done
 }
@@ -86,6 +112,44 @@ nas_views() {
     tem "$f" "$2" && return 0
   done < <(views "$1")
   return 1
+}
+
+# nas_views_re <raiz> <regex>
+nas_views_re() {
+  local f
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    tem_re "$f" "$2" && return 0
+  done < <(views "$1")
+  return 1
+}
+
+# corpo do `questionSize` do NotchView, sem comentário (nem o de fim de linha):
+# da declaração até a chave que fecha (conta chaves)
+question_size() {
+  awk '
+    /^[[:space:]]*\/\// { next }
+    !pega && /var[[:space:]]+questionSize/ { pega = 1 }
+    pega {
+      sub(/[[:space:]]\/\/.*$/, "")
+      print
+      abre += gsub(/\{/, "{"); fecha += gsub(/\}/, "}")
+      if (abre > 0 && abre == fecha) exit
+    }
+  ' "$1"
+}
+
+# rolagem_do_preview <arquivo>: `sem` (nenhum ScrollView), `solto` (algum
+# ScrollView antes de qualquer `if`/`guard`/`switch` com `rola`) ou `ok`.
+# Ternário na mesma linha do ScrollView não conta: o ScrollView existiria sempre.
+rolagem_do_preview() {
+  awk '
+    /^[[:space:]]*\/\// { next }
+    /ScrollView/ && !/(^|[^A-Za-z0-9_])(if|guard|switch)[[:space:]]/ { visto = 1; if (!cond) solto = 1; next }
+    /(^|[^A-Za-z0-9_])(if|guard|switch)([[:space:]]|[[:space:]].*[^A-Za-z0-9_])rola([^A-Za-z0-9_]|$)/ { cond = 1 }
+    /ScrollView/ { visto = 1; if (!cond) solto = 1 }
+    END { print (!visto ? "sem" : (solto ? "solto" : "ok")) }
+  ' "$1"
 }
 
 # atribuição do contentID inteira (pode quebrar em mais de uma linha), sem comentário
@@ -127,6 +191,7 @@ verificar() {
   local app="$r/Knobler/KnoblerApp.swift"
   local fontes="$r/tools/notchview-fontes.txt"
   local harness="$r/tools/main.swift"
+  local previa="$r/$PASTA/AskPreviewView.swift"
   local v f n bloco uso texto motivo
 
   # --- arquivos ---
@@ -293,6 +358,123 @@ verificar() {
     fi
   fi
 
+  # === etapa 4: preview sempre inteiro ===
+
+  # --- uma função só para o tamanho do preview ---
+  if [ -f "$card" ]; then
+    if ! tem_re "$card" 'static[[:space:]]+func[[:space:]]+layoutDoPreview[[:space:]]*\('; then
+      echo "FALHOU: $PASTA/AskCardView.swift não declara 'static func layoutDoPreview(' (card e NotchView medem o preview pela mesma função)"
+      erro=1
+    fi
+    n=$(( $(contar "$card" 'layoutDoPreview(') - $(contar_re "$card" 'func[[:space:]]+layoutDoPreview[[:space:]]*\(') ))
+    if [ "$n" -le 0 ]; then
+      echo "FALHOU: $PASTA/AskCardView.swift não chama 'layoutDoPreview(' (o card desenha o preview sem o layout que o NotchView usa)"
+      erro=1
+    fi
+    if ! tem "$card" 'AskPreviewLayout.calcular('; then
+      echo "FALHOU: $PASTA/AskCardView.swift sem 'AskPreviewLayout.calcular(' (o layoutDoPreview passa pelo modelo da etapa 2)"
+      erro=1
+    fi
+    if ! tem_re "$card" '\.lado([^A-Za-z0-9_]|$)'; then
+      echo "FALHOU: $PASTA/AskCardView.swift não lê '.lado' do layout (o preview largo não desce para baixo da lista)"
+      erro=1
+    fi
+    if ! tem_re "$card" '\.frame\(width:[[:space:]]*(236|AskPreviewLayout\.lista)[[:space:]]*[,)]'; then
+      echo "FALHOU: $PASTA/AskCardView.swift: a lista ao lado do preview não tem '.frame(width: 236)' nem '.frame(width: AskPreviewLayout.lista)' (largura diferente da que o cálculo supõe corta o preview)"
+      erro=1
+    fi
+  fi
+  if ! nas_views "$r" 'monospacedSystemFont('; then
+    echo "FALHOU: nenhuma view de $PASTA/ mede a letra com 'monospacedSystemFont(' (avanço e linha fixos cortam a moldura do preview)"
+    erro=1
+  fi
+
+  # --- restos do preview antigo e peça nova ---
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    if tem_re "$f" '\.frame\(width:[[:space:]]*250([^0-9]|$)'; then
+      echo "FALHOU: ${f#"$r"/} ainda tem '.frame(width: 250)' (a lista ao lado do preview mede 236)"
+      erro=1
+    fi
+    if tem_re "$f" 'size:[[:space:]]*9[[:space:]]*,[^)]*design:[[:space:]]*\.monospaced'; then
+      echo "FALHOU: ${f#"$r"/} ainda tem letra monoespaçada de 9 pt (o preview usa a letra do layout, 11 pt de base)"
+      erro=1
+    fi
+    if [ "$f" != "$previa" ] && tem_re "$f" 'design:[[:space:]]*\.monospaced'; then
+      echo "FALHOU: ${f#"$r"/} desenha letra monoespaçada fora do AskPreviewView.swift (o preview é da peça nova)"
+      erro=1
+    fi
+  done < <(views "$r")
+  if ! nas_views_re "$r" '\.fonte([^A-Za-z0-9_]|$)'; then
+    echo "FALHOU: nenhuma view de $PASTA/ usa '.fonte' do layout (a letra do preview não encolhe quando ele não cabe)"
+    erro=1
+  fi
+  if ! nas_views_re "$r" '\.quadro([^A-Za-z0-9_]|$)'; then
+    echo "FALHOU: nenhuma view de $PASTA/ usa '.quadro' do layout (o quadro muda de tamanho com o destaque)"
+    erro=1
+  fi
+  if [ -f "$previa" ]; then
+    if ! tem "$previa" '.fixedSize('; then
+      echo "FALHOU: $PASTA/AskPreviewView.swift sem '.fixedSize(' (o texto do preview quebra ou trunca em vez de sair inteiro)"
+      erro=1
+    fi
+    case "$(rolagem_do_preview "$previa")" in
+      sem)
+        echo "FALHOU: $PASTA/AskPreviewView.swift sem 'ScrollView' (preview que não cabe nem no piso da letra fica cortado)"
+        erro=1 ;;
+      solto)
+        echo "FALHOU: $PASTA/AskPreviewView.swift: 'ScrollView' fora de um 'if … rola' (o preview só rola quando o layout manda)"
+        erro=1 ;;
+    esac
+  fi
+
+  # --- largura do card no NotchView ---
+  if [ -f "$notch" ]; then
+    if ! tem "$notch" 'layoutDoPreview('; then
+      echo "FALHOU: Knobler/NotchView.swift não chama 'layoutDoPreview(' (a largura do card diverge do que o card desenha)"
+      erro=1
+    fi
+    # a propriedade do layout; `NotchMetrics.larguraDoCard(` é função de outro card
+    if ! tem_re "$notch" 'larguraDoCard([^A-Za-z0-9_(]|$)'; then
+      echo "FALHOU: Knobler/NotchView.swift não usa 'larguraDoCard' do layout (a largura do card com preview vem dele)"
+      erro=1
+    fi
+    if printf '%s\n' "$(question_size "$notch")" | grep -E '(^|[^0-9.])540([^0-9]|$)' >/dev/null; then
+      echo "FALHOU: Knobler/NotchView.swift: o questionSize ainda fixa 540 de largura (o card alarga até caber o preview)"
+      erro=1
+    fi
+    if tem "$notch" 'AskPreviewLayout.calcular('; then
+      echo "FALHOU: Knobler/NotchView.swift chama 'AskPreviewLayout.calcular(' por conta própria (só o layoutDoPreview do card calcula)"
+      erro=1
+    fi
+    if ! tem "$notch" 'quadro.height'; then
+      echo "FALHOU: Knobler/NotchView.swift sem 'quadro.height' (a estimativa do primeiro frame não soma o preview que vai embaixo)"
+      erro=1
+    fi
+  fi
+
+  # --- cenários de preview no harness ---
+  if [ -f "$harness" ]; then
+    for v in $CENARIOS_DE_PREVIEW; do
+      if ! tem_re "$harness" "Scenario\\(name: \"$v\"[^{]*frameWidth:[[:space:]]*900([^0-9]|\$)"; then
+        echo "FALHOU: tools/main.swift: o cenário \"$v\" sem 'frameWidth: 900' (o card alargado bate no limite da janela)"
+        erro=1
+      fi
+    done
+    if [ "$(contar "$harness" 'AskCardView.layoutDoPreview(')" -lt 2 ]; then
+      echo "FALHOU: tools/main.swift sem 'AskCardView.layoutDoPreview(' nos dois cenários de preview (nada prova ao lado/embaixo, letra e rolagem)"
+      erro=1
+    fi
+    if ! tem "$harness" '.setHighlight(1)'; then
+      echo "FALHOU: tools/main.swift sem '.setHighlight(1)' (o ask-preview mostra o preview da segunda opção, a em destaque)"
+      erro=1
+    fi
+    if ! tem "$harness" "$LINHA_LARGA"; then
+      echo "FALHOU: tools/main.swift sem a tabela larga do mockup ('$LINHA_LARGA'; sem ela nenhum PNG prova o preview embaixo)"
+      erro=1
+    fi
+  fi
+
   return "$erro"
 }
 
@@ -326,15 +508,40 @@ struct AskCardView: View {
     let askStore: AskStore
     @Environment(\.accessibilityReduceMotion) private var reduzMovimento
 
+    static func layoutDoPreview(question: AskQuestion, disponivel: CGSize, topo: CGFloat) -> AskPreviewLayout? {
+        let letra = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
+        return AskPreviewLayout.calcular(
+            previews: question.options.compactMap(\.preview),
+            avanco: letra.maximumAdvancement.width, linha: letra.ascender - letra.descender + letra.leading,
+            larguraMaxima: disponivel.width - 64, alturaMaxima: max(120, disponivel.height - 24 - topo - 150))
+    }
+
     var body: some View {
         VStack {
             AskAbasView(ir: { askStore.send(.goTo(page: $0)) })
             Button { askStore.send(.cancelActive) } label: { Text("x") }
+            if let previa = Self.layoutDoPreview(question: question, disponivel: vm.availableSize, topo: 32) {
+                if previa.lado {
+                    HStack(alignment: .top, spacing: 10) {
+                        lista.frame(width: AskPreviewLayout.lista)
+                        AskPreviewView(texto: texto, layout: previa)
+                    }
+                } else {
+                    VStack(spacing: 8) { lista; AskPreviewView(texto: texto, layout: previa) }
+                }
+            } else {
+                lista
+            }
+            AskRodapeView(itens: AskLegenda.itens(teclado: false, campo: false, multipla: false,
+                                                  abas: false, atalho: vm.glifoDoAtalho()))
+        }
+    }
+
+    private var lista: some View {
+        VStack {
             AskOpcaoView(rotulo: AskRotulo.separar("a").texto,
                          entrar: { askStore.send(.setHighlight(0)) },
                          clicar: { askStore.send(.choose(index: 0)) })
-            AskRodapeView(itens: AskLegenda.itens(teclado: false, campo: false, multipla: false,
-                                                  abas: false, atalho: vm.glifoDoAtalho()))
         }
     }
 }
@@ -373,6 +580,32 @@ struct AskRodapeView: View {
     }
 }
 EOF
+  cat > "$T/r/$PASTA/AskPreviewView.swift" <<'EOF'
+import SwiftUI
+
+struct AskPreviewView: View {
+    let texto: String
+    let layout: AskPreviewLayout
+
+    var body: some View {
+        Group {
+            if layout.rola {
+                ScrollView([.vertical, .horizontal]) { corpo }
+            } else {
+                corpo
+            }
+        }
+        .frame(width: layout.quadro.width, height: layout.quadro.height, alignment: .topLeading)
+        .background(RoundedRectangle(cornerRadius: 8).fill(.white.opacity(AskEstilo.linha)))
+    }
+
+    private var corpo: some View {
+        Text(texto)
+            .font(.system(size: layout.fonte, design: .monospaced))
+            .fixedSize()
+    }
+}
+EOF
   cat > "$T/r/Knobler/NotchView.swift" <<'EOF'
 import SwiftUI
 
@@ -384,7 +617,10 @@ struct NotchView: View {
     }
     private var questionSize: CGSize {
         let question = ask.questions[min(askStore.state.page, ask.questions.count - 1)]
-        return CGSize(width: 460, height: 120)
+        let previa = AskCardView.layoutDoPreview(question: question, disponivel: vm.availableSize, topo: 32)
+        var height: CGFloat = 120
+        if let previa, !previa.lado { height += previa.quadro.height + 8 }
+        return CGSize(width: previa?.larguraDoCard ?? 460, height: height)
     }
 }
 EOF
@@ -401,6 +637,7 @@ Knobler/AskCard/AskCardView.swift
 Knobler/AskCard/AskAbasView.swift
 Knobler/AskCard/AskOpcaoView.swift
 Knobler/AskCard/AskRodapeView.swift
+Knobler/AskCard/AskPreviewView.swift
 EOF
   cat > "$T/r/tools/main.swift" <<'EOF'
 let rotulo = "Atalho global foca o card (Recomendado)"
@@ -408,6 +645,16 @@ let scenarios = [
     Scenario(name: "ask-simple", realNotch: true) { _, _, askStore in },
     Scenario(name: "ask-multi-vazio", realNotch: true) { _, _, askStore in },
     Scenario(name: "ask-multiselect", realNotch: true) { _, _, askStore in },
+    Scenario(name: "ask-preview", realNotch: true, frameHeight: 560, frameWidth: 900) { vm, _, askStore in
+        askStore.send(.setHighlight(1))
+        let layout = AskCardView.layoutDoPreview(question: abas, disponivel: vm.availableSize, topo: 32)
+        precondition(layout?.lado == true)
+    },
+    Scenario(name: "ask-preview-largo", realNotch: true, frameHeight: 560, frameWidth: 900) { vm, _, askStore in
+        let tabela = "Tab        leva o cursor ao campo            Shift+Tab volta à lista"
+        let layout = AskCardView.layoutDoPreview(question: larga, disponivel: vm.availableSize, topo: 32)
+        precondition(layout?.lado == false)
+    },
     Scenario(name: "ask-paged", realNotch: true) { _, _, askStore in },
     Scenario(name: "ask-revisita", realNotch: true) { _, _, askStore in
         askStore.send(.goTo(page: 0))
@@ -443,6 +690,7 @@ CV="$T/r/$PASTA/AskCardView.swift"
 AB="$T/r/$PASTA/AskAbasView.swift"
 OP="$T/r/$PASTA/AskOpcaoView.swift"
 RD="$T/r/$PASTA/AskRodapeView.swift"
+PV="$T/r/$PASTA/AskPreviewView.swift"
 NV="$T/r/Knobler/NotchView.swift"
 KA="$T/r/Knobler/KnoblerApp.swift"
 FT="$T/r/tools/notchview-fontes.txt"
@@ -574,7 +822,7 @@ caso "max( fora da chave" 0 ""
 trocar() {
   montar
   local f
-  for f in "$CV" "$AB" "$OP" "$RD"; do
+  for f in "$CV" "$AB" "$OP" "$RD" "$PV"; do
     grep -vF -- "$1" "$f" > "$f.novo"; mv "$f.novo" "$f"
   done
   caso "$2" 1 "$3"
@@ -634,6 +882,178 @@ caso "harness sem os dados do mockup" 1 "sem a opção do mockup"
 montar
 sed -i '' '/\.goTo(page: 0)/d' "$MN"
 caso "revisita sem goTo" 1 "sem '.goTo(page:'"
+
+# === etapa 4: preview sempre inteiro ===
+
+# --- uma função só
+montar
+sed -i '' 's|static func layoutDoPreview(|static func tamanhoDoPreview(|; s|Self.layoutDoPreview(|Self.tamanhoDoPreview(|' "$CV"
+caso "card sem layoutDoPreview" 1 "não declara 'static func layoutDoPreview('"
+
+montar
+sed -i '' 's|    static func layoutDoPreview(|    func layoutDoPreview(|' "$CV"
+caso "layoutDoPreview de instância (o NotchView não alcança)" 1 "não declara 'static func layoutDoPreview('"
+
+montar
+# declarada e nunca usada pelo card: ele desenha com um layout próprio
+sed -i '' 's|if let previa = Self.layoutDoPreview(question: question, disponivel: vm.availableSize, topo: 32) {|if let previa = layoutFixo {|' "$CV"
+caso "card declara e não chama" 1 "AskCardView.swift não chama 'layoutDoPreview('"
+
+montar
+sed -i '' 's|        return AskPreviewLayout.calcular(|        return AskPreviewLayout(|' "$CV"
+caso "layoutDoPreview sem o modelo" 1 "sem 'AskPreviewLayout.calcular('"
+
+montar
+# a chamada só citada em comentário não conta
+sed -i '' 's|^            if let previa = Self.layoutDoPreview(.*$|            // Self.layoutDoPreview( entra depois\
+            if let previa = layoutFixo {|' "$CV"
+caso "chamada só em comentário" 1 "AskCardView.swift não chama 'layoutDoPreview('"
+
+montar
+sed -i '' '/monospacedSystemFont(/d; s|avanco: letra.maximumAdvancement.width, linha: .*$|avanco: 6.6, linha: 13,|' "$CV"
+caso "avanço e linha fixos" 1 "mede a letra com 'monospacedSystemFont('"
+
+montar
+sed -i '' 's|                if previa.lado {|                if true {|' "$CV"
+caso "card sem .lado" 1 "não lê '.lado' do layout"
+
+# --- largura da lista
+montar
+sed -i '' 's|lista.frame(width: AskPreviewLayout.lista)|lista.frame(width: 250)|' "$CV"
+caso "lista ainda com 250" 1 "ainda tem '.frame(width: 250)'"
+
+montar
+sed -i '' 's|lista.frame(width: AskPreviewLayout.lista)|lista.frame(width: 240)|' "$CV"
+caso "lista com largura fora do cálculo" 1 "a lista ao lado do preview não tem '.frame(width: 236)'"
+
+montar
+sed -i '' 's|lista.frame(width: AskPreviewLayout.lista)|lista.frame(width: 236)|' "$CV"
+caso "lista com 236 literal" 0 ""
+
+montar
+sed -i '' 's|lista.frame(width: AskPreviewLayout.lista)|lista.frame(width: 2360)|' "$CV"
+caso "236 como prefixo de outro número" 1 "a lista ao lado do preview não tem '.frame(width: 236)'"
+
+# --- letra do preview
+montar
+sed -i '' 's|size: layout.fonte, design: .monospaced|size: 9, design: .monospaced|' "$PV"
+caso "letra monoespaçada de 9 pt" 1 "ainda tem letra monoespaçada de 9 pt"
+
+montar
+sed -i '' 's|size: layout.fonte, design: .monospaced|size: 9, weight: .regular, design: .monospaced|' "$PV"
+caso "letra de 9 pt com peso no meio" 1 "ainda tem letra monoespaçada de 9 pt"
+
+montar
+sed -i '' 's|size: layout.fonte, design: .monospaced|size: 11, design: .monospaced|' "$PV"
+caso "letra fixa em 11" 1 "usa '.fonte' do layout"
+
+montar
+# o preview desenhado dentro do card, com a peça nova ao lado
+sed -i '' 's|^    private var lista: some View {|    private var antigo: some View { Text("p").font(.system(size: 11, design: .monospaced)) }\
+    private var lista: some View {|' "$CV"
+caso "letra monoespaçada no card" 1 "$PASTA/AskCardView.swift desenha letra monoespaçada fora do AskPreviewView.swift"
+
+montar
+# monospacedDigit não é letra monoespaçada: é o que o selo e o Confirmar usam
+sed -i '' 's|^    private var lista: some View {|    private var n: some View { Text("2").monospacedDigit() }\
+    private var lista: some View {|' "$CV"
+caso "monospacedDigit no card" 0 ""
+
+montar
+sed -i '' 's|layout.quadro.width|332|; s|layout.quadro.height|180|' "$PV"
+caso "quadro de tamanho fixo" 1 "usa '.quadro' do layout"
+
+montar
+sed -i '' '/\.fixedSize()/d' "$PV"
+caso "preview sem fixedSize" 1 "AskPreviewView.swift sem '.fixedSize('"
+
+# --- rolagem só sob `rola`
+montar
+sed -i '' 's|            if layout.rola {|            if true {|' "$PV"
+caso "ScrollView sem a condição do layout" 1 "'ScrollView' fora de um 'if … rola'"
+
+montar
+sed -i '' 's|            if layout.rola {|            // if layout.rola {\
+            if true {|' "$PV"
+caso "condição de rola só em comentário" 1 "'ScrollView' fora de um 'if … rola'"
+
+montar
+# o ScrollView de hoje: sempre lá, com os eixos saindo de um ternário
+sed -i '' 's|            if layout.rola {|            if true {|; s|ScrollView(\[.vertical, .horizontal\])|ScrollView(layout.rola ? [.vertical, .horizontal] : [])|' "$PV"
+caso "ScrollView sempre, eixos por ternário" 1 "'ScrollView' fora de um 'if … rola'"
+
+montar
+sed -i '' 's|            if layout.rola {|            if layout.rolagem {|' "$PV"
+caso "condição em outro campo" 1 "'ScrollView' fora de um 'if … rola'"
+
+montar
+sed -i '' 's|ScrollView(\[.vertical, .horizontal\]) { corpo }|corpo.clipped()|' "$PV"
+caso "preview sem rolagem nenhuma" 1 "AskPreviewView.swift sem 'ScrollView'"
+
+montar
+sed -i '' 's|            if layout.rola {|            if !layout.rola { corpo } else if layout.rola {|' "$PV"
+caso "condição negada antes do ScrollView" 0 ""
+
+# --- NotchView
+montar
+sed -i '' 's|AskCardView.layoutDoPreview(question: question, disponivel: vm.availableSize, topo: 32)|layoutGuardado|' "$NV"
+caso "NotchView sem layoutDoPreview" 1 "Knobler/NotchView.swift não chama 'layoutDoPreview('"
+
+montar
+sed -i '' 's|width: previa?.larguraDoCard ?? 460,|width: previa != nil ? 540 : 460,|' "$NV"
+caso "NotchView com 540 fixo" 1 "o questionSize ainda fixa 540"
+
+montar
+sed -i '' 's|width: previa?.larguraDoCard ?? 460,|width: previa.map { $0.quadro.width + 286 } ?? 460,|' "$NV"
+caso "NotchView sem larguraDoCard" 1 "não usa 'larguraDoCard' do layout"
+
+montar
+# a função de mesmo nome que o NotchView já chama para outro card não conta
+sed -i '' 's|width: previa?.larguraDoCard ?? 460,|width: previa == nil ? 460 : NotchMetrics.larguraDoCard(vm.focus, padrao: 430, linkAberto: false),|' "$NV"
+caso "larguraDoCard( de outro card" 1 "não usa 'larguraDoCard' do layout"
+
+montar
+sed -i '' 's|^        var height: CGFloat = 120$|        var height: CGFloat = 120\
+        let outra = AskPreviewLayout.calcular(previews: [], avanco: 6.6, linha: 13, larguraMaxima: 836, alturaMaxima: 400)|' "$NV"
+caso "NotchView calculando por conta própria" 1 "chama 'AskPreviewLayout.calcular(' por conta própria"
+
+montar
+sed -i '' '/previa.quadro.height/d' "$NV"
+caso "estimativa sem o preview embaixo" 1 "Knobler/NotchView.swift sem 'quadro.height'"
+
+montar
+# 540 fora do questionSize é de outro card: não conta
+sed -i '' 's|^    private var questionSize: CGSize {|    private var outroCard: CGSize { CGSize(width: 540, height: 80) }\
+    private var questionSize: CGSize {|' "$NV"
+caso "540 fora do questionSize" 0 ""
+
+montar
+sed -i '' 's|^        var height: CGFloat = 120$|        var height: CGFloat = 120  // antes: hasPreview ? 540 : 460\
+        // return CGSize(width: hasPreview ? 540 : 460, height: height)|' "$NV"
+caso "540 só em linha de comentário" 0 ""
+
+# --- harness
+for v in $CENARIOS_DE_PREVIEW; do
+  montar
+  sed -i '' "s|Scenario(name: \"$v\", realNotch: true, frameHeight: 560, frameWidth: 900)|Scenario(name: \"$v\", realNotch: true, frameHeight: 560)|" "$MN"
+  caso "$v sem frameWidth" 1 "o cenário \"$v\" sem 'frameWidth: 900'"
+
+  montar
+  sed -i '' "s|Scenario(name: \"$v\", realNotch: true, frameHeight: 560, frameWidth: 900)|Scenario(name: \"$v\", realNotch: true, frameHeight: 560, frameWidth: 560)|" "$MN"
+  caso "$v com a janela de 560" 1 "o cenário \"$v\" sem 'frameWidth: 900'"
+done
+
+montar
+sed -i '' 's|question: larga, disponivel: vm.availableSize, topo: 32)|question: larga)|; s|AskCardView.layoutDoPreview(question: larga)|nil as AskPreviewLayout?|' "$MN"
+caso "só um cenário confere o layout" 1 "sem 'AskCardView.layoutDoPreview(' nos dois cenários"
+
+montar
+sed -i '' 's|askStore.send(.setHighlight(1))|askStore.send(.setHighlight(0))|' "$MN"
+caso "ask-preview com destaque na primeira" 1 "sem '.setHighlight(1)'"
+
+montar
+sed -i '' 's|Shift+Tab volta à lista|volta|' "$MN"
+caso "harness sem a tabela larga" 1 "sem a tabela larga do mockup"
 
 if [ "$AUTO" -ne 0 ]; then
   echo "FALHOU: autoteste do askcardcheck"

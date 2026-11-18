@@ -693,6 +693,32 @@ enum AskDoMockup {
 
     static let rodada = [teclado, checagens, abas]
 
+    /// `LARGA` do mockup: a tabela da primeira opção tem ~100 colunas e não cabe
+    /// ao lado da lista nem com o card na largura máxima; o preview desce.
+    static let larga = AskQuestion(
+        question: "Qual tabela de teclas entra na novidade da 0.38.0?",
+        header: "Novidade", multiSelect: false,
+        options: [
+            AskOption(label: "Tabela completa", description: "Todas as teclas, nos três contextos.",
+                      preview: [
+                        "Tecla      Pergunta simples                  Múltipla escolha                  Campo de texto",
+                        "---------  --------------------------------  --------------------------------  ----------------------",
+                        "1 a 9      responde com a opção              marca ou desmarca a opção         digita o número",
+                        "Enter      responde com a opção em destaque  confirma as marcadas              envia o texto",
+                        "Espaço     -                                 marca ou desmarca o destaque      digita um espaço",
+                        "Tab        leva o cursor ao campo            leva o cursor ao campo            Shift+Tab volta à lista",
+                        "Esc        solta o teclado                   solta o teclado                   volta à lista",
+                      ].joined(separator: "\n")),
+            AskOption(label: "Só as três principais", description: "Números, Enter e Esc.",
+                      preview: [
+                        "Tecla      O que faz",
+                        "---------  --------------------------------",
+                        "1 a 9      responde com a opção",
+                        "Enter      confirma",
+                        "Esc        solta o teclado",
+                      ].joined(separator: "\n")),
+        ])
+
     /// As duas marcadas do quadro "Duas marcadas", na ordem das opções.
     static let marcadas = ["Todos os gates", "Teste ao vivo"]
 
@@ -1341,20 +1367,35 @@ let scenarios: [Scenario] = [
         precondition(askStore.state.selected == Set(AskDoMockup.marcadas),
                      "ask-multiselect: duas marcadas")
     },
-    Scenario(name: "ask-preview", realNotch: true, frameHeight: 360) { _, _, askStore in
-        askStore.send(.enqueue(AskRequest(id: "s3", questions: [
-            AskQuestion(
-                question: "Qual layout do card?", header: "Layout",
-                multiSelect: false,
-                options: [
-                    AskOption(label: "Split",
-                              description: "opções + preview",
-                              preview: "+----------+-----------+\n| opções   | preview   |\n|          |  ascii    |\n+----------+-----------+"),
-                    AskOption(label: "Empilhado",
-                              description: "preview embaixo",
-                              preview: "+----------------------+\n|        opções        |\n+----------------------+\n|       preview        |\n+----------------------+"),
-                ])
-        ], receivedAt: Date(timeIntervalSince1970: 1_000))))
+    // Quadro "Opções com preview: sempre inteiro": três previews de 44 colunas
+    // por dentro da moldura, ao lado da lista, com o da opção em destaque (a
+    // segunda). frameWidth 900 e a mesma largura no disponível da view model: o
+    // card alarga além dos 560 de sempre e não pode bater no limite da janela.
+    Scenario(name: "ask-preview", realNotch: true, frameHeight: 560, frameWidth: 900) { vm, _, askStore in
+        vm.availableSize = CGSize(width: 900, height: 900)
+        askStore.send(.enqueue(AskDoMockup.pedido("s3", [AskDoMockup.abas])))
+        askStore.send(.setHighlight(1))
+        precondition(askStore.state.highlight == 1, "ask-preview: destaque na segunda opção")
+        // A mesma função que o card e o NotchView usam para o tamanho do preview.
+        let layout = AskCardView.layoutDoPreview(
+            question: AskDoMockup.abas, disponivel: vm.availableSize,
+            topo: vm.hasRealNotch ? vm.notchSize.height : 4)
+        precondition(layout?.lado == true, "ask-preview: 44 colunas cabem ao lado da lista")
+        precondition(layout?.fonte == 11, "ask-preview: letra de 11 pt, sem encolher")
+        precondition(layout?.rola == false, "ask-preview: o preview sai inteiro, sem rolagem")
+    },
+    // Quadro "Preview largo demais para ficar ao lado": a tabela de ~100 colunas
+    // desce para baixo das opções, na largura toda do card, inteira.
+    Scenario(name: "ask-preview-largo", realNotch: true, frameHeight: 560, frameWidth: 900) { vm, _, askStore in
+        vm.availableSize = CGSize(width: 900, height: 900)
+        askStore.send(.enqueue(AskDoMockup.pedido("s7", [AskDoMockup.larga])))
+        askStore.send(.setHighlight(0))
+        precondition(askStore.state.highlight == 0, "ask-preview-largo: destaque na primeira opção")
+        let layout = AskCardView.layoutDoPreview(
+            question: AskDoMockup.larga, disponivel: vm.availableSize,
+            topo: vm.hasRealNotch ? vm.notchSize.height : 4)
+        precondition(layout?.lado == false, "ask-preview-largo: a tabela não cabe ao lado e desce")
+        precondition(layout?.rola == false, "ask-preview-largo: embaixo a tabela sai inteira, sem rolagem")
     },
     // Quadro "Segunda pergunta, primeira já respondida": aba 1 com visto e a
     // resposta resumida, aba 2 atual, aba 3 pendente.
