@@ -25,11 +25,14 @@ Knobler/AppleRemindersView.swift
 Knobler/AppleRemindersNotchView.swift
 Knobler/AgendaView.swift
 Knobler/AgendaEditorView.swift
-Knobler/Ask.swift
 Knobler/AskModels.swift
 Knobler/AskFeature.swift
 Knobler/AskStore.swift
 Knobler/AskCard/AskCardModelo.swift
+Knobler/AskCard/AskCardView.swift
+Knobler/AskCard/AskAbasView.swift
+Knobler/AskCard/AskOpcaoView.swift
+Knobler/AskCard/AskRodapeView.swift
 Knobler/AgentRequestModels.swift
 Knobler/AgentRequestStore.swift
 Knobler/AgentRequestCard.swift
