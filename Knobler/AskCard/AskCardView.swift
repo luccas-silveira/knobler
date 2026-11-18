@@ -75,16 +75,43 @@ struct AskCardView: View {
         guard let ask, ask.questions.indices.contains(page) else { return nil }
         return ask.questions[page]
     }
-    private var hasPreview: Bool { question?.options.contains { $0.preview != nil } == true }
 
-    /// Preview exibido: opção em destaque; sem destaque, a primeira com preview.
-    private var previewText: String? {
-        if let destaque = askStore.state.highlight, let question,
-           question.options.indices.contains(destaque),
-           let preview = question.options[destaque].preview {
-            return preview
+    /// Preview exibido: o da opção em destaque (vazio se ela não tem); sem
+    /// destaque, o primeiro da pergunta.
+    private func textoDoPreview(_ question: AskQuestion) -> String {
+        if let destaque = askStore.state.highlight, question.options.indices.contains(destaque) {
+            return question.options[destaque].preview ?? ""
         }
-        return question?.options.compactMap(\.preview).first
+        return question.options.compactMap(\.preview).first ?? ""
+    }
+
+    // MARK: Tamanho do preview
+
+    /// Avanço de um caractere e altura de uma linha da letra do preview na
+    /// base de 11 pt, medidos da fonte de verdade uma vez só.
+    private static let letraDoPreview: (avanco: CGFloat, linha: CGFloat) = {
+        let fonte = NSFont.monospacedSystemFont(ofSize: AskPreviewLayout.base, weight: .regular)
+        return (fonte.maximumAdvancement.width, fonte.ascender - fonte.descender + fonte.leading)
+    }()
+
+    /// Onde o preview fica, com que letra e que largura o card precisa. O card
+    /// e o `NotchView` chamam esta mesma função, para nunca divergirem. `nil` =
+    /// pergunta sem preview.
+    static func layoutDoPreview(question: AskQuestion, disponivel: CGSize, topo: CGFloat) -> AskPreviewLayout? {
+        // 150 = topo, pergunta, campo e legenda
+        let alturaMaxima = max(120, disponivel.height - 24 - topo - 150)
+        var layout = AskPreviewLayout.calcular(
+            previews: question.options.compactMap(\.preview),
+            avanco: letraDoPreview.avanco,
+            linha: letraDoPreview.linha,
+            // o mesmo limite de largura do `NotchPresentation`
+            larguraMaxima: disponivel.width - 64,
+            alturaMaxima: alturaMaxima)
+        // Quando rola, o quadro para na altura que cabe; o resto é da rolagem.
+        if let calculado = layout, calculado.rola {
+            layout?.quadro.height = min(calculado.quadro.height, alturaMaxima)
+        }
+        return layout
     }
 
     var body: some View {
@@ -167,10 +194,22 @@ struct AskCardView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 2)
                 .padding(.bottom, 4)
-            if hasPreview {
-                HStack(alignment: .top, spacing: 10) {
-                    optionList(question: question).frame(width: 250)
-                    preview
+            if let layout = Self.layoutDoPreview(question: question, disponivel: vm.availableSize,
+                                                 topo: vm.hasRealNotch ? vm.notchSize.height : 4) {
+                let previa = AskPreviewView(
+                    texto: textoDoPreview(question), layout: layout,
+                    passo: AskPreviewLayout.passo(linha: Self.letraDoPreview.linha, fonte: layout.fonte))
+                if layout.lado {
+                    HStack(alignment: .top, spacing: AskPreviewLayout.vao) {
+                        optionList(question: question).frame(width: AskPreviewLayout.lista)
+                        previa
+                    }
+                } else {
+                    // largo demais para ficar ao lado: desce e usa a largura toda
+                    VStack(spacing: 8) {
+                        optionList(question: question)
+                        previa
+                    }
                 }
             } else {
                 optionList(question: question)
@@ -252,19 +291,6 @@ struct AskCardView: View {
     private func estaMarcada(_ option: AskOption, em question: AskQuestion) -> Bool {
         if question.multiSelect { return askStore.state.selected.contains(option.label) }
         return askStore.state.answers[question.question]?.labels.first == option.label
-    }
-
-    private var preview: some View {
-        ScrollView([.vertical, .horizontal]) {
-            Text(previewText ?? "")
-                .font(.system(size: 9, design: .monospaced))
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(6)
-        // altura natural do texto (com um piso), NÃO `maxHeight: .infinity`: com
-        // infinito o card preenche a proposta e a auto-medição trava na altura atual
-        .frame(minHeight: 120, alignment: .topLeading)
-        .background(RoundedRectangle(cornerRadius: AskEstilo.raio).fill(.white.opacity(AskEstilo.fundoDaLinha)))
     }
 
     /// Ditado ativo alimenta o campo do card: o nível aparece DENTRO dele.

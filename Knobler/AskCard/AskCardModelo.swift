@@ -104,6 +104,12 @@ struct AskPreviewLayout: Equatable {
     /// uma divisão e volta com erro de ponto flutuante.
     private static let folga: CGFloat = 0.001
 
+    /// Altura de uma linha do preview na letra `fonte`, já com o espaço entre
+    /// linhas. A altura do quadro e quem desenha as linhas usam esta conta.
+    static func passo(linha: CGFloat, fonte: CGFloat) -> CGFloat {
+        linha * fonte / base + entreLinhas
+    }
+
     /// `avanco` e `linha` são a largura de um caractere e a altura de uma
     /// linha da fonte monoespaçada a 11 pt; escalam linearmente com a letra.
     static func calcular(
@@ -134,7 +140,7 @@ struct AskPreviewLayout: Equatable {
         }
 
         func altura(_ fonte: CGFloat) -> CGFloat {
-            CGFloat(linhas) * (linha * fonte / base + entreLinhas) + vertical
+            CGFloat(linhas) * passo(linha: linha, fonte: fonte) + vertical
         }
         if altura(fonte) > alturaMaxima {
             // `entreLinhas` e `vertical` não escalam: a letra sai da equação

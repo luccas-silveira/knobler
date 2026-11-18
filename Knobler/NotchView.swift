@@ -335,16 +335,22 @@ struct NotchView: View {
             return CGSize(width: 460, height: 120)
         }
         let question = ask.questions[min(askStore.state.page, ask.questions.count - 1)]
-        let hasPreview = question.options.contains { $0.preview != nil }
+        // A mesma conta que o card faz para desenhar o preview: a largura sai dela.
+        let layout = AskCardView.layoutDoPreview(question: question, disponivel: vm.availableSize,
+                                                 topo: vm.hasRealNotch ? vm.notchSize.height : 4)
         // Estimativa só do primeiro frame, antes do card se medir:
         // topo+pergunta (64) + opções (58 cada) + rodapé com campo e legenda (62)
         var height = 64 + CGFloat(question.options.count) * 58 + 62
         if question.multiSelect { height += 34 }  // botão Confirmar
-        if hasPreview { height = max(height, 200) }
+        if let layout {
+            // ao lado, o card tem pelo menos a altura do preview; embaixo, soma
+            height = layout.lado ? max(height, 64 + layout.quadro.height + 62)
+                                 : height + 8 + layout.quadro.height
+        }
         // A altura real vem do próprio card (AlturaDoAskKey); os 18 são os
         // paddings que o `questionCard` acrescenta em volta dele.
         if askHeight > 0 { height = 6 + askHeight + 12 }
-        return CGSize(width: hasPreview ? 540 : 460, height: height)
+        return CGSize(width: layout?.larguraDoCard ?? AskPreviewLayout.larguraMinima, height: height)
     }
 
     // MARK: - HUD de som (pílula inline)
