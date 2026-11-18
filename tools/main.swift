@@ -1341,7 +1341,7 @@ let scenarios: [Scenario] = [
         precondition(askStore.state.selected == Set(AskDoMockup.marcadas),
                      "ask-multiselect: duas marcadas")
     },
-    Scenario(name: "ask-preview", realNotch: true, frameHeight: 360) { _, _, askStore in
+    Scenario(name: "ask-preview", realNotch: true) { _, _, askStore in
         askStore.send(.enqueue(AskRequest(id: "s3", questions: [
             AskQuestion(
                 question: "Qual layout do card?", header: "Layout",
