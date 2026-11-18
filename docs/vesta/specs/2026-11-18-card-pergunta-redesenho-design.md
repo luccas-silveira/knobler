@@ -123,8 +123,20 @@ O card cresce até 60% da distância entre o topo da tela e o Dock. Acima disso,
 lista de opções rola por dentro; pergunta, abas, campo de texto e legenda ficam
 fixos. Enquanto cabe, não existe área rolável nenhuma.
 
-O preview acompanha a opção em destaque (hover ou seta), usa letra de 11 pt e
-ganha a largura que sobra do card. Continua texto monoespaçado puro.
+O preview acompanha a opção em destaque (hover ou seta), em letra de 11 pt, e
+fica **sempre inteiro à vista**: não corta e não rola. Continua texto
+monoespaçado puro. A regra, nesta ordem:
+
+1. O card alarga até caber a linha mais comprida do **maior** preview da
+   pergunta, ao lado da lista de opções. A altura do quadro também é a do maior
+   preview, para o card não pular quando o destaque muda.
+2. Se não cabe ao lado nem com o card na largura máxima da janela, o preview
+   desce para baixo das opções e usa a largura toda.
+3. Se ainda assim não cabe, na largura ou na altura até o Dock, a letra encolhe
+   até caber, com piso de 8 pt. Abaixo do piso — preview descomunal — ele rola.
+
+O teto de 60% vale para a lista de opções; o preview pode levar o card além
+dele, até o Dock.
 
 ## Arquitetura
 
@@ -177,6 +189,11 @@ edição.
 troca não disparar a animação de card inteiro; a transição acontece dentro do
 card e a altura acompanha pela medida.
 
+**Tamanho do preview.** Colunas e linhas do maior preview vezes o avanço da
+fonte monoespaçada dão o tamanho do quadro — função pura, sem medir view, que o
+`NotchView` usa para a largura do card (hoje fixa em 540 com preview) e que
+ganha check hermético próprio em `tools/check.sh`.
+
 **Rolagem acima do teto.** Duas variantes da lista — conteúdo puro, e o mesmo
 conteúdo dentro de uma área rolável — com o sistema escolhendo a primeira que
 cabe no teto (`ViewThatFits`). A auto-medição do card deixa de usar "o maior
@@ -212,7 +229,8 @@ valor visto" e passa a aceitar encolher.
   rolagem desenham — hoje o preview sai vazio e o campo sai como "proibido".
   `ask-simple`, `ask-multiselect`, `ask-preview` e `ask-paged` regenerados;
   cenários novos para teclado em foco (destaque + legenda), aba respondida
-  revisitada, descrição longa, opção recomendada, lista acima do teto e o selo
+  revisitada, descrição longa, opção recomendada, lista acima do teto, preview
+  ao lado, preview largo empilhado e o selo
   "Claude perguntou" sobre a nota.
 - `tools/presentationcheck.swift`: pergunta não vence a tela em edição.
 - Ao vivo: `POST /ask` com 3 perguntas (simples, múltipla, com preview),
@@ -269,6 +287,8 @@ Dossiê: `docs/vesta/research/2026-11-18-card-pergunta-redesenho-research.md`
   ("sem teto, descrição inteira só sob o cursor"), que fazia o card pular.
 - **A13, A15** — rolagem só acima do teto por escolha entre duas variantes; a
   página sai da identidade do conteúdo para a troca de aba animar só por dentro.
+- **Preview sempre inteiro** — pedido do usuário na parada do mockup: o card
+  alarga, depois empilha, depois encolhe a letra; rolar só abaixo de 8 pt.
 - **A14** — cenários `ask-*` vão para a janela real do harness.
 - **A16** — monocromático, sem cor de destaque. Motivo: o `DESIGN.md` (que a
   pesquisa não tinha lido) já decide: a única cor viva é a da capa do álbum, e

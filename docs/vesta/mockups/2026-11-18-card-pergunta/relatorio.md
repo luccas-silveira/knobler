@@ -48,6 +48,27 @@ Contraste medido (texto sobre o fundo efetivo):
 | `text-overflow` em `span.r` | refutado: é a resposta resumida da aba, com reticências de propósito |
 | `cramped-padding` (só em 375) | refutado: em tela de celular o notch é reduzido por `zoom` para caber; no tamanho real a linha tem 8 px de respiro |
 
+## Rodada 3
+
+Pedido do usuário na parada do mockup: o preview tem de ficar sempre inteiro à vista.
+
+Prints: `r3-375.png`, `r3-1440.png`, `r3-estado-preview.png`, `r3-estado-preview-largo.png`.
+Console sem erro nem aviso. Sem rolagem lateral em 375 (scrollWidth 375) nem em 1440.
+
+- O preview deixou de rolar e de cortar: o card alarga até caber a linha mais comprida do
+  maior preview da pergunta (até 836 pt), a altura é a do maior preview, e quando nem assim
+  cabe ao lado das opções ele desce para baixo delas; por último a letra encolhe, com piso de
+  8 pt. Medido nos dois exemplos: `scrollWidth ≤ clientWidth` e `scrollHeight ≤ clientHeight`.
+- O preview empilhado encolhia 10 px na altura. Corrigido.
+- Em 375 a página ganhava rolagem lateral (scrollWidth 444): as colunas dos pares cresciam
+  com o card e o card encolhia antes de ser medido. Corrigido; os cards em par voltaram ao
+  tamanho real em 1440.
+
+| Alarme do detector | Veredito |
+|---|---|
+| `undersized-ui-text` (73), `tiny-text` (4), `text-overflow`, `cramped-padding` (3, só em 375) | refutados como na rodada 2 |
+| `em-dash-overuse` (44) | refutado: são os traços da moldura do preview em texto, não pontuação |
+
 ### Piso
 
 | Id | Resultado |
