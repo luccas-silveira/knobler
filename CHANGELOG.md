@@ -6,6 +6,18 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- Card de pergunta do Claude pelo teclado: com a pergunta na tela, o atalho do notch (⌃⌥K por padrão) dá o teclado ao card, e apertar de novo devolve ao app da frente. Setas movem o destaque, os números escolhem, Enter responde, espaço marca na múltipla escolha e Tab leva ao campo "Outra resposta". A pergunta continua chegando sem roubar o teclado.
+- Várias perguntas na mesma rodada viram abas, com volta: dá para abrir uma aba já respondida e trocar a resposta. Responder leva à próxima pendente; sem pendente, a rodada é enviada na hora.
+- A opção que o Claude marca como recomendada ganha o selo "Recomendada".
+- Se você está digitando no notch (nota, agenda, lembretes), a pergunta do Claude espera com o selo "Claude perguntou" no topo e abre quando você sai do campo ou clica no selo, sem perder o rascunho.
+- O preview da opção sai sempre inteiro, em letra maior: o card alarga, o preview desce para baixo das opções ou a letra encolhe até caber.
+
+### Changed
+- Esc no card de pergunta solta o teclado em vez de cancelar a pergunta, e o card continua na tela. Cancelar é `⌘.` ou o ✕.
+- As descrições das opções saem sempre inteiras, e o card não muda mais de altura conforme o mouse anda.
+- O card de pergunta para de crescer em 60% da tela; acima disso a lista de opções rola por dentro.
+
 ### Fixed
 - Trocar de conversa no notch abre sempre na mensagem mais recente. Antes a conversa nova podia abrir no meio do histórico ou com um vazio embaixo.
 - A lista do card não fica mais presa esticada, com um vazio embaixo, depois de um gesto de dois dedos que andou mais de lado do que pra cima ou pra baixo.

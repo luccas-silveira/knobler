@@ -2,7 +2,7 @@
 
 ![Card de pergunta simples](images/ask-simple.png)
 
-*Pergunta de escolha única.*
+*Pergunta de escolha única, com a opção recomendada pelo Claude.*
 
 ![Card de múltipla escolha](images/ask-multiselect.png)
 
@@ -11,17 +11,79 @@
 ## O que faz
 
 Quando o Claude Code usa a ferramenta `AskUserQuestion` (por exemplo, num hook
-`PreToolUse`), a pergunta aparece como um card interativo no notch em vez de
-ficar só no terminal — com opções de escolha única ou múltipla, e suporte a
-perguntas em sequência (paginadas). Responder no card devolve a resposta pro
-Claude via o mesmo hook que publicou a pergunta.
+`PreToolUse`), a pergunta aparece como um card no notch em vez de ficar só no
+terminal, com opções de escolha única ou múltipla e um campo "Outra resposta".
+Responder no card devolve a resposta pro Claude via o mesmo hook que publicou a
+pergunta.
+
+A pergunta chega **sem roubar o teclado**: o que você digita continua indo pro
+app em que você estava. A pergunta, as descrições das opções e o preview saem
+sempre inteiros.
 
 ## Como usar
 
 - Não exige ação manual do lado do Knobler: um hook `PreToolUse` do seu
   projeto Claude Code publica a pergunta via `POST /ask` na API local
   (ver `docs/local-api.md`); o card aparece sozinho.
-- Clique numa opção (ou marque várias, se for múltipla escolha) e confirme.
+- Com o mouse: clique na opção (pergunta simples responde na hora; na múltipla
+  escolha, marque as opções e clique em **Confirmar**).
+- Pelo teclado: com a pergunta na tela, o atalho do notch (⌃⌥K por padrão,
+  configurável em Ajustes › Notch) dá o teclado ao card. Apertar de novo solta
+  o teclado, que volta pro app da frente, e o card continua na tela. Clicar no
+  campo "Outra resposta" também dá o teclado ao card. Sem o teclado, o rodapé
+  mostra o atalho; com ele, a legenda das teclas.
+
+Com o teclado no card:
+
+| Tecla | Efeito |
+|---|---|
+| `↑` `↓` | move o destaque entre as opções |
+| `1`…`9` | escolhe a opção daquele número (pergunta simples: responde; múltipla: marca/desmarca) |
+| `⏎` | pergunta simples: responde com a opção em destaque; múltipla: confirma as marcadas |
+| `espaço` | múltipla: marca/desmarca a opção em destaque |
+| `←` `→` | troca de aba (pergunta anterior/seguinte), quando há mais de uma |
+| `⇥` | leva o cursor ao campo "Outra resposta"; `⇧⇥` volta à lista |
+| `esc` | no campo de texto, volta à lista; na lista, solta o teclado (o card fica) |
+| `⌘.` | cancela a pergunta, igual ao ✕ (ela volta para o terminal) |
+
+Os números valem pelo caractere digitado, então funcionam no teclado numérico e
+em qualquer layout. Opções além da nona não têm número; setas e mouse alcançam.
+
+O ✕ no canto do card cancela a pergunta, que volta para o terminal.
+
+### Várias perguntas: abas
+
+Com mais de uma pergunta na mesma rodada, o topo do card vira uma fileira de
+abas, uma por pergunta, cada uma marcada como pendente, atual ou respondida (com
+✓ e a resposta resumida). Dá para voltar a uma aba já respondida, pelo clique ou
+por `←` `→`: a resposta aparece marcada e responder de novo substitui a
+anterior. Responder leva à próxima aba pendente; quando não sobra pendente, a
+rodada é enviada na hora, sem tela de revisão. Marcações não confirmadas e texto
+não enviado se perdem na troca de aba.
+
+### Opção recomendada e preview
+
+Uma opção cujo rótulo termina em `(Recomendado)` ou `(Recommended)` aparece sem
+o sufixo e com o selo **Recomendada**; a resposta enviada ao Claude usa o rótulo
+original.
+
+Quando a opção traz um preview (texto monoespaçado), ele acompanha a opção em
+destaque e sai sempre inteiro: o card alarga até caber ao lado das opções; se
+não couber, o preview desce para baixo da lista; se ainda assim não couber, a
+letra encolhe até 8 pt, e só abaixo disso o preview rola.
+
+### Tamanho do card
+
+O card cresce até 60% da distância entre o topo da tela e o Dock. Acima disso,
+só a lista de opções rola por dentro; pergunta, abas, campo de texto e legenda
+ficam fixos. O preview pode levar o card além desse teto, até o Dock.
+
+### Pergunta durante a digitação
+
+Se você está digitando no notch (nota rápida, agenda, lembretes), a pergunta
+não toma o card: ela espera, e o card em uso ganha no topo o selo "Claude
+perguntou". A pergunta abre quando você sai do campo (Esc, clique fora) ou
+clica no selo, sempre sem pegar o teclado, e o rascunho do campo não se perde.
 
 Para instalar o hook globalmente no Claude Code:
 

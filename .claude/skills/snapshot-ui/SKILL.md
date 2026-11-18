@@ -25,7 +25,7 @@ regressão — não gaste tempo investigando o diff. Outros três dependem do
 relógio (`Date()` no cenário): `expanded-agentes`, `historico-linhas` e
 `lembretes-hoje` mudam quando duas rodadas caem em minutos diferentes. Pra
 comparar com um commit base, rode os dois binários em seguida e compare os
-PNGs da mesma rodada. O harness gera 96 PNGs no total.
+PNGs da mesma rodada. O harness gera 140 PNGs no total.
 
 Com a tela bloqueada nenhuma janela vira key: o cenário `agenda-criar` ainda
 gera o PNG, mas pula o teste de teclado e avisa no terminal (`agenda: teclado
@@ -38,8 +38,8 @@ verdade) não renderiza via `ImageRenderer` offscreen** — vira o ícone de
 "proibido" no lugar do conteúdo. Casos confirmados até agora:
 
 - `NavigationSplitView`/`HSplitView` (repro isolado).
-- `TextField` — o rodapé do `AskCardView`, por isso `ask-simple.png` e
-  `ask-multiselect.png` cortam antes da barra do campo de texto.
+- `TextField` — sai como uma faixa amarela com o ícone de "proibido" no lugar
+  do campo.
 - `WKWebView` — a seção Link (o preview de site não tem PNG no harness) e
   `NovidadesWindow`, a janela de novidades: mesma vala, por isso
   `docs/images/novidades.png` também é manual.
@@ -62,6 +62,28 @@ verdade) não renderiza via `ImageRenderer` offscreen** — vira o ícone de
 
 Ao adicionar cenário novo ao harness, desconfie de qualquer subview que envolva
 um desses.
+
+A saída pra `TextField` e `ScrollView` é a janela real: os cenários `agenda-`,
+`lembretes-`, `monitores-`, `whatsapp-` e `ask-` não passam pelo
+`ImageRenderer` — o `tools/main.swift` monta uma `NotchWindow` sintética com
+`NSHostingView`, põe na frente e captura com `cacheDisplay` (sai em @2x). É
+assim que o card de pergunta sai inteiro, com o campo "Outra resposta", a lista
+rolável e o preview. Cenário novo que dependa de campo de texto ou de rolagem
+entra por esse ramo (`scenario.name.hasPrefix(...)` no harness); se o prefixo
+for novo, cite-o aqui também.
+
+`docs/images/ask-simple.png` e `docs/images/ask-multiselect.png` saem de
+`Snapshots/ask-simple.png` e `Snapshots/ask-multiselect.png` depois de
+`./tools/snapshot.sh`, só aparando a sobra de fundo embaixo do card (o
+cenário tem 480 pt de altura):
+
+```bash
+for f in ask-simple ask-multiselect; do
+  magick Snapshots/$f.png -crop 1120x840+0+0 +repage docs/images/$f.png
+done
+```
+
+O `sips -c` não serve aqui: ele centraliza a área e come o topo do notch.
 
 Por isso `settings-*.png` (8 painéis de Ajustes) e `mapping-editor.png` **não**
 são gerados por `tools/snapshot.sh` — são mantidos à mão — junto com

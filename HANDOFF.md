@@ -1,3 +1,61 @@
+# 🏁 SESSÃO 2026-11-18 — card de pergunta do Claude redesenhado → 0.38.0 (pretendida)
+
+Entrega do plano `docs/vesta/plans/2026-11-18-card-pergunta.md` (spec em
+`docs/vesta/specs/2026-11-18-card-pergunta-redesenho-design.md`, mockup e
+relatórios de cada etapa em `docs/vesta/mockups/2026-11-18-card-pergunta/`).
+Oito etapas, todas no `master`; **ainda não publicada**. A release pretendida é
+a **0.38.0** (MINOR, feature nova): a entrada está em `## [Unreleased]` do
+`CHANGELOG.md`, a novidade em `Knobler/Novidades/0.38.0.html` e a versão já
+entrou em `NovidadesCatalogo.versoes`. Publicar com
+`./tools/release.sh minor` (o `--dry-run` passou).
+
+## O que foi feito
+
+- **Reducer** (`AskReducer`): abas, próxima pendente com volta, destaque e
+  escolha por número; a rodada é enviada quando acaba a última pendente.
+- **Modelo puro do card** e **card redesenhado** (`Knobler/AskCard/`): abas com
+  estado, selo do número em cada opção, selo "Recomendada", legenda das teclas,
+  descrições sempre inteiras.
+- **Preview sempre inteiro**: o card alarga, o preview desce ou a letra encolhe
+  até 8 pt.
+- **Teto de 60%** da distância até o Dock, com rolagem só na lista de opções
+  (barra clássica escondida com `.scrollIndicators(.never)`).
+- **Teclado no card** pelo atalho do notch (⌃⌥K): posse própria
+  (`tecladoNaPergunta`), teclas pelo vigia do app; Esc solta, `⌘.` e ✕
+  cancelam.
+- **Espera durante a digitação**: com edição em curso no notch, a pergunta
+  espera e o card em uso ganha o selo "Claude perguntou".
+- **Docs**: `docs/ask.md` reescrito (atalho, tabela de teclas, abas, preview,
+  espera), `docs/images/ask-simple.png` e `ask-multiselect.png` regenerados pelo
+  harness — o card de pergunta agora renderiza inteiro na janela real
+  sintética do `tools/snapshot.sh` (`.claude/skills/snapshot-ui/SKILL.md`).
+
+## ⏳ Pendente para o primeiro uso real
+
+O teste ao vivo com teclas postadas no sistema (`CGEvent` em `.cghidEventTap`)
+das etapas 6 e 7 foi **pulado por decisão do usuário** em 2026-11-18: as teclas
+sintéticas vão pro app da frente e o Mac estava em uso. As regras de teclado
+estão cobertas pelo gate hermético `tools/asktecladocheck.swift` e pelas
+`precondition` dos cenários `ask-teclado`, `ask-texto` e `ask-espera-*`, mas
+falta conferir no app real:
+
+- **Etapa 6** (passos 2 a 7 do plano; o passo 1 rodou): ⌃⌥K dá o teclado e uma
+  rodada de 3 perguntas é respondida só no teclado, com volta à primeira e troca
+  da resposta (`GET /ask/<id>` com as três); Esc e ⌃⌥K duas vezes soltam o
+  teclado com o card na tela; Tab, texto, Enter responde com texto e Tab, Esc
+  volta à lista; `⌘.` devolve `{"cancelled":true}`; com o card de música aberto
+  por ⌃⌥K e pergunta chegando, ← → não trocam a seção por trás e o card de
+  música não abre sozinho depois; ⌃⌥K com o card do Codex segue como antes.
+- **Etapa 7**: digitando na nota, `POST /ask` → o selo aparece e a digitação
+  segue sem perder tecla; Esc na nota → a pergunta abre sem teclado (legenda do
+  atalho).
+- **Rolagem herdada da etapa 5**: dois dedos e rodinha sobre a lista; gesto de
+  lado sobre o card não troca de música; primeiro frame de uma pergunta longa
+  (a estimativa inicial não é limitada ao teto); troca de aba entre uma lista
+  que rola e uma que não rola.
+
+Rodar um build encerra o Knobler de `/Applications`: reabra-o ao terminar.
+
 # 🏁 SESSÃO 2026-08-05 — as 10 conversões restantes → v0.24.0
 
 ## ⏳ Pendências pro próximo release (2026-08-20)
