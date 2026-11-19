@@ -6,6 +6,8 @@ Regras de bump em [VERSIONING.md](VERSIONING.md).
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-11-19
+
 ### Added
 - Card de pergunta do Claude pelo teclado: com a pergunta na tela, o atalho do notch (⌃⌥K por padrão) dá o teclado ao card, e apertar de novo devolve ao app da frente. Setas movem o destaque, os números escolhem, Enter responde, espaço marca na múltipla escolha e Tab leva ao campo "Outra resposta". A pergunta continua chegando sem roubar o teclado.
 - Várias perguntas na mesma rodada viram abas, com volta: dá para abrir uma aba já respondida e trocar a resposta. Responder leva à próxima pendente; sem pendente, a rodada é enviada na hora.
